@@ -1,8 +1,8 @@
 {
   "log": {
-    "access": "",
-    "error": "",
-    "loglevel": "debug"
+    "access": "/usr/bin/V2RayConfig/V2Ray_access.log",
+    "error": "/usr/bin/V2RayConfig/V2Ray_error.log",
+    "loglevel": "warning"
   },
   "stats": {},
   "api": {
@@ -34,7 +34,7 @@
   },
   "inbounds": [
     {
-      "port": 31290,
+      "port": 31291,
       "listen": "127.0.0.1",
       "protocol": "vmess",
       "settings": {
@@ -43,7 +43,7 @@
             "id": "a4f7ef9b-6951-2397-098d-bb1e660b3805",
             "alterId": 64,
             "level": 1,
-            "email": "xxx_ls_ws_username@v2ray.com"
+            "email": "xxx@v2ray.com"
           }
         ]
       },

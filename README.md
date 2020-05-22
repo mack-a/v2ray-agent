@@ -1,355 +1,199 @@
-# v2ray-network
-本项目旨在更好的学习新知识，采用CDN+TLS+Nginx+v2ray进行伪装并突破防火墙。
+# v2ray-agent
+>我始终相信人是自由的，这是本项目设立的初衷，同时也感谢各种软件的开发者与维护者。
+>世界就是这样，当你开始思考时，你已经是小部分中的一员了。祝大家使用愉快。
+
+- 本项目涉及知识点较多请耐心看完，知其然知其所以然。
+- 此项目分别采用CDN+TLS+Nginx+V2Ray、Trojan进行模拟正常网站并突破防火墙，同时包含优化方法，以及简单的原理讲解。
+- 极力推荐【[自建教程](#自建教程)】，自建教程可以快速入手并知晓其中的步骤。如遇到不懂以及不理解的可以加入[TG群讨论【对小白尤其友好】](https://t.me/v2rayAgent)。
+- 优化方案包含对Cloudflare的优化（[CNAME优化、DNS优化、断流优化、](#优化方案)），VPS处理性能优化（bbr、bbr plus【阻塞拥堵算法，加快对流量的处理】）、其余设置（开机启动）、docker镜像、防火墙设置。
+- 同时提供[流量中转教程](#流量转发服务)【大大提高流量传输的速度，减少丢包】、[免费测试账号](#免费账号正常使用点击查看)。
+- 接下来会提供V2Ray配置生成器、iptables流量转发、Docker镜像、私有Docker仓库、私有git仓库【gitlab】、以及可供部署k8s容器等方面的内容。
+- 提供免费订阅链接【[点击查看](https://github.com/mack-a/v2ray-agent/blob/master/free_account.md)】【如无法使用可加入TG群反馈】。
+- 如本项目缺少还未加入或者完善的教程，肯定是群主懒，加入TG群鞭打群主，让群主更有动力。
+
+## 欢迎加入TG群，共同学习、共同成长。
+[点击此链接加入电报群](https://t.me/v2rayAgent)
+* * *
+# 目录
+- [技能点列表](#技能点列表)
+- [自建教程](#自建教程)
+  * [1.V2Ray](#1v2ray)
+      + [1.方法1](#方法1flexible建议使用该方法)
+      + [2.方法2](#方法2full)
+  * [2.Trojan](#2trojan)
+- [流量转发服务](#流量转发服务)
+   * [1.tls+ws](1tlsws点击查看)
+   * [2.tcp+vmess](#2tcpvmess点击查看)
+- [客户端](#客户端)
+  * [1.windows](#1windows)
+  * [2.Android](#2android)
+  * [2.ios](#3ios需要自行购买或者使用共享账号安装)
+  * [2.Mac](#4mac)
+- ~~[一键脚本](#一键脚本)~~
+  * [1.自动模式](#1自动模式)
+  * [2.手动模式](#2手动模式)
+- [防护墙设置](#防火墙设置点击查看)
+- [免费账号【正常使用】](#免费账号正常使用点击查看)
+- [备注](#备注)
+  * [1.推荐使用v2ray+CDN的方式](#1推荐使用v2ray-cdn的方式)
+      + [1.优点](#1优点)
+      + [2.缺点](#2缺点)
+      + [3.数据包解析](#3数据包解析)
+      + [4.建议](#4建议)
+  * [2.速度首选V2Ray TCP方式](#2速度首选v2ray-tcp方式)
+  * [3.本地网络环境不稳定首选mKCP](#3本地网络环境不稳定首选mkcp)
+  * [4.目前不推荐使用ss、ssr](#4目前不推荐使用ss-ssr)
+- [维护进程[todo List]](#维护进程todo-list)
+  * [1.一键脚本](#1一键脚本)
+    + [1.自动模式](#1自动模式)
+    + [2.手动模式](#2手动模式)
+
+* * *
+### 优化方案
+- [优化v2ray【断流、CNAME自选ip、dnsmasq自定义dns实现cname自选ip】](https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md)
+- [其余设置【开机自启、bbr加速】](https://github.com/mack-a/v2ray-agent/blob/master/settings.md)
 
 # 技能点列表
-- [bandwagonhost[centos7]链接一](https://bandwagonhost.com)
-- [bandwagonhost[centos7]链接二](https://bwh1.net)【境外vps或者其他vps厂商】
-- [cloudflare](cloudflare.com)【CDN】
+- [cloudcone](https://app.cloudcone.com/?ref=5346)【vps】
+- [bandwagonhost](https://bandwagonhost.com/aff.php?aff=46893)【vps】
+- [freenom](https://freenom.com/)【免费域名【注册时最好使用全局代理、ip所在地和注册地一致并且最好使用手机】】
 - [godaddy](https://www.godaddy.com/)【域名厂商】
+- [cloudflare](cloudflare.com)【CDN】
 - [letsencrypt](https://letsencrypt.org/)【HTTPS】
-- [Nginx](https://www.nginx.com/)【反向代理】
-- [v2ray](v2ray.com)【代理工具】
+- [Nginx](https://www.nginx.com/)【域名反向代理】
+- [V2Ray](v2ray.com)【代理工具】
 
-# 1.准备工作
-## 1.注册[cloudflare](cloudflare.com)
-## 2.注册[godaddy](https://www.godaddy.com/)并购买域名
-- 域名可选择xyz结尾的国际域名，可采用多字符乱码的方式组合域名，(比如wk1c.xyz)首年大概8RMB左右，第二年可以直接买一个新的。
+* * *
 
-## 3.修改godaddy域名的DNS解析
-### 1.登录cloudflare，添加域名
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/cloudflare.png" width=400>
+# 自建教程
+# 1.V2Ray
+- ios端建议使用Quantumult，表现要比Trojan好。
 
-### 2.选择套餐
-- 如果仅仅只享受科学上网功能，选择free即可
-- 如果需要更好的网络环境、更快的速度，可选择相应的套餐
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/cloudflare_plan.png" width=400>
+## 方法1(Flexible)【建议使用该方法】
+- 只使用CloudFlare的证书
+- 客户端->CloudFlare使用TLS+vmess加密，CloudFlare->VPS只使用vmess，[点击查看](https://github.com/mack-a/v2ray-agent/blob/master/Cloudflare_Flexible.md)
+- 不需要自己维护自己的https证书
+- 少一步解析证书的过程，速度理论上会快一点
 
-### 3.根据提示修改godaddy的dns解析
-- cloudflare提示界面
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/cloudflare_dns.png" width=400>
+## 方法2(Full)
+- 需要自己生成https证书，并自己维护，一般使用let's encrypt生成有效期为三个月。
+- 客户端->CloudFlare使用CLoudFlare TLS+vmess加密，CloudFlare->VPS使用let's encrypt TLS+vmess加密，[点击查看](https://github.com/mack-a/v2ray-agent/blob/master/Cloudflare_Full.md)
+- 与方法1不同的是，CloudFlare和VPS通讯时也会使用TLS加密。两个方法安全方面区别不是很大。
 
-- godaddy DNS管理，根据上面的cloudflare提示界面修改为相应的dns
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/godayddy_dns.png" width=400>
+# 2.Trojan
+- 需要自己生成证书
+- 客户端->使用自己生成的tls加密无其他加密->VPS,[点击查看](https://github.com/mack-a/v2ray-agent/blob/master/Trojan.md)
+- 少一层加密，理论速度会快一些。
+- 速度取决于VPS的线路。
+- 需要自己维护证书。
+- [官方Github](https://github.com/trojan-gfw/trojan)
 
-## 4.增加cloudflare域名解析
-- 添加域名解析(记录)，可以选择二级域名，这样就可以一个月解析到不同的服务器，name填写你要解析的二级域名的host部分，比如ls.example.com 只填写ls即可
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/cloudflare_record_dns.png" width=400>
+# 流量转发服务
+## 1.tls+ws[点击查看](https://github.com/mack-a/v2ray-agent/blob/master/traffic_relay_tls_ws.md)
 
-## 5.修改godaddy SSL/TLS
-- 如果vps选择使用https，需要把类型修改为Full
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/cloudflare_tls.png" width=400>
+## 2.tcp+vmess[点击查看](https://github.com/mack-a/v2ray-agent/blob/master/traffic_relay_tcp_vmess.md)
 
-# 2.vps配置Nginx、https
-## 1.安装Nginx
+# 客户端
+## 1.windows
+- [v2rayN](https://github.com/2dust/v2rayN/releases)
+
+## 2.Android
+- [v2rayNG](https://github.com/2dust/v2rayNG/releases)
+
+## 3.ios【需要自行购买或者使用共享账号安装】
+- Quantumult【推荐使用】
+- Shadowrocket
+
+## 4.Mac
+- [V2rayU](https://github.com/yanue/V2rayU/releases)
+
+# 一键脚本
+- <span style='color:red'>执行一键脚本的前提是下面的 【1.准备工作】完成并正确</span>
 ```
-yum install nginx
-```
-## 2.nginx配置文件
-
-- 1.下载配置文件并替换默认文件
-```
-cd /etc/nginx&&rm -rf /etc/nginx/nginx.conf&&wget https://raw.githubusercontent.com/mack-a/v2ray-agent/master/config/nginx.conf
-# 如果缺少wget 则执行下面的命令，然后重复上面的命令
-yum install wget
-```
-- 将下载好的文件中关于ls.xxx.xyz的内容都替换成你的二级域名
-
-## 3.生成https
-
-- 1.安装acme.sh
-```
-curl https://get.acme.sh | sh
-% Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                               Dload  Upload   Total   Spent    Left  Speed
-100   671  100   671    0     0    680      0 --:--:-- --:--:-- --:--:--   679
-% Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                               Dload  Upload   Total   Spent    Left  Speed
-100  112k  100  112k    0     0   690k      0 --:--:-- --:--:-- --:--:--  693k
-[Fri 30 Dec 01:03:32 GMT 2016] Installing from online archive.
-[Fri 30 Dec 01:03:32 GMT 2016] Downloading https://github.com/Neilpang/acme.sh/archive/master.tar.gz
-[Fri 30 Dec 01:03:33 GMT 2016] Extracting master.tar.gz
-[Fri 30 Dec 01:03:33 GMT 2016] Installing to /home/user/.acme.sh
-[Fri 30 Dec 01:03:33 GMT 2016] Installed to /home/user/.acme.sh/acme.sh
-[Fri 30 Dec 01:03:33 GMT 2016] Installing alias to '/home/user/.profile'
-[Fri 30 Dec 01:03:33 GMT 2016] OK, Close and reopen your terminal to start using acme.sh
-[Fri 30 Dec 01:03:33 GMT 2016] Installing cron job
-no crontab for user
-no crontab for user
-[Fri 30 Dec 01:03:33 GMT 2016] Good, bash is found, so change the shebang to use bash as preferred.
-[Fri 30 Dec 01:03:33 GMT 2016] OK
-[Fri 30 Dec 01:03:33 GMT 2016] Install success!
+bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh)
 ```
 
-- 2.生成https证书
-```
-# 替换ls.xxx.xyz为自己的域名
-sudo ~/.acme.sh/acme.sh --issue -d ls.xxx.xyz --standalone -k ec-256
+## 1.自动模式
+- 只需要输入域名即可
+- 仔细检查【1.准备工作】正确
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/一键脚本自动模式.png" width=400>
 
-# 如果提示Please install socat tools first.则执行，安装完成后继续重复执行上面的命令
-yum install socat
-```
+## 2.手动模式
+- 可以指定需要执行的内容
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/一键脚本手动模式.png" width=400>
 
-- 3.安装证书
-```
-# 替换ls.xxx.xyz为自己的域名
-~/.acme.sh/acme.sh --installcert -d ls.xxx.xyz --fullchainpath /etc/nginx/ls.xxx.xyz.crt --keypath /etc/nginx/ls.xxx.xyz.key --ecc
-```
 
-- 4.修改/etc/nginx/nginx.conf
-```
-# 将下面这部分前面的#去掉，并将ssl_certificate、ssl_certificate_key修改成自己的路径
+# 防火墙设置[点击查看](https://github.com/mack-a/v2ray-agent/blob/master/firewall.md)
+# 免费账号【正常使用】[点击查看](https://github.com/mack-a/v2ray-agent/blob/master/free_account.md)
+# 备注
+## 1.推荐使用v2ray+CDN的方式
+### 1.优点
+- 1.防止境外vps被墙
+- 2.由于CDN的方式是通过完全模拟正常网站，也可以是说本来就是一个正常的网站，同时又使用正常的CDN厂商（全球最大），有很多的外贸以及国外公司使用，墙一般不敢ban这些ip
+- 3.可以用于被墙vps的搭建
+- 4.相对来说更加安全
 
-# ssl on;
-# ssl_certificate /etc/nginx/ls.xx.xyz.crt;
-# ssl_certificate_key /etc/nginx/ls.xx.xyz.key;
-# ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
-# ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;
-# ssl_prefer_server_ciphers on;
-```
+### 2.缺点
+- 1.配置过程复杂
+- 2.知识点相对比较多
+- 3.维护相对复杂
+- 4.由于CloudFlare不是国内的CDN厂商，速度相对来说慢一些（可以尝试CNAME优化方案[CNAME因为要使用国内的dns，相对于来说有风险]、或者使用自定义dns服务器[分享相对小一些]）
 
-- 5.每一次生成https证书后有效期只有三个月，需要快过期时更新（剩余七天内可以重新生成）
-```
-# 替换ls.xxx.xyz为自己的域名
-sudo ~/.acme.sh/acme.sh --renew -d ls.xxx.xyz --force --ecc
-```
+### 3.数据包解析
+- 1.首先运营商以及GFW获取到的数据包，无法作为中间人进行攻击（中间人可以直接获取到v2ray的加密数据包）
+- 2.即使获取到数据包之后，还需要对数据包进行解密，所以证书推荐使用第三方的，而不使用官方提供的，用了TLS加密的数据不是说不能解密，而是需要耗费巨大的时间以及运算能力
+- 3.解密完成后 还需要对v2ray加密的数据进行解密、嗅探等操作
+- 4.不建议使用不明来历的机场，如果机场主是国内的某些关系户，你用的代理相当于实名翻墙（违法）
 
-# 3.配置v2ray
-## 1.安装v2ray
+### 4.建议
+- 1.注意隐私保护（今日不同往日）
+- 2.建议只用做学习以及娱乐使用，不建议发表一些敏感言论（不管是诋毁自己所在的国家，还是诋毁别的国家）
+- 3.不建议人身攻击（有被起底的先例）
 
-```
-bash <(curl -L -s https://install.direct/go.sh)
-```
+## 2.速度首选V2Ray TCP方式
+- 1.本脚本目前不支持（后续可能会添加）
 
-## 2.v2ray配置文件
+## 3.本地网络环境不稳定首选mKCP
+- 1.本脚本目前不支持（后续可能会添加）
 
-- 下载config_ws_tls.json
-```
-cd&&wget https://raw.githubusercontent.com/mack-a/v2ray-agent/master/config/config_ws_tls.json
-```
+## 4.目前不推荐使用ss、ssr
 
-- 配置文件的id可以自己生成一个新的，替换即可
-```
-/usr/bin/v2ray/v2ctl  uuid
-```
+# 维护进程[todo List]
+## 1.一键脚本
+### 1.自动模式
+- [x] 1.检查系统版本是否为Ubuntu、Centos、Debian
+- [x] 2.安装工具包
+- [x] 3.检测nginx是否安装并配置
+- [x] 4.检测https是否安装并配置
+- [x] 5.检测V2Ray是否安装并配置
+- [x] 6.生成vmess、二维码链接
+- - [x] 1.shadowrocket
+- - [ ] 2.Quantumult
+- [x] 7.启动服务并退出脚本
+- [ ] 8.HTTPS续签
+- [ ] 9.开机自启动
+- [ ] 10.面板搭建
+- - [ ] 1.在线创建、删除、修改账户
+- - [ ] 2.一键管理Nginx、TLS
+- - [ ] 3.开机自启动
+- - [ ] 4.流量控制
+- - [ ] 5.日志查看
+- [x] 11.Docker[开箱即用]
+- [x] 12.自定义DNS服务器替换CNAME优化方案
+- [ ] 13.k8s+docker一键构建V2Ray Nginx
 
-## 3.启动v2ray
-```
-/usr/bin/v2ray/v2ray -config ./config_ws_tls.json&
-```
+### 2.手动模式
+- [x] 1.检查系统版本是否为Ubuntu、Centos、Debian
+- [x] 2.安装工具包
+- [x] 3.检测nginx是否安装并配置
+- [x] 4.检测https是否安装并配置
+- [x] 5.检测V2Ray是否安装并配置
+- [x] 6.启动服务并退出脚本
+- [x] 7.卸载安装的所有内容
+- [x] 8.查看配置文件路径
+- [x] 9.生成Vmess链接
+- [x] 10.返回主目录
+- [x] 11.退出脚本
 
-# 4.客户端
-## 1.MacOS
-- 下载V2RayU[点我下载](https://github.com/yanue/V2rayU/releases/download/1.4.1/V2rayU.dmg)
-- 下载后打开，服务器设置，修改address即可
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/v2rayU_服务器配置.png" width=400>
-
-- pac设置，添加下面的链接
-```
-https://raw.githubusercontent.com/gfwlist/gfwlist/master/gfwlist.txt
-```
-
-- 选择使用Pac模式，即可
-## 2.windows
-- 下载v2rayN[点我下载](https://github.com/2dust/v2rayN/releases/download/2.44/v2rayN.zip)
-- 使用方法 [点我查看](https://github.com/233boy/v2ray/wiki/V2RayN%E4%BD%BF%E7%94%A8%E6%95%99%E7%A8%8B)
-
-<hr/>
-<h3>到这里就配置完成，可以测试是否能上被q的网站</h3>
-<hr/>
-
-# 5.其余设置
-## 1.开机自启
-### 1.配置Nginx开机自启
-- 创建service文件
-```
-cd /etc/systemd/system&&touch nginxReboot.service
-```
-
-- 将下面内容复制到/etc/systemd/system/nginxReboot.service
-```
-[Unit]
-Description=nginx - high performance web server
-After=network.target remote-fs.target nss-lookup.target
-
-[Service]
-Type=forking
-PIDFile=/run/nginx.pid
-Environment=PATH=/root/.nvm/versions/node/v12.8.1/bin:/usr/bin/v2ray/:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/root/bin:/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
-ExecStartPre=/usr/sbin/nginx -t -c /etc/nginx/nginx.conf
-ExecStart=/usr/sbin/nginx -c /etc/nginx/nginx.conf
-ExecReload=/usr/sbin/nginx -s reload
-ExecStop=/usr/sbin/nginx -s stop
-ExecQuit=/usr/sbin/nginx -s quit
-PrivateTmp=true
-
-[Install]
-WantedBy=multi-user.target
-```
-
-- 设置开机自启
-```
-sudo systemctl enable nginxReboot.service
-```
-- 可能出现的错误
-```
-# 可能会出现 (13: Permission denied) while connecting to upstream:[nginx]
-// 解决方法 执行下面的命令
-setsebool -P httpd_can_network_connect 1
-```
-
-### 2.配置v2ray_ws_tls开机自启
-- 创建service文件
-```
-cd /etc/systemd/system&&touch v2ray_ws_tls.service
-```
-
-- 将下面内容复制到/etc/systemd/system/v2ray_ws_tls.service
-```
-[Unit]
-Description=V2Ray WS TLS Service
-After=network.target
-Wants=network.target
-
-[Service]
-Type=simple
-PIDFile=/run/v2rayWSTLS.pid
-ExecStart=/usr/bin/v2ray/v2ray -config /root/config_ws_tls.json
-Restart=on-failure
-# Don't restart in the case of configuration error
-RestartPreventExitStatus=23
-
-[Install]
-WantedBy=multi-user.target
-```
-- 设置开机自启
-```
-sudo systemctl enable v2ray_ws_tls.service
-```
-### 3.测试开机自启是否成功
-- 重启vps
-```
-reboot
-```
-- 重启后查看程序是否正常启动
-```
-# 执行下方命令查看v2ray是否启动
-ps -ef|grep v2ray
-
-root      4533     1  0 03:03 ?        00:00:00 /usr/bin/v2ray/v2ray -config /root/config_ws_tls.json
-root      4560  1287  0 03:04 pts/0    00:00:00 grep --color=auto v2ray
-
-# 执行下方命令查看nginx是否启动，
-ps -ef|grep nginx
-``
-root       762     1  0 02:20 ?        00:00:00 nginx: master process /usr/sbin/nginx -c /etc/nginx/nginx.conf
-nginx      763   762  0 02:20 ?        00:00:00 nginx: worker process
-root      4562  1287  0 03:04 pts/0    00:00:00 grep --color=auto nginx
-```
-# 6.异常处理
-## 1.偶尔断流
-- 修改cloudflare Firwall Rules->create a Firewall rule
-- - 设置Field:URI path
-- - 设置：value:/v2
-- - Choose an action:Allow
-
-# 7.开启Centos bbr拥塞控制算法[我的测试机是centos 8]
-## 1.检查是否安装bbr
-- 有一些vps会自带bbr模块 比如搬瓦工的某些机器，执行下面命令
-```
-lsmod | grep bbr
-```
-- 如果输出类似内容则已经开启bbr 到这里就可以结束了
-```
-tcp_bbr                20480  28
-```
-## 2.yum更新
-```
-yum update
-```
-## 3.查看系统版本
-- 执行下面命令
-```
-cat /etc/redhat-release
-```
-
-- 如果release后面的数字大于7.3即可
-```
-CentOS Linux release 7.7.1908 (Core)
-```
-## 4.安装elrepo并升级内核
-- 分别依次执行下面命令
-```
-rpm --import https://www.elrepo.org/RPM-GPG-KEY-elrepo.org
-rpm -Uvh http://www.elrepo.org/elrepo-release-7.0-2.el7.elrepo.noarch.rpm
-yum --enablerepo=elrepo-kernel install kernel-ml -y
-```
-- 正常情况下会输出下面内容
-```
-Transaction Summary
-================================================================================
-Install  1 Package
-Total download size: 39 M
-Installed size: 169 M
-Downloading packages:
-kernel-ml-4.9.0-1.el7.elrepo.x86_64.rpm                    |  39 MB   00:00
-Running transaction check
-Running transaction test
-Transaction test succeeded
-Running transaction
-Warning: RPMDB altered outside of yum.
-  Installing : kernel-ml-4.9.0-1.el7.elrepo.x86_64                          1/1
-  Verifying  : kernel-ml-4.9.0-1.el7.elrepo.x86_64                          1/1
-Installed:
-  kernel-ml.x86_64 0:4.9.0-1.el7.elrepo
-Complete!
-```
-## 5.更新grud文件并重启
-- 依次执行下面的命令，重启后需要等待数秒重新使用ssh连接
-```
-egrep ^menuentry /etc/grub2.cfg | cut -f 2 -d \'
-grub2-set-default 0
-reboot
-```
-## 6.开机后检查内容是否为4.9及以上版本
-- 执行下面的命令
-```
-uname -r
-```
-- 输出结果
-```
-5.3.7-1.el7.elrepo.x86_64
-```
-## 7.开启bbr
-- 执行下面的命令
-```
-vim /etc/sysctl.conf
-```
-- 添加如下内容
-```
-net.core.default_qdisc = fq
-net.ipv4.tcp_congestion_control = bbr
-```
-- 加载系统参数
-```
-sysctl -p
-```
-## 8.验证bbr是否开启成功
-### 测试方法1
-- 执行下面的命令
-```
-sysctl net.ipv4.tcp_available_congestion_control
-```
-- 输出下面内容即为成功
-```
-net.ipv4.tcp_available_congestion_control = bbr cubic reno
-```
-
-### 测试方法2
-- 执行下面的命令
-```
-lsmod | grep bbr
-```
-- 输出下面内容即为成功
-```
-tcp_bbr                20480  28
-```
+## 1.手动搭建
+- [x] 手动搭建
