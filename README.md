@@ -64,7 +64,7 @@
 
 * * *
 # 一键脚本【全自动WebSocket+TLS+CDN一键脚本】
-- 目前仅支持Centos，后续支持剩余系统
+- 目前支持Centos、Ubuntu、Debian
 ```
 bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh)
 ```

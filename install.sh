@@ -273,6 +273,8 @@ installV2Ray(){
     fi
     echoContent yellow "客户端链接--->"
     qrEncode $1
+    echoContent yellow "监听V2Ray日志，如有日志出现则证明线路可用--->"
+    tail -f /tmp/v2ray/v2ray_access_ws_tls.log
 }
 # 开机自启
 installV2RayService(){
