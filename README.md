@@ -12,8 +12,6 @@
 - 提供免费订阅链接【[点击查看](https://github.com/mack-a/v2ray-agent/blob/master/free_account.md)】【如无法使用可加入TG群反馈】。
 - 如本项目缺少还未加入或者完善的教程，肯定是群主懒，加入TG群鞭打群主，让群主更有动力。
 
-## 欢迎加入TG群，共同学习、共同成长。
-[点击此链接加入电报群](https://t.me/v2rayAgent)
 * * *
 # 目录
 - [一键脚本](#一键脚本全自动websockettlscdn一键脚本)
@@ -61,6 +59,10 @@
 - [letsencrypt](https://letsencrypt.org/)【HTTPS】
 - [Nginx](https://www.nginx.com/)【域名反向代理】
 - [V2Ray](v2ray.com)【代理工具】
+
+
+## 欢迎加入TG群，共同学习、共同成长。
+[点击此链接加入电报群](https://t.me/v2rayAgent)
 
 * * *
 # 一键脚本【全自动WebSocket+TLS+CDN一键脚本】
