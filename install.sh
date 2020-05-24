@@ -184,7 +184,7 @@ installTLS(){
     then
         echoContent yellow "安装TLS证书--->"
         echoContent yellow "  安装acme--->"
-        curl -s https://get.acme.sh | sh >/dev/null
+        curl -s https://get.acme.sh | sh > /dev/null
         echoContent green  "  acme安装完毕--->"
         echoContent yellow "生成TLS证书中，请等待--->"
         sudo ~/.acme.sh/acme.sh --issue -d $1 --standalone -k ec-256 >/dev/null
@@ -273,7 +273,7 @@ installV2Ray(){
     fi
     echoContent yellow "客户端链接--->"
     qrEncode $1
-    echoContent yellow "监听V2Ray日志，如有日志出现则证明线路可用--->"
+    echoContent yellow "监听V2Ray日志，如有日志出现则证明线路可用，Ctrl+c停止--->"
     tail -f /tmp/v2ray/v2ray_access_ws_tls.log
 }
 # 开机自启
