@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 installType='yum -y install'
-remove='yum -y remove'
+removeType='yum -y remove'
 upgrade="yum -y update"
 echoType='echo -e'
 
@@ -36,7 +36,13 @@ echoContent(){
         ;;
     esac
 }
+fixBug(){
+    if [[ "${release}" = "ubuntu" ]]
+    then
+        cd /var/lib/dpkg/
 
+    fi
+}
 # 安装工具包
 installTools(){
     # echo "export LC_ALL=en_US.UTF-8"  >>  /etc/profile
@@ -48,7 +54,14 @@ installTools(){
         then
             nginx -s stop
         fi
-        removeLog=`yum remove nginx -y`
+
+        if [[ "${release}" = "ubuntu" ]] || [[ "${release}" = "debian" ]]
+        then
+            dpkg --get-selections | grep nginx|awk '{print $1}'|xargs sudo apt --purge remove -y > /dev/null
+        else
+            removeLog=`${removeType} nginx`
+        fi
+        rm -rf /etc/nginx/nginx.conf
     fi
 
     if [[ ! -z `find /usr/bin/ -name "v2ray*"` ]]
@@ -96,7 +109,12 @@ installTools(){
 
     echoContent yellow "检查、安装crontabs--->"
     progressTool crontabs &
-    ${installType} crontabs > /dev/null
+    if [[ "${release}" = "ubuntu" ]]
+    then
+        ${installType} cron > /dev/null
+    else
+        ${installType} crontabs > /dev/null
+    fi
 
     echoContent yellow "检查、安装jq--->"
     progressTool jq &
@@ -111,6 +129,7 @@ installTools(){
 installNginx(){
     echoContent skyBlue "检查、安装Nginx、TLS："
     echoContent yellow  "请输入要配置的域名 例：worker.v2ray-agent.com --->"
+    rm -rf /etc/nginx/nginx.conf
     read domain
     if [[ -z ${domain} ]]
     then
@@ -122,17 +141,28 @@ installNginx(){
         progressTool nginx &
         ${installType} nginx > /dev/null
 
+        if [[ ! -z `ps -ef|grep -v grep|grep nginx` ]]
+        then
+            nginx -s stop
+        fi
+
         # 修改配置
         echoContent yellow "修改配置文件--->"
-        installLine=`cat /etc/nginx/nginx.conf|grep -n root|awk -F "[:]" '{print $1+1}'|head -1`
-        sed -i "${installLine}i location ~ /.well-known {allow all;}" /etc/nginx/nginx.conf
-        installLine=`expr ${installLine} + 1`
-        sed -i "${installLine}i location /test {return 200 'fjkvymb6len';}" /etc/nginx/nginx.conf
+
+
+        touch /etc/nginx/conf.d/alone.conf
+        # installLine=`cat /etc/nginx/nginx.conf|grep -n root|awk -F "[:]" '{print $1+1}'|head -1`
+        # ${installLine}
+        # ${domain}
+        echo "server {listen 80;server_name ${domain};root /usr/share/nginx/html;location ~ /.well-known {allow all;}location /test {return 200 'fjkvymb6len';}}" > /etc/nginx/conf.d/alone.conf
+        # sed -i "1i 1" /etc/nginx/conf.d/alone.conf
+        # installLine=`expr ${installLine} + 1`
+        # sed -i "${installLine}i location /test {return 200 'fjkvymb6len';}" /etc/nginx/nginx.conf
         # 启动nginx
         nginx
 
         # 测试nginx
-        echoContent yellow "检查Nginx是否正常访问--->"
+        echoContent yellow "检查Nginx是否正常访问，请等待--->"
         # ${domain}
         domainResult=`curl -s ${domain}/test|grep fjkvymb6len`
         if [[ ! -z ${domainResult} ]]
@@ -156,7 +186,7 @@ installTLS(){
         echoContent yellow "  安装acme--->"
         curl -s https://get.acme.sh | sh >/dev/null
         echoContent green  "  acme安装完毕--->"
-        echoContent yellow "  生成TLS证书中，请等待--->"
+        echoContent yellow "生成TLS证书中，请等待--->"
         sudo ~/.acme.sh/acme.sh --issue -d $1 --standalone -k ec-256 >/dev/null
         ~/.acme.sh/acme.sh --installcert -d $1 --fullchainpath /etc/nginx/$1.crt --keypath /etc/nginx/$1.key --ecc >/dev/null
         if [[ -z `cat /etc/nginx/$1.crt` ]]
@@ -172,7 +202,7 @@ installTLS(){
         mkdir -p /tmp/tls
         cp -R /etc/nginx/$1.crt /tmp/tls/$1.crt
         cp -R /etc/nginx/$1.key /tmp/tls/$1.key
-        echoContent green "    TLS证书备份成功，证书位置：/tmp/tls--->"
+        echoContent green "  TLS证书备份成功，证书位置：/tmp/tls--->"
     elif  [[ -z `cat /tmp/tls/$1.crt` ]] || [[ -z `cat /tmp/tls/$1.key` ]]
     then
         echoContent red "    检测到错误证书，需重新生成，重新生成中--->"
@@ -184,8 +214,9 @@ installTLS(){
         cp -R /tmp/tls/$1.key /etc/nginx/$1.key
     fi
 
-    nginxInstallLine=`cat /etc/nginx/nginx.conf|grep -n "}"|awk -F "[:]" 'END{print $1-1}'`
-    sed -i "${nginxInstallLine}i server {listen 443 ssl;server_name $1;root /usr/share/nginx/html;ssl_certificate /etc/nginx/$1.crt;ssl_certificate_key /etc/nginx/$1.key;ssl_protocols TLSv1 TLSv1.1 TLSv1.2;ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;ssl_prefer_server_ciphers on;location / {} location /alone { proxy_redirect off;proxy_pass http://127.0.0.1:31299;proxy_http_version 1.1;proxy_set_header Upgrade \$http_upgrade;proxy_set_header Connection "upgrade";proxy_set_header X-Real-IP \$remote_addr;proxy_set_header Host \$host;proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;}}" /etc/nginx/nginx.conf
+    # nginxInstallLine=`cat /etc/nginx/nginx.conf|grep -n "}"|awk -F "[:]" 'END{print $1-1}'`
+    # sed -i "${nginxInstallLine}i server {listen 443 ssl;server_name $1;root /usr/share/nginx/html;ssl_certificate /etc/nginx/$1.crt;ssl_certificate_key /etc/nginx/$1.key;ssl_protocols TLSv1 TLSv1.1 TLSv1.2;ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;ssl_prefer_server_ciphers on;location / {} location /alone { proxy_redirect off;proxy_pass http://127.0.0.1:31299;proxy_http_version 1.1;proxy_set_header Upgrade \$http_upgrade;proxy_set_header Connection "upgrade";proxy_set_header X-Real-IP \$remote_addr;proxy_set_header Host \$host;proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;}}" /etc/nginx/nginx.conf
+    echo "server {listen 443 ssl;server_name $1;root /usr/share/nginx/html;ssl_certificate /etc/nginx/$1.crt;ssl_certificate_key /etc/nginx/$1.key;ssl_protocols TLSv1 TLSv1.1 TLSv1.2;ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;ssl_prefer_server_ciphers on;location / {} location /alone { proxy_redirect off;proxy_pass http://127.0.0.1:31299;proxy_http_version 1.1;proxy_set_header Upgrade \$http_upgrade;proxy_set_header Connection "upgrade";proxy_set_header X-Real-IP \$remote_addr;proxy_set_header Host \$host;proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;}}" > /etc/nginx/conf.d/alone.conf
     nginx
     if [[ -z `ps -ef|grep -v grep|grep nginx` ]]
     then
@@ -227,6 +258,10 @@ installV2Ray(){
         exit 0;
     fi
     echoContent green "  V2Ray启动成功--->"
+    echoContent yellow "V2Ray日志目录："
+    echoContent green "  access:  /tmp/v2ray/v2ray_access_ws_tls.log"
+    echoContent green "  error:  /tmp/v2ray/v2ray_error_ws_tls.log"
+
     # 验证整个服务是否可用
     echoContent yellow "验证服务是否可用--->"
     if [[ `curl -s -L https://$1/alone` = "Bad Request" ]]
@@ -282,7 +317,7 @@ qrEncode(){
     path=`echo ${user}|jq .streamSettings.wsSettings.path`
     qrCodeBase64=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"64","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
     qrCodeBase64=`echo ${qrCodeBase64}|sed 's/ //g'`
-    echoContent yellow "  通用链接--->"
+    echoContent green "  通用链接--->"
     echoContent green vmess://${qrCodeBase64}
     # | qrencode -t UTF8
     # echo ${qrCodeBase64}
@@ -346,44 +381,34 @@ init(){
     fi
 }
 checkSystem(){
-	if [ -f /etc/redhat-release ]; then
+
+	if [[ ! -z `find /etc -name "redhat-release"` ]] || [[ ! -z `cat /proc/version | grep -i "centos" | grep -v grep ` ]] || [[ ! -z `cat /proc/version | grep -i "red hat" | grep -v grep ` ]] || [[ ! -z `cat /proc/version | grep -i "redhat" | grep -v grep ` ]]
+	then
 		release="centos"
-		installTool='yum -y'
-		echoType='echo -e'
+		installType='yum -y install'
 		removeType='yum -y remove'
-	elif cat /etc/issue | grep -q -E -i "debian"; then
+		upgrade="yum update -y"
+	elif [[ ! -z `cat /etc/issue | grep -i "debian" | grep -v grep` ]] || [[ ! -z `cat /proc/version | grep -i "debian" | grep -v grep` ]]
+    then
 		release="debian"
-		installTools='apt'
-		echoType='echo -e'
+		installType='apt -y install'
+		upgrade="apt update -y"
 		removeType='apt -y autoremove'
-	elif cat /etc/issue | grep -q -E -i "ubuntu"; then
+	elif [[ ! -z `cat /etc/issue | grep -i "ubuntu" | grep -v grep` ]] || [[ ! -z `cat /proc/version | grep -i "ubuntu" | grep -v grep` ]]
+	then
 		release="ubuntu"
-		installTools='apt'
-		echoType='echo -e'
-		removeType='apt -y autoremove'
-	elif cat /etc/issue | grep -q -E -i "centos|red hat|redhat"; then
-		release="centos"
-		installTools='yum'
-		echoType='echo -e'
-		removeType='yum -y remove'
-	elif cat /proc/version | grep -q -E -i "debian"; then
-		release="debian"
-		installTools='apt'
-		removeType='apt -y autoremove'
-		echoType='echo -e'
-	elif cat /proc/version | grep -q -E -i "ubuntu"; then
-		release="ubuntu"
-		installTools='apt'
-		removeType='apt -y autoremove'
-		echoType='echo -e'
-	elif cat /proc/version | grep -q -E -i "centos|red hat|redhat"; then
-		release="centos"
-		installTools='yum'
-		removeType='yum -y remove'
-		echoType='echo -e'
+		installType='apt -y install'
+		upgrade="apt update -y"
+		removeType='apt --purge remove'
+
+    fi
+    if [[ -z ${release} ]]
+    then
+        echoContent red "本脚本不支持此系统，请将下方日志反馈给开发者"
+        cat /etc/issue
+        cat /proc/version
+        exit 0;
     fi
 }
-#checkSystem
-#[ ${release} != "debian" ] && [ ${release} != "ubuntu" ] && [ ${release} != "centos" ] && ${echoType} "${Error} 本脚本不支持当前系统 ${release} !" && exit 1
+checkSystem
 init
-#progressTool

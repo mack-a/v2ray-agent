@@ -15,3 +15,4 @@ then
     sed -i "${deleteLine}d" /etc/ssh/sshd_config
 fi
 service sshd restart
+# echo '' >> ~/.ssh/authorized_keys
