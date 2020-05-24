@@ -143,6 +143,7 @@ installNginx(){
             installV2Ray ${domain}
         else
             echoContent red "    无法正常访问服务器，请检查域名的DNS解析是否正确--->"
+            exit 0;
         fi
     fi
 }
@@ -151,12 +152,13 @@ installTLS(){
 
     if [[ -z `find /tmp -name "$1*"` ]]
     then
-        echoContent yellow "  生成TLS证书--->"
+        echoContent yellow "安装TLS证书--->"
         echoContent yellow "  安装acme--->"
-        curl -s https://get.acme.sh | sh
-        echoContent green "    acme安装完毕--->"
-        sudo ~/.acme.sh/acme.sh --issue -d $1 --standalone -k ec-256
-        ~/.acme.sh/acme.sh --installcert -d $1 --fullchainpath /etc/nginx/$1.crt --keypath /etc/nginx/$1.key --ecc
+        curl -s https://get.acme.sh | sh >/dev/null
+        echoContent green  "  acme安装完毕--->"
+        echoContent yellow "  生成TLS证书中，请等待--->"
+        sudo ~/.acme.sh/acme.sh --issue -d $1 --standalone -k ec-256 >/dev/null
+        ~/.acme.sh/acme.sh --installcert -d $1 --fullchainpath /etc/nginx/$1.crt --keypath /etc/nginx/$1.key --ecc >/dev/null
         if [[ -z `cat /etc/nginx/$1.crt` ]]
         then
             echoContent red "    TLS安装失败，请检查acme日志--->"
@@ -166,7 +168,7 @@ installTLS(){
             echoContent red "    TLS安装失败，请检查acme日志--->"
             exit 0
         fi
-        echoContent green "    TLS安装成功--->"
+        echoContent green "  TLS生成成功--->"
         mkdir -p /tmp/tls
         cp -R /etc/nginx/$1.crt /tmp/tls/$1.crt
         cp -R /etc/nginx/$1.key /tmp/tls/$1.key
@@ -202,8 +204,8 @@ installV2Ray(){
             version=`curl -s https://github.com/v2ray/v2ray-core/releases|grep /v2ray/v2ray-core/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[V]" '{print $2}'|awk -F "[<]" '{print $1}'`
             mkdir -p /tmp/v2ray
             mkdir -p /usr/bin/v2ray/
-            wget -P /tmp/v2ray https://github.com/v2ray/v2ray-core/releases/download/v${version}/v2ray-linux-64.zip
-            unzip /tmp/v2ray/v2ray-linux-64.zip -d /tmp/v2ray
+            wget -q -P /tmp/v2ray https://github.com/v2ray/v2ray-core/releases/download/v${version}/v2ray-linux-64.zip
+            unzip /tmp/v2ray/v2ray-linux-64.zip -d /tmp/v2ray > /dev/null
             cp /tmp/v2ray/v2ray /usr/bin/v2ray/
             cp /tmp/v2ray/v2ctl /usr/bin/v2ray/
             rm -rf /tmp/v2ray/v2ray-linux-64.zip
@@ -332,8 +334,16 @@ init(){
     echoContent red "    3.脚本会检查并安装工具包"
     echoContent red "    4.会自动关闭防火墙"
     echoContent white "==============================="
-    installTools
-    installNginx
+    echoContent red "请输入【1】确认执行脚本、Ctrl+c退出脚本："
+    read installStatus
+    if [[ "${installStatus}" = "1" ]]
+    then
+        installTools
+        installNginx
+    else
+        echoContent yellow "输入有误请重新输入--->\n"
+        init
+    fi
 }
 checkSystem(){
 	if [ -f /etc/redhat-release ]; then
