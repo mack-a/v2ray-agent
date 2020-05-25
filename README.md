@@ -3,7 +3,7 @@
 >世界就是这样，当你开始思考时，你已经是小部分中的一员了。祝大家使用愉快。
 
 - 推荐 [全新一键CDN+TLS+WebSocket+Nginx+V2Ray脚本](#一键脚本全自动websockettlscdn一键脚本)
-- 此项目分别采用CDN+TLS+Nginx+V2Ray、Trojan进行模拟正常网站并突破防火墙，同时包含优化方法，以及简单的原理讲解。
+- 此项目采用[CDN+TLS+Nginx+V2Ray](1V2Ray)、[Trojan](2Trojan)、[Cloudflare Workers](#方法3workers) 进行模拟正常网站并突破防火墙，同时包含优化方法，以及简单的原理讲解。
 - [自建教程](#自建教程)可以快速入手并知晓其中的步骤。如遇到不懂以及不理解的可以加入[TG群讨论](https://t.me/v2rayAgent)。
 - [优化方案](#优化方案)包含对Cloudflare的优化（CNAME优化、DNS优化、断流优化），VPS处理性能优化（bbr、bbr plus【阻塞拥堵算法，加快对流量的处理】）、其余设置（开机启动）、docker镜像、防火墙设置。
 - [流量中转教程](#流量转发服务)【大大提高流量传输的速度，减少丢包】、[免费测试账号](#免费账号正常使用点击查看)。
@@ -76,6 +76,9 @@ bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/in
 - 需要自己生成https证书，并自己维护，一般使用let's encrypt生成有效期为三个月。
 - 客户端->CloudFlare使用CLoudFlare TLS+vmess加密，CloudFlare->VPS使用let's encrypt TLS+vmess加密，[点击查看](https://github.com/mack-a/v2ray-agent/blob/master/Cloudflare_Full.md)
 - 与方法1不同的是，CloudFlare和VPS通讯时也会使用TLS加密。两个方法安全方面区别不是很大。
+
+## 方法3(Workers)
+- [点击查看](https://github.com/mack-a/v2ray-agent/blob/master/cloudflare_workers.md)
 
 # 2.Trojan
 - 需要自己生成证书
