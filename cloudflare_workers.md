@@ -16,20 +16,19 @@
 - 域名的前缀可以自定义
 - Plan选择free即可
 - 会验证邮箱
-
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/Workders/Workers_01.png" width=400>
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/Workders/Workers_02.png" width=400>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/Workers/Workers_01.png" width=400>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/Workers/Workers_02.png" width=400>
 
 ## 2.绑定域名
 - 1.添加域名
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/Workders/Workers_03.png" width=400>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/Workers/Workers_03.png" width=400>
 
 - 2.修改域名注册商的Nameserver
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/Workders/Workers_04.png" width=400>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/Workers/Workers_04.png" width=400>
 
 - 3.创建域名解析，这里域名可以直接用能正常访问的服务或者创建新的，如果创建新的并且证书是通配符证书则用新旧域名都无影响，如果不是通配符需要重新生成证书以及配置相关的Nginx服务
 
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/Workders/Workers_06.png" width=400>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/Workers/Workers_06.png" width=400>
 
 ## 3.创建Workers
 - 1.填写Workers的Script为下方内容【hostname部分要修改上方创建的域名解析的域名，比如 workerproxy.v2ray-agent.com 】
@@ -45,8 +44,8 @@ addEventListener(
   }
 )
 ```
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/Workders/Workers_05.png" width=400>
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/Workders/Workers_07.png" width=400>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/Workers/Workers_05.png" width=400>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/Workers/Workers_07.png" width=400>
 
 ## 4.使用
 - 1.客户端只需要将address部分修改为上图第二个红框位置的内容即可
