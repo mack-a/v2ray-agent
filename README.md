@@ -8,7 +8,7 @@
 - [优化方案](#优化方案)包含对Cloudflare的优化（CNAME优化、DNS优化、断流优化），VPS处理性能优化（bbr、bbr plus【阻塞拥堵算法，加快对流量的处理】）、其余设置（开机启动）、docker镜像、防火墙设置。
 - [流量中转教程](#流量转发服务)【大大提高流量传输的速度，减少丢包】、[免费测试账号](#免费账号正常使用点击查看)。
 - 接下来会提供V2Ray配置生成器、iptables流量转发、Docker镜像、私有Docker仓库、私有git仓库【gitlab】、以及可供部署k8s容器等方面的内容。
-- [测试订阅链接](https://github.com/mack-a/v2ray-agent/blob/master/free_account.md)`【如无法使用可加入TG群反馈】。
+- [测试订阅链接](https://github.com/mack-a/v2ray-agent/blob/master/free_account.md)【如无法使用可加入TG群反馈】。
 - 如本项目缺少或者待完善的教程，肯定是群主懒，加入TG群鞭打群主，让群主更有动力。
 
 * * *
