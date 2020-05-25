@@ -23,8 +23,7 @@
    * [2.tcp+vmess](#2tcpvmess点击查看)
 - [客户端](#客户端)
 - [防护墙设置](#防火墙设置点击查看)
-- [免费账号【正常使用】](#免费账号正常使用点击查看)
-- [备注](#备注)
+- [测试账号【正常使用】](#免费账号正常使用点击查看)
 - [维护进程[todo List]](https://github.com/mack-a/v2ray-agent/blob/master/recover_version.md)
 
 * * *
@@ -107,4 +106,4 @@ bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/in
 
 
 # 防火墙设置[点击查看](https://github.com/mack-a/v2ray-agent/blob/master/firewall.md)
-# 免费账号【正常使用】[点击查看](https://github.com/mack-a/v2ray-agent/blob/master/free_account.md)
+# 测试账号【正常使用】[点击查看](https://github.com/mack-a/v2ray-agent/blob/master/free_account.md)
