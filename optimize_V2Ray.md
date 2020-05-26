@@ -2,7 +2,7 @@
 - [1.偶尔断流](#1偶尔断流)
 - [2.更换中国大陆地区CDN](#2更换中国大陆地区cdn)
 - [3.CloudFlare自选IP](#cloudflare自选ip)
-  * [1.手动自选ip](#1手动自选ip建议使用该种方法)
+  * [1.手动自选ip【推荐】](#1手动自选ip建议使用该种方法)
   * [2.CloudFlare CNAME自选ip优化方案](#2cloudflare-cname自选ip优化方案)
   * [3.dnsmasq 实现CNAME方式](#3dnsmasq-实现cname方式)
 - [4.最优ip选择](#4最优ip选择)
