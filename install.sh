@@ -1,502 +1,420 @@
 #!/usr/bin/env bash
-export PATH="/usr/bin/:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.nvm/versions/node/v10.17.0/bin:$PATH"
-purple="\033[35m"
-skyBlue="\033[36m"
-red="\033[31m"
-green="\033[32m"
-yellow="\e[93m"
-magenta="\e[95m"
-cyan="\e[96m"
-none="\e[0m"
-installType='yum'
+
+installType='yum -y install'
 removeType='yum -y remove'
-echoType='echo'
+upgrade="yum -y update"
+echoType='echo -e'
 
-#检查Linux版本
-check_version(){
-	if [[ -s /etc/redhat-release ]]; then
-		version=`grep -oE  "[0-9.]+" /etc/redhat-release | cut -d . -f 1`
-	else
-		version=`grep -oE  "[0-9.]+" /etc/issue | cut -d . -f 1`
-	fi
-	bit=`uname -m`
-	if [[ ${bit} = "x86_64" ]]; then
-		bit="x64"
-	else
-		bit="x32"
-	fi
-}
-
-installNginx(){
-    ## todo 兼容debian
-    ${echoType} "${skyBlue}检查Nginx中...${none} "
-    existProcessNginx=`ps -ef|grep nginx|grep -v grep`
-    existNginx=`command -v nginx`
-    if [ -z "$existProcessNginx" ] && [ -z "$existNginx" ]
-    then
-        ${echoType} "${skyBlue}安装Nginx中，如遇到是否安装输入y${none}"
-        ${installType} -y install nginx
-        rm -rf /etc/nginx/nginx.conf
-        wget -P /etc/nginx/  https://raw.githubusercontent.com/mack-a/v2ray-agent/master/config/nginx.conf
-        ${echoType} "${green}步骤二：Nginx安装成功，执行下一步 ${none}"
-    else
-        ${echoType} "${purple}===============================${none}"
-        ${echoType} "${purple}检测到已安装Nginx，是否卸载${none}"
-        ${echoType} "${red}    1.卸载并重新安装【会把默认的安装目录的内容删除】${none}"
-        ${echoType} "${red}    2.跳过并使用已经安装的Nginx以及配置文件【请确认是否是此脚本的配置文件】${none}"
-        ${echoType} "${purple}===============================${none}"
-        ${echoType} "${skyBlue}请选择【数字编号】:${none}"
-        read nginxStatus
-        if [ "${nginxStatus}" = 1 ]
-        then
-            if [ -n "$existProcessNginx" ]
-            then
-                ${echoType} "${purple}Nginx已启动，关闭中...${none}"
-                nginx -s stop
-            fi
-            ${echoType} "${skyBlue}卸载Nginx中... ${none}"
-            ${removeType} nginx
-            ${echoType} "${skyBlue}卸载Nginx完毕，重装中... ${none}"
-            installNginx;
-        else
-            echo "不卸载，返回主目录"
-            echo
-            manageFun
-        fi
-    fi
-}
-installHttps(){
-    ${echoType} "${skyBlue}安装https中,请输入你要生成tls证书的域名${none}"
-    read domain
-    # grep "domain" * -R|awk -F: "{print $1}"|sort|uniq|xargs sed -i "s/domain/$domain/g"
-    # cat /etc/nginx/nginx.conf |grep "domain" * -R|awk -F: "{print $1}"|sort|uniq|xargs sed -i "s/domain/$domain/g"
-    existProcessNginx=`ps -ef|grep nginx|grep -v grep`
-    if [ ! -z "${existProcessNginx}" ]
-    then
-        echo '检测到Nginx正在运行，关闭中...'
-        nginx -s stop
-    fi
-
-    if [ -f "/etc/nginx/nginx.conf" ]
-    then
-        noExistNginxConfigDomain=`cat /etc/nginx/nginx.conf|grep $domain|grep -v grep`
-        if [ ! -z "${noExistNginxConfigDomain}" ]
-        then
-            sed -i "s/$domain/domain/g" `grep $domain -rl /etc/nginx/nginx.conf`
-        fi
-        sed -i "s/domain/$domain/g" `grep domain -rl /etc/nginx/nginx.conf`
-    fi
-
-    uninstallAcmeStatus="false"
-    if [ ! -d "/root/.acme.sh" ]
-    then
-        ${echoType} "${skyBlue}安装acme.sh中...${none}"
-        curl https://get.acme.sh | sh
-        sudo ~/.acme.sh/acme.sh --issue -d $domain --standalone -k ec-256
-    else
-        ${echoType} "${purple}===============================${none}"
-        ${echoType} "${purple}检测到已安装acme.sh，是否卸载${none}"
-        ${echoType} "${red}    1.卸载并重新安装【以前生成的TLS证书会被删除，需要重新输入域名】${none}"
-        ${echoType} "${red}    2.跳过并使用已经安装的acme.sh${none}"
-        ${echoType} "${purple}===============================${none}"
-        ${echoType} "${skyBlue}请选择【数字编号】:${none}"
-        read acmeStatus
-        if [ "${acmeStatus}" = 1 ]
-        then
-            rm -rf ~/.acme.sh
-            uninstallAcmeStatus="true"
-        else
-            ${echoType} "${skyBlue}生成证书中...${none}"
-        fi
-    fi
-
-    if [ "${uninstallAcmeStatus}" = "true" ]
-    then
-        installHttps
-    else
-        ~/.acme.sh/acme.sh --installcert -d $domain --fullchainpath /etc/nginx/$domain.crt --keypath /etc/nginx/$domain.key --ecc
-        sed -i "s/# ssl_certificate/ssl_certificate/g" `grep "# ssl_certificate" -rl /etc/nginx/nginx.conf`
-        sed -i "s/listen 443/listen 443 ssl/g" `grep "listen 443" -rl /etc/nginx/nginx.conf`
-        ${echoType} "${green}步骤三：HTTPS执行完毕，请手动确认上方是否有错误，执行下一步${none}"
-    fi
-}
-installV2Ray(){
-    ${echoType} "${skyBlue}检查V2Ray中...${none} "
-    existProcessV2Ray=`ps -ef|grep v2ray|grep -v grep`
-    existV2Ray=`command -v v2ray`
-    if [ -z "$existProcessV2Ray" ] && [ -z "$existV2Ray" ] && [ ! -x "/usr/bin/v2ray" ]
-    then
-        ${echoType} "${skyBlue}安装V2Ray中... ${none}"
-        wget -P /tmp/V2Ray https://github.com/V2Ray/V2Ray-core/releases/download/v4.21.3/V2Ray-linux-64.zip
-        cd /tmp/V2Ray
-        unzip /tmp/V2Ray/V2Ray-linux-64.zip
-        mv /tmp/V2Ray/v2ray /usr/bin/
-        mv /tmp/V2Ray/v2ctl /usr/bin/
-        mkdir /usr/bin/V2RayConfig
-        wget -P /usr/bin/V2RayConfig https://raw.githubusercontent.com/mack-a/V2Ray-agent/master/config/config_ws_tls.json
-        touch /usr/bin/V2RayConfig/V2Ray_access.log
-        touch /usr/bin/V2RayConfig/V2Ray_error.log
-        ${echoType} "${green} 步骤三：V2Ray安装成功，执行下一步"
-    else
-        ${echoType} "${purple}===============================${none}"
-        ${echoType} "${purple}检测到已安装V2Ray，是否卸载${none}"
-        ${echoType} "${red}    1.卸载并重新安装【配置文件会重新生成】${none}"
-        ${echoType} "${red}    2.跳过并使用已经安装的V2Ray【请确认Nginx的配置与V2Ray配置相同【端口号、Path】】${none}"
-        ${echoType} "${purple}===============================${none}"
-        ${echoType} "${skyBlue}请选择【数字编号】:${none}"
-        read acmeStatus
-        if [ "${acmeStatus}" -eq 1 ]
-        then
-            rm -rf /tmp/V2Ray
-            rm -rf /usr/bin/v2ray
-            rm -rf /usr/bin/v2ctl
-            rm -rf /usr/bin/V2RayConfig
-            if [ -z `ps -ef|grep v2ray|grep -v grep|awk '{print $2}'` ]
-            then
-                ps -ef|grep v2ray|grep -v grep|awk '{print $2}'|xargs kill -9
-            fi
-            installV2Ray
-        else
-            ${echoType} "${green} 忽略V2Ray并继续执行"
-        fi
-    fi
-}
-checkOS(){
-    systemVersion=`cat /etc/redhat-release|grep CentOS|awk '{print $1}'`
-    if [ -n "$systemVersion" ] && [ "$systemVersion" -eq "CentOS" ]
-    then
-        ${echoType} "${green}步骤一：系统为CentOS脚本可执行  ${none} "
-    else
-        ${echoType} "${red}目前仅支持Centos${none}"
-        ${echoType} "${red}退出脚本${none}"
-        exit
-    fi
-}
-# 生成vmess链接
-generatorVmess(){
-    ${echoType} "${purple}===============================${none}"
-    ${echoType} "${purple}选择要生成vmess的V2Ray配置文件${none}"
-    ${echoType} "${green}  1.默认【/usr/bin/V2RayConfig/config_ws_tls.json】${none}"
-    ${echoType} "${green}  2.官方默认【/etc/v2ray/config.json】${none}"
-    ${echoType} "${green}  3.手动输入${none}"
-    ${echoType} "${purple}===============================${none}"
-    ${echoType} "${skyBlue}请选择【数字编号】:${none}"
-    read V2RayPathSelect
-    V2RayPath="";
-
-    if [ "$V2RayPathSelect" -eq "3" ]
-    then
-        ${echoType} "${skyBlue}请输入配置文件路径：${none}"
-        read V2RayPath
-    fi
-    case $V2RayPathSelect in
-        1)
-            V2RayPath="/usr/bin/V2RayConfig/config_ws_tls.json"
-        ;;
-        2)
-            V2RayPath="/etc/v2ray/config.json"
-        ;;
-    esac
-
-    if [ -z "${V2RayPath}" ]
-    then
-        ${echoType} ${red}"V2Ray配置文件读取失败，请检查路径"${none}
-        init
-    else
-        # 读取nginx配置文件
-        ${echoType} "${purple}===============================${none}"
-        ${echoType} "${purple}选择要生成vmess的Nginx配置文件路径${none}"
-        ${echoType} "${green}  1.CDN【默认读取/etc/nginx/nginx.conf】${none}"
-        ${echoType} "${green}  2.手动输入Nginx配置文件路径${none}"
-        ${echoType} "${green}  3.非CDN${none}"
-        ${echoType} "${purple}===============================${none}"
-        ${echoType} "${skyBlue}请选择【数字编号】:${none}"
-        read NginxPathSelect
-
-        if [ "$NginxPathSelect" -eq "2" ]
-        then
-            ${echoType} "${skyBlue}请输入Nginx配置文件路径：${none}"
-            read NginxPath
-        fi
-
-        case $NginxPathSelect in
-            1)
-                NginxPath="/etc/nginx/nginx.conf"
-            ;;
-        esac
-        if [ -z "${NginxPath}" ]
-        then
-            ${echoType} ${red}"Nginx配置文件读取失败，请检查路径"${none}
-            init
-        fi
-        # 执行node生成vmess链接
-        nodePath='/root/.nvm/versions/node/v10.17.0/bin/node'
-        if [ ! -x "/root/.nvm/versions/node/v10.17.0/bin/node" ]
-        then
-            ${echoType} ${red}"安装工具包中..."${none}
-            installTools
-        fi
-        echo
-        ${echoType} "${purple}===============================${none}"
-        ${echoType} "${purple}V2Ray配置文件路径:${none}"
-        ${echoType} "${green}    ${V2RayPath}${none}"
-        ${echoType} "${purple}Nginx配置文件路径:${none}"
-        ${echoType} "${green}    ${NginxPath}${none}"
-        ${echoType} "${purple}===============================${none}"
-        echo
-        vmessResult=`curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/generator_client_links.js | ${nodePath} - "${V2RayPath}" "${NginxPath}"`
-
-        ${echoType} "${green}===============================${none}"
-        echo
-        eval $(echo "$vmessResult" |awk '{split($0,vmess," ");for(i in vmess) print "lenArr["i"]="vmess[i]}')
-        for value in ${lenArr[*]}
-        do
-            ${echoType} "${purple}客户端链接:${none}"
-            ${echoType} "${skyBlue}  $value${none}"
-            echo
-            ${echoType} "${purple}二维码:${none}"
-            echo $value | qrencode -s 10 -m 1 -t UTF8
-            echo
-        done
-        ${echoType} "${green}===============================${none}"
-        echo
-        # curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/generator_client_links.js | /root/.nvm/versions/node/v10.17.0/bin/node - "/usr/bin/V2RayConfig/config_ws_tls.json" "/etc/nginx/nginx.conf"
-    fi
-}
-startServer(){
-    ${echoType} "${green}启动服务${none}"
-    nginx
-    /usr/bin/v2ray -config /usr/bin/V2RayConfig/config_ws_tls.json &
-    echo "启动完毕"
-}
-installTools(){
-    existProcessWget=`ps -ef|grep wget|grep -v grep`
-    existWget=`command -v wget`
-    ${installType} -y update
-    if [ -z "$existProcessWget" ] && [ -z "$existWget" ]
-    then
-        ${echoType} "${skyBlue}安装wget中...${none}"
-        ${installType} -y install wget
-    else
-        echo
-    fi
-    existUnzip=`command -v unzip`
-    if [ -z "$existUnzip" ]
-    then
-        ${echoType} "${skyBlue}安装zip中...${none}"
-        ${installType} -y install unzip
-    fi
-    existSocat=`command -v socat`
-    if [ -z "$existSocat" ]
-    then
-        ${echoType} "${skyBlue}安装socat中...${none}"
-        ${installType} -y install socat
-    fi
-    existJq=`command -v jq`
-    if [ -z "$existJq" ]
-    then
-        ${echoType} ${skyBlue}安装jq中...${none}
-        ${installType} -y install jq
-    fi
-#    existNode=`/root/.nvm/versions/node/v10.17.0/bin`
-    if [ ! -x "/root/.nvm/versions/node/v10.17.0/bin/node" ]
-    then
-        ${echoType} ${skyBlue}安装nvm中...${none}
-        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.1/install.sh | bash
-        ${echoType} ${skyBlue}安装Node.js中...${none}
-        . /root/.nvm/nvm.sh
-        nvm install v10.17.0
-    fi
-    existQrencode=`command -v qrencode`
-    if [ -z "$existQrencode" ]
-    then
-        ${echoType} ${skyBlue}安装qrencode中...${none}
-        ${installType} -y install qrencode
-    fi
-}
-unInstall(){
-    nginx -s stop
-    rm -rf ~/.acme.sh
-    ${removeType} nginx
-    rm -rf /tmp/V2Ray
-    rm -rf /usr/bin/v2ray
-    rm -rf /usr/bin/v2ctl
-    rm -rf /usr/bin/V2RayConfig
-    rm -rf /etc/nginx
-    rm -rf /root/.nvm
-    ps -ef|grep v2ray|grep -v grep|awk '{print $2}'|xargs kill -9
-    if [[ "${release}" -eq "ubuntu" ||  "${release}" -eq "debian" ]]
-    then
-        sed -i 's/. "\/root\/.acme.sh\/acme.sh.env"//g' `grep '. "/root/.acme.sh/acme.sh.env"' -rl /root/.bashrc`
-    fi
-    . /root/.bashrc
-}
-configPath(){
-    ${echoType} "${purple}===============================${none}"
-    ${echoType} "${red}路径如下${none}"
-    ${echoType} "${green} 1.v2ray${none}"
-    ${echoType} "${skyBlue}   1./usr/bin/v2ray 【V2Ray 程序】${none}"
-    ${echoType} "${skyBlue}   2./usr/bin/v2ctl 【V2Ray 工具】${none}"
-    ${echoType} "${skyBlue}   3./usr/bin/V2RayConfig 【V2Ray配置文件，配置文件、log文件】${none}"
-    ${echoType} "${green} 2.Nginx${none}"
-    ${echoType} "${skyBlue}   1./usr/sbin/nginx 【Nginx 程序】${none}"
-    ${echoType} "${skyBlue}   2./etc/nginx/nginx.conf 【Nginx 配置文件】${none}"
-    ${echoType} "${purple}===============================${none}"
-    echo
-}
-manageFun(){
-    ${echoType} "${purple}===============================${none}"
-    ${echoType} "${purple}手动模式功能点目录:${none}"
-    ${echoType} "${skyBlue}  1.检查系统版本是否为CentOS${none}"
-    ${echoType} "${skyBlue}  2.安装工具包${none}"
-    ${echoType} "${skyBlue}  3.检测nginx是否安装并配置${none}"
-    ${echoType} "${skyBlue}  4.检测https是否安装并配置${none}"
-    ${echoType} "${skyBlue}  5.检测V2Ray是否安装并配置${none}"
-    ${echoType} "${skyBlue}  6.启动服务并退出脚本${none}"
-    ${echoType} "${skyBlue}  7.卸载安装的所有内容${none}"
-    ${echoType} "${skyBlue}  8.查看配置文件路径${none}"
-    ${echoType} "${skyBlue}  9.生成Vmess、二维码链接${none}"
-    ${echoType} "${skyBlue}  10.返回主目录${none}"
-    ${echoType} "${red}  11.退出脚本${none}"
-    ${echoType} "${purple}===============================${none}"
-    ${echoType} "${skyBlue}请输入要执行的功能【数字编号】:${none}"
-    read funType
-    echo
-    case $funType in
-        1)
-#            checkOS
-        ;;
-        2)
-            installTools
-        ;;
-        3)
-            installNginx
-        ;;
-        4)
-            ${echoType} "${red}此步骤依赖【3.检测nginx是否安装并配置】${none}"
-            installHttps
-        ;;
-        5)
-            installV2Ray
-        ;;
-        6)
-            startServer
-        ;;
-        7)
-            unInstall
-        ;;
-        8)
-           configPath
-        ;;
-        9)
-           generatorVmess
-        ;;
-        10)
-           init
-        ;;
-        11)
-           exit
-        ;;
-    esac
-    manageFun
-}
-automationFun(){
+# echo颜色方法
+echoContent(){
     case $1 in
-        1)
-#            checkOS
-            installTools
-            automationFun 2
+        # 红色
+        "red")
+            ${echoType} "\033[31m$2 \033[0m"
         ;;
-        2)
-            installNginx
-            automationFun 3
+        # 天蓝色
+        "skyBlue")
+            ${echoType} "\033[36m$2 \033[0m"
         ;;
-        3)
-           installHttps
-           automationFun 4
+        # 绿色
+        "green")
+            ${echoType} "\033[32m$2 \033[0m"
         ;;
-        4)
-            installV2Ray
-            automationFun 5
+        # 白色
+        "white")
+            ${echoType} "\033[37m$2 \033[0m"
         ;;
-        5)
-            generatorVmess
-            automationFun 6
+        "magenta")
+            ${echoType} "\033[31m$2 \033[0m"
         ;;
-        6)
-            startServer
-            exit
+        "skyBlue")
+            ${echoType} "\033[36m$2 \033[0m"
+        ;;
+        # 黄色
+        "yellow")
+            ${echoType} "\033[33m$2 \033[0m"
         ;;
     esac
+}
+fixBug(){
+    if [[ "${release}" = "ubuntu" ]]
+    then
+        cd /var/lib/dpkg/
+
+    fi
+}
+# 安装工具包
+installTools(){
+    # echo "export LC_ALL=en_US.UTF-8"  >>  /etc/profile
+    # source /etc/profile
+    echoContent yellow "删除Nginx、V2Ray、acme"
+    if [[ ! -z `find /usr/sbin/ -name nginx` ]]
+    then
+        if [[ ! -z `ps -ef|grep nginx|grep -v grep`  ]]
+        then
+            nginx -s stop
+        fi
+
+        if [[ "${release}" = "ubuntu" ]] || [[ "${release}" = "debian" ]]
+        then
+            dpkg --get-selections | grep nginx|awk '{print $1}'|xargs sudo apt --purge remove -y > /dev/null
+        else
+            removeLog=`${removeType} nginx`
+        fi
+        rm -rf /etc/nginx/nginx.conf
+        rm -rf /usr/share/nginx/html.zip
+    fi
+
+    if [[ ! -z `find /usr/bin/ -name "v2ray*"` ]]
+    then
+        if [[ ! -z `ps -ef|grep v2ray|grep -v grep`  ]]
+        then
+            ps -ef|grep v2ray|grep -v grep|awk '{print $2}'|xargs kill -9
+        fi
+        rm -rf  /usr/bin/v2ray
+    fi
+
+    if [[ ! -z `cat /root/.bashrc|grep -n acme` ]]
+    then
+        acmeBashrcLine=`cat /root/.bashrc|grep -n acme|awk -F "[:]" '{print $1}'|head -1`
+        sed -i "${acmeBashrcLine}d" /root/.bashrc
+    fi
+    rm -rf /etc/systemd/system/v2ray.service
+    systemctl daemon-reload
+
+    rm -rf ~/.acme.sh > /dev/null
+    echoContent green "  删除完成"
+
+    echoContent skyBlue "检查、安装工具包："
+
+    echoContent green "  更新中，请等待"
+    ${upgrade} > /dev/null
+    rm -rf /var/run/yum.pid
+    echoContent green "更新完毕"
+
+    echoContent yellow "检查、安装wget--->"
+    progressTool wget &
+    ${installType} wget > /dev/null
+
+    echoContent yellow "检查、安装unzip--->"
+    progressTool unzip &
+    ${installType} unzip > /dev/null
+
+    # echoContent yellow "检查、安装qrencode--->"
+    # progressTool qrencode &
+    # ${installType} qrencode > /dev/null
+
+    echoContent yellow "检查、安装socat--->"
+    progressTool socat &
+    ${installType} socat > /dev/null
+
+    echoContent yellow "检查、安装crontabs--->"
+    progressTool crontabs &
+    if [[ "${release}" = "ubuntu" ]]
+    then
+        ${installType} cron > /dev/null
+    else
+        ${installType} crontabs > /dev/null
+    fi
+
+    echoContent yellow "检查、安装jq--->"
+    progressTool jq &
+    ${installType} jq > /dev/null
+
+    # echoContent skyBlue "检查、安装bind-utils--->"
+    # progressTool bind-utils
+    # 关闭防火墙
+
+}
+# 安装Nginx tls证书
+installNginx(){
+    echoContent skyBlue "检查、安装Nginx、TLS："
+    echoContent yellow  "请输入要配置的域名 例：worker.v2ray-agent.com --->"
+    rm -rf /etc/nginx/nginx.conf
+    read domain
+    if [[ -z ${domain} ]]
+    then
+        echoContent red "  域名不可为空--->"
+        installNginx
+    else
+        # 安装nginx
+        echoContent yellow "  检查、安装Nginx--->"
+        progressTool nginx &
+        ${installType} nginx > /dev/null
+
+        if [[ ! -z `ps -ef|grep -v grep|grep nginx` ]]
+        then
+            nginx -s stop
+        fi
+
+        # 修改配置
+        echoContent yellow "修改配置文件--->"
+
+
+        touch /etc/nginx/conf.d/alone.conf
+        # installLine=`cat /etc/nginx/nginx.conf|grep -n root|awk -F "[:]" '{print $1+1}'|head -1`
+        # ${installLine}
+        # ${domain}
+        echo "server {listen 80;server_name ${domain};root /usr/share/nginx/html;location ~ /.well-known {allow all;}location /test {return 200 'fjkvymb6len';}}" > /etc/nginx/conf.d/alone.conf
+        # sed -i "1i 1" /etc/nginx/conf.d/alone.conf
+        # installLine=`expr ${installLine} + 1`
+        # sed -i "${installLine}i location /test {return 200 'fjkvymb6len';}" /etc/nginx/nginx.conf
+        # 启动nginx
+        nginx
+
+        # 测试nginx
+        echoContent yellow "检查Nginx是否正常访问，请等待--->"
+        # ${domain}
+        domainResult=`curl -s ${domain}/test|grep fjkvymb6len`
+        if [[ ! -z ${domainResult} ]]
+        then
+            echoContent green "  Nginx访问成功--->"
+            nginx -s stop
+            installTLS ${domain}
+            installV2Ray ${domain}
+        else
+            echoContent red "    无法正常访问服务器，请检查域名的DNS解析是否正确--->"
+            exit 0;
+        fi
+    fi
+}
+# 安装TLS
+installTLS(){
+
+    if [[ -z `find /tmp -name "$1*"` ]]
+    then
+        echoContent yellow "安装TLS证书--->"
+        echoContent yellow "  安装acme--->"
+        curl -s https://get.acme.sh | sh > /dev/null
+        echoContent green  "  acme安装完毕--->"
+        echoContent yellow "生成TLS证书中，请等待--->"
+        sudo ~/.acme.sh/acme.sh --issue -d $1 --standalone -k ec-256 >/dev/null
+        ~/.acme.sh/acme.sh --installcert -d $1 --fullchainpath /etc/nginx/$1.crt --keypath /etc/nginx/$1.key --ecc >/dev/null
+        if [[ -z `cat /etc/nginx/$1.crt` ]]
+        then
+            echoContent red "    TLS安装失败，请检查acme日志--->"
+            exit 0
+        elif [[ -z `cat /etc/nginx/$1.key` ]]
+        then
+            echoContent red "    TLS安装失败，请检查acme日志--->"
+            exit 0
+        fi
+        echoContent green "  TLS生成成功--->"
+        mkdir -p /tmp/tls
+        cp -R /etc/nginx/$1.crt /tmp/tls/$1.crt
+        cp -R /etc/nginx/$1.key /tmp/tls/$1.key
+        echoContent green "  TLS证书备份成功，证书位置：/tmp/tls--->"
+    elif  [[ -z `cat /tmp/tls/$1.crt` ]] || [[ -z `cat /tmp/tls/$1.key` ]]
+    then
+        echoContent red "    检测到错误证书，需重新生成，重新生成中--->"
+        rm -rf /tmp/tls
+        installTLS $1
+    else
+        echoContent yellow "检测到备份证书，如需重新生成，请执行 【rm -rf /tmp/tls】，然后重新执行脚本--->"
+        cp -R /tmp/tls/$1.crt /etc/nginx/$1.crt
+        cp -R /tmp/tls/$1.key /etc/nginx/$1.key
+    fi
+
+    # nginxInstallLine=`cat /etc/nginx/nginx.conf|grep -n "}"|awk -F "[:]" 'END{print $1-1}'`
+    # sed -i "${nginxInstallLine}i server {listen 443 ssl;server_name $1;root /usr/share/nginx/html;ssl_certificate /etc/nginx/$1.crt;ssl_certificate_key /etc/nginx/$1.key;ssl_protocols TLSv1 TLSv1.1 TLSv1.2;ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;ssl_prefer_server_ciphers on;location / {} location /alone { proxy_redirect off;proxy_pass http://127.0.0.1:31299;proxy_http_version 1.1;proxy_set_header Upgrade \$http_upgrade;proxy_set_header Connection "upgrade";proxy_set_header X-Real-IP \$remote_addr;proxy_set_header Host \$host;proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;}}" /etc/nginx/nginx.conf
+    echo "server {listen 443 ssl;server_name $1;root /usr/share/nginx/html;ssl_certificate /etc/nginx/$1.crt;ssl_certificate_key /etc/nginx/$1.key;ssl_protocols TLSv1 TLSv1.1 TLSv1.2;ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;ssl_prefer_server_ciphers on;location / {} location /alone { proxy_redirect off;proxy_pass http://127.0.0.1:31299;proxy_http_version 1.1;proxy_set_header Upgrade \$http_upgrade;proxy_set_header Connection "upgrade";proxy_set_header X-Real-IP \$remote_addr;proxy_set_header Host \$host;proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;}}" > /etc/nginx/conf.d/alone.conf
+    rm -rf /usr/share/nginx/html
+    wget -q -P /usr/share/nginx https://raw.githubusercontent.com/mack-a/v2ray-agent/master/blog/unable/html.zip >> /dev/null
+    unzip  /usr/share/nginx/html.zip -d /usr/share/nginx/html > /dev/null
+    nginx
+    if [[ -z `ps -ef|grep -v grep|grep nginx` ]]
+    then
+        echoContent red "  Nginx启动失败，请检查日志--->"
+        exit 0
+    fi
+    echoContent green "  Nginx启动成功，TLS配置成功--->"
+}
+# V2Ray
+installV2Ray(){
+    if [[ -z `find /tmp -name "v2ray*"` ]]
+    then
+        if [[ -z `find /usr/bin/ -name "v2ray*"` ]]
+        then
+            echoContent yellow "安装V2Ray--->"
+            version=`curl -s https://github.com/v2ray/v2ray-core/releases|grep /v2ray/v2ray-core/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[V]" '{print $2}'|awk -F "[<]" '{print $1}'`
+            mkdir -p /tmp/v2ray
+            mkdir -p /usr/bin/v2ray/
+            wget -q -P /tmp/v2ray https://github.com/v2ray/v2ray-core/releases/download/v${version}/v2ray-linux-64.zip
+            unzip /tmp/v2ray/v2ray-linux-64.zip -d /tmp/v2ray > /dev/null
+            cp /tmp/v2ray/v2ray /usr/bin/v2ray/
+            cp /tmp/v2ray/v2ctl /usr/bin/v2ray/
+            rm -rf /tmp/v2ray/v2ray-linux-64.zip
+        fi
+        echoContent green "  V2Ray安装成功--->"
+    else
+         echoContent yellow "检测到V2Ray安装程序，如需重新安装，请执行【rm -rf /tmp/v2ray】,然后重新执行脚本--->"
+         mkdir -p /usr/bin/v2ray/
+         cp /tmp/v2ray/v2ray /usr/bin/v2ray/ && cp /tmp/v2ray/v2ctl /usr/bin/v2ray/
+    fi
+    installV2RayService
+    initV2RayConfig
+    systemctl daemon-reload
+    systemctl enable v2ray.service
+    systemctl start  v2ray.service
+    if [[ -z `ps -ef|grep v2ray|grep -v grep` ]]
+    then
+        echoContent red "    V2Ray启动失败，请检查日志后，重新执行脚本--->"
+        exit 0;
+    fi
+    echoContent green "  V2Ray启动成功--->"
+    echoContent yellow "V2Ray日志目录："
+    echoContent green "  access:  /tmp/v2ray/v2ray_access_ws_tls.log"
+    echoContent green "  error:  /tmp/v2ray/v2ray_error_ws_tls.log"
+
+    # 验证整个服务是否可用
+    echoContent yellow "验证服务是否可用--->"
+    if [[ `curl -s -L https://$1/alone` = "Bad Request" ]]
+    then
+        echoContent green "  服务可用--->"
+    else
+        echoContent red "  服务不可用，请检查Cloudflare->域名->SSL/TLS->Overview->Your SSL/TLS encryption mode is 是否是Full--->"
+        exit 0
+    fi
+    echoContent yellow "客户端链接--->"
+    qrEncode $1
+    echoContent yellow "监听V2Ray日志，如有日志出现则证明线路可用，Ctrl+c停止--->"
+    tail -f /tmp/v2ray/v2ray_access_ws_tls.log
+}
+# 开机自启
+installV2RayService(){
+    echoContent skyBlue "  配置V2Ray开机自启--->"
+    rm -rf /etc/systemd/system/v2ray.service
+    touch /etc/systemd/system/v2ray.service
+
+    echo '[Unit]' >> /etc/systemd/system/v2ray.service
+    echo 'Description=V2Ray - A unified platform for anti-censorship' >> /etc/systemd/system/v2ray.service
+    echo 'Documentation=https://v2ray.com https://guide.v2fly.org' >> /etc/systemd/system/v2ray.service
+    echo 'After=network.target nss-lookup.target' >> /etc/systemd/system/v2ray.service
+    echo 'Wants=network-online.target' >> /etc/systemd/system/v2ray.service
+    echo '' >> /etc/systemd/system/v2ray.service
+    echo '[Service]' >> /etc/systemd/system/v2ray.service
+    echo 'Type=simple' >> /etc/systemd/system/v2ray.service
+    echo 'User=root' >> /etc/systemd/system/v2ray.service
+    echo 'CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_RAW' >> /etc/systemd/system/v2ray.service
+    echo 'NoNewPrivileges=yes' >> /etc/systemd/system/v2ray.service
+    echo 'ExecStart=/usr/bin/v2ray/v2ray -config /etc/v2ray/config.json' >> /etc/systemd/system/v2ray.service
+    echo 'Restart=on-failure' >> /etc/systemd/system/v2ray.service
+    echo 'RestartPreventExitStatus=23' >> /etc/systemd/system/v2ray.service
+    echo '' >> /etc/systemd/system/v2ray.service
+    echo '' >> /etc/systemd/system/v2ray.service
+    echo '[Install]' >> /etc/systemd/system/v2ray.service
+    echo 'WantedBy=multi-user.target' >> /etc/systemd/system/v2ray.service
+    echoContent green "  配置V2Ray开机自启成功--->"
+}
+# 初始化V2Ray 配置文件
+initV2RayConfig(){
+    mkdir -p /etc/v2ray/
+    touch /etc/v2ray/config.json
+    uuid=`/usr/bin/v2ray/v2ctl uuid`
+    echo '{"log":{"access":"/tmp/v2ray/v2ray_access_ws_tls.log","error":"/tmp/v2ray/v2ray_error_ws_tls.log","loglevel":"debug"},"stats":{},"api":{"services":["StatsService"],"tag":"api"},"policy":{"levels":{"1":{"handshake":4,"connIdle":300,"uplinkOnly":2,"downlinkOnly":5,"statsUserUplink":false,"statsUserDownlink":false}},"system":{"statsInboundUplink":true,"statsInboundDownlink":true}},"allocate":{"strategy":"always","refresh":5,"concurrency":3},"inbounds":[{"port":31299,"protocol":"vmess","settings":{"clients":[{"id":"654765fe-5fb1-271f-7c3f-18ed82827f72","alterId":64,"level":1,"email":"test@v2ray.com"}]},"streamSettings":{"network":"ws","wsSettings":{"path":"/alone"}}}],"outbounds":[{"protocol":"freedom","settings":{"OutboundConfigurationObject":{"domainStrategy":"AsIs","userLevel":0}}}],"routing":{"settings":{"rules":[{"inboundTag":["api"],"outboundTag":"api","type":"field"}]},"strategy":"rules"},"dns":{"servers":["8.8.8.8","8.8.4.4"],"tag":"dns_inbound"}}' > /etc/v2ray/config.json
+    sed -i "s/654765fe-5fb1-271f-7c3f-18ed82827f72/${uuid}/g" `grep 654765fe-5fb1-271f-7c3f-18ed82827f72 -rl /etc/v2ray/config.json`
+}
+qrEncode(){
+    user=`cat /etc/v2ray/config.json|jq .inbounds[0]`
+    ps="$1"
+    id=`echo ${user}|jq .settings.clients[0].id`
+    aid=`echo ${user}|jq .settings.clients[0].alterId`
+    host="$1"
+    path=`echo ${user}|jq .streamSettings.wsSettings.path`
+    qrCodeBase64=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"64","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
+    qrCodeBase64=`echo ${qrCodeBase64}|sed 's/ //g'`
+    echoContent green "  通用链接--->"
+    echoContent green vmess://${qrCodeBase64}
+    # | qrencode -t UTF8
+    # echo ${qrCodeBase64}
+}
+# 查看dns解析ip
+checkDNS(){
+    echo '' > /tmp/pingLog
+    ping -c 3 $1 >> /tmp/pingLog
+    serverStatus=`ping -c 3 $1|head -1|awk -F "[service]" '{print $1}'`
+    pingLog=`ping -c 3 $1|tail -n 5|head -1|awk -F "[ ]" '{print $4 $7}'`
+    echoContent skyBlue "DNS解析ip:"${pingLog}
+}
+# 查看本机ip
+checkDomainIP(){
+    currentIP=`curl -s ifconfig.me|awk '{print}'`
+    echoContent skyBlue ${currentIP}
+}
+progressTool(){
+    #
+    i=0
+    toolName=$1
+    sp='/-\|'
+    n=${#sp}
+    printf ' '
+    if [[ "${toolName}" = "crontabs" ]]
+    then
+        toolName="crontab"
+    fi
+    while true; do
+        status=
+        if [[ -z `find /usr/bin/ -name ${toolName}` ]] && [[ -z `find /usr/sbin/ -name ${toolName}` ]]
+        then
+            printf '\b%s' "${sp:i++%n:1}"
+        else
+            break;
+        fi
+        sleep 0.1
+    done
+    echoContent green "  $1已安装--->"
 }
 
 init(){
-    ${echoType} "${purple}目前此脚本支持Ubuntu、Centos、Debian${none}"
-    ${echoType} "${purple}===============================${none}"
-    ${echoType} "${purple}支持两种模式：${none}"
-    ${echoType} "${red}    1.自动模式${none}"
-    ${echoType} "${red}    2.手动模式${none}"
-    ${echoType} "${purple}===============================${none}"
-    ${echoType} "${skyBlue}请选择【数字编号】:${none}"
-    read automatic
-    if [ "${automatic}" = 1 ]
+
+    echoContent white "==============================="
+    echoContent skyBlue "欢迎使用v2ray-agent，Cloudflare+WS+TLS+Nginx自动化脚本，如有使用问题欢迎加入TG群【https://t.me/v2rayAgent】，Github【https://github.com/mack-a/v2ray-agent】"
+    echoContent yellow "注意事项："
+    echoContent red "    1.脚本适合新机器，会删除、卸载已经安装的应用，包括V2Ray、Nginx"
+    echoContent red "    2.如果有使用此脚本生成TLS证书、V2Ray，会继续使用上次生成、安装的内容。"
+    echoContent red "    3.脚本会检查并安装工具包"
+    echoContent red "    4.会自动关闭防火墙"
+    echoContent white "==============================="
+    echoContent red "请输入【1】确认执行脚本、Ctrl+c退出脚本："
+    read installStatus
+    if [[ "${installStatus}" = "1" ]]
     then
-        ${echoType} "${purple}===============================${none}"
-        ${echoType} "${purple}自动模式会执行以下内容:${none}"
-        ${echoType} "${skyBlue}  1.检查系统版本是否为Ubuntu、Centos、Debian${none}"
-        ${echoType} "${skyBlue}  2.安装工具包${none}"
-        ${echoType} "${skyBlue}  3.检测nginx是否安装并配置${none}"
-        ${echoType} "${skyBlue}  4.检测https是否安装并配置${none}"
-        ${echoType} "${skyBlue}  5.检测V2Ray是否安装并配置${none}"
-        ${echoType} "${skyBlue}  6.生成vmess、二维码链接${none}"
-        ${echoType} "${skyBlue}  7.启动服务并退出脚本${none}"
-        ${echoType} "${purple}===============================${none}"
-        automationFun 1
-    elif [ "${automatic}" = 2 ]
-    then
-        manageFun
+        installTools
+        installNginx
+    else
+        echoContent yellow "输入有误请重新输入--->\n"
+        init
     fi
 }
-# 检查系统
-
 checkSystem(){
-	if [ -f /etc/redhat-release ]; then
+
+	if [[ ! -z `find /etc -name "redhat-release"` ]] || [[ ! -z `cat /proc/version | grep -i "centos" | grep -v grep ` ]] || [[ ! -z `cat /proc/version | grep -i "red hat" | grep -v grep ` ]] || [[ ! -z `cat /proc/version | grep -i "redhat" | grep -v grep ` ]]
+	then
 		release="centos"
-		installType='yum'
-		echoType='echo -e'
+		installType='yum -y install'
 		removeType='yum -y remove'
-	elif cat /etc/issue | grep -q -E -i "debian"; then
+		upgrade="yum update -y"
+	elif [[ ! -z `cat /etc/issue | grep -i "debian" | grep -v grep` ]] || [[ ! -z `cat /proc/version | grep -i "debian" | grep -v grep` ]]
+    then
 		release="debian"
-		installType='apt'
-		echoType='echo -e'
+		installType='apt -y install'
+		upgrade="apt update -y"
 		removeType='apt -y autoremove'
-	elif cat /etc/issue | grep -q -E -i "ubuntu"; then
+	elif [[ ! -z `cat /etc/issue | grep -i "ubuntu" | grep -v grep` ]] || [[ ! -z `cat /proc/version | grep -i "ubuntu" | grep -v grep` ]]
+	then
 		release="ubuntu"
-		installType='apt'
-		echoType='echo -e'
-		removeType='apt -y autoremove'
-	elif cat /etc/issue | grep -q -E -i "centos|red hat|redhat"; then
-		release="centos"
-		installType='yum'
-		echoType='echo -e'
-		removeType='yum -y remove'
-	elif cat /proc/version | grep -q -E -i "debian"; then
-		release="debian"
-		installType='apt'
-		removeType='apt -y autoremove'
-		echoType='echo -e'
-	elif cat /proc/version | grep -q -E -i "ubuntu"; then
-		release="ubuntu"
-		installType='apt'
-		removeType='apt -y autoremove'
-		echoType='echo -e'
-	elif cat /proc/version | grep -q -E -i "centos|red hat|redhat"; then
-		release="centos"
-		installType='yum'
-		removeType='yum -y remove'
-		echoType='echo -e'
+		installType='apt -y install'
+		upgrade="apt update -y"
+		removeType='apt --purge remove'
+
+    fi
+    if [[ -z ${release} ]]
+    then
+        echoContent red "本脚本不支持此系统，请将下方日志反馈给开发者"
+        cat /etc/issue
+        cat /proc/version
+        exit 0;
     fi
 }
 checkSystem
-[ ${release} != "debian" ] && [ ${release} != "ubuntu" ] && [ ${release} != "centos" ] && ${echoType} "${Error} 本脚本不支持当前系统 ${release} !" && exit 1
 init
