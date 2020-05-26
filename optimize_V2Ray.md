@@ -4,7 +4,7 @@
 - [3.CloudFlare自选IP](#cloudflare自选ip)
   * [1.手动自选ip【推荐】](#1手动自选ip建议使用该种方法)
   * [2.CloudFlare CNAME自选ip优化方案](#2cloudflare-cname自选ip优化方案)
-  * [3.dnsmasq 实现CNAME方式](#3dnsmasq-实现cname方式)
+  * [3.dnsmasq 实现CNAME方式【不推荐】](#3dnsmasq-实现cname方式)
 - [4.最优ip选择](#4最优ip选择)
 
 * * *
@@ -132,7 +132,8 @@ f1g1ns2.dnspod.net
 - 使用dnspod智能解析
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare dnspod解析.png' width=1000/>
 
-## 4.dnsmasq 实现CNAME方式【不建议使用，有几率就被警告，UDP 53端口在没有运营资质的情况下不可以使用】
+## 4.dnsmasq 实现CNAME方式
+- 不建议使用，有几率就被警告，UDP 53端口在没有运营资质的情况下不可以使用
 - 更加隐私一些 只适用于CDN方式
 - 使用自定义DNS服务，类似于本地配置hosts文件
 - 需要配置不同的二级域名（三级域名）来进行解析
