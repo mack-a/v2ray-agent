@@ -323,8 +323,12 @@ qrEncode(){
     path=`echo ${user}|jq .streamSettings.wsSettings.path`
     qrCodeBase64=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"64","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
     qrCodeBase64=`echo ${qrCodeBase64}|sed 's/ //g'`
-    echoContent green "  通用链接--->"
+
+    echoContent green "  通用vmess链接--->"
     echoContent green vmess://${qrCodeBase64}
+    echoContent green "  json--->"
+    echoContent green '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"64","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${host}'"}'
+
     # | qrencode -t UTF8
     # echo ${qrCodeBase64}
 }
