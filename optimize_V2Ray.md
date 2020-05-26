@@ -56,11 +56,9 @@
 - 2.只需要客户端修改
 - 3.保证在不自选ip的情况可以正常使用
 ### 1.步骤
-- 1.修改tls host以及header的host为域名部分
-- 2.修改客户端的host部分为自选ip
-- 3.参考下图，有的不需要修改tls 的host也可以
-- 4.address部分填写自定义ip，host部分填写之前address填写的内容
-- 5.如果多个自选ip，则需要按照此步骤再添加账号即可。
+- 1.参考下图
+- 2.address部分填写自定义ip，host部分填写之前address填写的内容【有的客户端也需要填写header的host为域名部分】
+- 3.如果多个自选ip，则需要按照此步骤再添加账号即可。
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare自选ip 手动更改.png' width=400/>
 
 ## 2.CloudFlare CNAME自选ip优化方案【dns自选ip】
