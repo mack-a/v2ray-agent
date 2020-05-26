@@ -1,5 +1,5 @@
 # v2ray-agent
->我始终相信人是自由的，这是本项目设立的初衷，同时也感谢各种软件的开发者与维护者。
+>Everyone is free。
 >世界就是这样，当你开始思考时，你已经是小部分中的一员了。祝大家使用愉快。
 
 - 推荐 [全新一键CDN+TLS+WebSocket+Nginx+V2Ray脚本](#一键脚本全自动websockettlscdn一键脚本)
