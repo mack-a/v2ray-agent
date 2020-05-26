@@ -131,7 +131,7 @@ f1g1ns2.dnspod.net
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare dnspod解析.png' width=1000/>
 
 ## 4.dnsmasq 实现CNAME方式
-- 不建议使用，有几率就被警告，UDP 53端口在没有运营资质的情况下不可以使用
+- 不建议使用，有几率会被警告，UDP 53端口在没有运营资质的情况下不可以使用
 - 更加隐私一些 只适用于CDN方式
 - 使用自定义DNS服务，类似于本地配置hosts文件
 - 需要配置不同的二级域名（三级域名）来进行解析
