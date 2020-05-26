@@ -13,7 +13,7 @@
 
 * * *
 # 目录
-- [全新一键CDN+TLS+WebSocket+Nginx+V2Ray脚本](#一键脚本全自动websockettlscdn一键脚本)
+- [全新一键CDN+TLS+WebSocket+Nginx+V2Ray脚本【CDN为非必选】](#一键脚本全自动websockettlscdn一键脚本)
 - [技能点列表](#技能点列表)
 - [自建教程](#自建教程)
   * [1.V2Ray](#1v2ray)
@@ -47,7 +47,7 @@
 
 * * *
 # 一键脚本【全自动WebSocket+TLS+CDN一键脚本】
-- 目前支持Centos、Ubuntu、Debian
+- 目前支持Centos、Ubuntu、Debian，也可以不使用CDN
 ```
 bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh)
 ```
