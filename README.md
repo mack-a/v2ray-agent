@@ -13,7 +13,7 @@
 
 * * *
 # 目录
-- [全新一键CDN+TLS+WebSocket+Nginx+V2Ray脚本【CDN为非必选】](#一键脚本全自动websockettlscdn一键脚本)
+- [一键脚本【CDN+TLS+WebSocket+Nginx+V2Ray【CDN为非必选】、Trojan+TLS】](#一键脚本全自动websockettlscdn一键脚本)
 - [技能点列表](#技能点列表)
 - [自建教程](#自建教程)
   * [1.V2Ray](#1v2ray)
@@ -46,11 +46,14 @@
 [点击此链接加入电报群](https://t.me/v2rayAgent)
 
 * * *
-# 一键脚本【全自动WebSocket+TLS+CDN一键脚本】
+# 一键脚本
+## 全自动WebSocket+TLS+CDN一键脚本
 - 目前支持Centos、Ubuntu、Debian，也可以不使用CDN
 ```
 bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh)
 ```
+## 全自动Trojan+TLS一键脚本【TODO】
+
 - 1.自动检测并安装所需环境
 - 2.自动安装Nginx、TLS并生成TLS证书，并验证是否正常工作。
 - 3.自动安装V2Ray、配置文件、生成随机uuid以及开机自启。
