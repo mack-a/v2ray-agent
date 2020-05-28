@@ -13,7 +13,8 @@
 
 * * *
 # 目录
-- [一键脚本【CDN+TLS+WebSocket+Nginx+V2Ray【CDN为非必选】、Trojan+TLS】](#一键脚本全自动websockettlscdn一键脚本)
+- [一键脚本](#一键脚本全自动websockettlscdn一键脚本)
+  * [WebSocket+TLS+CDN](#一键脚本全自动websockettlscdn一键脚本)
 - [技能点列表](#技能点列表)
 - [自建教程](#自建教程)
   * [1.V2Ray](#1v2ray)
@@ -52,8 +53,6 @@
 ```
 bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh)
 ```
-## 全自动Trojan+TLS一键脚本【TODO】
-
 - 1.自动检测并安装所需环境
 - 2.自动安装Nginx、TLS并生成TLS证书，并验证是否正常工作。
 - 3.自动安装V2Ray、配置文件、生成随机uuid以及开机自启。
@@ -64,6 +63,8 @@ bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/in
 # 示例图
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/一键脚本示例图01.png" width=400>
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/一键脚本示例图02.png" width=400>
+
+## 全自动Trojan+TLS一键脚本【TODO】
 
 # 自建教程
 # 1.V2Ray
