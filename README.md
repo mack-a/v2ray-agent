@@ -58,7 +58,7 @@ bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/in
 - 3.自动安装V2Ray、配置文件、生成随机uuid以及开机自启。
 - 4.自动验证是否服务搭建成功
 - 5.自动伪装博客
-- 6.下个版本增加真实可用、并且可以手动书写文章的博客。
+- 6.增加定时任务 自动续期tls【todo】
 
 # 示例图
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/一键脚本示例图01.png" width=400>
