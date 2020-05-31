@@ -7,9 +7,9 @@
   
 # 注意事项
 - Wokers是Cloudflare基于CDN的无服务器应用程序。
-- 想使用Wokers，域名必须必须托管在Cloudflare
+- ~~想使用Wokers，域名必须必须托管在Cloudflare~~[错误]
 - 每天10万条请求
-- 保证在没有使用Workers的情况可以正常使用服务【CDN+WebSocket+TLS】
+- 保证在没有使用Workers的情况可以正常使用服务【CDN+WebSocket+TLS or WebSocket+TLS】
  
 # 步骤
 ## 1.创建Workers自定义域名
@@ -19,7 +19,7 @@
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/Workers/Workers_01.png" width=400>
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/Workers/Workers_02.png" width=400>
 
-## 2.绑定域名
+## ~~2.绑定域名~~[这一步可以不用看，直接看下面的即可]
 - 1.添加域名
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/Workers/Workers_03.png" width=400>
 
@@ -31,7 +31,7 @@
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/Workers/Workers_06.png" width=400>
 
 ## 3.创建Workers
-- 1.填写Workers的Script为下方内容【hostname部分要修改上方创建的域名解析的域名，比如 workerproxy.v2ray-agent.com 】
+- 1.填写Workers的Script为下方内容【hostname填写科学上网的域名，比如 workerproxy.v2ray-agent.com 】
 ```
 addEventListener(
   "fetch",event => {
