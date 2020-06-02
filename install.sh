@@ -327,6 +327,7 @@ qrEncode(){
 
     echoContent green "  通用vmess链接--->"
     echoContent green vmess://${qrCodeBase64}
+    echo vmess://${qrCodeBase64} > /etc/v2ray/usersv2ray.conf
     echoContent green "  json--->"
     echoContent green '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"64","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${host}'"}'
 
@@ -369,13 +370,31 @@ progressTool(){
     done
     echoContent green "  $1已安装--->"
 }
-
 init(){
+    echoContent white "==============================="
+    echoContent skyBlue "欢迎使用v2ray-agent，Cloudflare+WS+TLS+Nginx自动化脚本，如有使用问题欢迎加入TG群【https://t.me/v2rayAgent】，Github【https://github.com/mack-a/v2ray-agent】"
+    echoContent red "    1.安装"
+    echoContent red "    2.查看已安装账号"
+    echoContent white "==============================="
+    read installStatus
+
+    if [[ "${installStatus}" = "1" ]]
+    then
+        directory
+    elif [[ ! -z `find /etc|grep usersv2ray.conf`  ]] && [[ ! -z `cat /etc/v2ray/usersv2ray.conf` ]]
+    then
+        cat /etc/v2ray/usersv2ray.conf
+    else
+        echoContent red "暂无配置，请重新安装"
+    fi
+}
+
+directory(){
 
     echoContent white "==============================="
     echoContent skyBlue "欢迎使用v2ray-agent，Cloudflare+WS+TLS+Nginx自动化脚本，如有使用问题欢迎加入TG群【https://t.me/v2rayAgent】，Github【https://github.com/mack-a/v2ray-agent】"
     echoContent yellow "注意事项："
-    echoContent red "    1.脚本适合新机器，会删除、卸载已经安装的应用，包括V2Ray、Nginx"
+    echoContent red "    1.一键安装，会删除、卸载已经安装的应用，包括V2Ray、Nginx"
     echoContent red "    2.如果有使用此脚本生成TLS证书、V2Ray，会继续使用上次生成、安装的内容。"
     echoContent red "    3.脚本会检查并安装工具包"
     echoContent red "    4.请检查防火墙"
@@ -388,7 +407,7 @@ init(){
         installNginx
     else
         echoContent yellow "输入有误请重新输入--->\n"
-        init
+        directory
     fi
 }
 checkSystem(){
