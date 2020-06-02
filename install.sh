@@ -236,10 +236,10 @@ installV2Ray(){
         if [[ -z `find /usr/bin/ -name "v2ray*"` ]]
         then
             echoContent yellow "安装V2Ray--->"
-            version=`curl -s https://github.com/v2ray/v2ray-core/releases|grep /v2ray/v2ray-core/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[V]" '{print $2}'|awk -F "[<]" '{print $1}'`
+            version=`curl -s https://github.com/v2ray/v2ray-core/releases|grep /v2ray/v2ray-core/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
             mkdir -p /tmp/v2ray
             mkdir -p /usr/bin/v2ray/
-            wget -q -P /tmp/v2ray https://github.com/v2ray/v2ray-core/releases/download/v${version}/v2ray-linux-64.zip
+            wget -q -P /tmp/v2ray https://github.com/v2ray/v2ray-core/releases/download/${version}/v2ray-linux-64.zip
             unzip /tmp/v2ray/v2ray-linux-64.zip -d /tmp/v2ray > /dev/null
             cp /tmp/v2ray/v2ray /usr/bin/v2ray/
             cp /tmp/v2ray/v2ctl /usr/bin/v2ray/
@@ -277,7 +277,7 @@ installV2Ray(){
     fi
     echoContent yellow "客户端链接--->"
     qrEncode $1
-    echoContent yellow "监听V2Ray日志，如有日志出现则证明线路可用，Ctrl+c停止--->"
+    echoContent yellow "监听V2Ray日志，如有日志出现则证明线路可用，Ctrl+c退出监听日志--->"
     tail -f /tmp/v2ray/v2ray_access_ws_tls.log
 }
 # 开机自启
