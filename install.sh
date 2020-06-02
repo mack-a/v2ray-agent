@@ -43,6 +43,7 @@ fixBug(){
 
     fi
 }
+
 # 安装工具包
 installTools(){
     # echo "export LC_ALL=en_US.UTF-8"  >>  /etc/profile
@@ -173,7 +174,7 @@ installNginx(){
             installTLS ${domain}
             installV2Ray ${domain}
         else
-            echoContent red "    无法正常访问服务器，请检查域名的DNS解析是否正确--->"
+            echoContent red "    无法正常访问服务器，请检查域名的DNS解析以及防火墙设置是否正确--->"
             exit 0;
         fi
     fi
@@ -377,7 +378,7 @@ init(){
     echoContent red "    1.脚本适合新机器，会删除、卸载已经安装的应用，包括V2Ray、Nginx"
     echoContent red "    2.如果有使用此脚本生成TLS证书、V2Ray，会继续使用上次生成、安装的内容。"
     echoContent red "    3.脚本会检查并安装工具包"
-    echoContent red "    4.会自动关闭防火墙"
+    echoContent red "    4.请检查防火墙"
     echoContent white "==============================="
     echoContent red "请输入【1】确认执行脚本、Ctrl+c退出脚本："
     read installStatus
@@ -410,7 +411,6 @@ checkSystem(){
 		installType='apt -y install'
 		upgrade="apt update -y"
 		removeType='apt --purge remove'
-
     fi
     if [[ -z ${release} ]]
     then
