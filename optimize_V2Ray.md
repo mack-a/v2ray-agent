@@ -57,8 +57,9 @@
 - 3.保证在不自选ip的情况可以正常使用
 ### 1.步骤
 - 1.参考下图
-- 2.address部分填写自定义ip，host部分填写之前address填写的内容【有的客户端也需要填写header的host为域名部分】
-- 3.如果多个自选ip，则需要按照此步骤再添加账号即可。
+- 2.address部分填写自定义ip，host部分填写科学上网的域名【有的客户端也需要填写header的host为域名部分】
+- 3.tls servername 同样填写科学上网的域名
+- 4.如果多个自选ip，则需要按照此步骤再添加账号即可。
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare自选ip 手动更改.png' width=400/>
 
 ## 2.CloudFlare CNAME自选ip优化方案【dns自选ip】
