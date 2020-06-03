@@ -1,10 +1,10 @@
 # V2Ray
-## 1.Shadowrocket&v2rayNG&v2rayN&V2rayU
+## 1.通用
 ```
-https://blog.qiu4.ml/sub/subscribe?user=VAMXSPBUSX&type=1
+https://subscribe.v2ray-agent.com/sub/subscribe?user=XPEFMBGB4VD&type=1
 ```
 
 ## 2.Quantumult
 ```
-https://blog.qiu4.ml/sub/subscribe?user=VAMXSPBUSX&type=2
+https://subscribe.v2ray-agent.com/sub/subscribe?user=XPEFMBGB4VD&type=2
 ```
