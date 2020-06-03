@@ -7,7 +7,7 @@
 - [4.最优ip选择](#4最优ip选择)
 
 * * *
-# 1.CloudFlare自选IP【<font size="5" face="arial" color="red">必看</font>】
+# 1.CloudFlare自选IP【必看】
 ## 1.手动自选ip【建议使用该种方法】
 - 1.配置简单
 - 2.只需要客户端修改
@@ -23,14 +23,14 @@ domain03.qiu4.ml|104.16.25.4|104.20.157.10|无
 
 ### 1.v2rayU
 - 1.参考下图
-- 2.address部分填写自定义ip，host部分填写科学上网的域名
+- 2.address部分填写自定义ip或者上方提供的域名，host部分填写科学上网的域名
 - 3.tls servername 同样填写科学上网的域名
 - 4.如果多个自选ip，则复制刚刚添加好的配置，修改address部分即可。
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare自选ip 手动更改 v2rayU.png' width=400/>
 
 ### 2.Quantumult
 - 1.参考下图
-- 2.地址部分填写自选ip
+- 2.地址部分填写自选ip或者上方提供的域名
 - 3.Host部分填写科学上网的域名
 - 4.请求头-->Host部分填写科学上网的域名
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare自选ip 手动更改 Quantumult01.png' width=400/>
@@ -38,7 +38,7 @@ domain03.qiu4.ml|104.16.25.4|104.20.157.10|无
 
 ### 3.ShadowRocket
 - 1.参考下图
-- 2.地址部分填写自选ip
+- 2.地址部分填写自选ip或者上方提供的域名
 - 3.注意混淆部分->Host部分填写科学上网的域名
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare自选ip 手动更改 ShadowRocket01.png' width=400/>
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare自选ip 手动更改 ShadowRocket02.png' width=400/>
