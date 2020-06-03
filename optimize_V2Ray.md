@@ -80,8 +80,8 @@
 ## 2.CloudFlare CNAME自选ip优化方案【dns自选ip】
 #### 1.准备工作
 ###### 1.免费的智能DNS解析
-- 1.[dnspod](https://www.dnspod.cn/)
-- 2.[cloudxns](https://www.cloudxns.net/)
+- 1.[dnspod](https://www.dnspod.cn/)【现在已经和微信绑定】
+- 2.[cloudxns](https://www.cloudxns.net/)【不免费】
 - 3.[dns.la](https://www.dns.la/)
 - 4.[dns.com](https://www.dns.com/)
 
