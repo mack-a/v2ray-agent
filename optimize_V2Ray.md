@@ -8,53 +8,20 @@
 - [4.最优ip选择](#4最优ip选择)
 
 * * *
-
-# 1.偶尔断流
-- 修改CloudFlare Firwall Rules->create a Firewall rule
-- - 设置Field:URI path
-// 这里的/v2 是你的v2ray的path
-- - 设置：value:/v2
-- - Choose an action:Allow
-
-# 2.更换中国大陆地区CDN
-- 只是更换CDN其余配置内容不变
-## 1.腾讯CDN[月免费10GB]
-### 1.准备工作
-- 1.域名【需要大陆备案】
-- 2.HTTPS证书【备案的域名的证书，可以使用上方的脚本生成】
-### 2.[点击此链接，配置腾讯云CDN](https://console.cloud.tencent.com/cdn/access)
-#### 1.配置域名【域名管理-添加域名】
-- 1.域名填写备案过的域名（你要加速的域名）
-- 2.源站类型-填写自有源站
-- 3.源站设置填写你的vps ip
-- 4.加速类型选择流媒体点播加速
-- 5.关闭过滤参数
-- 6.等待部署完成
-<img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/腾讯CDN示例图01.png' width=400/>
-
-#### 2.配置HTTPS证书
-- 1.点击配置好的域名-高级设置-HTTPS配置
-- 2.证书内容-填写上方生成证书的结尾为 .crt文件里面的全部内容
-- 3.私钥内容-填写上方生成证书结尾为 .key文件里面的全部内容
-- 4.回源方式-协议跟随
-
-#### 3.回源配置
-- 1.点击配置好的域名-回源配置-取消掉Range回源
-
-#### 4.增加域名解析CNAME值
-- 1.我这里用的是阿里云的云解析DNS
-- 2.记录类型为CNAME
-- 3.主机记录则是你要配置的三级域名（国际规范）例如:test.xxx.com 这里填test
-- 4.解析线路默认即可
-- 5.记录值填写 腾讯CDN-点击域名-基本配置-CNAME值
-
-<img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CDN域名解析 CNAME.png' width=400/>
-
-# 3.CloudFlare自选IP
+# 1.CloudFlare自选IP【<font size="5" face="arial" color="red">必看</font>】
 ## 1.手动自选ip【建议使用该种方法】
 - 1.配置简单
 - 2.只需要客户端修改
 - 3.保证在不自选ip的情况可以正常使用
+
+>这里提供了国内dns分流，只需要将下方教程提到的自定义ip写成，下方表格中的域名。即可根据你的运营商自动切换自选ip。这里的自选ip不是很全，如果有更加适合你的可以假如TG群提一下。
+
+域名|移动|联通|电信
+-|-|-|-
+domain01.qiu4.ml|1.0.0.1|104.20.157.0|无
+domain02.qiu4.ml|172.64.32.1|104.20.157.5|无
+domain03.qiu4.ml|104.16.25.4|104.20.157.10|无
+
 ### 1.v2rayU
 - 1.参考下图
 - 2.address部分填写自定义ip，host部分填写科学上网的域名
@@ -233,7 +200,41 @@ mobile.xxx.com. 0	IN	A	198.41.214.162
 需要手动修改自己本地的客户端的DNS配置，各终端请自行Google
 ```
 
-# 4.最优ip选择
+# 2.更换中国大陆地区CDN
+- 只是更换CDN其余配置内容不变
+## 1.腾讯CDN[月免费10GB]
+### 1.准备工作
+- 1.域名【需要大陆备案】
+- 2.HTTPS证书【备案的域名的证书，可以使用上方的脚本生成】
+### 2.[点击此链接，配置腾讯云CDN](https://console.cloud.tencent.com/cdn/access)
+#### 1.配置域名【域名管理-添加域名】
+- 1.域名填写备案过的域名（你要加速的域名）
+- 2.源站类型-填写自有源站
+- 3.源站设置填写你的vps ip
+- 4.加速类型选择流媒体点播加速
+- 5.关闭过滤参数
+- 6.等待部署完成
+<img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/腾讯CDN示例图01.png' width=400/>
+
+#### 2.配置HTTPS证书
+- 1.点击配置好的域名-高级设置-HTTPS配置
+- 2.证书内容-填写上方生成证书的结尾为 .crt文件里面的全部内容
+- 3.私钥内容-填写上方生成证书结尾为 .key文件里面的全部内容
+- 4.回源方式-协议跟随
+
+#### 3.回源配置
+- 1.点击配置好的域名-回源配置-取消掉Range回源
+
+#### 4.增加域名解析CNAME值
+- 1.我这里用的是阿里云的云解析DNS
+- 2.记录类型为CNAME
+- 3.主机记录则是你要配置的三级域名（国际规范）例如:test.xxx.com 这里填test
+- 4.解析线路默认即可
+- 5.记录值填写 腾讯CDN-点击域名-基本配置-CNAME值
+
+<img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CDN域名解析 CNAME.png' width=400/>
+
+# 3.最优ip选择
 ## 1.移动
 ### 1.推荐节点
 - hk
