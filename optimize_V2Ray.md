@@ -55,15 +55,14 @@
 - 1.配置简单
 - 2.只需要客户端修改
 - 3.保证在不自选ip的情况可以正常使用
-### 1.步骤
-#### 1.v2rayU
+### 1.v2rayU
 - 1.参考下图
 - 2.address部分填写自定义ip，host部分填写科学上网的域名
 - 3.tls servername 同样填写科学上网的域名
 - 4.如果多个自选ip，则复制刚刚添加好的配置，修改address部分即可。
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare自选ip 手动更改 v2rayU.png' width=400/>
 
-#### 2.Quantumult
+### 2.Quantumult
 - 1.参考下图
 - 2.地址部分填写自选ip
 - 3.Host部分填写科学上网的域名
@@ -71,7 +70,7 @@
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare自选ip 手动更改 Quantumult01.png' width=400/>
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare自选ip 手动更改 Quantumult02.png' width=400/>
 
-#### 3.ShadowRocket
+### 3.ShadowRocket
 - 1.参考下图
 - 2.地址部分填写自选ip
 - 3.注意混淆部分->Host部分填写科学上网的域名
