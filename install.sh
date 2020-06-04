@@ -322,14 +322,14 @@ qrEncode(){
     aid=`echo ${user}|jq .settings.clients[0].alterId`
     host="$1"
     path=`echo ${user}|jq .streamSettings.wsSettings.path`
-    qrCodeBase64=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"64","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
+    qrCodeBase64=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"64","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"domain04.qiu4.ml"}'|sed 's#/#\\\/#g'|base64`
     qrCodeBase64=`echo ${qrCodeBase64}|sed 's/ //g'`
 
     echoContent green "  通用vmess链接--->"
     echoContent green vmess://${qrCodeBase64}
     echo vmess://${qrCodeBase64} > /etc/v2ray/usersv2ray.conf
     echoContent green "  json--->"
-    echoContent green '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"64","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${host}'"}'
+    echoContent green '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"64","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"domain04.qiu4.ml"}'
 
     # | qrencode -t UTF8
     # echo ${qrCodeBase64}

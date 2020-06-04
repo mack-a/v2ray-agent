@@ -2,7 +2,7 @@
 >Everyone is free。
 >世界就是这样，当你开始思考时，你已经是小部分中的一员了。祝大家使用愉快。
 
-- 推荐 [全新一键CDN+TLS+WebSocket+Nginx+V2Ray脚本](#一键脚本全自动websockettlscdn一键脚本)
+- 推荐 [全新一键CDN+TLS+WebSocket+Nginx+V2Ray脚本](#全自动websockettlscdn一键脚本)
 - 此项目采用[CDN+TLS+Nginx+V2Ray](1V2Ray)、[Trojan](2Trojan)、[Cloudflare Workers](#方法3workers) 进行模拟正常网站并突破防火墙，同时包含优化方法，以及简单的原理讲解。
 - [自建教程](#自建教程)可以快速入手并知晓其中的步骤。如遇到不懂以及不理解的可以加入[TG群讨论](https://t.me/v2rayAgent)。
 - [优化方案【CDN 自选ip】](https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md)包含对Cloudflare的优化（自选ip优化、DNS优化、断流优化），VPS处理性能优化（bbr、bbr plus【阻塞拥堵算法，加快对流量的处理】）、其余设置（开机启动）、docker镜像、防火墙设置。
@@ -13,8 +13,8 @@
 
 * * *
 # 目录
-- [一键脚本](#一键脚本全自动websockettlscdn一键脚本)
-  * [WebSocket+TLS+CDN](#一键脚本全自动websockettlscdn一键脚本)
+- [一键脚本](#一键脚本)
+  * [WebSocket+TLS+CDN](#全自动websockettlscdn一键脚本)
 - [技能点列表](#技能点列表)
 - [自建教程](#自建教程)
   * [1.V2Ray](#1v2ray)
@@ -47,6 +47,12 @@
 # 一键脚本
 ## 全自动WebSocket+TLS+CDN一键脚本
 - 目前支持Centos、Ubuntu、Debian，也可以不使用CDN
+- 这里添加了默认的智能解析自选CDN IP，本地dns解析建议使用114.114.114.114
+
+域名|移动|移动测试|联通|电信
+-|-|-|-|-
+domain04.qiu4.ml|104.17.209.9|上午峰值6w，稳定4k不卡顿、晚高峰待测|172.67.223.77|172.67.223.77
+
 ```
 bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh)
 ```
@@ -55,7 +61,8 @@ bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/in
 - 3.自动安装V2Ray、配置文件、生成随机uuid以及开机自启。
 - 4.自动验证是否服务搭建成功
 - 5.自动伪装博客
-- 6.增加定时任务 自动续期tls【todo】
+- 6.添加了默认的CDN 自选ip智能解析
+- 7.增加定时任务 自动续期tls【todo】
 
 # 示例图
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/一键脚本示例图01.png" width=400>
