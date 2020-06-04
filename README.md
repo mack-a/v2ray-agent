@@ -49,6 +49,7 @@
 - 目前支持Centos、Ubuntu、Debian，也可以不使用CDN
 - 这里添加了默认的智能解析自选CDN IP，脚本安装完毕后会自动使用，本地dns解析建议使用114.114.114.114
 - 如果智能解析后发现不能上网，第一可以升级客户端、第二可以将address填写自己的科学上网的域名，不再使用智能解析CDN的域名。
+- 如果对默认的不满意，则可以[点此查看最新的](https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md)，或者加入[TG群](https://t.me/v2rayAgent)添加适合自己的CDN ip。
 
 域名|移动|移动测试|联通|电信
 -|-|-|-|-
