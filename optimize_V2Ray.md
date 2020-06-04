@@ -47,6 +47,12 @@ domain05.qiu4.ml|104.16.133.229|上午峰值7w，稳定8k不卡顿、晚高峰�
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare自选ip 手动更改 ShadowRocket01.png' width=400/>
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare自选ip 手动更改 ShadowRocket02.png' width=400/>
 
+### 4.v2rayN
+- 1.参考下图
+- 2.地址部分填写自选ip或者上方提供的域名
+- 3.注意伪装域名部分填写科学上网的域名
+<img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare自选ip 手动更改 v2rayN.png' width=400/>
+
 ## 2.CloudFlare CNAME自选ip优化方案【dns自选ip】
 #### 1.准备工作
 ###### 1.免费的智能DNS解析
