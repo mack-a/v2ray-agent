@@ -26,7 +26,6 @@
 - [客户端](#客户端)
 - [防护墙设置](#防火墙设置点击查看)
 - [维护进程[todo List]](https://github.com/mack-a/v2ray-agent/blob/master/recover_version.md)
-- [其余设置【开机自启、bbr加速】](https://github.com/mack-a/v2ray-agent/blob/master/settings.md)
 * * *
 
 
