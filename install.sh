@@ -320,6 +320,7 @@ qrEncode(){
     id=`echo ${user}|jq .settings.clients[0].id`
     aid=`echo ${user}|jq .settings.clients[0].alterId`
     host="$1"
+    add="$1"
     path=`echo ${user}|jq .streamSettings.wsSettings.path`
     echoContent red '是否使用DNS智能解析进行自定义CDN IP ？，请选择⬇️'
     echoContent yellow '    1.使用 '
@@ -327,17 +328,17 @@ qrEncode(){
     read dnsProxy
     if [[ "${dnsProxy}" = "1" ]]
     then
-        host="domain04.qiu4.ml"
+        add="domain04.qiu4.ml"
     fi
     echoContent yellow "客户端链接--->\n"
-    qrCodeBase64=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"64","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
+    qrCodeBase64=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"64","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'"}'|sed 's#/#\\\/#g'|base64`
     qrCodeBase64=`echo ${qrCodeBase64}|sed 's/ //g'`
 
     echoContent red "通用vmess链接--->"
     echoContent green "    vmess://${qrCodeBase64}\n"
     echo vmess://${qrCodeBase64} > /etc/v2ray/usersv2ray.conf
     echoContent red "json--->"
-    echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"64","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${host}'"}\n'
+    echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"64","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'"}\n'
 
     # | qrencode -t UTF8
     # echo ${qrCodeBase64}
