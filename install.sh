@@ -269,15 +269,19 @@ installV2Ray(){
 
     # 验证整个服务是否可用
     echoContent yellow "验证服务是否可用--->"
-    if [[ `curl -s -L https://$1/alone` = "Bad Request" ]]
+    sleep 0.5
+    if [[ ! -z `curl -s -L https://$1/alone|grep -v grep|grep "Bad Request"` ]]
     then
-        echoContent green "  服务可用--->\n"
+        echoContent green "  安装完毕，服务可用--->\n"
     else
+
         echoContent red "  服务不可用，请检查Cloudflare->域名->SSL/TLS->Overview->Your SSL/TLS encryption mode is 是否是Full--->"
+        echoContent red "  错误日志:`curl -s -L https://$1/alone`"
         exit 0
     fi
     qrEncode $1
-    echoContent yellow "监听V2Ray日志中，请使用上方生成的vmess访问，如有日志出现则证明线路可用，Ctrl+c退出监听日志--->"
+    echoContent yellow "监听V2Ray日志中，请使用上方生成的vmess访问，如有日志出现则证明线路可用，Ctrl+c退出舰艇日志--->"
+    echo '' > /tmp/v2ray/v2ray_access_ws_tls.log
     tail -f /tmp/v2ray/v2ray_access_ws_tls.log
 }
 # 开机自启
@@ -322,24 +326,36 @@ qrEncode(){
     host="$1"
     add="$1"
     path=`echo ${user}|jq .streamSettings.wsSettings.path`
-    echoContent red '是否使用DNS智能解析进行自定义CDN IP ？，请选择⬇️'
-    echoContent yellow '    1.使用 '
-    echoContent yellow '    输入任意字符不使用'
+    echoContent green '是否使用DNS智能解析进行自定义CDN IP？'
+    echoContent yellow "智能DNS提供一下自定义CDN IP，会根据运营商自动切换ip，测试结果请查看【https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md】"
+    echoContent yellow "   移动:104.17.209.9"
+    echoContent yellow "   联通:172.67.223.77"
+    echoContent yellow "   电信:104.16.25.4"
+    echoContent yellow '输入【y】使用，输入其余任意字符不使用'
     read dnsProxy
-    if [[ "${dnsProxy}" = "1" ]]
+    if [[ "${dnsProxy}" = "y" ]]
     then
         add="domain04.qiu4.ml"
     fi
     echoContent yellow "客户端链接--->\n"
-    qrCodeBase64=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"64","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'"}'|sed 's#/#\\\/#g'|base64`
-    qrCodeBase64=`echo ${qrCodeBase64}|sed 's/ //g'`
-
+    qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"64","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'"}'|sed 's#/#\\\/#g'|base64`
+    qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
+    # 通用Vmess
     echoContent red "通用vmess链接--->"
-    echoContent green "    vmess://${qrCodeBase64}\n"
-    echo vmess://${qrCodeBase64} > /etc/v2ray/usersv2ray.conf
-    echoContent red "json--->"
+    echoContent green "    vmess://${qrCodeBase64Default}\n"
+    echo "通用vmess链接: vmess://${qrCodeBase64Default}" > /etc/v2ray/usersv2ray.conf
+    echoContent red "通用json--->"
     echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"64","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'"}\n'
 
+    # Quantumult
+    qrCodeBase64Quanmult=`echo -n ''${ps}' = vmess, '${add}', 443, aes-128-cfb, '${id}', over-tls=true, tls-host='${host}', certificate=1, obfs=ws, obfs-path='${path}', obfs-header="Host: '${host}'[Rr][Nn]User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 11_2_6 like Mac OS X) AppleWebKit/604.5.6 (KHTML, like Gecko) Mobile/15D100"'|base64`
+    qrCodeBase64Quanmult=`echo ${qrCodeBase64Quanmult}|sed 's/ //g'`
+
+    echoContent red "Quantumult vmess--->"
+    echoContent green "    vmess://${qrCodeBase64Quanmult}\n"
+    echo "Quantumult: vmess://${qrCodeBase64Quanmult}" >> /etc/v2ray/usersv2ray.conf
+    echoContent red "Quantumult 明文--->"
+    echoContent green  '    '${ps}' = vmess, '${add}', 443, aes-128-cfb, '${id}', over-tls=true, tls-host='${host}', certificate=1, obfs=ws, obfs-path='${path}', obfs-header="Host: '${host}'[Rr][Nn]User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 11_2_6 like Mac OS X) AppleWebKit/604.5.6 (KHTML, like Gecko) Mobile/15D100"'
     # | qrencode -t UTF8
     # echo ${qrCodeBase64}
 }
@@ -424,14 +440,15 @@ directory(){
     echoContent yellow "==============================="
     echoContent green "欢迎使用v2ray-agent，Cloudflare+WS+TLS+Nginx自动化脚本，如有使用问题欢迎加入TG群【https://t.me/v2rayAgent】，Github【https://github.com/mack-a/v2ray-agent】"
     echoContent yellow "注意事项："
-    echoContent red "    1.一键安装，会删除、卸载已经安装的应用，包括V2Ray、Nginx"
-    echoContent red "    2.如果有使用此脚本生成TLS证书、V2Ray，会继续使用上次生成、安装的内容。"
+    echoContent red "    1.会删除、卸载已经安装的应用，包括V2Ray、Nginx"
+    echoContent red "    2.如果使用此脚本生成过TLS证书、V2Ray，会继续使用上次生成、安装的内容。"
     echoContent red "    3.脚本会检查并安装工具包"
-    echoContent red "    4.请检查防火墙"
+    echoContent red "    4.如果显示nginx不可用，请检查防火墙端口是否开放。"
+    echoContent red "    5.如果证书过期则执行【rm -rf /tmp/tls】后重新执行该脚本即可"
     echoContent yellow "==============================="
-    echoContent green "请输入【1】确认执行脚本、Ctrl+c退出脚本："
+    echoContent green "请输入【y】确认执行脚本、Ctrl+c退出脚本："
     read installStatus
-    if [[ "${installStatus}" = "1" ]]
+    if [[ "${installStatus}" = "y" ]]
     then
         installTools
         installNginx
