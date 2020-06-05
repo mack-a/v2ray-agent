@@ -343,7 +343,8 @@ qrEncode(){
     # 通用Vmess
     echoContent red "通用vmess链接--->"
     echoContent green "    vmess://${qrCodeBase64Default}\n"
-    echo "通用vmess链接: vmess://${qrCodeBase64Default}" > /etc/v2ray/usersv2ray.conf
+    echo "通用vmess链接: " > /etc/v2ray/usersv2ray.conf
+    echo "   vmess://${qrCodeBase64Default}" >> /etc/v2ray/usersv2ray.conf
     echoContent red "通用json--->"
     echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"64","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'"}\n'
 
@@ -353,7 +354,9 @@ qrEncode(){
 
     echoContent red "Quantumult vmess--->"
     echoContent green "    vmess://${qrCodeBase64Quanmult}\n"
-    echo "Quantumult: vmess://${qrCodeBase64Quanmult}" >> /etc/v2ray/usersv2ray.conf
+    echo '' >> /etc/v2ray/usersv2ray.conf
+    echo "Quantumult:" >> /etc/v2ray/usersv2ray.conf
+    echo "  vmess://${qrCodeBase64Quanmult}" >> /etc/v2ray/usersv2ray.conf
     echoContent red "Quantumult 明文--->"
     echoContent green  '    '${ps}' = vmess, '${add}', 443, aes-128-cfb, '${id}', over-tls=true, tls-host='${host}', certificate=1, obfs=ws, obfs-path='${path}', obfs-header="Host: '${host}'[Rr][Nn]User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 11_2_6 like Mac OS X) AppleWebKit/604.5.6 (KHTML, like Gecko) Mobile/15D100"'
     # | qrencode -t UTF8
