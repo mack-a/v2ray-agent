@@ -5,9 +5,8 @@
 - 推荐 [全新一键CDN+TLS+WebSocket+Nginx+V2Ray脚本](#全自动websockettlscdn一键脚本)
 - 此项目采用[CDN+TLS+Nginx+V2Ray](1V2Ray)、[Trojan](2Trojan)、[Cloudflare Workers](#方法3workers) 进行模拟正常网站并突破防火墙，同时包含优化方法，以及简单的原理讲解。
 - [自建教程](#自建教程)可以快速入手并知晓其中的步骤。如遇到不懂以及不理解的可以加入[TG群讨论](https://t.me/v2rayAgent)。
-- [优化方案【CDN 自选ip】](https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md)包含对Cloudflare的优化（自选ip优化、DNS优化、断流优化），VPS处理性能优化（bbr、bbr plus【阻塞拥堵算法，加快对流量的处理】）、其余设置（开机启动）、docker镜像、防火墙设置。
-- [流量中转教程](#流量转发服务)【大大提高流量传输的速度，减少丢包】、[测试订阅链接](https://github.com/mack-a/v2ray-agent/blob/master/free_account.md)。
-- 接下来会提供V2Ray配置生成器、iptables流量转发、Docker镜像、私有Docker仓库、私有git仓库【gitlab】、以及可供部署k8s容器等方面的内容。
+- [优化方案【CDN 自选ip】](https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md)包含对Cloudflare的优化（自选ip优化、DNS优化、断流优化。
+- [流量中转教程](#流量转发服务)【提高流量传输的速度，减少丢包】。
 - [测试订阅链接](https://github.com/mack-a/v2ray-agent/blob/master/free_account.md)【如无法使用可加入[TG群](https://t.me/v2rayAgent)反馈】。
 - 个性化需求可以加入[TG群](https://t.me/v2rayAgent)讨论。
 - [强烈安装适合自己的BBR，执行脚本前必看](https://github.com/mack-a/v2ray-agent/blob/master/bbr.md)
@@ -63,7 +62,7 @@ bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/in
 - 3.自动安装V2Ray、配置文件、生成随机uuid以及开机自启。
 - 4.自动验证是否服务搭建成功
 - 5.自动伪装博客
-- 6.添加了默认的CDN 自选ip智能解析
+- 6.添加了默认的CDN，自选ip智能解析
 - 7.增加定时任务 自动续期tls【todo】
 
 # 示例图

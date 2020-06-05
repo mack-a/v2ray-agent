@@ -53,7 +53,7 @@ installTools(){
     then
         if [[ ! -z `ps -ef|grep nginx|grep -v grep`  ]]
         then
-            nginx -s stop
+            ps -ef|grep nginx|grep -v grep|awk '{print $2}'|xargs kill -9
         fi
 
         if [[ "${release}" = "ubuntu" ]] || [[ "${release}" = "debian" ]]
@@ -145,7 +145,7 @@ installNginx(){
 
         if [[ ! -z `ps -ef|grep -v grep|grep nginx` ]]
         then
-            nginx -s stop
+            ps -ef|grep nginx|grep -v grep|awk '{print $2}'|xargs kill -9
         fi
 
         # 修改配置
@@ -169,8 +169,8 @@ installNginx(){
         domainResult=`curl -s ${domain}/test|grep fjkvymb6len`
         if [[ ! -z ${domainResult} ]]
         then
-            echoContent green "  Nginx访问成功--->"
-            nginx -s stop
+            echoContent green "  Nginx访问成功--->\n"
+            ps -ef|grep nginx|grep -v grep|awk '{print $2}'|xargs kill -9
             installTLS ${domain}
             installV2Ray ${domain}
         else
@@ -228,7 +228,7 @@ installTLS(){
         echoContent red "  Nginx启动失败，请检查日志--->"
         exit 0
     fi
-    echoContent green "  Nginx启动成功，TLS配置成功--->"
+    echoContent green "  Nginx启动成功，TLS配置成功--->\n"
 }
 # V2Ray
 installV2Ray(){
@@ -248,7 +248,7 @@ installV2Ray(){
         fi
         echoContent green "  V2Ray安装成功--->"
     else
-         echoContent yellow "检测到V2Ray安装程序，如需重新安装，请执行【rm -rf /tmp/v2ray】,然后重新执行脚本--->"
+         echoContent yellow "检测到V2Ray安装程序，如需重新安装，请执行【rm -rf /tmp/v2ray】,然后重新执行脚本--->\n"
          mkdir -p /usr/bin/v2ray/
          cp /tmp/v2ray/v2ray /usr/bin/v2ray/ && cp /tmp/v2ray/v2ctl /usr/bin/v2ray/
     fi
@@ -262,7 +262,7 @@ installV2Ray(){
         echoContent red "    V2Ray启动失败，请检查日志后，重新执行脚本--->"
         exit 0;
     fi
-    echoContent green "  V2Ray启动成功--->"
+    echoContent green "  V2Ray启动成功--->\n"
     echoContent yellow "V2Ray日志目录："
     echoContent green "  access:  /tmp/v2ray/v2ray_access_ws_tls.log"
     echoContent green "  error:  /tmp/v2ray/v2ray_error_ws_tls.log"
@@ -271,14 +271,13 @@ installV2Ray(){
     echoContent yellow "验证服务是否可用--->"
     if [[ `curl -s -L https://$1/alone` = "Bad Request" ]]
     then
-        echoContent green "  服务可用--->"
+        echoContent green "  服务可用--->\n"
     else
         echoContent red "  服务不可用，请检查Cloudflare->域名->SSL/TLS->Overview->Your SSL/TLS encryption mode is 是否是Full--->"
         exit 0
     fi
-    echoContent yellow "客户端链接--->"
     qrEncode $1
-    echoContent yellow "监听V2Ray日志，如有日志出现则证明线路可用，Ctrl+c退出监听日志--->"
+    echoContent yellow "监听V2Ray日志中，请使用上方生成的vmess访问，如有日志出现则证明线路可用，Ctrl+c退出监听日志--->"
     tail -f /tmp/v2ray/v2ray_access_ws_tls.log
 }
 # 开机自启
@@ -322,14 +321,23 @@ qrEncode(){
     aid=`echo ${user}|jq .settings.clients[0].alterId`
     host="$1"
     path=`echo ${user}|jq .streamSettings.wsSettings.path`
-    qrCodeBase64=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"64","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"domain04.qiu4.ml"}'|sed 's#/#\\\/#g'|base64`
+    echoContent red '是否使用DNS智能解析进行自定义CDN IP ？，请选择⬇️'
+    echoContent yellow '    1.使用 '
+    echoContent yellow '    输入任意字符不使用'
+    read dnsProxy
+    if [[ "${dnsProxy}" = "1" ]]
+    then
+        host="domain04.qiu4.ml"
+    fi
+    echoContent yellow "客户端链接--->\n"
+    qrCodeBase64=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"64","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
     qrCodeBase64=`echo ${qrCodeBase64}|sed 's/ //g'`
 
-    echoContent green "  通用vmess链接--->"
-    echoContent green vmess://${qrCodeBase64}
+    echoContent red "通用vmess链接--->"
+    echoContent green "    vmess://${qrCodeBase64}\n"
     echo vmess://${qrCodeBase64} > /etc/v2ray/usersv2ray.conf
-    echoContent green "  json--->"
-    echoContent green '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"64","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"domain04.qiu4.ml"}'
+    echoContent red "json--->"
+    echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"64","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${host}'"}\n'
 
     # | qrencode -t UTF8
     # echo ${qrCodeBase64}
@@ -371,35 +379,56 @@ progressTool(){
     echoContent green "  $1已安装--->"
 }
 init(){
-    echoContent white "==============================="
-    echoContent skyBlue "欢迎使用v2ray-agent，Cloudflare+WS+TLS+Nginx自动化脚本，如有使用问题欢迎加入TG群【https://t.me/v2rayAgent】，Github【https://github.com/mack-a/v2ray-agent】"
+    echoContent yellow "==============================="
+    echoContent green "欢迎使用v2ray-agent，Cloudflare+WS+TLS+Nginx自动化脚本，如有使用问题欢迎加入TG群【https://t.me/v2rayAgent】，Github【https://github.com/mack-a/v2ray-agent】"
     echoContent red "    1.安装"
     echoContent red "    2.查看已安装账号"
-    echoContent white "==============================="
+    echoContent red "    3.BBR安装【推荐BBR+FQ 或者 BBR+Cake】"
+    echoContent yellow "==============================="
+    echoContent green "请输入："
     read installStatus
 
     if [[ "${installStatus}" = "1" ]]
     then
         directory
-    elif [[ ! -z `find /etc|grep usersv2ray.conf`  ]] && [[ ! -z `cat /etc/v2ray/usersv2ray.conf` ]]
+    elif [[ "${installStatus}" = "2" ]]
     then
-        cat /etc/v2ray/usersv2ray.conf
-    else
-        echoContent red "暂无配置，请重新安装"
+        if [[ ! -z `find /etc|grep usersv2ray.conf`  ]] && [[ ! -z `cat /etc/v2ray/usersv2ray.conf` ]]
+        then
+            cat /etc/v2ray/usersv2ray.conf
+        else
+            echoContent red "暂无配置，请重新安装"
+        fi
+
+    elif [[ "${installStatus}" = "3" ]]
+    then
+        echoContent red "==============================="
+        echoContent green "BBR脚本用的【ylx2016】的成熟作品，地址【https://github.com/ylx2016/Linux-NetSpeed/releases/download/sh/tcp.sh】，请熟知"
+        echoContent red "    1.安装"
+        echoContent red "    2.回退主目录"
+        echoContent red "==============================="
+        echoContent green "请输入："
+        read installBBRStatus
+        if [[ "${installBBRStatus}" = "1" ]]
+        then
+            wget -N --no-check-certificate "https://github.com/ylx2016/Linux-NetSpeed/releases/download/sh/tcp.sh" && chmod +x tcp.sh && ./tcp.sh
+        else
+            init
+        fi
     fi
 }
 
 directory(){
 
-    echoContent white "==============================="
-    echoContent skyBlue "欢迎使用v2ray-agent，Cloudflare+WS+TLS+Nginx自动化脚本，如有使用问题欢迎加入TG群【https://t.me/v2rayAgent】，Github【https://github.com/mack-a/v2ray-agent】"
+    echoContent yellow "==============================="
+    echoContent green "欢迎使用v2ray-agent，Cloudflare+WS+TLS+Nginx自动化脚本，如有使用问题欢迎加入TG群【https://t.me/v2rayAgent】，Github【https://github.com/mack-a/v2ray-agent】"
     echoContent yellow "注意事项："
     echoContent red "    1.一键安装，会删除、卸载已经安装的应用，包括V2Ray、Nginx"
     echoContent red "    2.如果有使用此脚本生成TLS证书、V2Ray，会继续使用上次生成、安装的内容。"
     echoContent red "    3.脚本会检查并安装工具包"
     echoContent red "    4.请检查防火墙"
-    echoContent white "==============================="
-    echoContent red "请输入【1】确认执行脚本、Ctrl+c退出脚本："
+    echoContent yellow "==============================="
+    echoContent green "请输入【1】确认执行脚本、Ctrl+c退出脚本："
     read installStatus
     if [[ "${installStatus}" = "1" ]]
     then
