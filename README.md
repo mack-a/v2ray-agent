@@ -52,7 +52,7 @@
 
 域名|移动|移动测试|联通|电信
 -|-|-|-|-
-domain04.qiu4.ml|104.17.209.9|上午峰值6w，稳定4k不卡顿、晚八点峰值4w，流畅4k，晚9点峰值1w-3w跨度较大，流畅1440p|172.67.223.77|104.16.25.4
+domain04.qiu4.ml|104.17.209.9|上午峰值6w，稳定4k不卡顿、晚八点峰值4w，流畅4k，晚9点峰值1w-3w跨度较大，流畅1440p|104.16.25.4|104.16.25.4
 
 ```
 bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh)
