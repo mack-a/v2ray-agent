@@ -211,7 +211,7 @@ installTLS(){
         rm -rf /tmp/tls
         installTLS $1
     else
-        echoContent yellow "检测到备份证书，如需重新生成，请执行 【rm -rf /tmp/tls】，然后重新执行脚本--->"
+        echoContent yellow "检测到备份证书，如需重新生成，请执行 [rm -rf /tmp/tls]，然后重新执行脚本--->"
         cp -R /tmp/tls/$1.crt /etc/nginx/$1.crt
         cp -R /tmp/tls/$1.key /etc/nginx/$1.key
     fi
@@ -248,7 +248,7 @@ installV2Ray(){
         fi
         echoContent green "  V2Ray安装成功--->"
     else
-         echoContent yellow "检测到V2Ray安装程序，如需重新安装，请执行【rm -rf /tmp/v2ray】,然后重新执行脚本--->\n"
+         echoContent yellow "检测到V2Ray安装程序，如需重新安装，请执行[rm -rf /tmp/v2ray],然后重新执行脚本--->\n"
          mkdir -p /usr/bin/v2ray/
          cp /tmp/v2ray/v2ray /usr/bin/v2ray/ && cp /tmp/v2ray/v2ctl /usr/bin/v2ray/
     fi
@@ -327,11 +327,11 @@ qrEncode(){
     add="$1"
     path=`echo ${user}|jq .streamSettings.wsSettings.path`
     echoContent green '是否使用DNS智能解析进行自定义CDN IP？'
-    echoContent yellow "智能DNS提供一下自定义CDN IP，会根据运营商自动切换ip，测试结果请查看【https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md】"
+    echoContent yellow "智能DNS提供一下自定义CDN IP，会根据运营商自动切换ip，测试结果请查看[https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md]"
     echoContent yellow "   移动:104.17.209.9"
     echoContent yellow "   联通:172.67.223.77"
     echoContent yellow "   电信:104.16.25.4"
-    echoContent yellow '输入【y】使用，输入其余任意字符不使用'
+    echoContent yellow '输入[y]使用，[任意]不使用'
     read dnsProxy
     if [[ "${dnsProxy}" = "y" ]]
     then
@@ -400,12 +400,12 @@ progressTool(){
 }
 init(){
     echoContent yellow "==============================="
-    echoContent green "欢迎使用v2ray-agent，Cloudflare+WS+TLS+Nginx自动化脚本，如有使用问题欢迎加入TG群【https://t.me/v2rayAgent】，Github【https://github.com/mack-a/v2ray-agent】"
+    echoContent green "欢迎使用v2ray-agent，Cloudflare+WS+TLS+Nginx自动化脚本，如有使用问题欢迎加入TG群[https://t.me/v2rayAgent]，Github[https://github.com/mack-a/v2ray-agent]"
     echoContent red "    1.安装"
     echoContent red "    2.查看已安装账号"
-    echoContent red "    3.BBR安装【推荐BBR+FQ 或者 BBR+Cake】"
+    echoContent red "    3.BBR安装[推荐BBR+FQ 或者 BBR+Cake]"
     echoContent yellow "==============================="
-    echoContent green "请输入："
+    echoContent green "请输入上列数字："
     read installStatus
 
     if [[ "${installStatus}" = "1" ]]
@@ -423,11 +423,11 @@ init(){
     elif [[ "${installStatus}" = "3" ]]
     then
         echoContent red "==============================="
-        echoContent green "BBR脚本用的【ylx2016】的成熟作品，地址【https://github.com/ylx2016/Linux-NetSpeed/releases/download/sh/tcp.sh】，请熟知"
+        echoContent green "BBR脚本用的[ylx2016]的成熟作品，地址[https://github.com/ylx2016/Linux-NetSpeed/releases/download/sh/tcp.sh]，请熟知"
         echoContent red "    1.安装"
         echoContent red "    2.回退主目录"
         echoContent red "==============================="
-        echoContent green "请输入："
+        echoContent green "请输入[1]安装，[2]回到上层目录"
         read installBBRStatus
         if [[ "${installBBRStatus}" = "1" ]]
         then
@@ -439,25 +439,26 @@ init(){
 }
 
 directory(){
-
-    echoContent yellow "==============================="
-    echoContent green "欢迎使用v2ray-agent，Cloudflare+WS+TLS+Nginx自动化脚本，如有使用问题欢迎加入TG群【https://t.me/v2rayAgent】，Github【https://github.com/mack-a/v2ray-agent】"
+    echoContent red "==============================="
+    echoContent green "欢迎使用v2ray-agent，Cloudflare+WS+TLS+Nginx+Blog自动化脚本，如有使用问题欢迎加入TG群"
     echoContent yellow "注意事项："
-    echoContent red "    1.会删除、卸载已经安装的应用，包括V2Ray、Nginx"
-    echoContent red "    2.如果使用此脚本生成过TLS证书、V2Ray，会继续使用上次生成、安装的内容。"
-    echoContent red "    3.脚本会检查并安装工具包"
-    echoContent red "    4.如果显示nginx不可用，请检查防火墙端口是否开放。"
-    echoContent red "    5.如果证书过期则执行【rm -rf /tmp/tls】后重新执行该脚本即可"
-    echoContent yellow "==============================="
-    echoContent green "请输入【y】确认执行脚本、Ctrl+c退出脚本："
+    echoContent green "    1.脚本会检查并安装工具包"
+    echoContent green "    2.如果使用此脚本生成过TLS证书、V2Ray，会继续使用上次生成、安装的内容。"
+    echoContent green "    3.会删除、卸载已经安装的应用，包括V2Ray、Nginx。"
+    echoContent green "    4.如果显示Nginx不可用，请检查防火墙端口是否开放。"
+    echoContent green "    5.如果证书过期则执行[rm -rf /tmp/tls]后重新执行该脚本即可"
+    echoContent green "    6.TG群[https://t.me/v2rayAgent]"
+    echoContent green "    7.Github[https://github.com/mack-a/v2ray-agent]"
+    echoContent green "==============================="
+    echoContent green "请输入[y]确认执行脚本，[任意]结束:"
     read installStatus
     if [[ "${installStatus}" = "y" ]]
     then
         installTools
         installNginx
     else
-        echoContent yellow "输入有误请重新输入--->\n"
-        directory
+        echoContent yellow "欢迎下次使用--->"
+        exit 0;
     fi
 }
 checkSystem(){
