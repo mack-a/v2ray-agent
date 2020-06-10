@@ -15,7 +15,7 @@
 # 目录
 - [一键脚本](#一键脚本)
   * [1.WebSocket+TLS+CDN+智能优选Cloudflare IP](#全自动websockettlscdn智能优选cloudflare-ip一键脚本)
-  * [2.全自动生成tls证书一键脚本](#全自动生成tls证书一键脚本)
+  * [2.全自动生成tls证书一键脚本](#全自动生成tls证书一键脚本只生成tls证书)
 - [自建教程](#自建教程)
   * [1.V2Ray](#1v2ray)
   * [2.Trojan](#2trojan)
