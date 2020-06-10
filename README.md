@@ -65,6 +65,24 @@ bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/in
 - 6.添加了默认的CDN，自选ip智能解析
 - 7.增加定时任务 自动续期tls【todo】
 
+## 全自动生成TLS证书一键脚本
+- 针对只需要生成TLS证书的用户
+
+```
+bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh)
+```
+- 1.会安装依赖所需依赖
+- 2.会把Nginx配置文件备份
+- 3.会安装Nginx、acme.sh，如果已安装则使用已经存在的
+- 4.安装完毕或者安装失败会自动恢复备份，请不要手动关闭脚本
+- 5.执行期间请不要重启机器
+- 6.备份文件和证书文件都在/tmp下面，请注意留存
+- 7.如果多次执行则将上次生成备份和生成的证书强制覆盖
+- 8.证书默认ec-256
+- 9.下个版本会加入通配符证书生成[todo]
+- 10.可以生成多个不同域名的证书[包含子域名]，具体速率请查看[https://letsencrypt.org/zh-cn/docs/rate-limits/]
+- 11.兼容Centos、Ubuntu、Debian
+
 # 示例图
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/一键脚本示例图01.png" width=400>
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/一键脚本示例图02.png" width=400>
