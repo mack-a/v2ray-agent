@@ -14,30 +14,15 @@
 * * *
 # 目录
 - [一键脚本](#一键脚本)
-  * [WebSocket+TLS+CDN](#全自动websockettlscdn一键脚本)
-- [技能点列表](#技能点列表)
+  * [1.WebSocket+TLS+CDN](#全自动websockettlscdn一键脚本)
+  * [2.全自动生成tls证书一键脚本](#全自动生成tls证书一键脚本)
 - [自建教程](#自建教程)
   * [1.V2Ray](#1v2ray)
   * [2.Trojan](#2trojan)
 - [流量转发服务](#流量转发服务)
    * [1.tls+ws](1tlsws点击查看)
    * [2.tcp+vmess](#2tcpvmess点击查看)
-- [客户端](#客户端)
-- [防护墙设置](#防火墙设置点击查看)
-- [维护进程[todo List]](https://github.com/mack-a/v2ray-agent/blob/master/recover_version.md)
 * * *
-
-
-# 技能点列表
-- [cloudcone](https://app.cloudcone.com/?ref=5346)【vps】
-- [bandwagonhost](https://bandwagonhost.com/aff.php?aff=46893)【vps】
-- [freenom](https://freenom.com/)【免费域名【注册时最好使用全局代理、ip所在地和注册地一致并且最好使用手机】】
-- [godaddy](https://www.godaddy.com/)【域名厂商】
-- [cloudflare](cloudflare.com)【CDN】
-- [letsencrypt](https://letsencrypt.org/)【HTTPS】
-- [Nginx](https://www.nginx.com/)【域名反向代理】
-- [V2Ray](v2ray.com)【代理工具】
-
 
 ## 欢迎加入TG群，共同学习、共同成长。
 [点击此链接加入电报群](https://t.me/v2rayAgent)
@@ -65,7 +50,11 @@ bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/in
 - 6.添加了默认的CDN，自选ip智能解析
 - 7.增加定时任务 自动续期tls【todo】
 
-## 全自动生成TLS证书一键脚本
+# 示例图
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/一键脚本示例图01.png" width=400>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/一键脚本示例图02.png" width=400>
+
+## 全自动生成TLS证书一键脚本[只生成TLS证书]
 - 针对只需要生成TLS证书的用户
 
 ```
@@ -83,9 +72,6 @@ bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/in
 - 10.可以生成多个不同域名的证书[包含子域名]，具体速率请查看[https://letsencrypt.org/zh-cn/docs/rate-limits/]
 - 11.兼容Centos、Ubuntu、Debian
 
-# 示例图
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/一键脚本示例图01.png" width=400>
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/一键脚本示例图02.png" width=400>
 
 ## 全自动Trojan+TLS一键脚本【TODO】
 
@@ -117,22 +103,4 @@ bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/in
 
 # 流量转发服务
 ## 1.tls+ws[点击查看](https://github.com/mack-a/v2ray-agent/blob/master/traffic_relay_tls_ws.md)
-
 ## 2.tcp+vmess[点击查看](https://github.com/mack-a/v2ray-agent/blob/master/traffic_relay_tcp_vmess.md)
-
-# 客户端
-## 1.windows
-- [v2rayN](https://github.com/2dust/v2rayN/releases)
-
-## 2.Android
-- [v2rayNG](https://github.com/2dust/v2rayNG/releases)
-
-## 3.ios【需要自行购买或者使用共享账号安装】
-- Quantumult【推荐使用】
-- Shadowrocket
-
-## 4.Mac
-- [V2rayU](https://github.com/yanue/V2rayU/releases)
-
-
-# 防火墙设置[点击查看](https://github.com/mack-a/v2ray-agent/blob/master/firewall.md)
