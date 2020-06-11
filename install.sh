@@ -4,6 +4,7 @@ installType='yum -y install'
 removeType='yum -y remove'
 upgrade="yum -y update"
 echoType='echo -e'
+iplc=$1
 
 # echo颜色方法
 echoContent(){
@@ -172,7 +173,6 @@ installNginx(){
             echoContent green "  Nginx访问成功--->\n"
             ps -ef|grep nginx|grep -v grep|awk '{print $2}'|xargs kill -9
             installTLS ${domain}
-            installV2Ray ${domain}
         else
             echoContent red "    无法正常访问服务器，请检查域名的DNS解析以及防火墙设置是否正确--->"
             exit 0;
@@ -218,7 +218,18 @@ installTLS(){
 
     # nginxInstallLine=`cat /etc/nginx/nginx.conf|grep -n "}"|awk -F "[:]" 'END{print $1-1}'`
     # sed -i "${nginxInstallLine}i server {listen 443 ssl;server_name $1;root /usr/share/nginx/html;ssl_certificate /etc/nginx/$1.crt;ssl_certificate_key /etc/nginx/$1.key;ssl_protocols TLSv1 TLSv1.1 TLSv1.2;ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;ssl_prefer_server_ciphers on;location / {} location /alone { proxy_redirect off;proxy_pass http://127.0.0.1:31299;proxy_http_version 1.1;proxy_set_header Upgrade \$http_upgrade;proxy_set_header Connection "upgrade";proxy_set_header X-Real-IP \$remote_addr;proxy_set_header Host \$host;proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;}}" /etc/nginx/nginx.conf
+
     echo "server {listen 443 ssl;server_name $1;root /usr/share/nginx/html;ssl_certificate /etc/nginx/$1.crt;ssl_certificate_key /etc/nginx/$1.key;ssl_protocols TLSv1 TLSv1.1 TLSv1.2;ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;ssl_prefer_server_ciphers on;location / {} location /alone { proxy_redirect off;proxy_pass http://127.0.0.1:31299;proxy_http_version 1.1;proxy_set_header Upgrade \$http_upgrade;proxy_set_header Connection "upgrade";proxy_set_header X-Real-IP \$remote_addr;proxy_set_header Host \$host;proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;}}" > /etc/nginx/conf.d/alone.conf
+
+    # 自定义路径
+    echoContent yellow "请输入自定义路径[例: alone]，不需要斜杠，[回车]默认路径"
+    read customPath
+
+    if [[ ! -z "${customPath}" ]]
+    then
+        sed -i "s/alone/${customPath}/g" `grep alone -rl /etc/nginx/conf.d/alone.conf`
+    fi
+
     rm -rf /usr/share/nginx/html
     wget -q -P /usr/share/nginx https://raw.githubusercontent.com/mack-a/v2ray-agent/master/blog/unable/html.zip >> /dev/null
     unzip  /usr/share/nginx/html.zip -d /usr/share/nginx/html > /dev/null
@@ -229,6 +240,7 @@ installTLS(){
         exit 0
     fi
     echoContent green "  Nginx启动成功，TLS配置成功--->\n"
+    installV2Ray $1 ${customPath}
 }
 # V2Ray
 installV2Ray(){
@@ -238,9 +250,10 @@ installV2Ray(){
         then
             echoContent yellow "安装V2Ray--->"
             version=`curl -s https://github.com/v2ray/v2ray-core/releases|grep /v2ray/v2ray-core/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
+            echoContent green "  v2ray-core版本:${version}"
             mkdir -p /tmp/v2ray
             mkdir -p /usr/bin/v2ray/
-            wget -q -P /tmp/v2ray https://github.com/v2ray/v2ray-core/releases/download/${version}/v2ray-linux-64.zip
+            wget -q -P /tmp/v2ray https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip
             unzip /tmp/v2ray/v2ray-linux-64.zip -d /tmp/v2ray > /dev/null
             cp /tmp/v2ray/v2ray /usr/bin/v2ray/
             cp /tmp/v2ray/v2ctl /usr/bin/v2ray/
@@ -253,7 +266,7 @@ installV2Ray(){
          cp /tmp/v2ray/v2ray /usr/bin/v2ray/ && cp /tmp/v2ray/v2ctl /usr/bin/v2ray/
     fi
     installV2RayService
-    initV2RayConfig
+    initV2RayConfig $2
     systemctl daemon-reload
     systemctl enable v2ray.service
     systemctl start  v2ray.service
@@ -270,13 +283,20 @@ installV2Ray(){
     # 验证整个服务是否可用
     echoContent yellow "验证服务是否可用--->"
     sleep 0.5
-    if [[ ! -z `curl -s -L https://$1/alone|grep -v grep|grep "Bad Request"` ]]
+    nginxPath=$2;
+    if [[ -z "${nginxPath}" ]]
+    then
+        nginxPath="alone"
+    fi
+
+    echo "https://$1/${nginxPath}"
+    if [[ ! -z `curl -s -L https://$1/${nginxPath}|grep -v grep|grep "Bad Request"` ]]
     then
         echoContent green "  安装完毕，服务可用--->\n"
     else
 
         echoContent red "  服务不可用，请检查Cloudflare->域名->SSL/TLS->Overview->Your SSL/TLS encryption mode is 是否是Full--->"
-        echoContent red "  错误日志:`curl -s -L https://$1/alone`"
+        echoContent red "  错误日志:`curl -s -L https://$1/${nginxPath}`"
         exit 0
     fi
     qrEncode $1
@@ -310,12 +330,25 @@ installV2RayService(){
     echo 'WantedBy=multi-user.target' >> /etc/systemd/system/v2ray.service
     echoContent green "  配置V2Ray开机自启成功--->"
 }
+
 # 初始化V2Ray 配置文件
 initV2RayConfig(){
     mkdir -p /etc/v2ray/
     touch /etc/v2ray/config.json
     uuid=`/usr/bin/v2ray/v2ctl uuid`
-    echo '{"log":{"access":"/tmp/v2ray/v2ray_access_ws_tls.log","error":"/tmp/v2ray/v2ray_error_ws_tls.log","loglevel":"debug"},"stats":{},"api":{"services":["StatsService"],"tag":"api"},"policy":{"levels":{"1":{"handshake":4,"connIdle":300,"uplinkOnly":2,"downlinkOnly":5,"statsUserUplink":false,"statsUserDownlink":false}},"system":{"statsInboundUplink":true,"statsInboundDownlink":true}},"allocate":{"strategy":"always","refresh":5,"concurrency":3},"inbounds":[{"port":31299,"protocol":"vmess","settings":{"clients":[{"id":"654765fe-5fb1-271f-7c3f-18ed82827f72","alterId":64,"level":1,"email":"test@v2ray.com"}]},"streamSettings":{"network":"ws","wsSettings":{"path":"/alone"}}}],"outbounds":[{"protocol":"freedom","settings":{"OutboundConfigurationObject":{"domainStrategy":"AsIs","userLevel":0}}}],"routing":{"settings":{"rules":[{"inboundTag":["api"],"outboundTag":"api","type":"field"}]},"strategy":"rules"},"dns":{"servers":["8.8.8.8","8.8.4.4"],"tag":"dns_inbound"}}' > /etc/v2ray/config.json
+
+    # 自定义IPLC端口
+    if [[ ! -z ${iplc} ]]
+    then
+        echo '{"log":{"access":"/tmp/v2ray/v2ray_access_ws_tls.log","error":"/tmp/v2ray/v2ray_error_ws_tls.log","loglevel":"debug"},"stats":{},"api":{"services":["StatsService"],"tag":"api"},"policy":{"levels":{"1":{"handshake":4,"connIdle":300,"uplinkOnly":2,"downlinkOnly":5,"statsUserUplink":false,"statsUserDownlink":false}},"system":{"statsInboundUplink":true,"statsInboundDownlink":true}},"allocate":{"strategy":"always","refresh":5,"concurrency":3},"inbounds":[{"port":31299,"protocol":"vmess","settings":{"clients":[{"id":"654765fe-5fb1-271f-7c3f-18ed82827f72","alterId":64,"level":1,"email":"test@v2ray.com"}]},"streamSettings":{"network":"ws","wsSettings":{"path":"/alone"}}},{"port":31294,"protocol":"vmess","settings":{"clients":[{"id":"ab11e002-7008-ef16-4363-217aea8dc81c","alterId":64,"level":1,"email":"HK_深港0.35x IPLC@v2ray.com"},{"id":"246d748a-dd07-2172-a397-ab110aa5ad2a","alterId":64,"level":1,"email":"HK_莞港IPLC@v2ray.com"}]}}],"outbounds":[{"protocol":"freedom","settings":{"OutboundConfigurationObject":{"domainStrategy":"AsIs","userLevel":0}}}],"routing":{"settings":{"rules":[{"inboundTag":["api"],"outboundTag":"api","type":"field"}]},"strategy":"rules"},"dns":{"servers":["8.8.8.8","8.8.4.4"],"tag":"dns_inbound"}}' > /etc/v2ray/config.json
+    else
+        echo '{"log":{"access":"/tmp/v2ray/v2ray_access_ws_tls.log","error":"/tmp/v2ray/v2ray_error_ws_tls.log","loglevel":"debug"},"stats":{},"api":{"services":["StatsService"],"tag":"api"},"policy":{"levels":{"1":{"handshake":4,"connIdle":300,"uplinkOnly":2,"downlinkOnly":5,"statsUserUplink":false,"statsUserDownlink":false}},"system":{"statsInboundUplink":true,"statsInboundDownlink":true}},"allocate":{"strategy":"always","refresh":5,"concurrency":3},"inbounds":[{"port":31299,"protocol":"vmess","settings":{"clients":[{"id":"654765fe-5fb1-271f-7c3f-18ed82827f72","alterId":64,"level":1,"email":"test@v2ray.com"}]},"streamSettings":{"network":"ws","wsSettings":{"path":"/alone"}}}],"outbounds":[{"protocol":"freedom","settings":{"OutboundConfigurationObject":{"domainStrategy":"AsIs","userLevel":0}}}],"routing":{"settings":{"rules":[{"inboundTag":["api"],"outboundTag":"api","type":"field"}]},"strategy":"rules"},"dns":{"servers":["8.8.8.8","8.8.4.4"],"tag":"dns_inbound"}}' > /etc/v2ray/config.json
+    fi
+    # 自定义路径
+    if [[ ! -z "$1" ]]
+    then
+        sed -i "s/alone/${1}/g" `grep alone -rl /etc/v2ray/config.json`
+    fi
     sed -i "s/654765fe-5fb1-271f-7c3f-18ed82827f72/${uuid}/g" `grep 654765fe-5fb1-271f-7c3f-18ed82827f72 -rl /etc/v2ray/config.json`
 }
 qrEncode(){
@@ -327,7 +360,7 @@ qrEncode(){
     add="$1"
     path=`echo ${user}|jq .streamSettings.wsSettings.path`
     echoContent green '是否使用DNS智能解析进行自定义CDN IP？'
-    echoContent yellow "智能DNS提供一下自定义CDN IP，会根据运营商自动切换ip，测试结果请查看[https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md]"
+    echoContent yellow " 智能DNS提供一下自定义CDN IP，会根据运营商自动切换ip，测试结果请查看[https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md]"
     echoContent yellow "   移动:104.17.209.9"
     echoContent yellow "   联通:172.67.223.77"
     echoContent yellow "   电信:104.16.25.4"
@@ -399,12 +432,12 @@ progressTool(){
     echoContent green "  $1已安装--->"
 }
 init(){
-    echoContent yellow "==============================="
+    echoContent red "==============================="
     echoContent green "欢迎使用v2ray-agent，Cloudflare+WS+TLS+Nginx自动化脚本，如有使用问题欢迎加入TG群[https://t.me/v2rayAgent]，Github[https://github.com/mack-a/v2ray-agent]"
     echoContent red "    1.安装"
     echoContent red "    2.查看已安装账号"
     echoContent red "    3.BBR安装[推荐BBR+FQ 或者 BBR+Cake]"
-    echoContent yellow "==============================="
+    echoContent red "==============================="
     echoContent green "请输入上列数字："
     read installStatus
 
@@ -450,7 +483,7 @@ directory(){
     echoContent green "    6.TG群[https://t.me/v2rayAgent]"
     echoContent green "    7.Github[https://github.com/mack-a/v2ray-agent]"
     echoContent green "==============================="
-    echoContent green "请输入[y]确认执行脚本，[任意]结束:"
+    echoContent yellow "请输入[y]确认执行脚本，[任意]结束:"
     read installStatus
     if [[ "${installStatus}" = "y" ]]
     then
