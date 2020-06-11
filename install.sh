@@ -348,8 +348,10 @@ initV2RayConfig(){
     if [[ ! -z "$1" ]]
     then
         sed -i "s/alone/${1}/g" `grep alone -rl /etc/v2ray/config.json`
+    else
+        sed -i "s/654765fe-5fb1-271f-7c3f-18ed82827f72/${uuid}/g" `grep 654765fe-5fb1-271f-7c3f-18ed82827f72 -rl /etc/v2ray/config.json`
     fi
-    sed -i "s/654765fe-5fb1-271f-7c3f-18ed82827f72/${uuid}/g" `grep 654765fe-5fb1-271f-7c3f-18ed82827f72 -rl /etc/v2ray/config.json`
+
 }
 qrEncode(){
     user=`cat /etc/v2ray/config.json|jq .inbounds[0]`
