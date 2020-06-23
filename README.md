@@ -2,10 +2,10 @@
 >Everyone is free。
 >世界就是这样，当你开始思考时，你已经是小部分中的一员了。祝大家使用愉快。
 
-- 推荐 [全新一键CDN+TLS+WebSocket+Nginx+V2Ray脚本](#全自动websockettlscdn一键脚本)
+- 推荐 [全新一键CDN+TLS+WebSocket+Nginx+V2Ray脚本【小白推荐】](#全自动websockettlscdn一键脚本)
 - 此项目采用[CDN+TLS+Nginx+V2Ray](1V2Ray)、[Trojan](2Trojan)、[Cloudflare Workers](#方法3workers) 进行模拟正常网站并突破防火墙，同时包含优化方法，以及简单的原理讲解。
 - [自建教程](#自建教程)可以快速入手并知晓其中的步骤。如遇到不懂以及不理解的可以加入[TG群讨论](https://t.me/v2rayAgent)。
-- [优化方案【CDN 自选ip】](https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md)包含对Cloudflare的优化（自选ip优化、DNS优化、断流优化。
+- [优化方案【CDN 自选ip】](https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md)包含对Cloudflare的优化（自选ip优化、DNS优化、断流优化)
 - [流量中转教程](#流量转发服务)【提高流量传输的速度，减少丢包】。
 - [测试订阅链接](https://github.com/mack-a/v2ray-agent/blob/master/free_account.md)【如无法使用可加入[TG群](https://t.me/v2rayAgent)反馈】。
 - 个性化需求可以加入[TG群](https://t.me/v2rayAgent)讨论。
@@ -20,8 +20,8 @@
   * [1.V2Ray](#1v2ray)
   * [2.Trojan](#2trojan)
 - [流量转发服务](#流量转发服务)
-   * [1.tls+ws](1tlsws点击查看)
-   * [2.tcp+vmess](#2tcpvmess点击查看)
+   * [1.TLS+WS](1tlsws点击查看)
+   * [2.TCP+Vmess](#2tcpvmess点击查看)
 * * *
 
 ## 欢迎加入TG群，共同学习、共同成长。
@@ -43,12 +43,13 @@ domain04.qiu4.ml|104.17.209.9|上午峰值6w，稳定4k不卡顿、晚八点峰�
 bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh)
 ```
 - 1.自动检测并安装所需环境
-- 2.自动安装Nginx、TLS并生成TLS证书，并验证是否正常工作。
-- 3.自动安装V2Ray、配置文件、生成随机uuid以及开机自启。
+- 2.自动安装Nginx、生成TLS证书，验证是否正常工作。
+- 3.自动安装V2Ray、配置文件、生成随机uuid、开机自启。
 - 4.自动验证是否服务搭建成功
-- 5.自动伪装博客
-- 6.添加了默认的CDN，自选ip智能解析
-- 7.增加定时任务 自动续期tls【todo】
+- 5.自动添加伪装博客。
+- 6.添加了默认的CDN，自选ip智能解析。
+- 7.默认安装最新的V2Ray版本。
+- 8.增加定时任务 自动续期tls【todo】
 
 # 示例图
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/一键脚本示例图01.png" width=400>
@@ -102,5 +103,5 @@ bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/in
 - [官方Github](https://github.com/trojan-gfw/trojan)
 
 # 流量转发服务
-## 1.tls+ws[点击查看](https://github.com/mack-a/v2ray-agent/blob/master/traffic_relay_tls_ws.md)
-## 2.tcp+vmess[点击查看](https://github.com/mack-a/v2ray-agent/blob/master/traffic_relay_tcp_vmess.md)
+## 1.TLS+WS[点击查看](https://github.com/mack-a/v2ray-agent/blob/master/traffic_relay_tls_ws.md)
+## 2.TCP+Vmess[点击查看](https://github.com/mack-a/v2ray-agent/blob/master/traffic_relay_tcp_vmess.md)
