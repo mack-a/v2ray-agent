@@ -434,11 +434,28 @@ progressTool(){
     echoContent green "  $1已安装--->"
 }
 init(){
+    cd
     echoContent red "==============================="
-    echoContent green "欢迎使用v2ray-agent，Cloudflare+WS+TLS+Nginx自动化脚本，如有使用问题欢迎加入TG群[https://t.me/v2rayAgent]，Github[https://github.com/mack-a/v2ray-agent]"
-    echoContent red "    1.安装"
-    echoContent red "    2.查看已安装账号"
-    echoContent red "    3.BBR安装[推荐BBR+FQ 或者 BBR+Cake]"
+    echoContent green "欢迎使用Cloudflare+WS+TLS+Nginx+WS全自动自动脚本"
+    echo
+    echoContent green "作者：mack-a"
+    echo
+    echoContent green "Github：https://github.com/mack-a/v2ray-agent"
+    echo
+    echoContent green "TG：https://t.me/v2rayAgent"
+    echo
+    echoContent green "如遇到解决不了的问题可以提issues或者直接私聊作者"
+    echoContent red "==============================="
+    echoContent green "已安装账号："
+    if [[ ! -z `find /etc|grep usersv2ray.conf`  ]] && [[ ! -z `cat /etc/v2ray/usersv2ray.conf` ]]
+        then
+            cat /etc/v2ray/usersv2ray.conf
+        else
+            echoContent yellow "    暂无配置"
+    fi
+    echoContent red "==============================="
+    echoContent yellow "    1.安装"
+    echoContent yellow "    2.BBR安装[推荐BBR+FQ 或者 BBR+Cake]"
     echoContent red "==============================="
     echoContent green "请输入上列数字："
     read installStatus
@@ -446,15 +463,6 @@ init(){
     if [[ "${installStatus}" = "1" ]]
     then
         directory
-    elif [[ "${installStatus}" = "2" ]]
-    then
-        if [[ ! -z `find /etc|grep usersv2ray.conf`  ]] && [[ ! -z `cat /etc/v2ray/usersv2ray.conf` ]]
-        then
-            cat /etc/v2ray/usersv2ray.conf
-        else
-            echoContent red "暂无配置，请重新安装"
-        fi
-
     elif [[ "${installStatus}" = "3" ]]
     then
         echoContent red "==============================="
@@ -475,15 +483,12 @@ init(){
 
 directory(){
     echoContent red "==============================="
-    echoContent green "欢迎使用v2ray-agent，Cloudflare+WS+TLS+Nginx+Blog自动化脚本，如有使用问题欢迎加入TG群"
     echoContent yellow "注意事项："
     echoContent green "    1.脚本会检查并安装工具包"
     echoContent green "    2.如果使用此脚本生成过TLS证书、V2Ray，会继续使用上次生成、安装的内容。"
     echoContent green "    3.会删除、卸载已经安装的应用，包括V2Ray、Nginx。"
     echoContent green "    4.如果显示Nginx不可用，请检查防火墙端口是否开放。"
     echoContent green "    5.如果证书过期则执行[rm -rf /tmp/tls]后重新执行该脚本即可"
-    echoContent green "    6.TG群[https://t.me/v2rayAgent]"
-    echoContent green "    7.Github[https://github.com/mack-a/v2ray-agent]"
     echoContent green "==============================="
     echoContent yellow "请输入[y]确认执行脚本，[任意]结束:"
     read installStatus
