@@ -52,8 +52,11 @@ bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/in
 - 8.增加定时任务 自动续期tls【todo】
 
 # 示例图
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/一键脚本示例图01.png" width=400>
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/一键脚本示例图02.png" width=400>
+- 未安装
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/一键脚本未安装.png" width=400>
+
+- 已安装
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/一键脚本已安装.png" width=400>
 
 ## 全自动生成TLS证书一键脚本[只生成TLS证书]
 - 针对只需要生成TLS证书的用户

@@ -466,6 +466,9 @@ init(){
         v2rayVersion=`/usr/bin/v2ray/v2ray -version|awk '{print $2}'|head -1`
         echoContent yellow "    version：${v2rayVersion}"
         echoContent yellow "    安装路径：/usr/bin/v2ray/"
+        echoContent yellow "    日志路径："
+        echoContent yellow "      access:  /tmp/v2ray/v2ray_access_ws_tls.log"
+        echoContent yellow "      error:  /tmp/v2ray/v2ray_error_ws_tls.log"
     else
         echoContent yellow "    暂未安装"
     fi
@@ -494,7 +497,7 @@ init(){
     echoContent red "错误处理【这里请仔细阅读】"
     echoContent yellow "Debian："
     echoContent green "     错误1：WARNING: apt does not have a stable CLI interface. Use with caution in scripts.【这个错误无需处理】"
-    echoContent green "     错误2：如果错误很多，且安装失败，则需要重启vps，无需重新安装。这种情况是在安装过程中意外断开导致。"
+    echoContent green "     错误2：如果错误很多，且安装失败，则需要重启vps，无需重新安装OS。这种情况是在安装过程中意外断开导致。"
     echoContent red "=============================================================="
     echoContent yellow "    1.安装"
     echoContent yellow "    2.BBR安装[推荐BBR+FQ 或者 BBR+Cake]"
