@@ -190,20 +190,23 @@ installTLS(){
         echoContent green  "  acme安装完毕--->"
         echoContent yellow "生成TLS证书中，请等待--->"
         sudo ~/.acme.sh/acme.sh --issue -d $1 --standalone -k ec-256 >/dev/null
-        ~/.acme.sh/acme.sh --installcert -d $1 --fullchainpath /etc/nginx/$1.crt --keypath /etc/nginx/$1.key --ecc >/dev/null
-        if [[ -z `cat /etc/nginx/$1.crt` ]]
+        mkdir -p /etc/nginx/v2ray-agent-https/
+        touch /etc/nginx/v2ray-agent-https/config
+        ~/.acme.sh/acme.sh --installcert -d $1 --fullchainpath /etc/nginx/v2ray-agent-https/$1.crt --keypath /etc/nginx/v2ray-agent-https/$1.key --ecc >/dev/null
+        if [[ -z `cat /etc/nginx/v2ray-agent-https/$1.crt` ]]
         then
             echoContent red "    TLS安装失败，请检查acme日志--->"
             exit 0
-        elif [[ -z `cat /etc/nginx/$1.key` ]]
+        elif [[ -z `cat /etc/nginx/v2ray-agent-https/$1.key` ]]
         then
             echoContent red "    TLS安装失败，请检查acme日志--->"
             exit 0
         fi
         echoContent green "  TLS生成成功--->"
+        echo $1 `date +%s` > /etc/nginx/v2ray-agent-https/config
         mkdir -p /tmp/tls
-        cp -R /etc/nginx/$1.crt /tmp/tls/$1.crt
-        cp -R /etc/nginx/$1.key /tmp/tls/$1.key
+        cp -R /etc/nginx/v2ray-agent-https/$1.crt /tmp/tls/$1.crt
+        cp -R /etc/nginx/v2ray-agent-https/$1.key /tmp/tls/$1.key
         echoContent green "  TLS证书备份成功，证书位置：/tmp/tls--->"
     elif  [[ -z `cat /tmp/tls/$1.crt` ]] || [[ -z `cat /tmp/tls/$1.key` ]]
     then
@@ -212,14 +215,14 @@ installTLS(){
         installTLS $1
     else
         echoContent yellow "检测到备份证书，如需重新生成，请执行 [rm -rf /tmp/tls]，然后重新执行脚本--->"
-        cp -R /tmp/tls/$1.crt /etc/nginx/$1.crt
-        cp -R /tmp/tls/$1.key /etc/nginx/$1.key
+        cp -R /tmp/tls/$1.crt /etc/nginx/v2ray-agent-https/$1.crt
+        cp -R /tmp/tls/$1.key /etc/nginx/v2ray-agent-https/$1.key
     fi
 
     # nginxInstallLine=`cat /etc/nginx/nginx.conf|grep -n "}"|awk -F "[:]" 'END{print $1-1}'`
     # sed -i "${nginxInstallLine}i server {listen 443 ssl;server_name $1;root /usr/share/nginx/html;ssl_certificate /etc/nginx/$1.crt;ssl_certificate_key /etc/nginx/$1.key;ssl_protocols TLSv1 TLSv1.1 TLSv1.2;ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;ssl_prefer_server_ciphers on;location / {} location /alone { proxy_redirect off;proxy_pass http://127.0.0.1:31299;proxy_http_version 1.1;proxy_set_header Upgrade \$http_upgrade;proxy_set_header Connection "upgrade";proxy_set_header X-Real-IP \$remote_addr;proxy_set_header Host \$host;proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;}}" /etc/nginx/nginx.conf
 
-    echo "server {listen 443 ssl;server_name $1;root /usr/share/nginx/html;ssl_certificate /etc/nginx/$1.crt;ssl_certificate_key /etc/nginx/$1.key;ssl_protocols TLSv1 TLSv1.1 TLSv1.2;ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;ssl_prefer_server_ciphers on;location / {} location /alone { proxy_redirect off;proxy_pass http://127.0.0.1:31299;proxy_http_version 1.1;proxy_set_header Upgrade \$http_upgrade;proxy_set_header Connection "upgrade";proxy_set_header X-Real-IP \$remote_addr;proxy_set_header Host \$host;proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;}}" > /etc/nginx/conf.d/alone.conf
+    echo "server {listen 443 ssl;server_name $1;root /usr/share/nginx/html;ssl_certificate /etc/nginx/v2ray-agent-https/$1.crt;ssl_certificate_key /etc/nginx/v2ray-agent-https/$1.key;ssl_protocols TLSv1 TLSv1.1 TLSv1.2;ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;ssl_prefer_server_ciphers on;location / {} location /alone { proxy_redirect off;proxy_pass http://127.0.0.1:31299;proxy_http_version 1.1;proxy_set_header Upgrade \$http_upgrade;proxy_set_header Connection "upgrade";proxy_set_header X-Real-IP \$remote_addr;proxy_set_header Host \$host;proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;}}" > /etc/nginx/conf.d/alone.conf
 
     # 自定义路径
     echoContent yellow "请输入自定义路径[例: alone]，不需要斜杠，[回车]默认路径"
@@ -300,7 +303,7 @@ installV2Ray(){
         exit 0
     fi
     qrEncode $1
-    echoContent yellow "监听V2Ray日志中，请使用上方生成的vmess访问，如有日志出现则证明线路可用，Ctrl+c退出舰艇日志--->"
+    echoContent yellow "监听V2Ray日志中，请使用上方生成的vmess访问，如有日志出现则证明线路可用，退出监听也无妨，Ctrl+c退出监听日志，--->"
     echo '' > /tmp/v2ray/v2ray_access_ws_tls.log
     tail -f /tmp/v2ray/v2ray_access_ws_tls.log
 }
@@ -435,8 +438,9 @@ progressTool(){
 }
 init(){
     cd
-    echoContent red "==============================="
-    echoContent green "欢迎使用Cloudflare+WS+TLS+Nginx+WS全自动自动脚本"
+    echoContent red "=============================================================="
+    echoContent red "脚本概述"
+    echoContent green "欢迎使用Cloudflare+WebSocket+TLS+Nginx+伪装博客 一键脚本"
     echo
     echoContent green "作者：mack-a"
     echo
@@ -444,32 +448,71 @@ init(){
     echo
     echoContent green "TG：https://t.me/v2rayAgent"
     echo
-    echoContent green "如遇到解决不了的问题可以提issues或者直接私聊作者"
-    echoContent red "==============================="
+    echoContent green "如遇到解决不了的问题可以提issues或者直接私聊作者，欢迎聊骚"
+    echoContent red "=============================================================="
+    echoContent red "状态展示"
     echoContent green "已安装账号："
     if [[ ! -z `find /etc|grep usersv2ray.conf`  ]] && [[ ! -z `cat /etc/v2ray/usersv2ray.conf` ]]
-        then
-            cat /etc/v2ray/usersv2ray.conf
-        else
-            echoContent yellow "    暂无配置"
+    then
+        cat /etc/v2ray/usersv2ray.conf
+    else
+        echoContent yellow "    暂无配置"
     fi
-    echoContent red "==============================="
+    echoContent green "\nV2Ray信息："
+    mkdir -p /usr/bin/v2ray
+    mkdir -p /etc/v2ray/
+    if [[ ! -z `ls -F /usr/bin/v2ray/|grep "v2ray"` ]] && [[ ! -z `find /etc/v2ray/ -name "config.json"` ]]
+    then
+        v2rayVersion=`/usr/bin/v2ray/v2ray -version|awk '{print $2}'|head -1`
+        echoContent yellow "    version：${v2rayVersion}"
+        echoContent yellow "    安装路径：/usr/bin/v2ray/"
+    else
+        echoContent yellow "    暂未安装"
+    fi
+    echoContent green "\nTLS证书状态："
+    mkdir -p /etc/nginx/v2ray-agent-https/
+    if [[ ! -z `find /etc/nginx/v2ray-agent-https/ -name config` ]] && [[ ! -z `cat /etc/nginx/v2ray-agent-https/config` ]]
+    then
+        domain=`cat /etc/nginx/v2ray-agent-https/config|awk '{print $1}'`
+        tlsCreateTime=`cat /etc/nginx/v2ray-agent-https/config|awk '{print $2}'`
+        currentTime=`date +%s`
+        stampDiff=`expr ${currentTime} - ${tlsCreateTime}`
+        dayDiff=`expr ${stampDiff} / 86400`
+        echoContent yellow "    证书域名：${domain}"
+        echoContent yellow "    安装日期：`date -d @${tlsCreateTime} +"%F %H:%M:%S"`，剩余天数：`expr 90 - ${dayDiff}`"
+    else
+        echoContent yellow "    暂未安装"
+    fi
+    echoContent red "=============================================================="
+    echoContent red "注意事项："
+    echoContent green "    1.脚本会检查并安装工具包"
+    echoContent green "    2.如果使用此脚本生成过TLS证书、V2Ray，会继续使用上次生成、安装的内容。"
+    echoContent green "    3.会删除、卸载已经安装的应用，包括V2Ray、Nginx。"
+    echoContent green "    4.如果显示Nginx不可用，请检查防火墙端口是否开放。"
+    echoContent green "    5.如果证书过期则执行[rm -rf /tmp/tls]后重新执行该脚本即可"
+    echoContent red "=============================================================="
+    echoContent red "错误处理【这里请仔细阅读】"
+    echoContent yellow "Debian："
+    echoContent green "     错误1：WARNING: apt does not have a stable CLI interface. Use with caution in scripts.【这个错误无需处理】"
+    echoContent green "     错误2：如果错误很多，且安装失败，则需要重启vps，无需重新安装。这种情况是在安装过程中意外断开导致。"
+    echoContent red "=============================================================="
     echoContent yellow "    1.安装"
     echoContent yellow "    2.BBR安装[推荐BBR+FQ 或者 BBR+Cake]"
-    echoContent red "==============================="
-    echoContent green "请输入上列数字："
+    echoContent red "=============================================================="
+    echoContent green "请输入上列数字，[任意]结束："
     read installStatus
 
     if [[ "${installStatus}" = "1" ]]
     then
-        directory
-    elif [[ "${installStatus}" = "3" ]]
+        installTools
+        installNginx
+    elif [[ "${installStatus}" = "2" ]]
     then
-        echoContent red "==============================="
+        echoContent red "=============================================================="
         echoContent green "BBR脚本用的[ylx2016]的成熟作品，地址[https://github.com/ylx2016/Linux-NetSpeed/releases/download/sh/tcp.sh]，请熟知"
         echoContent red "    1.安装"
         echoContent red "    2.回退主目录"
-        echoContent red "==============================="
+        echoContent red "=============================================================="
         echoContent green "请输入[1]安装，[2]回到上层目录"
         read installBBRStatus
         if [[ "${installBBRStatus}" = "1" ]]
@@ -478,29 +521,12 @@ init(){
         else
             init
         fi
-    fi
-}
-
-directory(){
-    echoContent red "==============================="
-    echoContent yellow "注意事项："
-    echoContent green "    1.脚本会检查并安装工具包"
-    echoContent green "    2.如果使用此脚本生成过TLS证书、V2Ray，会继续使用上次生成、安装的内容。"
-    echoContent green "    3.会删除、卸载已经安装的应用，包括V2Ray、Nginx。"
-    echoContent green "    4.如果显示Nginx不可用，请检查防火墙端口是否开放。"
-    echoContent green "    5.如果证书过期则执行[rm -rf /tmp/tls]后重新执行该脚本即可"
-    echoContent green "==============================="
-    echoContent yellow "请输入[y]确认执行脚本，[任意]结束:"
-    read installStatus
-    if [[ "${installStatus}" = "y" ]]
-    then
-        installTools
-        installNginx
     else
         echoContent yellow "欢迎下次使用--->"
         exit 0;
     fi
 }
+
 checkSystem(){
 
 	if [[ ! -z `find /etc -name "redhat-release"` ]] || [[ ! -z `cat /proc/version | grep -i "centos" | grep -v grep ` ]] || [[ ! -z `cat /proc/version | grep -i "red hat" | grep -v grep ` ]] || [[ ! -z `cat /proc/version | grep -i "redhat" | grep -v grep ` ]]
