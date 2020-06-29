@@ -1,12 +1,10 @@
 # v2ray-agent
->Everyone is free。
->世界就是这样，当你开始思考时，你已经是小部分中的一员了。祝大家使用愉快。
 
 - 推荐 [一键CDN+TLS+WebSocket+Nginx+V2Ray脚本【小白推荐】](#全自动websockettlscdn智能优选cloudflare-ip一键脚本)
 - 此项目采用[CDN+TLS+Nginx+V2Ray](#全自动websockettlscdn智能优选cloudflare-ip一键脚本)、[Trojan](#2Trojan)、[Cloudflare Workers](#方法3workers) 进行模拟正常网站并突破防火墙，同时包含优化方法，以及简单的原理讲解。
-- [自建教程](#自建教程)可以快速入手并知晓其中的步骤。如遇到不懂以及不理解的可以加入[TG群讨论](https://t.me/v2rayAgent)。
 - [优化方案【CDN 自选ip】](https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md)包含对Cloudflare的优化（自选ip优化、DNS优化、断流优化)
 - [流量中转教程](#流量转发服务)【提高流量传输的速度，减少丢包】。
+- [自建教程](#自建教程)可以快速入手并知晓其中的步骤。如遇到不懂以及不理解的可以加入[TG群讨论](https://t.me/v2rayAgent)。
 - [测试订阅链接](https://github.com/mack-a/v2ray-agent/blob/master/free_account.md)【如无法使用可加入[TG群](https://t.me/v2rayAgent)反馈】。
 - 个性化需求可以加入[TG群](https://t.me/v2rayAgent)讨论。
 - [强烈安装适合自己的BBR，执行脚本前必看](https://github.com/mack-a/v2ray-agent/blob/master/bbr.md)
