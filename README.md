@@ -4,9 +4,9 @@
 - 此项目采用[CDN+TLS+Nginx+V2Ray](#全自动websockettlscdn智能优选cloudflare-ip一键脚本)、[Trojan](#2Trojan)、[Cloudflare Workers](#方法3workers) 进行模拟正常网站并突破防火墙，同时包含优化方法，以及简单的原理讲解。
 - [优化方案【CDN 自选ip】](https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md)包含对Cloudflare的优化（自选ip优化、DNS优化、断流优化)
 - [流量中转教程](#流量转发服务)【提高流量传输的速度，减少丢包】。
-- [自建教程](#自建教程)可以快速入手并知晓其中的步骤。如遇到不懂以及不理解的可以加入[TG群讨论](https://t.me/v2rayAgent)。
-- [免费订阅链接](https://github.com/mack-a/v2ray-agent/blob/master/free_account.md)【如无法使用可加入[TG群](https://t.me/v2rayAgent)反馈】。
-- 个性化需求可以加入[TG群](https://t.me/v2rayAgent)讨论。
+- [自建教程](#自建教程)可以快速入手并知晓其中的步骤。如遇到不懂以及不理解的可以加入[TG群讨论](https://t.me/technologyshare)。
+- [免费订阅链接](https://github.com/mack-a/v2ray-agent/blob/master/free_account.md)【如无法使用可加入[TG群](https://t.me/technologyshare)反馈】。
+- 个性化需求可以加入[TG群](https://t.me/technologyshare)讨论。
 - [强烈安装适合自己的BBR，执行脚本前必看](https://github.com/mack-a/v2ray-agent/blob/master/bbr.md)
 
 * * *
@@ -23,7 +23,7 @@
 * * *
 
 ## 欢迎加入TG群，共同学习、共同成长。
-[点击此链接加入电报群](https://t.me/v2rayAgent)
+[点击此链接加入电报群](https://t.me/technologyshare)
 
 * * *
 # 一键脚本
@@ -31,7 +31,7 @@
 - 目前支持Centos、Ubuntu、Debian，也可以不使用CDN
 - 这里添加了默认的智能解析自选CDN IP，脚本安装完毕后会自动使用，本地dns解析建议使用114.114.114.114
 - 如果智能解析后发现不能上网，第一可以升级客户端、第二可以将address填写自己的科学上网的域名，不再使用智能解析CDN的域名。
-- 如果对默认的不满意，则可以[点此查看最新的](https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md)，或者加入[TG群](https://t.me/v2rayAgent)添加适合自己的CDN ip。
+- 如果对默认的不满意，则可以[点此查看最新的](https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md)，或者加入[TG群](https://t.me/technologyshare)添加适合自己的CDN ip。
 
 域名|移动|移动测试|联通|电信
 -|-|-|-|-

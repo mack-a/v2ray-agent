@@ -446,7 +446,7 @@ init(){
     echo
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echo
-    echoContent green "TG：https://t.me/v2rayAgent"
+    echoContent green "TG：https://t.me/technologyshare"
     echo
     echoContent green "如遇到解决不了的问题可以提issues或者直接私聊作者，欢迎聊骚"
     echoContent red "=============================================================="
