@@ -49,7 +49,13 @@ fixBug(){
 installTools(){
     # echo "export LC_ALL=en_US.UTF-8"  >>  /etc/profile
     # source /etc/profile
-    echoContent yellow "删除Nginx、V2Ray、acme"
+    # kill lock
+    if [[ ! -z `ps -ef|grep -v grep|grep apt`  ]]
+    then
+        ps -ef|grep -v grep|grep apt|awk '{print $2}'|xargs kill -9
+    fi
+
+    echoContent yellow "删除Nginx、V2Ray，请等待--->"
     if [[ ! -z `find /usr/sbin/ -name nginx` ]]
     then
         if [[ ! -z `ps -ef|grep nginx|grep -v grep`  ]]
@@ -84,7 +90,7 @@ installTools(){
     rm -rf /etc/systemd/system/v2ray.service
     systemctl daemon-reload
 
-    rm -rf ~/.acme.sh > /dev/null
+    #  rm -rf ~/.acme.sh > /dev/null
     echoContent green "  删除完成"
 
     echoContent skyBlue "检查、安装工具包："
@@ -112,7 +118,7 @@ installTools(){
 
     echoContent yellow "检查、安装crontabs--->"
     progressTool crontabs &
-    if [[ "${release}" = "ubuntu" ]]
+    if [[ "${release}" = "ubuntu" ]] || [[ "${release}" = "debian" ]]
     then
         ${installType} cron > /dev/null
     else
@@ -146,7 +152,8 @@ installNginx(){
 
         if [[ ! -z `ps -ef|grep -v grep|grep nginx` ]]
         then
-            ps -ef|grep nginx|grep -v grep|awk '{print $2}'|xargs kill -9
+            nginx -s stop
+            # ps -ef|grep -v grep|grep nginx|awk '{print $2}'|xargs kill -9
         fi
 
         # 修改配置
@@ -174,14 +181,15 @@ installNginx(){
             ps -ef|grep nginx|grep -v grep|awk '{print $2}'|xargs kill -9
             installTLS ${domain}
         else
-            echoContent red "    无法正常访问服务器，请检查域名的DNS解析以及防火墙设置是否正确--->"
+            echoContent red "    无法正常访问服务器，请检测域名是否正确、域名的DNS解析以及防火墙设置是否正确--->"
             exit 0;
         fi
     fi
 }
 # 安装TLS
 installTLS(){
-
+    mkdir -p /etc/nginx/v2ray-agent-https/
+    touch /etc/nginx/v2ray-agent-https/config
     if [[ -z `find /tmp -name "$1*"` ]]
     then
         echoContent yellow "安装TLS证书--->"
@@ -190,8 +198,6 @@ installTLS(){
         echoContent green  "  acme安装完毕--->"
         echoContent yellow "生成TLS证书中，请等待--->"
         sudo ~/.acme.sh/acme.sh --issue -d $1 --standalone -k ec-256 >/dev/null
-        mkdir -p /etc/nginx/v2ray-agent-https/
-        touch /etc/nginx/v2ray-agent-https/config
         ~/.acme.sh/acme.sh --installcert -d $1 --fullchainpath /etc/nginx/v2ray-agent-https/$1.crt --keypath /etc/nginx/v2ray-agent-https/$1.key --ecc >/dev/null
         if [[ -z `cat /etc/nginx/v2ray-agent-https/$1.crt` ]]
         then
@@ -205,6 +211,7 @@ installTLS(){
         echoContent green "  TLS生成成功--->"
         echo $1 `date +%s` > /etc/nginx/v2ray-agent-https/config
         mkdir -p /tmp/tls
+        cp -R /etc/nginx/v2ray-agent-https/config /tmp/tls/config
         cp -R /etc/nginx/v2ray-agent-https/$1.crt /tmp/tls/$1.crt
         cp -R /etc/nginx/v2ray-agent-https/$1.key /tmp/tls/$1.key
         echoContent green "  TLS证书备份成功，证书位置：/tmp/tls--->"
@@ -214,9 +221,10 @@ installTLS(){
         rm -rf /tmp/tls
         installTLS $1
     else
-        echoContent yellow "检测到备份证书，如需重新生成，请执行 [rm -rf /tmp/tls]，然后重新执行脚本--->"
+        echoContent yellow "检测到备份证书，使用--->"
         cp -R /tmp/tls/$1.crt /etc/nginx/v2ray-agent-https/$1.crt
         cp -R /tmp/tls/$1.key /etc/nginx/v2ray-agent-https/$1.key
+        cp -R /tmp/tls/config /etc/nginx/v2ray-agent-https/config
     fi
 
     # nginxInstallLine=`cat /etc/nginx/nginx.conf|grep -n "}"|awk -F "[:]" 'END{print $1-1}'`
@@ -264,7 +272,7 @@ installV2Ray(){
         fi
         echoContent green "  V2Ray安装成功--->"
     else
-         echoContent yellow "检测到V2Ray安装程序，如需重新安装，请执行[rm -rf /tmp/v2ray],然后重新执行脚本--->\n"
+         echoContent yellow "检测到V2Ray安装程序，使用--->\n"
          mkdir -p /usr/bin/v2ray/
          cp /tmp/v2ray/v2ray /usr/bin/v2ray/ && cp /tmp/v2ray/v2ctl /usr/bin/v2ray/
     fi
@@ -461,9 +469,11 @@ init(){
     echoContent green "\nV2Ray信息："
     mkdir -p /usr/bin/v2ray
     mkdir -p /etc/v2ray/
+    v2rayStatus=0
     if [[ ! -z `ls -F /usr/bin/v2ray/|grep "v2ray"` ]] && [[ ! -z `find /etc/v2ray/ -name "config.json"` ]]
     then
         v2rayVersion=`/usr/bin/v2ray/v2ray -version|awk '{print $2}'|head -1`
+        v2rayStatus=1
         echoContent yellow "    version：${v2rayVersion}"
         echoContent yellow "    安装路径：/usr/bin/v2ray/"
         echoContent yellow "    日志路径："
@@ -472,10 +482,12 @@ init(){
     else
         echoContent yellow "    暂未安装"
     fi
+    tlsStatus=0
     echoContent green "\nTLS证书状态："
     mkdir -p /etc/nginx/v2ray-agent-https/
     if [[ ! -z `find /etc/nginx/v2ray-agent-https/ -name config` ]] && [[ ! -z `cat /etc/nginx/v2ray-agent-https/config` ]]
     then
+        tlsStatus=1
         domain=`cat /etc/nginx/v2ray-agent-https/config|awk '{print $1}'`
         tlsCreateTime=`cat /etc/nginx/v2ray-agent-https/config|awk '{print $2}'`
         currentTime=`date +%s`
@@ -492,24 +504,43 @@ init(){
     echoContent green "    2.如果使用此脚本生成过TLS证书、V2Ray，会继续使用上次生成、安装的内容。"
     echoContent green "    3.会删除、卸载已经安装的应用，包括V2Ray、Nginx。"
     echoContent green "    4.如果显示Nginx不可用，请检查防火墙端口是否开放。"
-    echoContent green "    5.如果证书过期则执行[rm -rf /tmp/tls]后重新执行该脚本即可"
+    echoContent green "    5.证书会在每天的0点31分检查更新"
     echoContent red "=============================================================="
     echoContent red "错误处理【这里请仔细阅读】"
     echoContent yellow "Debian："
     echoContent green "     错误1：WARNING: apt does not have a stable CLI interface. Use with caution in scripts.【这个错误无需处理】"
     echoContent green "     错误2：如果错误很多，且安装失败，则需要重启vps，无需重新安装OS。这种情况是在安装过程中意外断开导致。"
     echoContent red "=============================================================="
-    echoContent yellow "    1.安装"
-    echoContent yellow "    2.BBR安装[推荐BBR+FQ 或者 BBR+Cake]"
+    installSelect=0
+    if [[ ${tlsStatus} = "1" ]] && [[ ${v2rayStatus} = "1" ]]
+    then
+        echoContent red "检测到已使用本脚本安装"
+        echoContent yellow "    1.重新安装【使用缓存的文件（TLS证书、V2Ray）】"
+        echoContent yellow "    2.完全重装【会清理tmp缓存文件（TLS证书、V2Ray）】"
+    else
+        echoContent red "未监测到使用本脚本安装"
+        echoContent yellow "    1.安装"
+        echoContent yellow "    2.完全安装【会清理tmp缓存文件（TLS证书、V2Ray）】"
+    fi
+
+    echoContent yellow "    3.BBR安装[推荐BBR+FQ 或者 BBR+Cake]"
     echoContent red "=============================================================="
     echoContent green "请输入上列数字，[任意]结束："
     read installStatus
 
     if [[ "${installStatus}" = "1" ]]
     then
+        rm -rf /etc/v2ray/usersv2ray.conf
         installTools
         installNginx
     elif [[ "${installStatus}" = "2" ]]
+    then
+        rm -rf /tmp/v2ray
+        rm -rf /tmp/tls
+        rm -rf /etc/v2ray/usersv2ray.conf
+        installTools
+        installNginx
+    elif [[ "${installStatus}" = "3" ]]
     then
         echoContent red "=============================================================="
         echoContent green "BBR脚本用的[ylx2016]的成熟作品，地址[https://github.com/ylx2016/Linux-NetSpeed/releases/download/sh/tcp.sh]，请熟知"
