@@ -17,6 +17,7 @@
 - 以下测试地址为 [Japan in 8K 60fps](https://youtu.be/zCLOJ9j1k2Y)。
 - vps均使用5.6 kenrel bbr-fq
 - 以下结果均参考
+- 如有自定义IP或者使用问题可以[点击私聊](https://t.me/mack_a)添加
 
 域名|移动|移动测试|联通|电信
 -|-|-|-|-

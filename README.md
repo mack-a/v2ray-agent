@@ -6,7 +6,7 @@
 - [流量中转教程](#流量转发服务)【提高流量传输的速度，减少丢包】。
 - [自建教程](#自建教程)可以快速入手并知晓其中的步骤。如遇到不懂以及不理解的可以加入[TG群讨论](https://t.me/technologyshare)。
 - [免费订阅链接](https://github.com/mack-a/v2ray-agent/blob/master/free_account.md)【如无法使用可加入[TG群](https://t.me/technologyshare)反馈】。
-- 个性化需求可以加入[TG群](https://t.me/technologyshare)讨论。
+- 个性化需求可以加入[TG群](https://t.me/technologyshare)、或者直接[点击私聊](https://t.me/mack_a)。
 - [强烈安装适合自己的BBR，执行脚本前必看](https://github.com/mack-a/v2ray-agent/blob/master/bbr.md)
 
 * * *
