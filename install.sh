@@ -253,6 +253,25 @@ installTLS(){
     echoContent green "  Nginx启动成功，TLS配置成功--->\n"
     installV2Ray $1 ${customPath}
 }
+
+# 重新安装&更新tls证书
+reloadInstallTLS(){
+    touch /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "#!/usr/bin/env bash" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "domain=$1" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+
+    echo "modifyTime=`stat test1.am1z.xyz.key|sed -n '6,6p'|awk '{print $2" "$3" "$4" "$5}'`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "modifyTime=`date +%s -d "${modifyTime}"`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "currentTime=`date +%s`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "stampDiff=`expr ${currentTime} - ${modifyTime}`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "minutes=`expr ${stampDiff} / 60`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "if [[ ! -z ${modifyTime} ]] && [[ ! -z ${currentTime} ]] && [[ ! -z ${stampDiff} ]] && [[ ! -z ${minutes} ]] && [[ ${minutes} -lt '120' ]]" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "then" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "nginx -s stop" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "~/.acme.sh/acme.sh --installcert -d ${domain} --fullchainpath /etc/nginx/v2ray-agent-https/${domain}.crt --keypath /etc/nginx/v2ray-agent-https/${domain}.key --ecc >/dev/null" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "fi" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+
+}
 # V2Ray
 installV2Ray(){
     if [[ -z `find /tmp -name "v2ray*"` ]]
