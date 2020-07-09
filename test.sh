@@ -1,23 +1,27 @@
 #!/usr/bin/env bash
-touch /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-echo '' > /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-echo '#!/usr/bin/env bash' >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-echo 'domain=$1' >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-echo 'if [[ ! -z `find ~/.acme.sh/ -name ${domain}.key` ]]' >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-echo 'then' >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo '  key=`find ~/.acme.sh/ -name ${domain}.key|head -1`' >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo '  echo ${key}' >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo '  modifyTime=`stat ${key}|sed -n '\'6,6p\''|awk '{print \$2\" \"\$3\" \"\$4\" \"\$5}'`' >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo '  modifyTime=`date +%s -d "${modifyTime}"`' >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo '  currentTime=`date +%s`' >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo '  stampDiff=`expr ${currentTime} - ${modifyTime}`' >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo '  minutes=`expr ${stampDiff} / 60`' >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo '  echo ${minutes}' >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo '  if [[ ! -z ${modifyTime} ]] && [[ ! -z ${currentTime} ]] && [[ ! -z ${stampDiff} ]] && [[ ! -z ${minutes} ]] && [[ ${minutes} -lt '\'200000\'' ]]' >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo '  then' >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-        echo '      echo "符合条件"' >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-        #echo '      nginx -s stop' >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-        #echo '      ~/.acme.sh/acme.sh --installcert -d ${domain} --fullchainpath /etc/nginx/v2ray-agent-https/${domain}.crt --keypath /etc/nginx/v2ray-agent-https/${domain}.key --ecc' >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo '  fi' >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-echo 'fi' >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-echo "exit 0" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+domain="test1.am1z.xyz"
+eccPath=`find ~/.acme.sh -name "${domain}_ecc"|head -1`
+echo ${eccPath}
+mkdir -p /tmp/tls
+touch /tmp/tls/tls.log
+touch /tmp/tls/acme.log
+if [[ ! -z ${eccPath} ]]
+then
+    modifyTime=`stat ${eccPath}/${domain}.key|sed -n '6,6p'|awk '{print $2" "$3" "$4" "$5}'`
+    modifyTime=`date +%s -d "${modifyTime}"`
+    currentTime=`date +%s`
+    stampDiff=`expr ${currentTime} - ${modifyTime}`
+    minutes=`expr ${stampDiff} / 60`
+    status="正常"
+    reloadTime="暂无"
+    if [[ ! -z ${modifyTime} ]] && [[ ! -z ${currentTime} ]] && [[ ! -z ${stampDiff} ]] && [[ ! -z ${minutes} ]] && [[ ${minutes} -lt '120' ]]
+    then
+        nginx -s stop
+        ~/.acme.sh/acme.sh --installcert -d ${domain} --fullchainpath /etc/nginx/v2ray-agent-https/${domain}.crt --keypath /etc/nginx/v2ray-agent-https/${domain}.key --ecc >> /tmp/tls/acme.log
+        nginx
+        reloadTime=`date -d @${currentTime} +"%F %H:%M:%S"`
+    fi
+    echo "域名：${domain}，modifyTime:"`date -d @${modifyTime} +"%F %H:%M:%S"`,"定时任务执行时间:"`date -d @${currentTime} +"%F %H:%M:%S"`,"上次生成证书的时:"`expr ${minutes} / 1440`"天前","证书状态："${status},"重新生成日期："${reloadTime} >> /tmp/tls/tls.log
+else
+    echo '无法找到证书路径' >> /tmp/tls/tls.log
+fi

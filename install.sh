@@ -258,34 +258,42 @@ installTLS(){
 
 # 重新安装&更新tls证书
 reInstallTLS(){
-    echoContent yellow "添加定时维护证书"
+    #    echoContent yellow "添加定时维护证书"
     touch /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo '' > /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
     touch /etc/nginx/v2ray-agent-https/backup_crontab.cron
     # 定时任务
     echo "40 0 * * * bash /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh" > /etc/nginx/v2ray-agent-https/backup_crontab.cron
     # 备份
     crontab -l > /etc/nginx/v2ray-agent-https/backup_crontab.cron
+    domain=$1
     echo "#!/usr/bin/env bash" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "domain=$1" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-
-    echo "modifyTime=`stat $1.key|sed -n '6,6p'|awk '{print $2" "$3" "$4" "$5}'`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "modifyTime=`date +%s -d "${modifyTime}"`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "currentTime=`date +%s`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "stampDiff=`expr ${currentTime} - ${modifyTime}`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "minutes=`expr ${stampDiff} / 60`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "if [[ ! -z ${modifyTime} ]] && [[ ! -z ${currentTime} ]] && [[ ! -z ${stampDiff} ]] && [[ ! -z ${minutes} ]] && [[ ${minutes} -lt '120' ]]" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "domain=\"${domain}\"" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "eccPath=\`find ~/.acme.sh -name \"\${domain}_ecc\"|head -1\`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "if [[ ! -z \${eccPath}  ]]"  >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "then"  >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "modifyTime=\`stat \${eccPath}/\${domain}.key|sed -n '6,6p'|awk '{print \$2\" \"\$3\" \"\$4\" \"\$5}'\`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "modifyTime=\`date +%s -d \"\${modifyTime}\"\`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "currentTime=\`date +%s\`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "stampDiff=\`expr \${currentTime} - \${modifyTime}\`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "minutes=\`expr \${stampDiff} / 60\`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "if [[ ! -z \${modifyTime} ]] && [[ ! -z \${currentTime} ]] && [[ ! -z \${stampDiff} ]] && [[ ! -z \${minutes} ]] && [[ \${minutes} -lt '120' ]]" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
     echo "then" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
     echo "nginx -s stop" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "~/.acme.sh/acme.sh --installcert -d ${domain} --fullchainpath /etc/nginx/v2ray-agent-https/${domain}.crt --keypath /etc/nginx/v2ray-agent-https/${domain}.key --ecc >/dev/null" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "~/.acme.sh/acme.sh --installcert -d \${domain} --fullchainpath /etc/nginx/v2ray-agent-https/\${domain}.crt --keypath /etc/nginx/v2ray-agent-https/\${domain}.key --ecc >/dev/null" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
     echo "nginx" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
     echo "fi" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    crontab /etc/nginx/v2ray-agent-https/backup_crontab.cron
-    crontabResult=`crontab -l`
+    echo "fi" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+
+#    crontab /etc/nginx/v2ray-agent-https/backup_crontab.cron
+#    crontabResult=\`crontab -l\`
     if [[ -z `crontab -l|grep -v grep|grep 'reloadInstallTLS'` ]]
     then
-        echoContent green "添加定时维护证书"
+        echo
+#        echoContent green "添加定时维护证书"
     else
-        echoContent red "添加定时维护证书失败"
+        echo
+#        echoContent red "添加定时维护证书失败"
     fi
 
 }
