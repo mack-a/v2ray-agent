@@ -47,14 +47,15 @@ bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/in
 - 5.自动添加伪装博客。
 - 6.添加了默认的CDN，自选ip智能解析。
 - 7.默认安装最新的V2Ray版本。
-- 8.增加定时任务 自动续期tls【todo】
+- 8.增加定时任务 自动续期tls
 
 # 示例图
 - 未安装
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/一键脚本未安装.png" width=400>
 
 - 已安装
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/一键脚本已安装.png" width=400>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/一键脚本已安装01.png" width=400>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/一键脚本已安装02.png" width=400>
 
 ## 全自动生成TLS证书一键脚本[只生成TLS证书]
 - 针对只需要生成TLS证书的用户

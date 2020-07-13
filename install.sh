@@ -190,11 +190,22 @@ installNginx(){
 installTLS(){
     mkdir -p /etc/nginx/v2ray-agent-https/
     touch /etc/nginx/v2ray-agent-https/config
+    mkdir -p /tmp/tls
     if [[ -z `find /tmp -name "$1*"` ]]
     then
+
         echoContent yellow "安装TLS证书--->"
         echoContent yellow "  安装acme--->"
-        curl -s https://get.acme.sh | sh > /dev/null
+        curl -s https://get.acme.sh | sh >> /tmp/tls/acme.log
+        if [[ -z `find ~/.acme.sh -name "acme.sh"` ]]
+        then
+            echoContent red "  acme安装失败--->"
+            echoContent yellow "错误排查："
+            echoContent red "  1.获取Github文件失败，请等待GitHub恢复后尝试，恢复进度可查看 [https://www.githubstatus.com/]"
+            echoContent red "  2.acme.sh脚本出现bug，可查看[https://github.com/acmesh-official/acme.sh] issues"
+            echoContent red "  3.反馈给开发者[私聊：https://t.me/mack_a] 或 [提issues]"
+            exit 0
+        fi
         echoContent green  "  acme安装完毕--->"
         echoContent yellow "生成TLS证书中，请等待--->"
         sudo ~/.acme.sh/acme.sh --issue -d $1 --standalone -k ec-256 >/dev/null
@@ -210,7 +221,7 @@ installTLS(){
         fi
         echoContent green "  TLS生成成功--->"
         echo $1 `date +%s` > /etc/nginx/v2ray-agent-https/config
-        mkdir -p /tmp/tls
+
         cp -R /etc/nginx/v2ray-agent-https/config /tmp/tls/config
         cp -R /etc/nginx/v2ray-agent-https/$1.crt /tmp/tls/$1.crt
         cp -R /etc/nginx/v2ray-agent-https/$1.key /tmp/tls/$1.key
@@ -252,50 +263,69 @@ installTLS(){
     fi
     echoContent green "  Nginx启动成功，TLS配置成功--->\n"
     # 增加定时任务定时维护证书
-    # reInstallTLS $1
+    reInstallTLS $1
     installV2Ray $1 ${customPath}
 }
 
 # 重新安装&更新tls证书
 reInstallTLS(){
-    #    echoContent yellow "添加定时维护证书"
+    echoContent yellow "添加定时维护证书，请等待--->"
     touch /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo '' > /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+
+#    echo '' > /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+#    echo '' > /etc/nginx/v2ray-agent-https/backup_crontab.cron
+
     touch /etc/nginx/v2ray-agent-https/backup_crontab.cron
-    # 定时任务
-    echo "40 0 * * * bash /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh" > /etc/nginx/v2ray-agent-https/backup_crontab.cron
+
+    mkdir -p /tmp/tls
+    touch /tmp/tls/tls.log
+    if [[ -z `crontab -l|grep -v grep|grep 'reloadInstallTLS'` ]]
+    then
+        echoContent yellow "  未添加定时更新tls证书，添加中，请等待--->"
+        crontab -l >> /etc/nginx/v2ray-agent-https/backup_crontab.cron
+        # 定时任务
+        echo "30 1 * * * /bin/bash /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh" >> /etc/nginx/v2ray-agent-https/backup_crontab.cron
+        crontab /etc/nginx/v2ray-agent-https/backup_crontab.cron
+    fi
     # 备份
-    crontab -l > /etc/nginx/v2ray-agent-https/backup_crontab.cron
+
     domain=$1
     echo "#!/usr/bin/env bash" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "domain=\"${domain}\"" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "domain=${domain}" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
     echo "eccPath=\`find ~/.acme.sh -name \"\${domain}_ecc\"|head -1\`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "if [[ ! -z \${eccPath}  ]]"  >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "then"  >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "mkdir -p /tmp/tls" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "touch /tmp/tls/tls.log" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "touch /tmp/tls/acme.log" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "if [[ ! -z \${eccPath} ]]" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "then" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
     echo "modifyTime=\`stat \${eccPath}/\${domain}.key|sed -n '6,6p'|awk '{print \$2\" \"\$3\" \"\$4\" \"\$5}'\`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
     echo "modifyTime=\`date +%s -d \"\${modifyTime}\"\`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
     echo "currentTime=\`date +%s\`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
     echo "stampDiff=\`expr \${currentTime} - \${modifyTime}\`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
     echo "minutes=\`expr \${stampDiff} / 60\`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "status=\"正常\"" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "reloadTime=\"暂无\"" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
     echo "if [[ ! -z \${modifyTime} ]] && [[ ! -z \${currentTime} ]] && [[ ! -z \${stampDiff} ]] && [[ ! -z \${minutes} ]] && [[ \${minutes} -lt '120' ]]" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
     echo "then" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
     echo "nginx -s stop" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "~/.acme.sh/acme.sh --installcert -d \${domain} --fullchainpath /etc/nginx/v2ray-agent-https/\${domain}.crt --keypath /etc/nginx/v2ray-agent-https/\${domain}.key --ecc >/dev/null" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "~/.acme.sh/acme.sh --installcert -d \${domain} --fullchainpath /etc/nginx/v2ray-agent-https/\${domain}.crt --keypath /etc/nginx/v2ray-agent-https/\${domain}.key --ecc >> /tmp/tls/acme.log" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
     echo "nginx" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "reloadTime=\`date -d @\${currentTime} +\"%F %H:%M:%S\"\`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
     echo "fi" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "echo \"域名：\${domain}，modifyTime:\"\`date -d @\${modifyTime} +\"%F %H:%M:%S\"\`,\"检查时间:\"\`date -d @\${currentTime} +\"%F %H:%M:%S\"\`,"上次生成证书的时:"\`expr \${minutes} / 1440\`\"天前\",\"证书状态：\"\${status},\"重新生成日期：\"\${reloadTime} >> /tmp/tls/tls.log" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "else" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    echo "echo '无法找到证书路径' >> /tmp/tls/tls.log" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
     echo "fi" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
 
-#    crontab /etc/nginx/v2ray-agent-https/backup_crontab.cron
-#    crontabResult=\`crontab -l\`
-    if [[ -z `crontab -l|grep -v grep|grep 'reloadInstallTLS'` ]]
+    if [[ ! -z `crontab -l|grep -v grep|grep 'reloadInstallTLS'` ]]
     then
-        echo
-#        echoContent green "添加定时维护证书"
+        echoContent green "  添加定时维护证书成功"
     else
-        echo
-#        echoContent red "添加定时维护证书失败"
+        crontab -l >> /etc/nginx/v2ray-agent-https/backup_crontab.cron
+        # 定时任务
+        crontab /etc/nginx/v2ray-agent-https/backup_crontab.cron
+        echoContent green "  检测到已添加定时任务，继续使用"
     fi
-
 }
 # V2Ray
 installV2Ray(){
@@ -303,7 +333,7 @@ installV2Ray(){
     then
         if [[ -z `find /usr/bin/ -name "v2ray*"` ]]
         then
-            echoContent yellow "安装V2Ray--->"
+            echoContent yellow "\n安装V2Ray--->"
             version=`curl -s https://github.com/v2ray/v2ray-core/releases|grep /v2ray/v2ray-core/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
             echoContent green "  v2ray-core版本:${version}"
             mkdir -p /tmp/v2ray
@@ -316,7 +346,7 @@ installV2Ray(){
         fi
         echoContent green "  V2Ray安装成功--->"
     else
-         echoContent yellow "检测到V2Ray安装程序，使用--->\n"
+         echoContent yellow "\n检测到V2Ray安装程序，使用--->\n"
          mkdir -p /usr/bin/v2ray/
          cp /tmp/v2ray/v2ray /usr/bin/v2ray/ && cp /tmp/v2ray/v2ctl /usr/bin/v2ray/
     fi
@@ -347,7 +377,7 @@ installV2Ray(){
     echo "https://$1/${nginxPath}"
     if [[ ! -z `curl -s -L https://$1/${nginxPath}|grep -v grep|grep "Bad Request"` ]]
     then
-        echoContent green "  安装完毕，服务可用--->\n"
+        echoContent green "  服务可用--->\n"
     else
 
         echoContent red "  服务不可用，请检查Cloudflare->域名->SSL/TLS->Overview->Your SSL/TLS encryption mode is 是否是Full--->"
@@ -520,6 +550,7 @@ init(){
         v2rayStatus=1
         echoContent yellow "    version：${v2rayVersion}"
         echoContent yellow "    安装路径：/usr/bin/v2ray/"
+        echoContent yellow "    配置文件：/etc/v2ray/config.json"
         echoContent yellow "    日志路径："
         echoContent yellow "      access:  /tmp/v2ray/v2ray_access_ws_tls.log"
         echoContent yellow "      error:  /tmp/v2ray/v2ray_error_ws_tls.log"
@@ -539,16 +570,33 @@ init(){
         dayDiff=`expr ${stampDiff} / 86400`
         echoContent yellow "    证书域名：${domain}"
         echoContent yellow "    安装日期：`date -d @${tlsCreateTime} +"%F %H:%M:%S"`，剩余天数：`expr 90 - ${dayDiff}`"
+        echoContent yellow "    证书路径："
+        echoContent yellow "      /etc/nginx/v2ray-agent-https/${domain}.key"
+        echoContent yellow "      /etc/nginx/v2ray-agent-https/${domain}.crt"
     else
         echoContent yellow "    暂未安装"
     fi
+
+    echoContent green "\n定时任务相关文件路径："
+    if [[ ! -z `find  /etc/nginx/v2ray-agent-https/ -name backup_crontab.cron`  ]]
+    then
+        echoContent yellow "    定时更新tls脚本路径：/etc/nginx/v2ray-agent-https/reloadInstallTLS.sh"
+        echoContent yellow "    定时任务文件路径：/etc/nginx/v2ray-agent-https/backup_crontab.cron"
+        echoContent yellow "    定时任务日志路径：/tmp/tls/tls.log"
+        echoContent yellow "    acme.sh日志路径：/tmp/tls/acme.log"
+    else
+        echoContent yellow "    暂未安装"
+    fi
+
+
     echoContent red "=============================================================="
     echoContent red "注意事项："
     echoContent green "    1.脚本会检查并安装工具包"
     echoContent green "    2.如果使用此脚本生成过TLS证书、V2Ray，会继续使用上次生成、安装的内容。"
     echoContent green "    3.会删除、卸载已经安装的应用，包括V2Ray、Nginx。"
     echoContent green "    4.如果显示Nginx不可用，请检查防火墙端口是否开放。"
-    echoContent green "    5.证书会在每天的0点31分检查更新"
+    echoContent green "    5.证书会在每天的1点30分检查更新"
+    echoContent green "    6.重启机器后，日志、缓存文件会被删除，不影响正常使用【tls更新日志、缓存|V2Ray执行文件、日志】"
     echoContent red "=============================================================="
     echoContent red "错误处理【这里请仔细阅读】"
     echoContent yellow "Debian："
@@ -558,12 +606,12 @@ init(){
     installSelect=0
     if [[ ${tlsStatus} = "1" ]] && [[ ${v2rayStatus} = "1" ]]
     then
-        echoContent red "检测到已使用本脚本安装"
+        echoContent green "检测到已使用本脚本安装"
         echoContent yellow "    1.重新安装【使用缓存的文件（TLS证书、V2Ray）】"
         echoContent yellow "    2.完全重装【会清理tmp缓存文件（TLS证书、V2Ray）】"
     else
-        echoContent red "未监测到使用本脚本安装"
-        echoContent yellow "    1.安装"
+        echoContent green "未监测到使用本脚本安装"
+        echoContent yellow "    1.安装【未安装】"
         echoContent yellow "    2.完全安装【会清理tmp缓存文件（TLS证书、V2Ray）】"
     fi
 
