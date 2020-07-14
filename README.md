@@ -45,9 +45,11 @@ bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/in
 - 3.自动安装V2Ray、配置文件、生成随机uuid、开机自启。
 - 4.自动验证是否服务搭建成功
 - 5.自动添加伪装博客。
-- 6.添加了默认的CDN，自选ip智能解析。
+- 6.添加默认的CDN，自选ip智能解析。
 - 7.默认安装最新的V2Ray版本。
-- 8.增加定时任务 自动续期tls
+- 8.定时任务，自动续期tls，tls证书状态
+- 9.状态展示（V2Ray、TLS、定时任务）路径日志
+- 10.常见错误处理
 
 # 示例图
 - 未安装
