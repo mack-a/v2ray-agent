@@ -524,7 +524,7 @@ init(){
     echoContent red "脚本概述"
     echoContent green "欢迎使用Cloudflare+WebSocket+TLS+Nginx+伪装博客 一键脚本"
     echo
-    echoContent green "作者：mack-a"
+    echoContent green "作者：mack-a [https://t.me/mack_a]"
     echo
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echo
