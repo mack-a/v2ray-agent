@@ -448,14 +448,14 @@ qrEncode(){
     path=`echo ${user}|jq .streamSettings.wsSettings.path`
     echoContent green '是否使用DNS智能解析进行自定义CDN IP？'
     echoContent yellow " 智能DNS提供一下自定义CDN IP，会根据运营商自动切换ip，测试结果请查看[https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md]"
-    echoContent yellow "   移动:104.17.209.9"
-    echoContent yellow "   联通:172.67.223.77"
-    echoContent yellow "   电信:104.16.25.4"
+    echoContent yellow "   移动:1.0.0.1"
+    echoContent yellow "   联通:www.digitalocean.com"
+    echoContent yellow "   电信:www.digitalocean.com"
     echoContent yellow '输入[y]使用，[任意]不使用'
     read dnsProxy
     if [[ "${dnsProxy}" = "y" ]]
     then
-        add="domain04.qiu4.ml"
+        add="domain07.qiu4.ml"
     fi
     echoContent yellow "客户端链接--->\n"
     qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"64","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'"}'|sed 's#/#\\\/#g'|base64`
@@ -660,7 +660,7 @@ checkSystem(){
 		release="centos"
 		installType='yum -y install'
 		removeType='yum -y remove'
-		upgrade="yum update -y"
+		upgrade="yum update -y --skip-broken"
 	elif [[ ! -z `cat /etc/issue | grep -i "debian" | grep -v grep` ]] || [[ ! -z `cat /proc/version | grep -i "debian" | grep -v grep` ]]
     then
 		release="debian"

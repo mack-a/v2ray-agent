@@ -35,7 +35,7 @@
 
 域名|移动|移动测试|联通|电信
 -|-|-|-|-
-domain04.qiu4.ml|104.17.209.9|上午峰值6w，稳定4k不卡顿、晚八点峰值4w，流畅4k，晚9点峰值1w-3w跨度较大，流畅1440p|104.16.25.4|104.16.25.4
+domain07.qiu4.ml|1.0.0.1|上午峰值2.3w，4k稍显卡顿、晚九点峰值1.5w，1440p较为流畅，晚十点半峰值7000，流畅1080|www.digitalocean.com|www.digitalocean.com
 
 ```
 bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh)
