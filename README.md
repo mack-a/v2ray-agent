@@ -2,7 +2,7 @@
 
 - 推荐 [一键CDN+TLS+WebSocket+Nginx+V2Ray脚本【小白推荐】](#全自动websockettlscdn智能优选cloudflare-ip一键脚本)
 - 此项目采用[CDN+TLS+Nginx+V2Ray](#全自动websockettlscdn智能优选cloudflare-ip一键脚本)、[Trojan](#2Trojan)、[Cloudflare Workers](#方法3workers) 进行模拟正常网站并突破防火墙，同时包含优化方法，以及简单的原理讲解。
-- [优化方案【CDN 自选ip】](https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md)包含对Cloudflare的优化（自选ip优化、DNS优化、[断流优化【】]()),如果您使用Cloudflare断流优化这个一定要看。
+- [优化方案【CDN 自选ip】](https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md)包含对Cloudflare的优化（自选ip优化、DNS优化、[断流优化【】](https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md#4%E6%96%AD%E6%B5%81%E4%BC%98%E5%8C%96)),如果您使用Cloudflare断流优化这个一定要看。
 - [流量中转教程](#流量转发服务)【提高流量传输的速度，减少丢包】。
 - [自建教程](#自建教程)可以快速入手并知晓其中的步骤。如遇到不懂以及不理解的可以加入[TG群讨论](https://t.me/technologyshare)。
 - [免费订阅链接](https://github.com/mack-a/v2ray-agent/blob/master/free_account.md)【如无法使用可加入[TG群](https://t.me/technologyshare)反馈】。
