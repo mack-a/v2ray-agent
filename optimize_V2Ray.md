@@ -342,6 +342,48 @@ mobile.xxx.com. 0	IN	A	198.41.214.162
 ```
 172.64.32.0-172.64.32.254
 ```
+## 4.下面是我找的一些企业站点的ip
+
+- www.mozilla.org
+```
+104.18.165.34
+```
+- www.trustedmediabrands.com
+```
+104.18.21.39
+```
+- www.hemnet.se
+```
+104.17.211.102
+```
+- www.ni.com
+```
+111.32.136.193
+```
+- www.cloudflare.com
+```
+104.17.209.9
+```
+- www.holtandmon.com
+```
+172.67.159.29
+```
+- www.orderbird.com
+```
+104.18.167.90
+```
+- www.upwork.com
+```
+104.16.54.15
+```
+- www.shopify.com
+```
+104.16.255.71
+```
+- sg.carousell.com
+```
+104.16.208.133
+```
 
 ## 5.自动化脚本测试线路【开发中】
 
@@ -352,3 +394,18 @@ mobile.xxx.com. 0	IN	A	198.41.214.162
 172.64.32.1
 104.16.25.4
 ```
+
+# 4.断流优化
+> (这里贴一下V2Ray白话文指南具体说明)[https://guide.v2fly.org/advanced/cdn.html]
+## 1.修改 Security Level
+- Firewall->Settings->Security Level->Essentially Off
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/firewall_settings.png" width=400>
+
+## 2.添加firewall rules
+- Firewall- Firwall Rules->create a Firewall rule
+- Rule name可以随便填
+- URL Path Value填写翻墙的path
+- action则为Allow
+
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/firewall_settings.png" width=400>
+
