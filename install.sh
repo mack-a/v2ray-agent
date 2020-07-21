@@ -88,7 +88,12 @@ installTools(){
         sed -i "${acmeBashrcLine}d" /root/.bashrc
     fi
     rm -rf /etc/systemd/system/v2ray.service
-    systemctl daemon-reload
+    if [[ ! -z `find /bin -name "systemctl"` ]]
+    then
+        systemctl daemon-reload
+    else
+        echo 'Centos6'
+    fi
 
     #  rm -rf ~/.acme.sh > /dev/null
     echoContent green "  删除完成"
@@ -350,11 +355,22 @@ installV2Ray(){
          mkdir -p /usr/bin/v2ray/
          cp /tmp/v2ray/v2ray /usr/bin/v2ray/ && cp /tmp/v2ray/v2ctl /usr/bin/v2ray/
     fi
-    installV2RayService
+    if [[ ! -z `find /bin -name "systemctl"` ]]
+    then
+        installV2RayService
+    fi
+
     initV2RayConfig $2
-    systemctl daemon-reload
-    systemctl enable v2ray.service
-    systemctl start  v2ray.service
+    if [[ ! -z `find /bin -name "systemctl"` ]]
+    then
+        systemctl daemon-reload
+        systemctl enable v2ray.service
+        systemctl start  v2ray.service
+    else
+        /usr/bin/v2ray/v2ray -config /etc/v2ray/config.json &
+    fi
+
+
     if [[ -z `ps -ef|grep v2ray|grep -v grep` ]]
     then
         echoContent red "    V2Ray启动失败，请检查日志后，重新执行脚本--->"
@@ -392,6 +408,7 @@ installV2Ray(){
 # 开机自启
 installV2RayService(){
     echoContent skyBlue "  配置V2Ray开机自启--->"
+    mkdir -p /etc/systemd/system/
     rm -rf /etc/systemd/system/v2ray.service
     touch /etc/systemd/system/v2ray.service
 
@@ -518,6 +535,15 @@ progressTool(){
     done
     echoContent green "  $1已安装--->"
 }
+# 卸载安装的内容
+removeInstall(){
+    rm -rf /tmp/v2ray
+    rm -rf /tmp/tls
+    rm -rf /etc/v2ray
+    rm -rf /root/.acme.sh
+    echo ${removeType},${installType}
+    `${removeType} nginx` > /dev/null 2>&1
+}
 init(){
     cd
     echoContent red "=============================================================="
@@ -525,6 +551,8 @@ init(){
     echoContent green "欢迎使用Cloudflare+WebSocket+TLS+Nginx+伪装博客 一键脚本"
     echo
     echoContent green "作者：mack-a [https://t.me/mack_a]"
+    echo
+    echoContent green "Version：v1.0.1"
     echo
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echo
@@ -574,7 +602,7 @@ init(){
         echoContent yellow "      /etc/nginx/v2ray-agent-https/${domain}.key"
         echoContent yellow "      /etc/nginx/v2ray-agent-https/${domain}.crt"
     else
-        echoContent yellow "    暂未安装"
+        echoContent yellow "    暂未安装或未使用最新的脚本安装"
     fi
 
     echoContent green "\n定时任务相关文件路径："
@@ -585,7 +613,28 @@ init(){
         echoContent yellow "    定时任务日志路径：/tmp/tls/tls.log"
         echoContent yellow "    acme.sh日志路径：/tmp/tls/acme.log"
     else
-        echoContent yellow "    暂未安装"
+        echoContent yellow "    暂未安装或未使用最新的脚本安装"
+    fi
+
+    echoContent green "\n软件运行状态："
+    if [[ ! -z `ps -ef|grep -v grep|grep nginx`  ]]
+    then
+        echoContent yellow "    Nginx:【运行中】"
+    elif [[ ! -z `find /usr/sbin/ -name 'nginx'` ]]
+    then
+        echoContent yellow "    Nginx:【未运行】，执行【nginx】运行"
+    else
+        echoContent yellow "    Nginx:【未安装】"
+    fi
+
+    if [[ ! -z `ps -ef|grep -v grep|grep v2ray`  ]]
+    then
+        echoContent yellow "    V2Ray:【运行中】"
+    elif [[ ! -z `find /usr/bin/v2ray/ -name 'v2ray'` ]]
+    then
+        echoContent yellow "    V2Ray:【未运行】，执行【/usr/bin/v2ray/v2ray -config /etc/v2ray/config.json &】运行"
+    else
+        echoContent yellow "    V2Ray:【未安装】"
     fi
 
 
@@ -616,6 +665,7 @@ init(){
     fi
 
     echoContent yellow "    3.BBR安装[推荐BBR+FQ 或者 BBR+Cake]"
+    echoContent yellow "    4.完全卸载[清理Nginx、TLS证书、V2Ray、acme.sh]"
     echoContent red "=============================================================="
     echoContent green "请输入上列数字，[任意]结束："
     read installStatus
@@ -647,6 +697,11 @@ init(){
         else
             init
         fi
+    elif [[ "${installStatus}" = "4" ]]
+    then
+        removeInstall
+        echoContent yellow "卸载完成"
+        exit 0;
     else
         echoContent yellow "欢迎下次使用--->"
         exit 0;
