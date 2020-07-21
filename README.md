@@ -30,7 +30,7 @@
 ## 全自动WebSocket+TLS+CDN+智能优选Cloudflare IP一键脚本
 - 目前已在GCP上测试Centos6【不稳定】、Centos7、Centos8、Debian9、Debian10通过，不开启云朵则为直连。
 - 这里添加了默认的智能解析自选CDN IP，脚本安装时可手动选择是否使用，本地dns解析建议使用114.114.114.114
-- 如果智能解析后发现不能上网，第一可以升级客户端、第二可以将address填写自己的科学上网的域名，不再使用智能解析CDN的域名，Shadowrocket可以将伪装域名添加到外层的Peer【Shadowrocket不兼容所致】。
+- 如果智能解析后发现不能上网，第一可以升级客户端、第二可以将address填写自己的科学上网的域名，不再使用智能解析CDN的域名，Shadowrocket可以将伪装域名添加到外层的Peer【Shadowrocket不兼容所致，Shadowrocket更新后第一时间更新】。
 - 如果对默认的不满意，则可以[点此查看最新的](https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md)，或者加入[TG群](https://t.me/technologyshare)添加适合自己的CDN ip。
 
 域名|移动|移动测试|联通|电信
