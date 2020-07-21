@@ -88,7 +88,7 @@ installTools(){
         sed -i "${acmeBashrcLine}d" /root/.bashrc
     fi
     rm -rf /etc/systemd/system/v2ray.service
-    if [[ ! -z `find /bin -name "systemctl"` ]]
+    if [[ ! -z `find /bin /usr/bin -name "systemctl"` ]]
     then
         systemctl daemon-reload
     else
@@ -100,7 +100,7 @@ installTools(){
 
     echoContent skyBlue "检查、安装工具包："
 
-    echoContent green "  更新中，请等待"
+    echoContent green "  更新中，等耐心等待，时间可能比较久"
     ${upgrade} > /dev/null
     rm -rf /var/run/yum.pid
     echoContent green "更新完毕"
@@ -355,13 +355,13 @@ installV2Ray(){
          mkdir -p /usr/bin/v2ray/
          cp /tmp/v2ray/v2ray /usr/bin/v2ray/ && cp /tmp/v2ray/v2ctl /usr/bin/v2ray/
     fi
-    if [[ ! -z `find /bin -name "systemctl"` ]]
+    if [[ ! -z `find /bin /usr/bin -name "systemctl"` ]]
     then
         installV2RayService
     fi
 
     initV2RayConfig $2
-    if [[ ! -z `find /bin -name "systemctl"` ]]
+    if [[ ! -z `find /bin /usr/bin -name "systemctl"` ]]
     then
         systemctl daemon-reload
         systemctl enable v2ray.service
@@ -630,7 +630,7 @@ init(){
     if [[ ! -z `ps -ef|grep -v grep|grep v2ray`  ]]
     then
         echoContent yellow "    V2Ray:【运行中】"
-    elif [[ ! -z `find /usr/bin/v2ray/ -name 'v2ray'` ]]
+    elif [[ ! -z `ls -F /usr/bin/v2ray/|grep "v2ray"` ]]
     then
         echoContent yellow "    V2Ray:【未运行】，执行【/usr/bin/v2ray/v2ray -config /etc/v2ray/config.json &】运行"
     else
