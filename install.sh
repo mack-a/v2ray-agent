@@ -378,8 +378,8 @@ installV2Ray(){
     fi
     echoContent green "  V2Ray启动成功--->\n"
     echoContent yellow "V2Ray日志目录："
-    echoContent green "  access:  /tmp/v2ray/v2ray_access_ws_tls.log"
-    echoContent green "  error:  /tmp/v2ray/v2ray_error_ws_tls.log"
+    echoContent green "  access:  /etc/v2ray/v2ray_access_ws_tls.log"
+    echoContent green "  error:  /etc/v2ray/v2ray_error_ws_tls.log"
 
     # 验证整个服务是否可用
     echoContent yellow "验证服务是否可用--->"
@@ -402,8 +402,8 @@ installV2Ray(){
     fi
     qrEncode $1
     echoContent yellow "监听V2Ray日志中，请使用上方生成的vmess访问，如有日志出现则证明线路可用，退出监听也无妨，Ctrl+c退出监听日志，--->"
-    echo '' > /tmp/v2ray/v2ray_access_ws_tls.log
-    tail -f /tmp/v2ray/v2ray_access_ws_tls.log
+    echo '' > /etc/v2ray/v2ray_access_ws_tls.log
+    tail -f /etc/v2ray/v2ray_access_ws_tls.log
 }
 # 开机自启
 installV2RayService(){
@@ -442,9 +442,9 @@ initV2RayConfig(){
     # 自定义IPLC端口
     if [[ ! -z ${iplc} ]]
     then
-        echo '{"log":{"access":"/tmp/v2ray/v2ray_access_ws_tls.log","error":"/tmp/v2ray/v2ray_error_ws_tls.log","loglevel":"debug"},"stats":{},"api":{"services":["StatsService"],"tag":"api"},"policy":{"levels":{"1":{"handshake":4,"connIdle":300,"uplinkOnly":2,"downlinkOnly":5,"statsUserUplink":false,"statsUserDownlink":false}},"system":{"statsInboundUplink":true,"statsInboundDownlink":true}},"allocate":{"strategy":"always","refresh":5,"concurrency":3},"inbounds":[{"port":31299,"protocol":"vmess","settings":{"clients":[{"id":"654765fe-5fb1-271f-7c3f-18ed82827f72","alterId":64,"level":1,"email":"test@v2ray.com"}]},"streamSettings":{"network":"ws","wsSettings":{"path":"/alone"}}},{"port":31294,"protocol":"vmess","settings":{"clients":[{"id":"ab11e002-7008-ef16-4363-217aea8dc81c","alterId":64,"level":1,"email":"HK_深港0.35x IPLC@v2ray.com"},{"id":"246d748a-dd07-2172-a397-ab110aa5ad2a","alterId":64,"level":1,"email":"HK_莞港IPLC@v2ray.com"}]}}],"outbounds":[{"protocol":"freedom","settings":{"OutboundConfigurationObject":{"domainStrategy":"AsIs","userLevel":0}}}],"routing":{"settings":{"rules":[{"inboundTag":["api"],"outboundTag":"api","type":"field"}]},"strategy":"rules"},"dns":{"servers":["8.8.8.8","8.8.4.4"],"tag":"dns_inbound"}}' > /etc/v2ray/config.json
+        echo '{"log":{"access":"/etc/v2ray/v2ray_access_ws_tls.log","error":"/etc/v2ray/v2ray_error_ws_tls.log","loglevel":"debug"},"stats":{},"api":{"services":["StatsService"],"tag":"api"},"policy":{"levels":{"1":{"handshake":4,"connIdle":300,"uplinkOnly":2,"downlinkOnly":5,"statsUserUplink":false,"statsUserDownlink":false}},"system":{"statsInboundUplink":true,"statsInboundDownlink":true}},"allocate":{"strategy":"always","refresh":5,"concurrency":3},"inbounds":[{"port":31299,"protocol":"vmess","settings":{"clients":[{"id":"654765fe-5fb1-271f-7c3f-18ed82827f72","alterId":64,"level":1,"email":"test@v2ray.com"}]},"streamSettings":{"network":"ws","wsSettings":{"path":"/alone"}}},{"port":31294,"protocol":"vmess","settings":{"clients":[{"id":"ab11e002-7008-ef16-4363-217aea8dc81c","alterId":64,"level":1,"email":"HK_深港0.35x IPLC@v2ray.com"},{"id":"246d748a-dd07-2172-a397-ab110aa5ad2a","alterId":64,"level":1,"email":"HK_莞港IPLC@v2ray.com"}]}}],"outbounds":[{"protocol":"freedom","settings":{"OutboundConfigurationObject":{"domainStrategy":"AsIs","userLevel":0}}}],"routing":{"settings":{"rules":[{"inboundTag":["api"],"outboundTag":"api","type":"field"}]},"strategy":"rules"},"dns":{"servers":["8.8.8.8","8.8.4.4"],"tag":"dns_inbound"}}' > /etc/v2ray/config.json
     else
-        echo '{"log":{"access":"/tmp/v2ray/v2ray_access_ws_tls.log","error":"/tmp/v2ray/v2ray_error_ws_tls.log","loglevel":"debug"},"stats":{},"api":{"services":["StatsService"],"tag":"api"},"policy":{"levels":{"1":{"handshake":4,"connIdle":300,"uplinkOnly":2,"downlinkOnly":5,"statsUserUplink":false,"statsUserDownlink":false}},"system":{"statsInboundUplink":true,"statsInboundDownlink":true}},"allocate":{"strategy":"always","refresh":5,"concurrency":3},"inbounds":[{"port":31299,"protocol":"vmess","settings":{"clients":[{"id":"654765fe-5fb1-271f-7c3f-18ed82827f72","alterId":64,"level":1,"email":"test@v2ray.com"}]},"streamSettings":{"network":"ws","wsSettings":{"path":"/alone"}}}],"outbounds":[{"protocol":"freedom","settings":{"OutboundConfigurationObject":{"domainStrategy":"AsIs","userLevel":0}}}],"routing":{"settings":{"rules":[{"inboundTag":["api"],"outboundTag":"api","type":"field"}]},"strategy":"rules"},"dns":{"servers":["8.8.8.8","8.8.4.4"],"tag":"dns_inbound"}}' > /etc/v2ray/config.json
+        echo '{"log":{"access":"/etc/v2ray/v2ray_access_ws_tls.log","error":"/etc/v2ray/v2ray_error_ws_tls.log","loglevel":"debug"},"stats":{},"api":{"services":["StatsService"],"tag":"api"},"policy":{"levels":{"1":{"handshake":4,"connIdle":300,"uplinkOnly":2,"downlinkOnly":5,"statsUserUplink":false,"statsUserDownlink":false}},"system":{"statsInboundUplink":true,"statsInboundDownlink":true}},"allocate":{"strategy":"always","refresh":5,"concurrency":3},"inbounds":[{"port":31299,"protocol":"vmess","settings":{"clients":[{"id":"654765fe-5fb1-271f-7c3f-18ed82827f72","alterId":64,"level":1,"email":"test@v2ray.com"}]},"streamSettings":{"network":"ws","wsSettings":{"path":"/alone"}}}],"outbounds":[{"protocol":"freedom","settings":{"OutboundConfigurationObject":{"domainStrategy":"AsIs","userLevel":0}}}],"routing":{"settings":{"rules":[{"inboundTag":["api"],"outboundTag":"api","type":"field"}]},"strategy":"rules"},"dns":{"servers":["8.8.8.8","8.8.4.4"],"tag":"dns_inbound"}}' > /etc/v2ray/config.json
     fi
     # 自定义路径
     if [[ ! -z "$1" ]]
@@ -580,8 +580,8 @@ init(){
         echoContent yellow "    安装路径：/usr/bin/v2ray/"
         echoContent yellow "    配置文件：/etc/v2ray/config.json"
         echoContent yellow "    日志路径："
-        echoContent yellow "      access:  /tmp/v2ray/v2ray_access_ws_tls.log"
-        echoContent yellow "      error:  /tmp/v2ray/v2ray_error_ws_tls.log"
+        echoContent yellow "      access:  /etc/v2ray/v2ray_access_ws_tls.log"
+        echoContent yellow "      error:  /etc/v2ray/v2ray_error_ws_tls.log"
     else
         echoContent yellow "    暂未安装"
     fi
