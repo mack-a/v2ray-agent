@@ -101,7 +101,12 @@ installTools(){
     echoContent skyBlue "检查、安装工具包："
 
     echoContent green "  更新中，等耐心等待，时间可能比较久"
+    # if [[ "${release}" = "centos" ]]
+    # then
+    #    yum-complete-transaction --cleanup-only
+    # fi
     ${upgrade} > /dev/null
+
     rm -rf /var/run/yum.pid
     echoContent green "更新完毕"
 
@@ -334,7 +339,7 @@ reInstallTLS(){
 }
 # V2Ray
 installV2Ray(){
-    if [[ -z `find /tmp -name "v2ray*"` ]]
+    if [[ -z `find /tmp -name "v2ray"` ]] && [[ -z `find /tmp -name "v2ctl"` ]]
     then
         if [[ -z `find /usr/bin/ -name "v2ray*"` ]]
         then
@@ -677,9 +682,10 @@ init(){
         installNginx
     elif [[ "${installStatus}" = "2" ]]
     then
+        rm -rf /usr/bin/v2ray
         rm -rf /tmp/v2ray
         rm -rf /tmp/tls
-        rm -rf /etc/v2ray/usersv2ray.conf
+        rm -rf /etc/v2ray
         installTools
         installNginx
     elif [[ "${installStatus}" = "3" ]]

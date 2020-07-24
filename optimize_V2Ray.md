@@ -386,6 +386,29 @@ mobile.xxx.com. 0	IN	A	198.41.214.162
 104.16.208.133
 ```
 
+- www.sonymusic.com 104.18.18.193
+
+- www.sofi.com 104.16.190.103
+- www.allsaints.com 104.16.34.40
+- corp.sureprep.com 192.124.249.15
+- icook.tw 104.17.46.56
+- raisedonors.com 104.16.69.135
+- poki.com 104.16.208.71
+- www.thredup.com 104.18.22.236
+- zerodha.com 104.16.214.247
+- www.netohq.com 104.18.18.143
+- www.luckyvitamin.com 104.16.210.231
+- www.quintype.com 104.18.94.198
+- www.di.fm 104.16.9.105
+- www.autoanything.com 104.16.18.99
+- www.glossier.com 104.18.182.69
+- flo.health 104.18.23.89
+- www.lastminute.com 104.18.143.27
+- pippa.io 104.18.82.49
+- angel.co 104.18.24.39 
+- www.gobear.com 104.18.72.52
+
+
 ## 5.自动化脚本测试线路【开发中】
 
 ## 6.本人使用
@@ -409,4 +432,3 @@ mobile.xxx.com. 0	IN	A	198.41.214.162
 - action则为Allow
 
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/firewall_settings.png" width=400>
-
