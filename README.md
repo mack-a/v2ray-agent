@@ -5,15 +5,14 @@
 - [优化方案【CDN 自选ip】](https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md)包含对Cloudflare的优化（自选ip优化、DNS优化、[断流优化【CDN必看】](https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md#4%E6%96%AD%E6%B5%81%E4%BC%98%E5%8C%96)),如果您使用Cloudflare断流优化这个一定要看。
 - [流量中转教程](#流量转发服务)【提高流量传输的速度，减少丢包】。
 - [自建教程](#自建教程)可以快速入手并知晓其中的步骤。如遇到不懂以及不理解的可以加入[TG群讨论](https://t.me/technologyshare)。
-- [免费订阅链接](https://github.com/mack-a/v2ray-agent/blob/master/free_account.md)【如无法使用可加入[TG群](https://t.me/technologyshare)反馈】。
-- 个性化需求可以加入[TG群](https://t.me/technologyshare)、或者直接[点击私聊](https://t.me/mack_a)。
-- [强烈安装适合自己的BBR，执行脚本前必看](https://github.com/mack-a/v2ray-agent/blob/master/bbr.md)
+- [免费订阅链接](https://github.com/mack-a/v2ray-agent/blob/master/free_account.md)。
+- [建议安装脚本前先安装适合自己的BBR](https://github.com/mack-a/v2ray-agent/blob/master/bbr.md)
+- 以上有问题可以提issues或者可以加入[TG群](https://t.me/technologyshare)反馈，欢迎加入TG群，共同学习、共同成长。
 
 * * *
 # 目录
 - [一键脚本](#一键脚本)
   * [1.WebSocket+TLS+CDN+智能优选Cloudflare IP](#全自动websockettlscdn智能优选cloudflare-ip一键脚本)
-  * [2.全自动生成tls证书一键脚本](#全自动生成tls证书一键脚本只生成tls证书)
 - [自建教程](#自建教程)
   * [1.V2Ray](#1v2ray)
   * [2.Trojan](#2trojan)
@@ -22,15 +21,12 @@
    * [2.TCP+Vmess](#2tcpvmess点击查看)
 * * *
 
-## 欢迎加入TG群，共同学习、共同成长。
-[点击此链接加入电报群](https://t.me/technologyshare)
-
 * * *
 # 一键脚本
 ## 全自动WebSocket+TLS+CDN+智能优选Cloudflare IP一键脚本
 - 目前已在GCP上测试Centos[6【不稳定】、7、8]、Debian[9、10]、Ubuntu[16、18、19、20]通过，不开启云朵则为直连。
 - 这里添加了默认的智能解析自选CDN IP，脚本安装时可手动选择是否使用，本地dns解析建议使用114.114.114.114
-- 如果智能解析后发现不能上网，第一可以升级客户端、第二可以将address填写自己的科学上网的域名，不再使用智能解析CDN的域名，Shadowrocket可以将伪装域名添加到外层的Peer【Shadowrocket不兼容所致，Shadowrocket更新后第一时间更新】。
+- 如果智能解析后发现不能上网，第一可以升级客户端、第二可以将address填写自己的科学上网的域名，不再使用智能解析CDN的域名，~~Shadowrocket可以将伪装域名添加到外层的Peer【Shadowrocket不兼容所致，请升级客户端】~~。
 - 如果对默认的不满意，则可以[点此查看最新的](https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md)，或者加入[TG群](https://t.me/technologyshare)添加适合自己的CDN ip。
 - [脚本更新日志](https://github.com/mack-a/v2ray-agent/releases)
 
@@ -59,27 +55,6 @@ bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/in
 - 已安装
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/一键脚本已安装01.png" width=400>
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/一键脚本已安装02.png" width=400>
-
-## 全自动生成TLS证书一键脚本[只生成TLS证书]
-- 针对只需要生成TLS证书的用户
-
-```
-bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh)
-```
-- 1.会安装依赖所需依赖
-- 2.会把Nginx配置文件备份
-- 3.会安装Nginx、acme.sh，如果已安装则使用已经存在的
-- 4.安装完毕或者安装失败会自动恢复备份，请不要手动关闭脚本
-- 5.执行期间请不要重启机器
-- 6.备份文件和证书文件都在/tmp下面，请注意留存
-- 7.如果多次执行则将上次生成备份和生成的证书强制覆盖
-- 8.证书默认ec-256
-- 9.下个版本会加入通配符证书生成[todo]
-- 10.可以生成多个不同域名的证书[包含子域名]，具体速率请查看[https://letsencrypt.org/zh-cn/docs/rate-limits/]
-- 11.兼容Centos、Ubuntu、Debian
-
-
-## 全自动Trojan+TLS一键脚本【TODO】
 
 # 自建教程
 # 1.V2Ray
