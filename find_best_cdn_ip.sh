@@ -5,7 +5,11 @@ timeout=1000
 echoType='echo -e'
 trap 'onCtrlC' INT
 function onCtrlC () {
-    echo 'Ctrl+C is captured'
+    echoContent yellow '计算中'
+    # 排序计算
+    echoContent red "排序规则为：先按照丢包率>波动>平均延迟"
+    echoContent red "依次展示为 ip 丢包率 最小延迟 平均延迟 最大延迟 波动"
+    cat /tmp/ping.log|sort -t ' ' -k 2n -k 6n -k 4n
     exit;
 }
 
@@ -46,21 +50,23 @@ pingTool(){
         pingResult=`ping -c ${num} -W ${timeout} ${ip[$i]}`
 
         packetLoss=`echo ${pingResult}|awk -F "[%]" '{print $1}'|awk -F "[p][a][c][k][e][t][s][ ][r][e][c][e][i][v][e][d][,][ ]" '{print $2}'`
-        roundTrip=`echo ${pingResult}|awk -F "[r][o][u][n][d][-][t][r][i][p]" '{print $2}'|awk '{print $3}'`
-
+        roundTrip=`echo ${pingResult}|awk -F "[r][o][u][n][d][-][t][r][i][p]" '{print $2}'|awk '{print $3}'|awk -F "[/]" '{print $1"."$2"."$3"."$4}'|awk -F "[/]" '{print $1$2$3$4}'|awk -F "[.]" '{print $1" "$3" "$5" "$7}'`
+        ## |awk -F "[/]" '{print $1$2$3}'|awk -F "[.]" '{print $1" "$3" "$5" "$7}'
+        echo ${roundTrip}
         if [[ -z ${roundTrip} ]]
         then
             roundTrip="无"
         fi
-        echo "ip: ${ip[$i]}, 丢包率: ${packetLoss}%, 最小/平均/最大/波动: ${roundTrip}" >> /tmp/ping.log
+        echo "ip:${ip[$i]},丢包率:${packetLoss}%,最小/平均/最大/波动:${roundTrip}"
+        echo "${ip[$i]} ${packetLoss} ${roundTrip}" >> /tmp/ping.log
     done
 }
 
 init(){
     echoContent red "============================================="
     echoContent green "1.联通"
-    echoContent green "2.移动"
-    echoContent green "3.电信"
+    echoContent green "2.电信"
+    echoContent green "3.移动"
     echoContent yellow "请选择："
     echoContent red "============================================="
     read selectType
