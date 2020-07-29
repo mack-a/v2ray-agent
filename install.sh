@@ -50,6 +50,14 @@ installTools(){
     # echo "export LC_ALL=en_US.UTF-8"  >>  /etc/profile
     # source /etc/profile
     # kill lock
+    if [[ "${release}" = "centos" ]]
+    then
+        # jq epel源
+        rpm -ivh http://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm > /dev/null 2>&1
+        # nginx epel源
+        rpm -ivh http://nginx.org/packages/centos/7/noarch/RPMS/nginx-release-centos-7-0.el7.ngx.noarch.rpm > /dev/null 2>&1
+    fi
+
     if [[ ! -z `ps -ef|grep -v grep|grep apt`  ]]
     then
         ps -ef|grep -v grep|grep apt|awk '{print $2}'|xargs kill -9
@@ -138,7 +146,7 @@ installTools(){
     echoContent yellow "检查、安装jq--->"
     progressTool jq &
     ${installType} jq > /dev/null
-
+    killSleep > /dev/null 2>&1
     # echoContent skyBlue "检查、安装bind-utils--->"
     # progressTool bind-utils
     # 关闭防火墙
@@ -192,6 +200,7 @@ installNginx(){
             installTLS ${domain}
         else
             echoContent red "    无法正常访问服务器，请检测域名是否正确、域名的DNS解析以及防火墙设置是否正确--->"
+            killSleep > /dev/null 2>&1
             exit 0;
         fi
     fi
@@ -214,6 +223,7 @@ installTLS(){
             echoContent red "  1.获取Github文件失败，请等待GitHub恢复后尝试，恢复进度可查看 [https://www.githubstatus.com/]"
             echoContent red "  2.acme.sh脚本出现bug，可查看[https://github.com/acmesh-official/acme.sh] issues"
             echoContent red "  3.反馈给开发者[私聊：https://t.me/mack_a] 或 [提issues]"
+            killSleep > /dev/null 2>&1
             exit 0
         fi
         echoContent green  "  acme安装完毕--->"
@@ -223,10 +233,12 @@ installTLS(){
         if [[ -z `cat /etc/nginx/v2ray-agent-https/$1.crt` ]]
         then
             echoContent red "    TLS安装失败，请检查acme日志--->"
+            killSleep > /dev/null 2>&1
             exit 0
         elif [[ -z `cat /etc/nginx/v2ray-agent-https/$1.key` ]]
         then
             echoContent red "    TLS安装失败，请检查acme日志--->"
+            killSleep > /dev/null 2>&1
             exit 0
         fi
         echoContent green "  TLS生成成功--->"
@@ -269,6 +281,7 @@ installTLS(){
     if [[ -z `ps -ef|grep -v grep|grep nginx` ]]
     then
         echoContent red "  Nginx启动失败，请检查日志--->"
+        killSleep > /dev/null 2>&1
         exit 0
     fi
     echoContent green "  Nginx启动成功，TLS配置成功--->\n"
@@ -379,6 +392,7 @@ installV2Ray(){
     if [[ -z `ps -ef|grep v2ray|grep -v grep` ]]
     then
         echoContent red "    V2Ray启动失败，请检查日志后，重新执行脚本--->"
+        killSleep > /dev/null 2>&1
         exit 0;
     fi
     echoContent green "  V2Ray启动成功--->\n"
@@ -403,6 +417,7 @@ installV2Ray(){
 
         echoContent red "  服务不可用，请检查Cloudflare->域名->SSL/TLS->Overview->Your SSL/TLS encryption mode is 是否是Full--->"
         echoContent red "  错误日志:`curl -s -L https://$1/${nginxPath}`"
+        killSleep > /dev/null 2>&1
         exit 0
     fi
     qrEncode $1
@@ -707,13 +722,22 @@ init(){
     then
         removeInstall
         echoContent yellow "卸载完成"
+        killSleep > /dev/null 2>&1
         exit 0;
     else
         echoContent yellow "欢迎下次使用--->"
+        killSleep > /dev/null 2>&1
         exit 0;
     fi
 }
-
+# 杀死sleep
+killSleep(){
+    if [[ ! -z `ps -ef|grep -v grep|grep sleep` ]]
+    then
+        ps -ef|grep -v grep|grep sleep|awk '{print $3}'|xargs kill -9 > /dev/null 2>&1
+        killSleep > /dev/null 2>&1
+    fi
+}
 checkSystem(){
 
 	if [[ ! -z `find /etc -name "redhat-release"` ]] || [[ ! -z `cat /proc/version | grep -i "centos" | grep -v grep ` ]] || [[ ! -z `cat /proc/version | grep -i "red hat" | grep -v grep ` ]] || [[ ! -z `cat /proc/version | grep -i "redhat" | grep -v grep ` ]]
@@ -740,6 +764,7 @@ checkSystem(){
         echoContent red "本脚本不支持此系统，请将下方日志反馈给开发者"
         cat /etc/issue
         cat /proc/version
+        killSleep > /dev/null 2>&1
         exit 0;
     fi
 }
