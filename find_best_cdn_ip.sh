@@ -12,9 +12,9 @@ statisticalContent(){
     echoContent red "============================================="
     echoContent yellow '计算中--->'
     # 排序计算
-    echoContent red "排序规则：丢包率>波动>平均延迟"
+    echoContent red "排序规则：丢包率>波动>平均延迟，只展示最优的三十条"
     echoContent red "依次展示为:[ ip 丢包率 最小延迟 平均延迟 最大延迟 波动 ]"
-    cat /tmp/ping.log|sort -t ' ' -k 2n -k 6n -k 4n
+    cat /tmp/ping.log|sort -t ' ' -k 2n -k 6n -k 4n|head -30
     echoContent red "============================================="
 }
 echoContent(){
