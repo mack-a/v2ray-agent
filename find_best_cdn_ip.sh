@@ -49,7 +49,7 @@ echoContent(){
 }
 pingTool(){
     echo ''>/tmp/ping.log
-    echoContent yellow "一共${#ip[*]}个IP，大约耗时`expr ${#ip[*]} \* ${num} / 60`分钟"
+    echoContent yellow "一共${#ip[*]}个IP，每个ip测试${num}次,大约耗时`expr ${#ip[*]} \* ${num} / 60`分钟"
     echoContent yellow "可以中途Ctrl+c，这样只会计算、统计已经记录下来的"
     for ((i=0;i<${#ip[*]};i++))
     do
@@ -99,7 +99,12 @@ init(){
     echoContent green "请输入单个ip的测试次数【默认为5次】："
     echoContent red "============================================="
     read testNum
-    
+    if [[ "$testNum" =~ ^[1-9]+$ ]]
+    then
+        num=${testNum}
+    else
+        echoContent red '使用默认'
+    fi
     pingTool
 }
 checkSystem(){
