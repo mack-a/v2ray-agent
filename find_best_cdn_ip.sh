@@ -94,6 +94,12 @@ init(){
         echoContent red "错误"
         exit
     fi
+    echoContent red "============================================="
+    echoContent green "默认测试为五次，超时为1000ms"
+    echoContent green "请输入单个ip的测试次数【默认为5次】："
+    echoContent red "============================================="
+    read testNum
+    
     pingTool
 }
 checkSystem(){
