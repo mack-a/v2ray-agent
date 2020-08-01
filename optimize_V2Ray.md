@@ -13,13 +13,18 @@
 - 1.配置简单
 - 2.只需要客户端修改
 - 3.保证在不自选ip的情况可以正常使用
+- 4.最优ip测试
+```
+# 晚高峰(23点以后)建议测试次数设置10次以上，默认为5次
+bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/find_best_cdn_ip.sh)
+```
 
 >这里提供了国内dns分流，只需要将下方教程提到的自定义ip写成下方表格中的域名，即可根据你的运营商自动切换自选ip。这里的自选ip不是很全，如果有更加适合你的可以加入[TG群](https://t.me/technologyshare)提一下。【手头没电信运营商的网络，这里的ip是默认的】
 - 以下测试视频为 [Japan in 8K 60fps](https://youtu.be/zCLOJ9j1k2Y)。
 - vps均使用5.6 kenrel bbr-fq
 - 如有自定义IP或者使用问题可以[点击私聊](https://t.me/mack_a)添加
 - 2020-7-28 测试波动较大，速度不如意。以下结果均参考
-- 2020-7-28 更新了五个联通IP
+- 2020-7-28 更新了移动、联通[优选ip](#3最优ip选择)
 
 域名|移动|移动测试|联通|电信
 -|-|-|-|-

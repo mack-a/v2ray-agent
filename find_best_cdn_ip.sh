@@ -55,7 +55,7 @@ pingTool(){
     do
         pingResult=`ping -c ${num} -W ${timeout} ${ip[$i]}`
         packetLoss=`echo ${pingResult}|awk -F "[%]" '{print $1}'|awk -F "[p][a][c][k][e][t][s][ ][r][e][c][e][i][v][e][d][,][ ]" '{print $2}'`
-
+        roundTrip=`echo ${pingResult}|awk -F "[r][o][u][n][d][-][t][r][i][p]" '{print $2}'|awk '{print $3}'|awk -F "[/]" '{print $1"."$2"."$3"."$4}'|awk -F "[/]" '{print $1$2$3$4}'|awk -F "[.]" '{print $1" "$3" "$5" "$7}'`
         if [[ "${release}" = "ubuntu" ]]
         then
             packetLoss=`echo ${pingResult}|awk -F "[%]" '{print $1}'|awk -F "[r][e][c][e][i][v][e][d][,][ ]" '{print $2}'`
