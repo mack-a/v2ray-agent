@@ -134,6 +134,10 @@ installTools(){
     progressTool socat &
     ${installType} socat > /dev/null
 
+    echoContent yellow "检查、安装tar--->"
+    progressTool tar &
+    ${installType} tar > /dev/null
+
     echoContent yellow "检查、安装crontabs--->"
     progressTool crontabs &
     if [[ "${release}" = "ubuntu" ]] || [[ "${release}" = "debian" ]]
