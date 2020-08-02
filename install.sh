@@ -4,8 +4,14 @@ installType='yum -y install'
 removeType='yum -y remove'
 upgrade="yum -y update"
 echoType='echo -e'
+installProgress=0
+totalProgress=18
 iplc=$1
-
+trap 'onCtrlC' INT
+function onCtrlC () {
+    killSleep > /dev/null 2>&1
+    exit;
+}
 # echo颜色方法
 echoContent(){
     case $1 in
@@ -37,14 +43,6 @@ echoContent(){
         ;;
     esac
 }
-fixBug(){
-    if [[ "${release}" = "ubuntu" ]]
-    then
-        cd /var/lib/dpkg/
-
-    fi
-}
-
 # 安装工具包
 installTools(){
     # echo "export LC_ALL=en_US.UTF-8"  >>  /etc/profile
@@ -56,6 +54,9 @@ installTools(){
         rpm -ivh http://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm > /dev/null 2>&1
         # nginx epel源
         rpm -ivh http://nginx.org/packages/centos/7/noarch/RPMS/nginx-release-centos-7-0.el7.ngx.noarch.rpm > /dev/null 2>&1
+        installProgress=1
+        killSleep > /dev/null 2>&1
+        installProgressFunction ${installProgress} ${totalProgress} &
     fi
 
     if [[ ! -z `ps -ef|grep -v grep|grep apt`  ]]
@@ -79,6 +80,9 @@ installTools(){
         fi
         rm -rf /etc/nginx/nginx.conf
         rm -rf /usr/share/nginx/html.zip
+        installProgress=2
+        killSleep > /dev/null 2>&1
+        installProgressFunction ${installProgress} ${totalProgress}  &
     fi
 
     if [[ ! -z `find /usr/bin/ -name "v2ray*"` ]]
@@ -88,6 +92,9 @@ installTools(){
             ps -ef|grep v2ray|grep -v grep|awk '{print $2}'|xargs kill -9
         fi
         rm -rf  /usr/bin/v2ray
+        installProgress=3
+        killSleep > /dev/null 2>&1
+        installProgressFunction ${installProgress} ${totalProgress}  &
     fi
 
     if [[ ! -z `cat /root/.bashrc|grep -n acme` ]]
@@ -114,17 +121,25 @@ installTools(){
     #    yum-complete-transaction --cleanup-only
     # fi
     ${upgrade} > /dev/null
-
+    installProgress=4
+    killSleep > /dev/null 2>&1
+    installProgressFunction ${installProgress} ${totalProgress}  &
     rm -rf /var/run/yum.pid
     echoContent green "更新完毕"
 
     echoContent yellow "检查、安装wget--->"
     progressTool wget &
     ${installType} wget > /dev/null
+    installProgress=5
+    killSleep > /dev/null 2>&1
+    installProgressFunction ${installProgress} ${totalProgress}  &
 
     echoContent yellow "检查、安装unzip--->"
     progressTool unzip &
     ${installType} unzip > /dev/null
+    installProgress=6
+    killSleep > /dev/null 2>&1
+    installProgressFunction ${installProgress} ${totalProgress}  &
 
     # echoContent yellow "检查、安装qrencode--->"
     # progressTool qrencode &
@@ -133,6 +148,9 @@ installTools(){
     echoContent yellow "检查、安装socat--->"
     progressTool socat &
     ${installType} socat > /dev/null
+    installProgress=7
+    killSleep > /dev/null 2>&1
+    installProgressFunction ${installProgress} ${totalProgress}  &
 
     echoContent yellow "检查、安装tar--->"
     progressTool tar &
@@ -146,10 +164,17 @@ installTools(){
     else
         ${installType} crontabs > /dev/null
     fi
+    installProgress=8
+    killSleep > /dev/null 2>&1
+    installProgressFunction ${installProgress} ${totalProgress}  &
 
     echoContent yellow "检查、安装jq--->"
     progressTool jq &
     ${installType} jq > /dev/null
+    installProgress=9
+    killSleep > /dev/null 2>&1
+    installProgressFunction ${installProgress} ${totalProgress}  &
+
     killSleep > /dev/null 2>&1
     # echoContent skyBlue "检查、安装bind-utils--->"
     # progressTool bind-utils
@@ -171,7 +196,6 @@ installNginx(){
         echoContent yellow "  检查、安装Nginx--->"
         progressTool nginx &
         ${installType} nginx > /dev/null
-
         if [[ ! -z `ps -ef|grep -v grep|grep nginx` ]]
         then
             nginx -s stop
@@ -201,7 +225,11 @@ installNginx(){
         then
             echoContent green "  Nginx访问成功--->\n"
             ps -ef|grep nginx|grep -v grep|awk '{print $2}'|xargs kill -9
+            installProgress=11
+            killSleep > /dev/null 2>&1
+            installProgressFunction ${installProgress} ${totalProgress}  &
             installTLS ${domain}
+
         else
             echoContent red "    无法正常访问服务器，请检测域名是否正确、域名的DNS解析以及防火墙设置是否正确--->"
             killSleep > /dev/null 2>&1
@@ -230,6 +258,9 @@ installTLS(){
             killSleep > /dev/null 2>&1
             exit 0
         fi
+        installProgress=12
+        killSleep > /dev/null 2>&1
+        installProgressFunction ${installProgress} ${totalProgress}  &
         echoContent green  "  acme安装完毕--->"
         echoContent yellow "生成TLS证书中，请等待--->"
         sudo ~/.acme.sh/acme.sh --issue -d $1 --standalone -k ec-256 >/dev/null
@@ -246,6 +277,7 @@ installTLS(){
             exit 0
         fi
         echoContent green "  TLS生成成功--->"
+
         echo $1 `date +%s` > /etc/nginx/v2ray-agent-https/config
 
         cp -R /etc/nginx/v2ray-agent-https/config /tmp/tls/config
@@ -263,7 +295,9 @@ installTLS(){
         cp -R /tmp/tls/$1.key /etc/nginx/v2ray-agent-https/$1.key
         cp -R /tmp/tls/config /etc/nginx/v2ray-agent-https/config
     fi
-
+    installProgress=13
+    killSleep > /dev/null 2>&1
+    installProgressFunction ${installProgress} ${totalProgress}  &
     # nginxInstallLine=`cat /etc/nginx/nginx.conf|grep -n "}"|awk -F "[:]" 'END{print $1-1}'`
     # sed -i "${nginxInstallLine}i server {listen 443 ssl;server_name $1;root /usr/share/nginx/html;ssl_certificate /etc/nginx/$1.crt;ssl_certificate_key /etc/nginx/$1.key;ssl_protocols TLSv1 TLSv1.1 TLSv1.2;ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;ssl_prefer_server_ciphers on;location / {} location /alone { proxy_redirect off;proxy_pass http://127.0.0.1:31299;proxy_http_version 1.1;proxy_set_header Upgrade \$http_upgrade;proxy_set_header Connection "upgrade";proxy_set_header X-Real-IP \$remote_addr;proxy_set_header Host \$host;proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;}}" /etc/nginx/nginx.conf
 
@@ -289,6 +323,9 @@ installTLS(){
         exit 0
     fi
     echoContent green "  Nginx启动成功，TLS配置成功--->\n"
+    installProgress=14
+    killSleep > /dev/null 2>&1
+    installProgressFunction ${installProgress} ${totalProgress}  &
     # 增加定时任务定时维护证书
     reInstallTLS $1
     installV2Ray $1 ${customPath}
@@ -353,6 +390,9 @@ reInstallTLS(){
         crontab /etc/nginx/v2ray-agent-https/backup_crontab.cron
         echoContent green "  检测到已添加定时任务，继续使用"
     fi
+    installProgress=15
+    killSleep > /dev/null 2>&1
+    installProgressFunction ${installProgress} ${totalProgress}  &
 }
 # V2Ray
 installV2Ray(){
@@ -377,6 +417,9 @@ installV2Ray(){
          mkdir -p /usr/bin/v2ray/
          cp /tmp/v2ray/v2ray /usr/bin/v2ray/ && cp /tmp/v2ray/v2ctl /usr/bin/v2ray/
     fi
+    installProgress=16
+    killSleep > /dev/null 2>&1
+    installProgressFunction ${installProgress} ${totalProgress}  &
     if [[ ! -z `find /bin /usr/bin -name "systemctl"` ]]
     then
         installV2RayService
@@ -403,7 +446,9 @@ installV2Ray(){
     echoContent yellow "V2Ray日志目录："
     echoContent green "  access:  /etc/v2ray/v2ray_access_ws_tls.log"
     echoContent green "  error:  /etc/v2ray/v2ray_error_ws_tls.log"
-
+    installProgress=17
+    killSleep > /dev/null 2>&1
+    installProgressFunction ${installProgress} ${totalProgress}  &
     # 验证整个服务是否可用
     echoContent yellow "验证服务是否可用--->"
     sleep 0.5
@@ -427,6 +472,9 @@ installV2Ray(){
     qrEncode $1
     echoContent yellow "监听V2Ray日志中，请使用上方生成的vmess访问，如有日志出现则证明线路可用，退出监听也无妨，Ctrl+c退出监听日志，--->"
     echo '' > /etc/v2ray/v2ray_access_ws_tls.log
+    installProgress=18
+    killSleep > /dev/null 2>&1
+    installProgressFunction ${installProgress} ${totalProgress}  &
     tail -f /etc/v2ray/v2ray_access_ws_tls.log
 }
 # 开机自启
@@ -455,6 +503,9 @@ installV2RayService(){
     echo '[Install]' >> /etc/systemd/system/v2ray.service
     echo 'WantedBy=multi-user.target' >> /etc/systemd/system/v2ray.service
     echoContent green "  配置V2Ray开机自启成功--->"
+    installProgress=16
+    killSleep > /dev/null 2>&1
+    installProgressFunction ${installProgress} ${totalProgress}  &
 }
 
 # 初始化V2Ray 配置文件
@@ -477,7 +528,7 @@ initV2RayConfig(){
     else
         sed -i "s/654765fe-5fb1-271f-7c3f-18ed82827f72/${uuid}/g" `grep 654765fe-5fb1-271f-7c3f-18ed82827f72 -rl /etc/v2ray/config.json`
     fi
-
+    # todo 这里需要修改
 }
 qrEncode(){
     user=`cat /etc/v2ray/config.json|jq .inbounds[0]`
@@ -559,6 +610,29 @@ progressTool(){
     done
     echoContent green "  $1已安装--->"
 }
+
+installProgressFunction(){
+    installProgress=$1
+    totalProgress=$2
+    currentProgress=0
+    i=0
+    sp='/-\|'
+    n=${#sp}
+
+    echo installProgress:${installProgress},totalProgress:${totalProgress}
+    progressNum=`expr ${installProgress} / ${totalProgress}`
+    printf '\b%s' "######[${progressNum}%]   "
+    while true; do
+        if [[ ${installProgress} -gt ${currentProgress} ]] && [[ ${installProgress} -lt ${totalProgress} ]]
+        then
+            printf '\b%s' "${sp:i++%n:1}"
+        else
+            break
+        fi
+        sleep 0.1
+    done
+}
+
 # 卸载安装的内容
 removeInstall(){
     rm -rf /tmp/v2ray
