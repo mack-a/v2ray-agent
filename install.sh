@@ -4,6 +4,7 @@ installType='yum -y install'
 removeType='yum -y remove'
 upgrade="yum -y update"
 echoType='echo -e'
+centosVersion=0
 installProgress=0
 totalProgress=20
 iplc=$1
@@ -72,8 +73,24 @@ installTools(){
         progressTools "yellow" "检查安装jq、nginx epel源、yum-utils--->" 0
         # jq epel源
         rpm -ivh http://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm > /dev/null 2>&1
+
+        nginxEpel=""
+        if [[ ! -z `rpm -qa|grep -v grep|grep nginx` ]]
+        then
+            rpm -qa|grep -v grep|grep nginx|xargs rpm -e > /dev/null 2>&1
+        fi
+        if [[ "${centosVersion}" = "6" ]]
+        then
+            nginxEpel="http://nginx.org/packages/centos/6/x86_64/RPMS/nginx-1.18.0-1.el6.ngx.x86_64.rpm"
+        elif [[ "${centosVersion}" = "7" ]]
+        then
+            nginxEpel="http://nginx.org/packages/centos/7/noarch/RPMS/nginx-release-centos-7-0.el7.ngx.noarch.rpm"
+        elif [[ "${centosVersion}" = "8" ]]
+        then
+            nginxEpel="http://nginx.org/packages/centos/8/x86_64/RPMS/nginx-1.18.0-1.el8.ngx.x86_64.rpm"
+        fi
         # nginx epel源
-        rpm -ivh http://nginx.org/packages/centos/7/noarch/RPMS/nginx-release-centos-7-0.el7.ngx.noarch.rpm > /dev/null 2>&1
+        rpm -ivh ${nginxEpel} > /dev/null 2>&1
         # yum-utils
         yum install yum-utils -y > /dev/null 2>&1
     fi
@@ -117,7 +134,7 @@ installTools(){
     then
         systemctl daemon-reload
     else
-        echo 'Centos6'
+        echo
     fi
 
     progressTools "yellow" "卸载acme.sh--->" 4
@@ -129,7 +146,7 @@ installTools(){
     fi
 
 
-    progressTools "yellow" "检查、安装更新--->" 5
+    progressTools "yellow" "检查、安装更新【新机器会很慢，耐心等待】--->" 5
     # if [[ "${release}" = "centos" ]]
     # then
     #    yum-complete-transaction --cleanup-only
@@ -215,8 +232,6 @@ installNginx(){
         # 测试nginx
         progressTools "yellow" "检查Nginx是否正常访问--->" 15
         domainResult=`curl -s ${domain}/test|grep fjkvymb6len`
-        echoContent red ${domainResult}
-        echoContent red ${domain}
         if [[ ! -z ${domainResult} ]]
         then
             ps -ef|grep nginx|grep -v grep|awk '{print $2}'|xargs kill -9
@@ -231,7 +246,7 @@ installNginx(){
 }
 # 安装TLS
 installTLS(){
-
+    mkdir -p /etc/nginx/v2ray-agent-https/
     touch /etc/nginx/v2ray-agent-https/config
 
     if [[ -z `find /tmp -name "$1*"` ]]
@@ -249,7 +264,7 @@ installTLS(){
             progressTools "yellow" "    TLS安装失败，请检查acme日志--->"
             exit 0
         fi
-        echoContent green "  TLS生成成功--->"
+        progressTools "green" "  TLS生成成功--->>"
 
         echo $1 `date +%s` > /etc/nginx/v2ray-agent-https/config
 
@@ -357,7 +372,7 @@ installV2Ray(){
     mkdir -p /usr/bin/v2ray/
     if [[ -z `ls -F /tmp/v2ray/|grep "v2ray"` ]] || [[ -z `ls -F /tmp/v2ray/|grep "v2ctl"` ]]
     then
-        if [[ -z `find /usr/bin/ -name "v2ray*"` ]]
+        if [[ -z `ls -F /usr/bin/v2ray/|grep "v2ray"` ]] || [[ -z `ls -F /usr/bin/v2ray/|grep "v2ctl"` ]]
         then
             progressTools "yellow" "检查、安装V2Ray--->" 19
             version=`curl -s https://github.com/v2ray/v2ray-core/releases|grep /v2ray/v2ray-core/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
@@ -385,10 +400,10 @@ installV2Ray(){
         systemctl enable v2ray.service
         systemctl start  v2ray.service
     else
-        /usr/bin/v2ray/v2ray -config /etc/v2ray/config.json &
+        /usr/bin/v2ray/v2ray -config /etc/v2ray/config.json & > /dev/null 2>&1
     fi
 
-
+    sleep 0.5
     if [[ -z `ps -ef|grep v2ray|grep -v grep` ]]
     then
         progressTools "red" "      V2Ray启动失败，请检查日志后，重新执行脚本--->"
@@ -780,6 +795,7 @@ checkSystem(){
 
 	if [[ ! -z `find /etc -name "redhat-release"` ]] || [[ ! -z `cat /proc/version | grep -i "centos" | grep -v grep ` ]] || [[ ! -z `cat /proc/version | grep -i "red hat" | grep -v grep ` ]] || [[ ! -z `cat /proc/version | grep -i "redhat" | grep -v grep ` ]]
 	then
+	    centosVersion=`rpm -q centos-release|awk -F "[-]" '{print $3}'`
 		release="centos"
 		installType='yum -y install'
 		removeType='yum -y remove'
