@@ -195,6 +195,9 @@ installTools(){
     then
         nginx -s stop
     fi
+    # 新建所需目录
+    mkdirTools
+
     progressTools "yellow" "检查、安装acme--->" 13
     mkdir -p /tmp/tls/
     curl -s https://get.acme.sh | sh > /tmp/tls/acme.log
@@ -627,7 +630,7 @@ init(){
     echo
     echoContent green "作者：mack-a [https://t.me/mack_a]"
     echo
-    echoContent green "Version：v1.0.1"
+    echoContent green "Version：v1.0.6"
     echo
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echo
