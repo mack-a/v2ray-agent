@@ -196,6 +196,7 @@ installTools(){
         nginx -s stop
     fi
     progressTools "yellow" "检查、安装acme--->" 13
+    mkdir -p /tmp/tls/
     curl -s https://get.acme.sh | sh > /tmp/tls/acme.log
     if [[ -z `find ~/.acme.sh -name "acme.sh"` ]]
     then
