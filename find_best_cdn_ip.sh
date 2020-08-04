@@ -99,7 +99,7 @@ init(){
     echoContent green "请输入单个ip的测试次数【默认为5次】："
     echoContent red "============================================="
     read testNum
-    if [[ "$testNum" =~ ^[1-9]+$ ]]
+    if [[ "$testNum" =~ ^[0-9]+$ ]]
     then
         num=${testNum}
     else

@@ -333,32 +333,33 @@ reInstallTLS(){
     # 备份
 
     domain=$1
-    echo "#!/usr/bin/env bash" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "domain=${domain}" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "eccPath=\`find ~/.acme.sh -name \"\${domain}_ecc\"|head -1\`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "mkdir -p /etc/v2ray-agent/tls" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "touch /etc/v2ray-agent/tls/tls.log" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "touch /etc/v2ray-agent/tls/acme.log" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "if [[ ! -z \${eccPath} ]]" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "then" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "modifyTime=\`stat \${eccPath}/\${domain}.key|sed -n '6,6p'|awk '{print \$2\" \"\$3\" \"\$4\" \"\$5}'\`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "modifyTime=\`date +%s -d \"\${modifyTime}\"\`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "currentTime=\`date +%s\`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "stampDiff=\`expr \${currentTime} - \${modifyTime}\`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "minutes=\`expr \${stampDiff} / 60\`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "status=\"正常\"" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "reloadTime=\"暂无\"" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "if [[ ! -z \${modifyTime} ]] && [[ ! -z \${currentTime} ]] && [[ ! -z \${stampDiff} ]] && [[ ! -z \${minutes} ]] && [[ \${minutes} -lt '120' ]]" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "then" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "nginx -s stop" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "~/.acme.sh/acme.sh --installcert -d \${domain} --fullchainpath /etc/nginx/v2ray-agent-https/\${domain}.crt --keypath /etc/nginx/v2ray-agent-https/\${domain}.key --ecc >> /tmp/tls/acme.log" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "nginx" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "reloadTime=\`date -d @\${currentTime} +\"%F %H:%M:%S\"\`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "fi" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "echo \"域名：\${domain}，modifyTime:\"\`date -d @\${modifyTime} +\"%F %H:%M:%S\"\`,\"检查时间:\"\`date -d @\${currentTime} +\"%F %H:%M:%S\"\`,"上次生成证书的时:"\`expr \${minutes} / 1440\`\"天前\",\"证书状态：\"\${status},\"重新生成日期：\"\${reloadTime} >> /tmp/tls/tls.log" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "else" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "echo '无法找到证书路径' >> /etc/v2ray-agent/tls/tls.log" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "fi" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    cat << EOF > /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+        domain=$1
+        eccPath=\`find ~/.acme.sh -name "\${domain}_ecc"|head -1\`
+        mkdir -p /etc/v2ray-agent/tls
+        touch /etc/v2ray-agent/tls/tls.log
+        touch /etc/v2ray-agent/tls/acme.log
+        if [[ ! -z \${eccPath} ]]
+        then
+            modifyTime=\`stat \${eccPath}/\${domain}.key|sed -n '6,6p'|awk '{print \$2" "\$3" "\$4" "\$5}'\`
+            modifyTime=\`date +%s -d "\${modifyTime}"\`
+            currentTime=\`date +%s\`
+            stampDiff=\`expr \${currentTime} - \${modifyTime}\`
+            minutes=\`expr \${stampDiff} / 60\`
+            status="正常"
+            reloadTime="暂无"
+            if [[ ! -z \${modifyTime} ]] && [[ ! -z \${currentTime} ]] && [[ ! -z \${stampDiff} ]] && [[ ! -z \${minutes} ]] && [[ \${minutes} -lt '120' ]]
+            then
+                nginx -s stop
+                ~/.acme.sh/acme.sh --installcert -d \${domain} --fullchainpath /etc/nginx/v2ray-agent-https/\${domain}.crt --keypath /etc/nginx/v2ray-agent-https/\${domain}.key --ecc >> /tmp/tls/acme.log
+                nginx
+                reloadTime=\`date -d @\${currentTime} +"%F %H:%M:%S"\`
+            fi
+            echo "域名：\${domain}，modifyTime:"\`date -d @\${modifyTime} +"%F %H:%M:%S"\`,"检查时间:"\`date -d @\${currentTime} +"%F %H:%M:%S"\`,上次生成证书的时:\`expr \${minutes} / 1440\`"天前","证书状态："\${status},"重新生成日期："\${reloadTime} >> /etc/v2ray-agent/tls/tls.log
+        else
+            echo '无法找到证书路径' >> /etc/v2ray-agent/tls/tls.log
+        fi
+EOF
 
     if [[ ! -z `crontab -l|grep -v grep|grep 'reloadInstallTLS'` ]]
     then
@@ -451,24 +452,27 @@ installV2RayService(){
     rm -rf /etc/systemd/system/v2ray.service
     touch /etc/systemd/system/v2ray.service
 
-    echo '[Unit]' >> /etc/systemd/system/v2ray.service
-    echo 'Description=V2Ray - A unified platform for anti-censorship' >> /etc/systemd/system/v2ray.service
-    echo 'Documentation=https://v2ray.com https://guide.v2fly.org' >> /etc/systemd/system/v2ray.service
-    echo 'After=network.target nss-lookup.target' >> /etc/systemd/system/v2ray.service
-    echo 'Wants=network-online.target' >> /etc/systemd/system/v2ray.service
-    echo '' >> /etc/systemd/system/v2ray.service
-    echo '[Service]' >> /etc/systemd/system/v2ray.service
-    echo 'Type=simple' >> /etc/systemd/system/v2ray.service
-    echo 'User=root' >> /etc/systemd/system/v2ray.service
-    echo 'CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_RAW' >> /etc/systemd/system/v2ray.service
-    echo 'NoNewPrivileges=yes' >> /etc/systemd/system/v2ray.service
-    echo 'ExecStart=/usr/bin/v2ray/v2ray -config /etc/v2ray/config.json' >> /etc/systemd/system/v2ray.service
-    echo 'Restart=on-failure' >> /etc/systemd/system/v2ray.service
-    echo 'RestartPreventExitStatus=23' >> /etc/systemd/system/v2ray.service
-    echo '' >> /etc/systemd/system/v2ray.service
-    echo '' >> /etc/systemd/system/v2ray.service
-    echo '[Install]' >> /etc/systemd/system/v2ray.service
-    echo 'WantedBy=multi-user.target' >> /etc/systemd/system/v2ray.service
+cat << EOF > /etc/systemd/system/v2ray.service
+[Unit]
+Description=V2Ray - A unified platform for anti-censorship
+Documentation=https://v2ray.com https://guide.v2fly.org
+After=network.target nss-lookup.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_RAW
+NoNewPrivileges=yes
+ExecStart=/usr/bin/v2ray/v2ray -config /etc/v2ray/config.json
+Restart=on-failure
+RestartPreventExitStatus=23
+
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
     progressTools "green" "  配置V2Ray开机自启成功--->"
 }
 
