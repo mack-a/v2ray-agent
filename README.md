@@ -2,12 +2,12 @@
 
 - 推荐 [一键CDN+TLS+WebSocket+Nginx+V2Ray脚本【小白推荐】](#全自动websockettlscdn智能优选cloudflare-ip一键脚本)
 - 此项目采用[CDN+TLS+Nginx+V2Ray](#全自动websockettlscdn智能优选cloudflare-ip一键脚本)、[Trojan](#2Trojan)、[Cloudflare Workers](#方法3workers) 进行模拟正常网站并突破防火墙，同时包含优化方法，以及简单的原理讲解。
-- [优化方案【CDN 自选ip】](https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md)包含对Cloudflare的优化（自选ip优化、DNS优化、[断流优化【CDN必看】](https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md#4%E6%96%AD%E6%B5%81%E4%BC%98%E5%8C%96)),如果您使用Cloudflare断流优化这个一定要看。
-- [流量中转教程](#流量转发服务)【提高流量传输的速度，减少丢包】。
+- [优化方案【CDN自选IP、断流优化】](https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md)
+- [流量中转教程 wikihost](#流量转发服务)
 - [自建教程](#自建教程)可以快速入手并知晓其中的步骤。如遇到不懂以及不理解的可以加入[TG群讨论](https://t.me/technologyshare)。
-- [免费订阅链接【1888.86 GB of 2 TB Used 2020-7-30】](https://github.com/mack-a/v2ray-agent/blob/master/free_account.md)。
+- [免费订阅链接【11.91 GB of 2 TB Used 2020-8-4】](https://github.com/mack-a/v2ray-agent/blob/master/free_account.md)。
 - [建议安装脚本前先安装适合自己的BBR](https://github.com/mack-a/v2ray-agent/blob/master/bbr.md)
-- 以上有问题可以提issues或者可以加入[TG群](https://t.me/technologyshare)反馈，欢迎加入TG群，共同学习、共同成长。
+- 以上有问题可以提issues或者可以加入[TG群](https://t.me/technologyshare)反馈。
 
 * * *
 # 目录
@@ -20,19 +20,17 @@
    * [1.TLS+WS](#1tlsws点击查看)
    * [2.TCP+Vmess](#2tcpvmess点击查看)
 * * *
-
-* * *
 # 一键脚本
 ## 全自动WebSocket+TLS+CDN+智能优选Cloudflare IP一键脚本
-- 目前已在GCP上测试Centos[6【不稳定】、7、8]、Debian[9、10]、Ubuntu[16、18、19、20]通过，不开启云朵则为直连。
-- 这里添加了默认的智能解析自选CDN IP，脚本安装时可手动选择是否使用，本地dns解析建议使用114.114.114.114
+- 目前已在GCP上测试Centos[6【不稳定】、7、8]、Debian[9、10]、Ubuntu[16、18、19、20]通过，不开启Cloudflare的云朵则为直连。
+- 这里添加了默认的智能解析自选CDN IP，脚本安装时可手动选择是否使用，本地dns解析建议使用 [114.114.114.114]
 - 如果智能解析后发现不能上网，第一可以升级客户端、第二可以将address填写自己的科学上网的域名，不再使用智能解析CDN的域名，~~Shadowrocket可以将伪装域名添加到外层的Peer【Shadowrocket不兼容所致，请升级客户端】~~。
-- 如果对默认的不满意，则可以[点此查看最新的](https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md)，或者加入[TG群](https://t.me/technologyshare)添加适合自己的CDN ip。
+- 如果对默认的不满意，则可以[自己进行测试](https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md#1%E6%89%8B%E5%8A%A8%E8%87%AA%E9%80%89ip%E5%BB%BA%E8%AE%AE%E4%BD%BF%E7%94%A8%E8%AF%A5%E7%A7%8D%E6%96%B9%E6%B3%95)，寻找适合自己的CDN IP。
 - [脚本更新日志](https://github.com/mack-a/v2ray-agent/releases)
 
 域名|移动|移动测试|联通|电信
 -|-|-|-|-
-domain07.qiu4.ml|1.0.0.1|上午峰值2.3w，4k稍显卡顿、晚九点峰值1.5w，1440p较为流畅，晚十点半峰值7000，流畅1080|www.digitalocean.com|www.digitalocean.com
+domain08.qiu4.ml|1.0.0.83|上午峰值2.3w，4k稍显卡顿、晚九点峰值1.5w，1440p较为流畅，晚十点半峰值7000，流畅1080|104.16.160.136|www.digitalocean.com
 
 ```
 bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh)
