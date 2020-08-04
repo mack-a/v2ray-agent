@@ -472,7 +472,6 @@ RestartPreventExitStatus=23
 [Install]
 WantedBy=multi-user.target
 EOF
-
     progressTools "green" "  配置V2Ray开机自启成功--->"
 }
 
@@ -485,18 +484,220 @@ initV2RayConfig(){
     # 自定义IPLC端口
     if [[ ! -z ${iplc} ]]
     then
-        echo '{"log":{"access":"/etc/v2ray/v2ray_access_ws_tls.log","error":"/etc/v2ray/v2ray_error_ws_tls.log","loglevel":"debug"},"stats":{},"api":{"services":["StatsService"],"tag":"api"},"policy":{"levels":{"1":{"handshake":4,"connIdle":300,"uplinkOnly":2,"downlinkOnly":5,"statsUserUplink":false,"statsUserDownlink":false}},"system":{"statsInboundUplink":true,"statsInboundDownlink":true}},"allocate":{"strategy":"always","refresh":5,"concurrency":3},"inbounds":[{"port":31299,"protocol":"vmess","settings":{"clients":[{"id":"654765fe-5fb1-271f-7c3f-18ed82827f72","alterId":64,"level":1,"email":"test@v2ray.com"}]},"streamSettings":{"network":"ws","wsSettings":{"path":"/alone"}}},{"port":31294,"protocol":"vmess","settings":{"clients":[{"id":"ab11e002-7008-ef16-4363-217aea8dc81c","alterId":64,"level":1,"email":"HK_深港0.35x IPLC@v2ray.com"},{"id":"246d748a-dd07-2172-a397-ab110aa5ad2a","alterId":64,"level":1,"email":"HK_莞港IPLC@v2ray.com"}]}}],"outbounds":[{"protocol":"freedom","settings":{"OutboundConfigurationObject":{"domainStrategy":"AsIs","userLevel":0}}}],"routing":{"settings":{"rules":[{"inboundTag":["api"],"outboundTag":"api","type":"field"}]},"strategy":"rules"},"dns":{"servers":["8.8.8.8","8.8.4.4"],"tag":"dns_inbound"}}' > /etc/v2ray/config.json
+        cat << EOF > /etc/v2ray/config.json
+{
+    "log":{
+        "access":"/etc/v2ray/v2ray_access_ws_tls.log",
+        "error":"/etc/v2ray/v2ray_error_ws_tls.log",
+        "loglevel":"debug"
+    },
+    "stats":{
+
+    },
+    "api":{
+        "services":[
+            "StatsService"
+        ],
+        "tag":"api"
+    },
+    "policy":{
+        "levels":{
+            "1":{
+                "handshake":4,
+                "connIdle":300,
+                "uplinkOnly":2,
+                "downlinkOnly":5,
+                "statsUserUplink":false,
+                "statsUserDownlink":false
+            }
+        },
+        "system":{
+            "statsInboundUplink":true,
+            "statsInboundDownlink":true
+        }
+    },
+    "allocate":{
+        "strategy":"always",
+        "refresh":5,
+        "concurrency":3
+    },
+    "inbounds":[
+        {
+            "port":31299,
+            "protocol":"vmess",
+            "settings":{
+                "clients":[
+                    {
+                        "id":"654765fe-5fb1-271f-7c3f-18ed82827f72",
+                        "alterId":64,
+                        "level":1,
+                        "email":"test@v2ray.com"
+                    }
+                ]
+            },
+            "streamSettings":{
+                "network":"ws",
+                "wsSettings":{
+                    "path":"/alone"
+                }
+            }
+        },
+        {
+            "port":31294,
+            "protocol":"vmess",
+            "settings":{
+                "clients":[
+                    {
+                        "id":"ab11e002-7008-ef16-4363-217aea8dc81c",
+                        "alterId":64,
+                        "level":1,
+                        "email":"HK_深港0.35x IPLC@v2ray.com"
+                    },
+                    {
+                        "id":"246d748a-dd07-2172-a397-ab110aa5ad2a",
+                        "alterId":64,
+                        "level":1,
+                        "email":"HK_莞港IPLC@v2ray.com"
+                    }
+                ]
+            }
+        }
+    ],
+    "outbounds":[
+        {
+            "protocol":"freedom",
+            "settings":{
+                "OutboundConfigurationObject":{
+                    "domainStrategy":"AsIs",
+                    "userLevel":0
+                }
+            }
+        }
+    ],
+    "routing":{
+        "settings":{
+            "rules":[
+                {
+                    "inboundTag":[
+                        "api"
+                    ],
+                    "outboundTag":"api",
+                    "type":"field"
+                }
+            ]
+        },
+        "strategy":"rules"
+    },
+    "dns":{
+        "servers":[
+            "8.8.8.8",
+            "8.8.4.4"
+        ],
+        "tag":"dns_inbound"
+    }
+}
+EOF
     else
-        echo '{"log":{"access":"/etc/v2ray/v2ray_access_ws_tls.log","error":"/etc/v2ray/v2ray_error_ws_tls.log","loglevel":"debug"},"stats":{},"api":{"services":["StatsService"],"tag":"api"},"policy":{"levels":{"1":{"handshake":4,"connIdle":300,"uplinkOnly":2,"downlinkOnly":5,"statsUserUplink":false,"statsUserDownlink":false}},"system":{"statsInboundUplink":true,"statsInboundDownlink":true}},"allocate":{"strategy":"always","refresh":5,"concurrency":3},"inbounds":[{"port":31299,"protocol":"vmess","settings":{"clients":[{"id":"654765fe-5fb1-271f-7c3f-18ed82827f72","alterId":64,"level":1,"email":"test@v2ray.com"}]},"streamSettings":{"network":"ws","wsSettings":{"path":"/alone"}}}],"outbounds":[{"protocol":"freedom","settings":{"OutboundConfigurationObject":{"domainStrategy":"AsIs","userLevel":0}}}],"routing":{"settings":{"rules":[{"inboundTag":["api"],"outboundTag":"api","type":"field"}]},"strategy":"rules"},"dns":{"servers":["8.8.8.8","8.8.4.4"],"tag":"dns_inbound"}}' > /etc/v2ray/config.json
+        cat << EOF > /etc/v2ray/config.json
+{
+    "log":{
+        "access":"/etc/v2ray/v2ray_access_ws_tls.log",
+        "error":"/etc/v2ray/v2ray_error_ws_tls.log",
+        "loglevel":"debug"
+    },
+    "stats":{
+
+    },
+    "api":{
+        "services":[
+            "StatsService"
+        ],
+        "tag":"api"
+    },
+    "policy":{
+        "levels":{
+            "1":{
+                "handshake":4,
+                "connIdle":300,
+                "uplinkOnly":2,
+                "downlinkOnly":5,
+                "statsUserUplink":false,
+                "statsUserDownlink":false
+            }
+        },
+        "system":{
+            "statsInboundUplink":true,
+            "statsInboundDownlink":true
+        }
+    },
+    "allocate":{
+        "strategy":"always",
+        "refresh":5,
+        "concurrency":3
+    },
+    "inbounds":[
+        {
+            "port":31299,
+            "protocol":"vmess",
+            "settings":{
+                "clients":[
+                    {
+                        "id":"654765fe-5fb1-271f-7c3f-18ed82827f72",
+                        "alterId":64,
+                        "level":1,
+                        "email":"test@v2ray.com"
+                    }
+                ]
+            },
+            "streamSettings":{
+                "network":"ws",
+                "wsSettings":{
+                    "path":"/alone"
+                }
+            }
+        }
+    ],
+    "outbounds":[
+        {
+            "protocol":"freedom",
+            "settings":{
+                "OutboundConfigurationObject":{
+                    "domainStrategy":"AsIs",
+                    "userLevel":0
+                }
+            }
+        }
+    ],
+    "routing":{
+        "settings":{
+            "rules":[
+                {
+                    "inboundTag":[
+                        "api"
+                    ],
+                    "outboundTag":"api",
+                    "type":"field"
+                }
+            ]
+        },
+        "strategy":"rules"
+    },
+    "dns":{
+        "servers":[
+            "8.8.8.8",
+            "8.8.4.4"
+        ],
+        "tag":"dns_inbound"
+    }
+}
+EOF
     fi
     # 自定义路径
     if [[ ! -z "$1" ]]
     then
         sed -i "s/alone/${1}/g" `grep alone -rl /etc/v2ray/config.json`
-    else
-        sed -i "s/654765fe-5fb1-271f-7c3f-18ed82827f72/${uuid}/g" `grep 654765fe-5fb1-271f-7c3f-18ed82827f72 -rl /etc/v2ray/config.json`
     fi
-    # todo 这里需要修改
+    sed -i "s/654765fe-5fb1-271f-7c3f-18ed82827f72/${uuid}/g" `grep 654765fe-5fb1-271f-7c3f-18ed82827f72 -rl /etc/v2ray/config.json`
 }
 qrEncode(){
     user=`cat /etc/v2ray/config.json|jq .inbounds[0]`
