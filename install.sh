@@ -199,8 +199,8 @@ installTools(){
     mkdirTools
 
     progressTools "yellow" "检查、安装acme--->" 13
-    mkdir -p /tmp/tls/
-    curl -s https://get.acme.sh | sh > /tmp/tls/acme.log
+    mkdir -p /etc/tls/
+    curl -s https://get.acme.sh | sh > /etc/tls/acme.log
     if [[ -z `find ~/.acme.sh -name "acme.sh"` ]]
     then
         echoContent red "  acme安装失败--->"
@@ -251,9 +251,9 @@ installNginx(){
 # 安装TLS
 installTLS(){
     mkdir -p /etc/nginx/v2ray-agent-https/
+    mkdir -p /etc/v2ray-agent/tls/
     touch /etc/nginx/v2ray-agent-https/config
-
-    if [[ -z `find /tmp -name "$1*"` ]]
+    if [[ -z `find /etc/v2ray-agent/tls/ -name "$1*"` ]]
     then
         progressTools "yellow" "检查、安装TLS证书--->" 16
 
@@ -272,20 +272,20 @@ installTLS(){
 
         echo $1 `date +%s` > /etc/nginx/v2ray-agent-https/config
 
-        cp -R /etc/nginx/v2ray-agent-https/config /tmp/tls/config
-        cp -R /etc/nginx/v2ray-agent-https/$1.crt /tmp/tls/$1.crt
-        cp -R /etc/nginx/v2ray-agent-https/$1.key /tmp/tls/$1.key
-        progressTools "yellow" "  TLS证书备份成功，证书位置：/tmp/tls--->"
-    elif  [[ -z `cat /tmp/tls/$1.crt` ]] || [[ -z `cat /tmp/tls/$1.key` ]]
+        cp -R /etc/nginx/v2ray-agent-https/config /etc/v2ray-agent/tls/config
+        cp -R /etc/nginx/v2ray-agent-https/$1.crt /etc/v2ray-agent/tls/$1.crt
+        cp -R /etc/nginx/v2ray-agent-https/$1.key /etc/v2ray-agent/tls/$1.key
+        progressTools "yellow" "  TLS证书备份成功，证书位置：/etc/v2ray-agent/tls--->"
+    elif  [[ -z `cat /etc/v2ray-agent/tls/$1.crt` ]] || [[ -z `cat /etc/v2ray-agent/tls/$1.key` ]]
     then
         progressTools "red" "  检测到错误证书，需重新生成，重新生成中--->" 17
-        rm -rf /tmp/tls
+        rm -rf /etc/v2ray-agent/tls/
         installTLS $1
     else
         progressTools "yellow" "检测到备份证书，使用--->"
-        cp -R /tmp/tls/$1.crt /etc/nginx/v2ray-agent-https/$1.crt
-        cp -R /tmp/tls/$1.key /etc/nginx/v2ray-agent-https/$1.key
-        cp -R /tmp/tls/config /etc/nginx/v2ray-agent-https/config
+        cp -R /etc/v2ray-agent/tls/$1.crt /etc/nginx/v2ray-agent-https/$1.crt
+        cp -R /etc/v2ray-agent/tls/$1.key /etc/nginx/v2ray-agent-https/$1.key
+        cp -R /etc/v2ray-agent/tls/config /etc/nginx/v2ray-agent-https/config
     fi
     # nginxInstallLine=`cat /etc/nginx/nginx.conf|grep -n "}"|awk -F "[:]" 'END{print $1-1}'`
     # sed -i "${nginxInstallLine}i server {listen 443 ssl;server_name $1;root /usr/share/nginx/html;ssl_certificate /etc/nginx/$1.crt;ssl_certificate_key /etc/nginx/$1.key;ssl_protocols TLSv1 TLSv1.1 TLSv1.2;ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;ssl_prefer_server_ciphers on;location / {} location /alone { proxy_redirect off;proxy_pass http://127.0.0.1:31299;proxy_http_version 1.1;proxy_set_header Upgrade \$http_upgrade;proxy_set_header Connection "upgrade";proxy_set_header X-Real-IP \$remote_addr;proxy_set_header Host \$host;proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;}}" /etc/nginx/nginx.conf
@@ -322,7 +322,7 @@ reInstallTLS(){
     progressTools "yellow" "检查、添加定时维护证书--->" 18
     touch /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
     touch /etc/nginx/v2ray-agent-https/backup_crontab.cron
-    touch /tmp/tls/tls.log
+    touch /etc/v2ray-agent/tls/tls.log
     if [[ -z `crontab -l|grep -v grep|grep 'reloadInstallTLS'` ]]
     then
         crontab -l >> /etc/nginx/v2ray-agent-https/backup_crontab.cron
@@ -333,32 +333,33 @@ reInstallTLS(){
     # 备份
 
     domain=$1
-    echo "#!/usr/bin/env bash" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "domain=${domain}" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "eccPath=\`find ~/.acme.sh -name \"\${domain}_ecc\"|head -1\`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "mkdir -p /tmp/tls" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "touch /tmp/tls/tls.log" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "touch /tmp/tls/acme.log" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "if [[ ! -z \${eccPath} ]]" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "then" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "modifyTime=\`stat \${eccPath}/\${domain}.key|sed -n '6,6p'|awk '{print \$2\" \"\$3\" \"\$4\" \"\$5}'\`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "modifyTime=\`date +%s -d \"\${modifyTime}\"\`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "currentTime=\`date +%s\`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "stampDiff=\`expr \${currentTime} - \${modifyTime}\`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "minutes=\`expr \${stampDiff} / 60\`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "status=\"正常\"" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "reloadTime=\"暂无\"" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "if [[ ! -z \${modifyTime} ]] && [[ ! -z \${currentTime} ]] && [[ ! -z \${stampDiff} ]] && [[ ! -z \${minutes} ]] && [[ \${minutes} -lt '120' ]]" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "then" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "nginx -s stop" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "~/.acme.sh/acme.sh --installcert -d \${domain} --fullchainpath /etc/nginx/v2ray-agent-https/\${domain}.crt --keypath /etc/nginx/v2ray-agent-https/\${domain}.key --ecc >> /tmp/tls/acme.log" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "nginx" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "reloadTime=\`date -d @\${currentTime} +\"%F %H:%M:%S\"\`" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "fi" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "echo \"域名：\${domain}，modifyTime:\"\`date -d @\${modifyTime} +\"%F %H:%M:%S\"\`,\"检查时间:\"\`date -d @\${currentTime} +\"%F %H:%M:%S\"\`,"上次生成证书的时:"\`expr \${minutes} / 1440\`\"天前\",\"证书状态：\"\${status},\"重新生成日期：\"\${reloadTime} >> /tmp/tls/tls.log" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "else" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "echo '无法找到证书路径' >> /tmp/tls/tls.log" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    echo "fi" >> /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+    cat << EOF > /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
+        domain=$1
+        eccPath=\`find ~/.acme.sh -name "\${domain}_ecc"|head -1\`
+        mkdir -p /etc/v2ray-agent/tls
+        touch /etc/v2ray-agent/tls/tls.log
+        touch /etc/v2ray-agent/tls/acme.log
+        if [[ ! -z \${eccPath} ]]
+        then
+            modifyTime=\`stat \${eccPath}/\${domain}.key|sed -n '6,6p'|awk '{print \$2" "\$3" "\$4" "\$5}'\`
+            modifyTime=\`date +%s -d "\${modifyTime}"\`
+            currentTime=\`date +%s\`
+            stampDiff=\`expr \${currentTime} - \${modifyTime}\`
+            minutes=\`expr \${stampDiff} / 60\`
+            status="正常"
+            reloadTime="暂无"
+            if [[ ! -z \${modifyTime} ]] && [[ ! -z \${currentTime} ]] && [[ ! -z \${stampDiff} ]] && [[ ! -z \${minutes} ]] && [[ \${minutes} -lt '120' ]]
+            then
+                nginx -s stop
+                ~/.acme.sh/acme.sh --installcert -d \${domain} --fullchainpath /etc/nginx/v2ray-agent-https/\${domain}.crt --keypath /etc/nginx/v2ray-agent-https/\${domain}.key --ecc >> /tmp/tls/acme.log
+                nginx
+                reloadTime=\`date -d @\${currentTime} +"%F %H:%M:%S"\`
+            fi
+            echo "域名：\${domain}，modifyTime:"\`date -d @\${modifyTime} +"%F %H:%M:%S"\`,"检查时间:"\`date -d @\${currentTime} +"%F %H:%M:%S"\`,上次生成证书的时:\`expr \${minutes} / 1440\`"天前","证书状态："\${status},"重新生成日期："\${reloadTime} >> /etc/v2ray-agent/tls/tls.log
+        else
+            echo '无法找到证书路径' >> /etc/v2ray-agent/tls/tls.log
+        fi
+EOF
 
     if [[ ! -z `crontab -l|grep -v grep|grep 'reloadInstallTLS'` ]]
     then
@@ -374,7 +375,8 @@ reInstallTLS(){
 installV2Ray(){
 # ls -F /usr/bin/v2ray/|grep "v2ray"
     mkdir -p /usr/bin/v2ray/
-    if [[ -z `ls -F /tmp/v2ray/|grep "v2ray"` ]] || [[ -z `ls -F /tmp/v2ray/|grep "v2ctl"` ]]
+    mkdir -p /etc/v2ray-agent/v2ray/
+    if [[ -z `ls -F /etc/v2ray-agent/v2ray/|grep "v2ray"` ]] || [[ -z `ls -F /etc/v2ray-agent/v2ray/|grep "v2ctl"` ]]
     then
         if [[ -z `ls -F /usr/bin/v2ray/|grep "v2ray"` ]] || [[ -z `ls -F /usr/bin/v2ray/|grep "v2ctl"` ]]
         then
@@ -382,14 +384,14 @@ installV2Ray(){
             version=`curl -s https://github.com/v2ray/v2ray-core/releases|grep /v2ray/v2ray-core/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
             progressTools "green" "  v2ray-core版本:${version}"
 
-            wget -q -P /tmp/v2ray https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip
-            unzip /tmp/v2ray/v2ray-linux-64.zip -d /tmp/v2ray > /dev/null
-            cp /tmp/v2ray/v2ray /usr/bin/v2ray/v2ray && cp /tmp/v2ray/v2ctl /usr/bin/v2ray/v2ctl
-            rm -rf /tmp/v2ray/v2ray-linux-64.zip
+            wget -q -P /etc/v2ray-agent/v2ray https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip
+            unzip /etc/v2ray-agent/v2ray/v2ray-linux-64.zip -d /etc/v2ray-agent/v2ray > /dev/null
+            cp /etc/v2ray-agent/v2ray/v2ray /usr/bin/v2ray/v2ray && cp /etc/v2ray-agent/v2ray/v2ctl /usr/bin/v2ray/v2ctl
+            rm -rf /etc/v2ray-agent/v2ray/v2ray-linux-64.zip
         fi
     else
-        progressTools "green" "  v2ray-core版本:`/tmp/v2ray/v2ray --version|awk '{print $2}'|head -1`"
-        cp /tmp/v2ray/v2ray /usr/bin/v2ray/v2ray && cp /tmp/v2ray/v2ctl /usr/bin/v2ray/v2ctl
+        progressTools "green" "  v2ray-core版本:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`"
+        cp /etc/v2ray-agent/v2ray/v2ray /usr/bin/v2ray/v2ray && cp /etc/v2ray-agent/v2ray/v2ctl /usr/bin/v2ray/v2ctl
     fi
 
     if [[ ! -z `find /bin /usr/bin -name "systemctl"` ]]
@@ -450,24 +452,26 @@ installV2RayService(){
     rm -rf /etc/systemd/system/v2ray.service
     touch /etc/systemd/system/v2ray.service
 
-    echo '[Unit]' >> /etc/systemd/system/v2ray.service
-    echo 'Description=V2Ray - A unified platform for anti-censorship' >> /etc/systemd/system/v2ray.service
-    echo 'Documentation=https://v2ray.com https://guide.v2fly.org' >> /etc/systemd/system/v2ray.service
-    echo 'After=network.target nss-lookup.target' >> /etc/systemd/system/v2ray.service
-    echo 'Wants=network-online.target' >> /etc/systemd/system/v2ray.service
-    echo '' >> /etc/systemd/system/v2ray.service
-    echo '[Service]' >> /etc/systemd/system/v2ray.service
-    echo 'Type=simple' >> /etc/systemd/system/v2ray.service
-    echo 'User=root' >> /etc/systemd/system/v2ray.service
-    echo 'CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_RAW' >> /etc/systemd/system/v2ray.service
-    echo 'NoNewPrivileges=yes' >> /etc/systemd/system/v2ray.service
-    echo 'ExecStart=/usr/bin/v2ray/v2ray -config /etc/v2ray/config.json' >> /etc/systemd/system/v2ray.service
-    echo 'Restart=on-failure' >> /etc/systemd/system/v2ray.service
-    echo 'RestartPreventExitStatus=23' >> /etc/systemd/system/v2ray.service
-    echo '' >> /etc/systemd/system/v2ray.service
-    echo '' >> /etc/systemd/system/v2ray.service
-    echo '[Install]' >> /etc/systemd/system/v2ray.service
-    echo 'WantedBy=multi-user.target' >> /etc/systemd/system/v2ray.service
+cat << EOF > /etc/systemd/system/v2ray.service
+[Unit]
+Description=V2Ray - A unified platform for anti-censorship
+Documentation=https://v2ray.com https://guide.v2fly.org
+After=network.target nss-lookup.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_RAW
+NoNewPrivileges=yes
+ExecStart=/usr/bin/v2ray/v2ray -config /etc/v2ray/config.json
+Restart=on-failure
+RestartPreventExitStatus=23
+
+
+[Install]
+WantedBy=multi-user.target
+EOF
     progressTools "green" "  配置V2Ray开机自启成功--->"
 }
 
@@ -480,18 +484,220 @@ initV2RayConfig(){
     # 自定义IPLC端口
     if [[ ! -z ${iplc} ]]
     then
-        echo '{"log":{"access":"/etc/v2ray/v2ray_access_ws_tls.log","error":"/etc/v2ray/v2ray_error_ws_tls.log","loglevel":"debug"},"stats":{},"api":{"services":["StatsService"],"tag":"api"},"policy":{"levels":{"1":{"handshake":4,"connIdle":300,"uplinkOnly":2,"downlinkOnly":5,"statsUserUplink":false,"statsUserDownlink":false}},"system":{"statsInboundUplink":true,"statsInboundDownlink":true}},"allocate":{"strategy":"always","refresh":5,"concurrency":3},"inbounds":[{"port":31299,"protocol":"vmess","settings":{"clients":[{"id":"654765fe-5fb1-271f-7c3f-18ed82827f72","alterId":64,"level":1,"email":"test@v2ray.com"}]},"streamSettings":{"network":"ws","wsSettings":{"path":"/alone"}}},{"port":31294,"protocol":"vmess","settings":{"clients":[{"id":"ab11e002-7008-ef16-4363-217aea8dc81c","alterId":64,"level":1,"email":"HK_深港0.35x IPLC@v2ray.com"},{"id":"246d748a-dd07-2172-a397-ab110aa5ad2a","alterId":64,"level":1,"email":"HK_莞港IPLC@v2ray.com"}]}}],"outbounds":[{"protocol":"freedom","settings":{"OutboundConfigurationObject":{"domainStrategy":"AsIs","userLevel":0}}}],"routing":{"settings":{"rules":[{"inboundTag":["api"],"outboundTag":"api","type":"field"}]},"strategy":"rules"},"dns":{"servers":["8.8.8.8","8.8.4.4"],"tag":"dns_inbound"}}' > /etc/v2ray/config.json
+        cat << EOF > /etc/v2ray/config.json
+{
+    "log":{
+        "access":"/etc/v2ray/v2ray_access_ws_tls.log",
+        "error":"/etc/v2ray/v2ray_error_ws_tls.log",
+        "loglevel":"debug"
+    },
+    "stats":{
+
+    },
+    "api":{
+        "services":[
+            "StatsService"
+        ],
+        "tag":"api"
+    },
+    "policy":{
+        "levels":{
+            "1":{
+                "handshake":4,
+                "connIdle":300,
+                "uplinkOnly":2,
+                "downlinkOnly":5,
+                "statsUserUplink":false,
+                "statsUserDownlink":false
+            }
+        },
+        "system":{
+            "statsInboundUplink":true,
+            "statsInboundDownlink":true
+        }
+    },
+    "allocate":{
+        "strategy":"always",
+        "refresh":5,
+        "concurrency":3
+    },
+    "inbounds":[
+        {
+            "port":31299,
+            "protocol":"vmess",
+            "settings":{
+                "clients":[
+                    {
+                        "id":"654765fe-5fb1-271f-7c3f-18ed82827f72",
+                        "alterId":64,
+                        "level":1,
+                        "email":"test@v2ray.com"
+                    }
+                ]
+            },
+            "streamSettings":{
+                "network":"ws",
+                "wsSettings":{
+                    "path":"/alone"
+                }
+            }
+        },
+        {
+            "port":31294,
+            "protocol":"vmess",
+            "settings":{
+                "clients":[
+                    {
+                        "id":"ab11e002-7008-ef16-4363-217aea8dc81c",
+                        "alterId":64,
+                        "level":1,
+                        "email":"HK_深港0.35x IPLC@v2ray.com"
+                    },
+                    {
+                        "id":"246d748a-dd07-2172-a397-ab110aa5ad2a",
+                        "alterId":64,
+                        "level":1,
+                        "email":"HK_莞港IPLC@v2ray.com"
+                    }
+                ]
+            }
+        }
+    ],
+    "outbounds":[
+        {
+            "protocol":"freedom",
+            "settings":{
+                "OutboundConfigurationObject":{
+                    "domainStrategy":"AsIs",
+                    "userLevel":0
+                }
+            }
+        }
+    ],
+    "routing":{
+        "settings":{
+            "rules":[
+                {
+                    "inboundTag":[
+                        "api"
+                    ],
+                    "outboundTag":"api",
+                    "type":"field"
+                }
+            ]
+        },
+        "strategy":"rules"
+    },
+    "dns":{
+        "servers":[
+            "8.8.8.8",
+            "8.8.4.4"
+        ],
+        "tag":"dns_inbound"
+    }
+}
+EOF
     else
-        echo '{"log":{"access":"/etc/v2ray/v2ray_access_ws_tls.log","error":"/etc/v2ray/v2ray_error_ws_tls.log","loglevel":"debug"},"stats":{},"api":{"services":["StatsService"],"tag":"api"},"policy":{"levels":{"1":{"handshake":4,"connIdle":300,"uplinkOnly":2,"downlinkOnly":5,"statsUserUplink":false,"statsUserDownlink":false}},"system":{"statsInboundUplink":true,"statsInboundDownlink":true}},"allocate":{"strategy":"always","refresh":5,"concurrency":3},"inbounds":[{"port":31299,"protocol":"vmess","settings":{"clients":[{"id":"654765fe-5fb1-271f-7c3f-18ed82827f72","alterId":64,"level":1,"email":"test@v2ray.com"}]},"streamSettings":{"network":"ws","wsSettings":{"path":"/alone"}}}],"outbounds":[{"protocol":"freedom","settings":{"OutboundConfigurationObject":{"domainStrategy":"AsIs","userLevel":0}}}],"routing":{"settings":{"rules":[{"inboundTag":["api"],"outboundTag":"api","type":"field"}]},"strategy":"rules"},"dns":{"servers":["8.8.8.8","8.8.4.4"],"tag":"dns_inbound"}}' > /etc/v2ray/config.json
+        cat << EOF > /etc/v2ray/config.json
+{
+    "log":{
+        "access":"/etc/v2ray/v2ray_access_ws_tls.log",
+        "error":"/etc/v2ray/v2ray_error_ws_tls.log",
+        "loglevel":"debug"
+    },
+    "stats":{
+
+    },
+    "api":{
+        "services":[
+            "StatsService"
+        ],
+        "tag":"api"
+    },
+    "policy":{
+        "levels":{
+            "1":{
+                "handshake":4,
+                "connIdle":300,
+                "uplinkOnly":2,
+                "downlinkOnly":5,
+                "statsUserUplink":false,
+                "statsUserDownlink":false
+            }
+        },
+        "system":{
+            "statsInboundUplink":true,
+            "statsInboundDownlink":true
+        }
+    },
+    "allocate":{
+        "strategy":"always",
+        "refresh":5,
+        "concurrency":3
+    },
+    "inbounds":[
+        {
+            "port":31299,
+            "protocol":"vmess",
+            "settings":{
+                "clients":[
+                    {
+                        "id":"654765fe-5fb1-271f-7c3f-18ed82827f72",
+                        "alterId":64,
+                        "level":1,
+                        "email":"test@v2ray.com"
+                    }
+                ]
+            },
+            "streamSettings":{
+                "network":"ws",
+                "wsSettings":{
+                    "path":"/alone"
+                }
+            }
+        }
+    ],
+    "outbounds":[
+        {
+            "protocol":"freedom",
+            "settings":{
+                "OutboundConfigurationObject":{
+                    "domainStrategy":"AsIs",
+                    "userLevel":0
+                }
+            }
+        }
+    ],
+    "routing":{
+        "settings":{
+            "rules":[
+                {
+                    "inboundTag":[
+                        "api"
+                    ],
+                    "outboundTag":"api",
+                    "type":"field"
+                }
+            ]
+        },
+        "strategy":"rules"
+    },
+    "dns":{
+        "servers":[
+            "8.8.8.8",
+            "8.8.4.4"
+        ],
+        "tag":"dns_inbound"
+    }
+}
+EOF
     fi
     # 自定义路径
     if [[ ! -z "$1" ]]
     then
         sed -i "s/alone/${1}/g" `grep alone -rl /etc/v2ray/config.json`
-    else
-        sed -i "s/654765fe-5fb1-271f-7c3f-18ed82827f72/${uuid}/g" `grep 654765fe-5fb1-271f-7c3f-18ed82827f72 -rl /etc/v2ray/config.json`
     fi
-    # todo 这里需要修改
+    sed -i "s/654765fe-5fb1-271f-7c3f-18ed82827f72/${uuid}/g" `grep 654765fe-5fb1-271f-7c3f-18ed82827f72 -rl /etc/v2ray/config.json`
 }
 qrEncode(){
     user=`cat /etc/v2ray/config.json|jq .inbounds[0]`
@@ -537,14 +743,6 @@ qrEncode(){
     echoContent green  '    '${ps}' = vmess, '${add}', 443, aes-128-cfb, '${id}', over-tls=true, tls-host='${host}', certificate=1, obfs=ws, obfs-path='${path}', obfs-header="Host: '${host}'[Rr][Nn]User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 11_2_6 like Mac OS X) AppleWebKit/604.5.6 (KHTML, like Gecko) Mobile/15D100"'
     # | qrencode -t UTF8
     # echo ${qrCodeBase64}
-}
-# 查看dns解析ip
-checkDNS(){
-    echo '' > /tmp/pingLog
-    ping -c 3 $1 >> /tmp/pingLog
-    serverStatus=`ping -c 3 $1|head -1|awk -F "[service]" '{print $1}'`
-    pingLog=`ping -c 3 $1|tail -n 5|head -1|awk -F "[ ]" '{print $4 $7}'`
-    echoContent skyBlue "DNS解析ip:"${pingLog}
 }
 # 查看本机ip
 checkDomainIP(){
@@ -613,8 +811,8 @@ installProgressFunction(){
 
 # 卸载安装的内容
 removeInstall(){
-    rm -rf /tmp/v2ray
-    rm -rf /tmp/tls
+    rm -rf /etc/v2ray-agent/v2ray
+    rm -rf /etc/v2ray-agent/tls
     rm -rf /etc/v2ray
     rm -rf /root/.acme.sh
     echo ${removeType},${installType}
@@ -625,18 +823,12 @@ init(){
     mkdirTools
     cd
     echoContent red "=============================================================="
-    echoContent red "脚本概述"
-    echoContent green "欢迎使用Cloudflare+WebSocket+TLS+Nginx+伪装博客 一键脚本"
-    echo
-    echoContent green "作者：mack-a [https://t.me/mack_a]"
-    echo
+    echoContent green "CDN+WebSocket+TLS+Nginx+伪装博客一键脚本"
+    echoContent green "作者：mack-a"
     echoContent green "Version：v1.0.6"
-    echo
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
-    echo
-    echoContent green "TG：https://t.me/technologyshare"
-    echo
-    echoContent green "如遇到解决不了的问题可以提issues或者直接私聊作者，欢迎聊骚"
+    echoContent green "TG群：https://t.me/technologyshare"
+    echoContent green "欢迎找我请求协助与反馈问题"
     echoContent red "=============================================================="
     echoContent red "状态展示"
     echoContent green "已安装账号："
@@ -687,8 +879,8 @@ init(){
     then
         echoContent yellow "    定时更新tls脚本路径：/etc/nginx/v2ray-agent-https/reloadInstallTLS.sh"
         echoContent yellow "    定时任务文件路径：/etc/nginx/v2ray-agent-https/backup_crontab.cron"
-        echoContent yellow "    定时任务日志路径：/tmp/tls/tls.log"
-        echoContent yellow "    acme.sh日志路径：/tmp/tls/acme.log"
+        echoContent yellow "    定时任务日志路径：/etc/v2ray-agent/tls/tls.log"
+        echoContent yellow "    acme.sh日志路径：/etc/v2ray-agent/tls/acme.log"
     else
         echoContent yellow "    暂未安装或未使用最新的脚本安装"
     fi
@@ -755,8 +947,8 @@ init(){
     elif [[ "${installStatus}" = "2" ]]
     then
         rm -rf /usr/bin/v2ray
-        rm -rf /tmp/v2ray
-        rm -rf /tmp/tls
+        rm -rf /etc/v2ray-agent/v2ray
+        rm -rf /etc/v2ray-agent/tls
         rm -rf /etc/v2ray
         installTools
         installNginx
