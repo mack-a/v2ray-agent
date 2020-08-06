@@ -834,7 +834,7 @@ init(){
     echoContent red "=============================================================="
     echoContent green "CDN+WebSocket+TLS+Nginx+伪装博客一键脚本"
     echoContent green "作者：mack-a"
-    echoContent green "Version：v1.0.9"
+    echoContent green "Version：v1.0.8"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "TG群：https://t.me/technologyshare"
     echoContent green "欢迎找我请求协助与反馈问题"
