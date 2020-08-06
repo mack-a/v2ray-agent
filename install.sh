@@ -195,10 +195,13 @@ installTools(){
     then
         nginx -s stop
     fi
+    progressTools "yellow" "检查、安装binutils--->" 13
+    # progressTool nginx &
+    ${installType} binutils > /dev/null
     # 新建所需目录
     mkdirTools
 
-    progressTools "yellow" "检查、安装acme--->" 13
+    progressTools "yellow" "检查、安装acme--->" 14
     mkdir -p /etc/tls/
     curl -s https://get.acme.sh | sh > /etc/tls/acme.log
     if [[ -z `find ~/.acme.sh -name "acme.sh"` ]]
@@ -224,7 +227,7 @@ installNginx(){
         installNginx
     else
         # 修改配置
-        progressTools "yellow" "配置Nginx--->" 14
+        progressTools "yellow" "配置Nginx--->" 15
         touch /etc/nginx/conf.d/alone.conf
         echo "server {listen 80;server_name ${domain};root /usr/share/nginx/html;location ~ /.well-known {allow all;}location /test {return 200 'fjkvymb6len';}}" > /etc/nginx/conf.d/alone.conf
         # sed -i "1i 1" /etc/nginx/conf.d/alone.conf
@@ -234,7 +237,7 @@ installNginx(){
         nginx
 
         # 测试nginx
-        progressTools "yellow" "检查Nginx是否正常访问--->" 15
+        progressTools "yellow" "检查Nginx是否正常访问--->" 16
         domainResult=`curl -s ${domain}/test|grep fjkvymb6len`
         if [[ ! -z ${domainResult} ]]
         then
@@ -255,7 +258,7 @@ installTLS(){
     touch /etc/nginx/v2ray-agent-https/config
     if [[ -z `find /etc/v2ray-agent/tls/ -name "$1*"` ]]
     then
-        progressTools "yellow" "检查、安装TLS证书--->" 16
+        progressTools "yellow" "检查、安装TLS证书--->" 17
 
         sudo ~/.acme.sh/acme.sh --issue -d $1 --standalone -k ec-256 >/dev/null
         ~/.acme.sh/acme.sh --installcert -d $1 --fullchainpath /etc/nginx/v2ray-agent-https/$1.crt --keypath /etc/nginx/v2ray-agent-https/$1.key --ecc >/dev/null
@@ -278,7 +281,7 @@ installTLS(){
         progressTools "yellow" "  TLS证书备份成功，证书位置：/etc/v2ray-agent/tls--->"
     elif  [[ -z `cat /etc/v2ray-agent/tls/$1.crt` ]] || [[ -z `cat /etc/v2ray-agent/tls/$1.key` ]]
     then
-        progressTools "red" "  检测到错误证书，需重新生成，重新生成中--->" 17
+        progressTools "red" "  检测到错误证书，需重新生成，重新生成中--->" 18
         rm -rf /etc/v2ray-agent/tls/
         installTLS $1
     else
@@ -294,14 +297,20 @@ installTLS(){
 
     # 自定义路径
     # todo 随机路径
-    progressTools "yellow" "请输入自定义路径[例: alone]，不需要斜杠，[回车]默认路径"
+    progressTools "yellow" "请输入自定义路径[例: alone]，不需要斜杠，[回车]随机路径"
     read customPath
 
     if [[ ! -z "${customPath}" ]]
     then
         sed -i "s/alone/${customPath}/g" `grep alone -rl /etc/nginx/conf.d/alone.conf`
+    else
+        customPath=`head -n 50 /dev/urandom|sed 's/[^a-z]//g'|strings -n 4|tr 'A-Z' 'a-z'|head -1`
+        if [[ ! -z "${customPath}" ]]
+        then
+            sed -i "s/alone/${customPath}/g" `grep alone -rl /etc/nginx/conf.d/alone.conf`
+        fi
     fi
-
+    echoContent yellow "path：${customPath}"
     rm -rf /usr/share/nginx/html
     wget -q -P /usr/share/nginx https://raw.githubusercontent.com/mack-a/v2ray-agent/master/blog/unable/html.zip >> /dev/null
     unzip  /usr/share/nginx/html.zip -d /usr/share/nginx/html > /dev/null
@@ -319,7 +328,7 @@ installTLS(){
 
 # 重新安装&更新tls证书
 reInstallTLS(){
-    progressTools "yellow" "检查、添加定时维护证书--->" 18
+    progressTools "yellow" "检查、添加定时维护证书--->" 19
     touch /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
     touch /etc/nginx/v2ray-agent-https/backup_crontab.cron
     touch /etc/v2ray-agent/tls/tls.log
@@ -380,7 +389,7 @@ installV2Ray(){
     then
         if [[ -z `ls -F /usr/bin/v2ray/|grep "v2ray"` ]] || [[ -z `ls -F /usr/bin/v2ray/|grep "v2ctl"` ]]
         then
-            progressTools "yellow" "检查、安装V2Ray--->" 19
+            progressTools "yellow" "检查、安装V2Ray--->" 20
             version=`curl -s https://github.com/v2ray/v2ray-core/releases|grep /v2ray/v2ray-core/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
             progressTools "green" "  v2ray-core版本:${version}"
 
@@ -825,7 +834,7 @@ init(){
     echoContent red "=============================================================="
     echoContent green "CDN+WebSocket+TLS+Nginx+伪装博客一键脚本"
     echoContent green "作者：mack-a"
-    echoContent green "Version：v1.0.7"
+    echoContent green "Version：v1.0.9"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "TG群：https://t.me/technologyshare"
     echoContent green "欢迎找我请求协助与反馈问题"
