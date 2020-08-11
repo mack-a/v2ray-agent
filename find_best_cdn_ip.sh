@@ -108,16 +108,12 @@ init(){
     pingTool
 }
 checkSystem(){
-    if [[ ! -z `find /etc -name "redhat-release"` ]] || [[ ! -z `cat /proc/version | grep -i "centos" | grep -v grep ` ]] || [[ ! -z `cat /proc/version | grep -i "red hat" | grep -v grep ` ]] || [[ ! -z `cat /proc/version | grep -i "redhat" | grep -v grep ` ]]
+    if [[ "`uname`" = "Darwin" ]]
 	then
-	    centosVersion=`rpm -q centos-release|awk -F "[-]" '{print $3}'`
-		release="centos"
-		installType='yum -y install'
-		removeType='yum -y remove'
-		upgrade="yum update -y --skip-broken"
-	elif [[ "`uname`" = "Darwin" ]]
+	    release="Darwin"
+	elif [[ ! -z `find /etc -name "redhat-release"` ]] || [[ ! -z `cat /proc/version | grep -i "centos" | grep -v grep ` ]] || [[ ! -z `cat /proc/version | grep -i "red hat" | grep -v grep ` ]] || [[ ! -z `cat /proc/version | grep -i "redhat" | grep -v grep ` ]]
     then
-        release="Darwin"
+        release="centos"
 	elif [[ ! -z `cat /etc/issue | grep -i "ubuntu" | grep -v grep` ]] || [[ ! -z `cat /proc/version | grep -i "ubuntu" | grep -v grep` ]]
 	then
 		release="ubuntu"
@@ -134,5 +130,12 @@ checkSystem(){
         exit 0;
     fi
 }
+downloadIPs(){
+    echoContent yellow '开始下载ip文件'
+    wget -q -P /tmp/ https://raw.githubusercontent.com/mack-a/v2ray-agent/dev/fodder/ips/ips
+    echoContent yellow '下载结束'
+}
+downloadIPs
 checkSystem
 init
+
