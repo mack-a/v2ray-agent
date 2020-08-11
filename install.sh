@@ -479,7 +479,7 @@ installV2Ray(){
         progressTools "red" "  错误日志:`curl -s -L https://$1/${nginxPath}`"
         exit 0
     fi
-    qrEncode $1
+    qrEncode $1 $2
     progressTools "yellow" "安装完毕[100%]--->"
     echoContent yellow "============================成功分界线============================="
 
@@ -814,7 +814,7 @@ qrEncode(){
     echo "   vmess://${qrCodeBase64Default}" >> /etc/v2ray/usersv2ray.conf
     echoContent red "通用json--->" "no"
     echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"64","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'"}\n'
-    echoContent green '    V2Ray v4.27.0 目前无通用订阅需要手动配置，VLESS和上面大部分一样，path则是"'${path}vld'"，其余内容不变'
+    echoContent green '    V2Ray v4.27.0 目前无通用订阅需要手动配置，VLESS和上面大部分一样，path则是"'/${2}vld'"，其余内容不变'
     # Quantumult
     qrCodeBase64Quanmult=`echo -n ''${ps}' = vmess, '${add}', 443, aes-128-cfb, '${id}', over-tls=true, tls-host='${host}', certificate=1, obfs=ws, obfs-path='${path}', obfs-header="Host: '${host}'[Rr][Nn]User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 11_2_6 like Mac OS X) AppleWebKit/604.5.6 (KHTML, like Gecko) Mobile/15D100"'|base64`
     qrCodeBase64Quanmult=`echo ${qrCodeBase64Quanmult}|sed 's/ //g'`
