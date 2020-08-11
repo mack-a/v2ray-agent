@@ -5,10 +5,9 @@
 
 # 1.手动自选ip
 - 1.配置简单
-- 2.只需要客户端修改
-- 3.保证在不自选ip的情况可以正常使用
+- 2.只需要客户端修改，也就是可以多账号实现自选IP。
+- 3.需要保证在不自选ip的情况可以正常使用
 - 4.最优ip测试
-
 
 ```
 # 晚高峰(23点以后)建议测试次数设置10次以上，默认为5次
@@ -19,7 +18,7 @@ bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fi
 - 2.增加自定义ip测试
 - 3.增加实际延迟测试&文件下载速度
 
-
+## 测试
 >这里提供了国内dns分流，只需要将下方教程提到的自定义ip写成下方表格中的域名，即可根据你的运营商自动切换自选ip。这里的自选ip不是很全，如果有更加适合你的可以加入[TG群](https://t.me/technologyshare)提一下。【手头没电信运营商的网络，这里的ip是默认的】
 - 以下测试视频为 [Japan in 8K 60fps](https://youtu.be/zCLOJ9j1k2Y)。
 - vps均使用5.6 kenrel bbr-fq
@@ -36,14 +35,15 @@ domain06.qiu4.ml|141.101.115.1|www.digitalocean.com|www.digitalocean.com
 domain07.qiu4.ml|1.0.0.1|www.digitalocean.com|www.digitalocean.com
 domain08.qiu4.ml|1.0.0.83|104.16.160.100|www.digitalocean.com
 
-## 1.v2rayU
+## 客户端配置
+### 1.v2rayU
 - 1.参考下图
 - 2.address部分填写自定义ip或者上方提供的域名，host部分填写科学上网的域名
 - 3.tls servername 同样填写科学上网的域名
 - 4.如果多个自选ip，则复制刚刚添加好的配置，修改address部分即可。
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare自选ip 手动更改 v2rayU.png' width=400/>
 
-## 2.Quantumult
+### 2.Quantumult
 - 1.参考下图
 - 2.地址部分填写自选ip或者上方提供的域名
 - 3.Host部分填写科学上网的域名
@@ -51,14 +51,14 @@ domain08.qiu4.ml|1.0.0.83|104.16.160.100|www.digitalocean.com
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare自选ip 手动更改 Quantumult01.png' width=400/>
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare自选ip 手动更改 Quantumult02.png' width=400/>
 
-## 3.ShadowRocket
+### 3.ShadowRocket
 - 1.参考下图
 - 2.地址部分填写自选ip或者上方提供的域名
 - 3.注意混淆部分->Host部分填写科学上网的域名
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare自选ip 手动更改 ShadowRocket01.png' width=400/>
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare自选ip 手动更改 ShadowRocket02.png' width=400/>
 
-## 4.v2rayN
+### 4.v2rayN
 - 1.参考下图
 - 2.地址部分填写自选ip或者上方提供的域名
 - 3.注意伪装域名部分填写科学上网的域名
