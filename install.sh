@@ -312,7 +312,7 @@ server {
         proxy_set_header Host \$host;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
     }
-    location /vless {
+    location /vlesspath {
         proxy_redirect off;
         proxy_pass http://127.0.0.1:31298;
         proxy_http_version 1.1;
@@ -328,20 +328,23 @@ EOF
 
     # 自定义路径
     # todo 随机路径
-    progressTools "yellow" "请输入自定义路径[例: alone]，不需要斜杠，[回车]随机路径"
+    progressTools "yellow" "请输入自定义路径Vmess[例: alone]，不需要斜杠，[回车]随机路径，VLESS则为随机路径"
     read customPath
 
     if [[ ! -z "${customPath}" ]]
     then
         sed -i "s/alone/${customPath}/g" `grep alone -rl /etc/nginx/conf.d/alone.conf`
+        sed -i "s/vlesspath/${customPath}vld/g" `grep vlesspath -rl /etc/nginx/conf.d/alone.conf`
     else
         customPath=`head -n 50 /dev/urandom|sed 's/[^a-z]//g'|strings -n 4|tr 'A-Z' 'a-z'|head -1`
         if [[ ! -z "${customPath}" ]]
         then
             sed -i "s/alone/${customPath}/g" `grep alone -rl /etc/nginx/conf.d/alone.conf`
+            sed -i "s/vlesspath/${customPath}vld/g" `grep vlesspath -rl /etc/nginx/conf.d/alone.conf`
         fi
     fi
     echoContent yellow "path：${customPath}"
+    echoContent yellow "vlessPath：${customPath}vld"
     rm -rf /usr/share/nginx/html
     wget -q -P /usr/share/nginx https://raw.githubusercontent.com/mack-a/v2ray-agent/master/blog/unable/html.zip >> /dev/null
     unzip  /usr/share/nginx/html.zip -d /usr/share/nginx/html > /dev/null
@@ -588,20 +591,17 @@ initV2RayConfig(){
             "settings":{
                 "clients":[
                     {
-                        "id":"c95f22d4-5f7c-6248-8524-2bc830908ff9",
-                        "alterId":64,
+                        "id":"654765fe-5fb1-271f-7c3f-18ed82827f72",
                         "level":1,
-                        "email":"test@v2ray.com"
+                        "email":"test_vless@v2ray.com"
                     }
                 ],
-                "decryption": "none",
-                "fallback": {},
-                "fallback_h2": {}
+                "decryption": "none"
             },
             "streamSettings":{
                 "network":"ws",
                 "wsSettings":{
-                    "path":"/vld"
+                    "path":"/vlesspath"
                 }
             }
         },
@@ -725,20 +725,18 @@ EOF
             "settings":{
                 "clients":[
                     {
-                        "id":"c95f22d4-5f7c-6248-8524-2bc830908ff9",
+                        "id":"654765fe-5fb1-271f-7c3f-18ed82827f72",
                         "alterId":64,
                         "level":1,
-                        "email":"test@v2ray.com"
+                        "email":"test_vless@v2ray.com"
                     }
                 ],
-                "decryption": "none",
-                "fallback": {},
-                "fallback_h2": {}
+                "decryption": "none"
             },
             "streamSettings":{
                 "network":"ws",
                 "wsSettings":{
-                    "path":"/vld"
+                    "path":"/vlesspath"
                 }
             }
         }
@@ -782,6 +780,7 @@ EOF
     if [[ ! -z "$1" ]]
     then
         sed -i "s/alone/${1}/g" `grep alone -rl /etc/v2ray/config.json`
+        sed -i "s/vlesspath/${1}vld/g" `grep vlesspath -rl /etc/v2ray/config.json`
     fi
     sed -i "s/654765fe-5fb1-271f-7c3f-18ed82827f72/${uuid}/g" `grep 654765fe-5fb1-271f-7c3f-18ed82827f72 -rl /etc/v2ray/config.json`
 }
@@ -815,7 +814,7 @@ qrEncode(){
     echo "   vmess://${qrCodeBase64Default}" >> /etc/v2ray/usersv2ray.conf
     echoContent red "通用json--->" "no"
     echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"64","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'"}\n'
-
+    echoContent green '    V2Ray v4.27.0 目前无通用订阅需要手动配置，VLESS和上面大部分一样，path则是"'${path}vld'"，其余内容不变'
     # Quantumult
     qrCodeBase64Quanmult=`echo -n ''${ps}' = vmess, '${add}', 443, aes-128-cfb, '${id}', over-tls=true, tls-host='${host}', certificate=1, obfs=ws, obfs-path='${path}', obfs-header="Host: '${host}'[Rr][Nn]User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 11_2_6 like Mac OS X) AppleWebKit/604.5.6 (KHTML, like Gecko) Mobile/15D100"'|base64`
     qrCodeBase64Quanmult=`echo ${qrCodeBase64Quanmult}|sed 's/ //g'`
