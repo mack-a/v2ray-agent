@@ -56,7 +56,7 @@ pingTool(){
         pingResult=`ping -c ${num} -W ${timeout} ${ip[$i]}`
         packetLoss=`echo ${pingResult}|awk -F "[%]" '{print $1}'|awk -F "[p][a][c][k][e][t][s][ ][r][e][c][e][i][v][e][d][,][ ]" '{print $2}'`
         roundTrip=`echo ${pingResult}|awk -F "[r][o][u][n][d][-][t][r][i][p]" '{print $2}'|awk '{print $3}'|awk -F "[/]" '{print $1"."$2"."$3"."$4}'|awk -F "[/]" '{print $1$2$3$4}'|awk -F "[.]" '{print $1" "$3" "$5" "$7}'`
-        if [[ "${release}" = "ubuntu" ]] || [[ "${release}" = "debian" ]]
+        if [[ "${release}" = "ubuntu" ]] || [[ "${release}" = "debian" ]] || [[ "${release}" = "centos" ]]
         then
             packetLoss=`echo ${pingResult}|awk -F "[%]" '{print $1}'|awk -F "[r][e][c][e][i][v][e][d][,][ ]" '{print $2}'`
             roundTrip=`echo ${pingResult}|awk -F "[r][t][t]" '{print $2}'|awk '{print $3}'|awk -F "[/]" '{print $1"."$2"."$3"."$4}'|awk -F "[/]" '{print $1$2$3$4}'|awk -F "[.]" '{print $1" "$3" "$5" "$7}'`
@@ -108,7 +108,14 @@ init(){
     pingTool
 }
 checkSystem(){
-    if [[ "`uname`" = "Darwin" ]]
+    if [[ ! -z `find /etc -name "redhat-release"` ]] || [[ ! -z `cat /proc/version | grep -i "centos" | grep -v grep ` ]] || [[ ! -z `cat /proc/version | grep -i "red hat" | grep -v grep ` ]] || [[ ! -z `cat /proc/version | grep -i "redhat" | grep -v grep ` ]]
+	then
+	    centosVersion=`rpm -q centos-release|awk -F "[-]" '{print $3}'`
+		release="centos"
+		installType='yum -y install'
+		removeType='yum -y remove'
+		upgrade="yum update -y --skip-broken"
+	elif [[ "`uname`" = "Darwin" ]]
     then
         release="Darwin"
 	elif [[ ! -z `cat /etc/issue | grep -i "ubuntu" | grep -v grep` ]] || [[ ! -z `cat /proc/version | grep -i "ubuntu" | grep -v grep` ]]
