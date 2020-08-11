@@ -1,19 +1,16 @@
 * * *
-- [1.CloudFlare自选IP【必看】](#1cloudflare自选ip必看)
-  * [1.手动自选ip【推荐】](#1手动自选ip建议使用该种方法)
-  * [2.CloudFlare CNAME自选ip优化方案](#2cloudflare-cname自选ip优化方案)
-  * [3.dnsmasq 实现CNAME方式【不推荐】](#3dnsmasq-实现cname方式)
-- [2.更换中国大陆地区CDN【不推荐】](#2更换中国大陆地区cdn)
-- [3.最优ip选择【必看】](#3最优ip选择)
+- [1.手动自选ip](#1手动自选ip)
+- [2.其余自选ip方法【不推荐】](#2其他设置方法)
+- [3.CDN IP列表](#3cdn-ip来源于网络)
 - [4.断流优化【必看】](#4断流优化)
-
 * * *
-# 1.CloudFlare自选IP【必看】
-## 1.手动自选ip【建议使用该种方法】
+
+# 1.手动自选ip
 - 1.配置简单
 - 2.只需要客户端修改
 - 3.保证在不自选ip的情况可以正常使用
 - 4.最优ip测试
+
 # todo
 - 1.增加按ip段测试
 - 2.增加自定义ip测试
@@ -27,27 +24,16 @@ bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fi
 - 以下测试视频为 [Japan in 8K 60fps](https://youtu.be/zCLOJ9j1k2Y)。
 - vps均使用5.6 kenrel bbr-fq
 - 如有自定义IP或者使用问题可以[点击私聊](https://t.me/mack_a)添加
-- 2020-7-28 测试波动较大，速度不如意。以下结果均参考
 - 2020-7-28 更新了移动、联通[优选ip](#3最优ip选择)
 
-域名|移动|移动测试|联通|电信
--|-|-|-|-
-domain01.qiu4.ml|1.0.0.1|上午峰值2.3w，4k稍显卡顿、晚九点峰值1.5w，1440p较为流畅，晚十点半峰值7000，流畅1080|104.16.160.136|104.16.25.4
-domain02.qiu4.ml|172.64.32.1|上午峰值7.5w，稳定4k不卡顿、晚九点1.3w，流畅1080p，晚十点半峰值5000，流畅1080p|104.16.160.100|104.16.25.4
-domain03.qiu4.ml|104.16.25.4|上午峰值4.5w，稳定4k不卡顿、晚九点2w，流畅1440p,晚十点半峰值3000,流畅720p|104.16.160.125|104.16.25.4
-domain04.qiu4.ml|104.17.209.9|上午峰值6w，稳定4k不卡顿、晚八点峰值4w，流畅4k，晚9点峰值1w-3w跨度较大，流畅1440p，晚十点半都不流畅|104.16.160.123|104.16.25.4
-domain05.qiu4.ml|104.16.133.229|上午峰值7w，稳定8k不卡顿、晚九点峰值1w，流畅1080p，晚十点半都不流畅|104.16.160.103|104.16.24.4
-domain06.qiu4.ml|141.101.115.1|未测试|www.digitalocean.com|www.digitalocean.com
-domain07.qiu4.ml|1.0.0.1|上午峰值2.3w，4k稍显卡顿、晚九点峰值1.5w，1440p较为流畅，晚十点半峰值7000，流畅1080|www.digitalocean.com|www.digitalocean.com
-
-### 1.v2rayU
+## 1.v2rayU
 - 1.参考下图
 - 2.address部分填写自定义ip或者上方提供的域名，host部分填写科学上网的域名
 - 3.tls servername 同样填写科学上网的域名
 - 4.如果多个自选ip，则复制刚刚添加好的配置，修改address部分即可。
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare自选ip 手动更改 v2rayU.png' width=400/>
 
-### 2.Quantumult
+## 2.Quantumult
 - 1.参考下图
 - 2.地址部分填写自选ip或者上方提供的域名
 - 3.Host部分填写科学上网的域名
@@ -55,51 +41,77 @@ domain07.qiu4.ml|1.0.0.1|上午峰值2.3w，4k稍显卡顿、晚九点峰值1.5w
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare自选ip 手动更改 Quantumult01.png' width=400/>
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare自选ip 手动更改 Quantumult02.png' width=400/>
 
-### 3.ShadowRocket
+## 3.ShadowRocket
 - 1.参考下图
 - 2.地址部分填写自选ip或者上方提供的域名
 - 3.注意混淆部分->Host部分填写科学上网的域名
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare自选ip 手动更改 ShadowRocket01.png' width=400/>
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare自选ip 手动更改 ShadowRocket02.png' width=400/>
 
-### 4.v2rayN
+## 4.v2rayN
 - 1.参考下图
 - 2.地址部分填写自选ip或者上方提供的域名
 - 3.注意伪装域名部分填写科学上网的域名
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare自选ip 手动更改 v2rayN.png' width=400/>
 
+## 5.优选ip
+- 以下仅代表个人测试，不代表所有的都可以流畅使用。
+### 1.移动
+```
+1.0.0.0
+1.0.0.7
+1.0.0.15
+1.0.0.23
+1.0.0.79
+1.0.0.81
+1.0.0.83
+1.0.0.93
+1.0.0.124
+1.0.0.147
+```
+
+### 2.联通
+```
+104.16.160.136
+104.16.160.100
+104.16.160.125
+104.16.160.123
+104.16.160.103
+104.16.160.164
+```
+# 2.其他设置方法
 ## 2.CloudFlare CNAME自选ip优化方案【dns自选ip】
-#### 1.准备工作
-###### 1.免费的智能DNS解析
+### 1.准备工作
+#### 1.免费的智能DNS解析
 - 1.[dnspod](https://www.dnspod.cn/)【现在已经和微信绑定】
 - 2.[cloudxns](https://www.cloudxns.net/)【不免费】
 - 3.[dns.la](https://www.dns.la/)
 - 4.[dns.com](https://www.dns.com/)
 
-###### 2.CloudFlare Partner平台（合作伙伴）
+#### 2.CloudFlare Partner平台（合作伙伴）
 - 1.[笨牛](http://cdn.bnxb.com/)
 - 2.[萌精灵](https://cdn.moeelf.com/)
 - 3.[自建（教程）](https://www.331u.com/461.html)
 
-###### 3.CloudFlare账号
+#### 3.CloudFlare账号
 - 使用上述第三方CloudFlare Partner时需要使用CloudFlare的账号密码
 - 建议新建CloudFlare账号，与自己常用的账号区分（防止第三方平台保存密码并用于其他用途）
 - 上述推荐是各大教程推荐，风险自担。也可以自行申请CloudFlare Partner并自行搭建
 
-#### 2.修改DNS解析【这里使用的是dnspod】
+### 2.修改DNS解析【这里使用的是dnspod】
 - 修改域名注册商中的Nameservers改为以下两个
 ```
 f1g1ns1.dnspod.net
 f1g1ns2.dnspod.net
 ```
 
-#### 3.注册[dnspod](https://www.dnspod.cn/) 【腾讯】
-#### 4.添加域名
+### 3.注册[dnspod](https://www.dnspod.cn/) 【腾讯】
+### 4.添加域名
 - 添加完域名后需要等待修改的Nameserver生效
 
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/dnspod添加域名.png' width=500/>
 
-#### 5.登入CloudFlare Partner平台
+### 5.登入CloudFlare Partner平台
 - 1.[萌精灵](https://cdn.moeelf.com/)【本教程使用】
 - 2.添加域名
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/moeelf添加域名.png' width=400/>
@@ -115,39 +127,32 @@ f1g1ns2.dnspod.net
 - 记录内容中的xxx.xxx替换成自己域名的部分【例如：你的域名是www.example.com,替换成cf.test.example.com】，提交后进入管理中心会出现下图
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/moeelfDNS管理.png' width=500/>
 
-#### 6.登入[dnspod](https://www.dnspod.cn/)
+### 6.登入[dnspod](https://www.dnspod.cn/)
 - DNS管理->我的域名->添加记录
 - 这里添加CNAME的意义在于防止CloudFlare翻车【CloudFlare不允许使用ip接入，只允许CNAME】
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/dnspod添加记录.png' width=500/>
 
-#### 7.验证是否添加成功
+### 7.验证是否添加成功
 - 1.登录[CloudFlare](https://CloudFlare.com)
 - 2.点击域名->SSL/TLS->Edge Certificates【参考下图】如果存在则添加正确
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare SSLTLS示例图.png' width=500/>
 
-#### 8.自定义CloudFlare ip【示例】
+### 8.自定义CloudFlare ip【示例】
 - 新添加的记录为类型为A、线路类型是联通、记录值是CloudFlare的ip【多播】
 - 这里可以添加不同的线路类型来针对不同的网络环境。
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/dnspod添加记录自定义ip.png' width=500/>
 
-#### 9.原理解析
-- 使用CloudFlare DNS【默认】
-<img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare默认解析.png' width=500/>
-
-- 使用dnspod智能解析
-<img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare dnspod解析.png' width=1000/>
-
-## 4.dnsmasq 实现CNAME方式
+## 3.dnsmasq 实现CNAME方式
 - 不建议使用，有几率会被警告，UDP 53端口在没有运营资质的情况下不可以使用
 - 更加隐私一些 只适用于CDN方式
 - 使用自定义DNS服务，类似于本地配置hosts文件
 - 需要配置不同的二级域名（三级域名）来进行解析
 
-#### 1.准备工作
+### 1.准备工作
 - 需要一台中国大陆的服务器【最好，但是国外的可以用。但是会拖慢DNS解析的速度】
 - 防火墙需要开放53端口
 
-#### 2.安装
+### 2.安装
 - 1.Centos/RHEL
 ```
 yum -y install dnsmasq
@@ -158,7 +163,7 @@ yum -y install dnsmasq
 apt-get install dnsmasq
 ```
 
-#### 3.修改配置文件
+### 3.修改配置文件
 ```
 ## 不使用/etc/hosts
 no-hosts
@@ -186,11 +191,11 @@ address=/unicom.xxx.com/39.156.69.101
 ## address=/baidu.com/39.156.110.100
 ```
 
-#### 4.重启dnsmasq
+### 4.重启dnsmasq
 ```
 systemctl restart dnsmasq
 ```
-#### 5.测试&使用
+### 5.测试&使用
 - 1.测试
 ```
 ## xx.xx.xx.xx为配置dnsmasq服务的ip
@@ -224,14 +229,14 @@ mobile.xxx.com. 0	IN	A	198.41.214.162
 需要手动修改自己本地的客户端的DNS配置，各终端请自行Google
 ```
 
-# 2.更换中国大陆地区CDN
+## 2.更换中国大陆地区CDN
 - 只是更换CDN其余配置内容不变
-## 1.腾讯CDN[月免费10GB]
-### 1.准备工作
+### 1.腾讯CDN[月免费10GB]
+#### 1.准备工作
 - 1.域名【需要大陆备案】
 - 2.HTTPS证书【备案的域名的证书，可以使用上方的脚本生成】
-### 2.[点击此链接，配置腾讯云CDN](https://console.cloud.tencent.com/cdn/access)
-#### 1.配置域名【域名管理-添加域名】
+#### 2.[点击此链接，配置腾讯云CDN](https://console.cloud.tencent.com/cdn/access)
+##### 1.配置域名【域名管理-添加域名】
 - 1.域名填写备案过的域名（你要加速的域名）
 - 2.源站类型-填写自有源站
 - 3.源站设置填写你的vps ip
@@ -240,16 +245,16 @@ mobile.xxx.com. 0	IN	A	198.41.214.162
 - 6.等待部署完成
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/腾讯CDN示例图01.png' width=400/>
 
-#### 2.配置HTTPS证书
+##### 2.配置HTTPS证书
 - 1.点击配置好的域名-高级设置-HTTPS配置
 - 2.证书内容-填写上方生成证书的结尾为 .crt文件里面的全部内容
 - 3.私钥内容-填写上方生成证书结尾为 .key文件里面的全部内容
 - 4.回源方式-协议跟随
 
-#### 3.回源配置
+##### 3.回源配置
 - 1.点击配置好的域名-回源配置-取消掉Range回源
 
-#### 4.增加域名解析CNAME值
+##### 4.增加域名解析CNAME值
 - 1.我这里用的是阿里云的云解析DNS
 - 2.记录类型为CNAME
 - 3.主机记录则是你要配置的三级域名（国际规范）例如:test.xxx.com 这里填test
@@ -258,22 +263,9 @@ mobile.xxx.com. 0	IN	A	198.41.214.162
 
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CDN域名解析 CNAME.png' width=400/>
 
-# 3.最优ip选择
+# 3.CDN IP【来源于网络】
 ## 1.移动
 ### 1.推荐节点
-- 优选
-```
-1.0.0.0
-1.0.0.7
-1.0.0.15
-1.0.0.23
-1.0.0.79
-1.0.0.81
-1.0.0.83
-1.0.0.93
-1.0.0.124
-1.0.0.147
-```
 
 - hk
 ```
@@ -300,6 +292,7 @@ mobile.xxx.com. 0	IN	A	198.41.214.162
 104.16.96.0-104.16.175.254
 104.16.192.0-104.16.207.255
 ```
+
 - 欧洲
 ```
 162.158.133.0-162.158.133.254
@@ -321,16 +314,6 @@ mobile.xxx.com. 0	IN	A	198.41.214.162
 ```
 
 ## 2.联通
-- 优选
-```
-104.16.160.136
-104.16.160.100
-104.16.160.125
-104.16.160.123
-104.16.160.103
-104.16.160.164
-```
-
 - ip段
 ```
 104.16.160.0-104.16.160.254
@@ -382,81 +365,7 @@ mobile.xxx.com. 0	IN	A	198.41.214.162
 ```
 172.64.32.0-172.64.32.254
 ```
-## 4.下面是我找的一些企业站点的ip
 
-- www.mozilla.org
-```
-104.18.165.34
-```
-- www.trustedmediabrands.com
-```
-104.18.21.39
-```
-- www.hemnet.se
-```
-104.17.211.102
-```
-- www.ni.com
-```
-111.32.136.193
-```
-- www.cloudflare.com
-```
-104.17.209.9
-```
-- www.holtandmon.com
-```
-172.67.159.29
-```
-- www.orderbird.com
-```
-104.18.167.90
-```
-- www.upwork.com
-```
-104.16.54.15
-```
-- www.shopify.com
-```
-104.16.255.71
-```
-- sg.carousell.com
-```
-104.16.208.133
-```
-
-- www.sonymusic.com 104.18.18.193
-
-- www.sofi.com 104.16.190.103
-- www.allsaints.com 104.16.34.40
-- corp.sureprep.com 192.124.249.15
-- icook.tw 104.17.46.56
-- raisedonors.com 104.16.69.135
-- poki.com 104.16.208.71
-- www.thredup.com 104.18.22.236
-- zerodha.com 104.16.214.247
-- www.netohq.com 104.18.18.143
-- www.luckyvitamin.com 104.16.210.231
-- www.quintype.com 104.18.94.198
-- www.di.fm 104.16.9.105
-- www.autoanything.com 104.16.18.99
-- www.glossier.com 104.18.182.69
-- flo.health 104.18.23.89
-- www.lastminute.com 104.18.143.27
-- pippa.io 104.18.82.49
-- angel.co 104.18.24.39
-- www.gobear.com 104.18.72.52
-
-
-## 5.自动化脚本测试线路【开发中】
-
-## 6.本人使用
-- 移动
-```
-1.0.0.1
-172.64.32.1
-104.16.25.4
-```
 
 # 4.断流优化
 > (这里贴一下V2Ray白话文指南具体说明)[https://guide.v2fly.org/advanced/cdn.html]
