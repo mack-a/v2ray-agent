@@ -1,5 +1,5 @@
 * * *
-- [1.手动自选ip](#1手动自选ip)
+- [1.手动自选ip【推荐】](#1手动自选ip)
 - [2.其余自选ip方法【不推荐】](#2其他设置方法)
 - [3.CDN IP列表](#3cdn-ip来源于网络)
 - [4.断流优化【必看】](#4断流优化)
@@ -11,20 +11,32 @@
 - 3.保证在不自选ip的情况可以正常使用
 - 4.最优ip测试
 
-# todo
-- 1.增加按ip段测试
-- 2.增加自定义ip测试
-- 3.增加实际延迟测试&文件下载速度
+
 ```
 # 晚高峰(23点以后)建议测试次数设置10次以上，默认为5次
 bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/find_best_cdn_ip.sh)
 ```
+## 脚本todoList
+- 1.增加按照ip段测试
+- 2.增加自定义ip测试
+- 3.增加实际延迟测试&文件下载速度
+
 
 >这里提供了国内dns分流，只需要将下方教程提到的自定义ip写成下方表格中的域名，即可根据你的运营商自动切换自选ip。这里的自选ip不是很全，如果有更加适合你的可以加入[TG群](https://t.me/technologyshare)提一下。【手头没电信运营商的网络，这里的ip是默认的】
 - 以下测试视频为 [Japan in 8K 60fps](https://youtu.be/zCLOJ9j1k2Y)。
 - vps均使用5.6 kenrel bbr-fq
 - 如有自定义IP或者使用问题可以[点击私聊](https://t.me/mack_a)添加
-- 2020-7-28 更新了移动、联通[优选ip](#3最优ip选择)
+
+域名|移动|联通|电信
+-|-|-|-
+domain01.qiu4.ml|1.0.0.1|104.16.160.136|104.16.25.4
+domain02.qiu4.ml|172.64.32.1|104.16.160.100|104.16.25.4
+domain03.qiu4.ml|104.16.25.4|104.16.160.125|104.16.25.4
+domain04.qiu4.ml|104.17.209.9|104.16.160.123|104.16.25.4
+domain05.qiu4.ml|104.16.133.229|104.16.160.103|104.16.24.4
+domain06.qiu4.ml|141.101.115.1|www.digitalocean.com|www.digitalocean.com
+domain07.qiu4.ml|1.0.0.1|www.digitalocean.com|www.digitalocean.com
+domain08.qiu4.ml|1.0.0.83|104.16.160.100|www.digitalocean.com
 
 ## 1.v2rayU
 - 1.参考下图
