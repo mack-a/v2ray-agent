@@ -7,14 +7,15 @@
 - 1.配置简单
 - 2.只需要客户端修改，也就是可以多账号实现自选IP。
 - 3.需要保证在不自选ip的情况可以正常使用
-- 4.最优ip测试
 
+## 最优ip测试脚本
 ```
 # 晚高峰(23点以后)建议测试次数设置10次以上，默认为5次
 bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/find_best_cdn_ip.sh)
 ```
+
 ## 脚本todoList
-- 1.增加按照ip段测试
+- 1.增加按照ip段测试[done]
 - 2.增加自定义ip测试
 - 3.增加实际延迟测试&文件下载速度
 
