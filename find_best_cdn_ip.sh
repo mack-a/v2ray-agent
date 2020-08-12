@@ -155,7 +155,7 @@ checkSystem(){
 downloadIPs(){
     if [[ -z `ls /tmp|grep -v grep|grep ips` ]]
     then
-        echoContent yellow '开始下载ip文件'
+        echoContent yellow '开始下载ip库'
         wget -q -P /tmp/ https://raw.githubusercontent.com/mack-a/v2ray-agent/dev/fodder/ips/ips
         echoContent yellow '下载结束'
     fi
