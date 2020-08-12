@@ -123,8 +123,9 @@ findIPList(){
         echoContent red '输入有误请重新输入！'
         findIPList $1
     fi
-
-    eval $(cat /tmp/ips|grep -v grep|grep ${country}|awk -F "[|]" '{print $2}'|awk '{split($0,serverNameList," ");for(i in serverNameList) print "ip["i"]="serverNameList[i]}')
+    echo ${country}
+    # cat /tmp/ips|grep -v grep|grep 中国移动|awk -F "[|]" '{print NR"-"$2}'|grep 174-|head -1 |awk -F "[|]" '{print $2}'
+    eval $(cat /tmp/ips|grep -v grep|grep ${country}|awk -F "[|]" '{print NR"-"$2}'|grep ${selectType}-|head -1|awk -F "[-]" '{print $2}'|awk '{split($0,serverNameList," ");for(i in serverNameList) print "ip["i"]="serverNameList[i]}')
     pingTool
 }
 # 检查系统
