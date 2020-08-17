@@ -5,7 +5,7 @@
 - [优化方案【CDN自选IP、断流优化】](https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md)
 - [流量中转教程 wikihost](#流量转发服务)
 - [自建教程](#自建教程)可以快速入手并知晓其中的步骤。如遇到不懂以及不理解的可以加入[TG群讨论](https://t.me/technologyshare)。
-- [免费订阅链接【86.27 GB of 2 TB Used 2020-8-12】](https://github.com/mack-a/v2ray-agent/blob/master/free_account.md)。
+- [免费订阅链接【878.12 GB of 2 TB Used 2020-8-12】](https://github.com/mack-a/v2ray-agent/blob/master/free_account.md)。
 - [建议安装脚本前先安装适合自己的BBR](https://github.com/mack-a/v2ray-agent/blob/master/bbr.md)
 - 以上有问题可以提issues或者可以加入[TG群](https://t.me/technologyshare)反馈。
 - [博客地址](https://blog.v2ray-agent.com/)
