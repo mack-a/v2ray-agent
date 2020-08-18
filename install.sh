@@ -5,6 +5,7 @@ removeType='yum -y remove'
 upgrade="yum -y update"
 echoType='echo -e'
 domain=
+add=
 customPath=alone
 centosVersion=0
 installProgress=0
@@ -355,7 +356,7 @@ nginxBlog(){
 }
 # 操作Nginx
 handleNginx(){
-    if [[ ! -z `ps -ef|grep -v grep|grep nginx` ]] && [[ "$1" = "start" ]]
+    if [[ -z `ps -ef|grep -v grep|grep nginx` ]] && [[ "$1" = "start" ]]
     then
         nginx
         if [[ -z `ps -ef|grep -v grep|grep nginx` ]]
@@ -462,18 +463,13 @@ installV2Ray(){
 checkGFWStatue(){
      # 验证整个服务是否可用
     progressTools "yellow" "验证服务是否可用--->"
-    local path=$2;
-    if [[ -z "${customPath}" ]]
-    then
-        path="alone"
-    fi
     sleep 1
-    if [[ ! -z `curl -s -L https://$1/${path}|grep -v grep|grep "Bad Request"` ]]
+    if [[ ! -z `curl -s -L https://${domain}/${customPath}|grep -v grep|grep "Bad Request"` ]]
     then
         progressTools "green" "  服务可用--->"
     else
         progressTools "red" "    服务不可用，请检查Cloudflare->域名->SSL/TLS->Overview->Your SSL/TLS encryption mode is 是否是Full--->"
-        progressTools "red" "  错误日志:`curl -s -L https://$1/${path}`"
+        progressTools "red" "  错误日志:`curl -s -L https://${domain}/${customPath}`"
         exit 0
     fi
 }
@@ -838,11 +834,11 @@ customCDNIP(){
 # 生成账号base64链接
 buildAccounts(){
     user=`cat /etc/v2ray/config.json|jq .inbounds[0]`
-    ps="$1"
+    ps="${domain}"
     id=`echo ${user}|jq .settings.clients[0].id`
     aid=`echo ${user}|jq .settings.clients[0].alterId`
-    host="$1"
-    add="$1"
+    host="${domain}"
+    add="${add}"
     path=`echo ${user}|jq .streamSettings.wsSettings.path`
     echoContent yellow "客户端链接--->\n"
     defaultBase64Code "${ps}" "${id}" "${host}" "${path}" "${add}"
@@ -873,7 +869,6 @@ quanMultBase64Code(){
     local id=$2
     local host=$3
     local path=$4
-    local add=$5
     qrCodeBase64Quanmult=`echo -n ''${ps}' = vmess, '${add}', 443, aes-128-cfb, '${id}', over-tls=true, tls-host='${host}', certificate=1, obfs=ws, obfs-path='${path}', obfs-header="Host: '${host}'[Rr][Nn]User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 11_2_6 like Mac OS X) AppleWebKit/604.5.6 (KHTML, like Gecko) Mobile/15D100"'|base64`
     qrCodeBase64Quanmult=`echo ${qrCodeBase64Quanmult}|sed 's/ //g'`
     echoContent red "Quantumult vmess--->" "no"
@@ -1050,6 +1045,11 @@ installV2RayWSSNginxWeb(){
     installV2RayService
     initV2RayConfig WSS
     handleV2Ray start
+    handleNginx start
+    customCDNIP
+    buildAccounts
+    checkGFWStatue
+    progressTools "yellow" "安装完毕[100%]--->"
 }
 # 注意事项
 warningMessage(){
