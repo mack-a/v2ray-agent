@@ -390,4 +390,4 @@ mobile.xxx.com. 0	IN	A	198.41.214.162
 - URL Path Value填写翻墙的path
 - action则为Allow
 
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/firewall_settings.png" width=400>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/firewall_rules.png" width=400>
