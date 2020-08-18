@@ -271,7 +271,7 @@ installTLS(){
 
         cp -R /etc/nginx/v2ray-agent-https/config /etc/v2ray-agent/tls/config
         cp -R /etc/nginx/v2ray-agent-https/${domain}.crt /etc/v2ray-agent/tls/${domain}.crt
-        cp -R /etc/nginx/v2ray-agent-https/$1.key /etc/v2ray-agent/tls/${domain}.key
+        cp -R /etc/nginx/v2ray-agent-https/${domain}.key /etc/v2ray-agent/tls/${domain}.key
         progressTools "yellow" "  TLS证书备份成功，证书位置：/etc/v2ray-agent/tls--->"
     elif  [[ -z `cat /etc/v2ray-agent/tls/${domain}.crt` ]] || [[ -z `cat /etc/v2ray-agent/tls/${domain}.key` ]]
     then
@@ -290,7 +290,7 @@ initNginxConfig(){
     installType=$1
     if [[ "${installType}" = "WSS" ]]
     then
-cat << EOF > /etc/nginx/conf.d/alone.conf
+    cat << EOF > /etc/nginx/conf.d/alone.conf
     server {
         listen 443 ssl;
         server_name ${domain};
@@ -321,6 +321,7 @@ cat << EOF > /etc/nginx/conf.d/alone.conf
         }
     }
 EOF
+
     elif [[ "${installType}" = "vlessTCP" ]]
     then
         echo vlessTCP
@@ -354,7 +355,7 @@ nginxBlog(){
 }
 # 操作Nginx
 handleNginx(){
-    if [[ !-z `ps -ef|grep -v grep|grep nginx` ]] && [[ "$1"="start" ]]
+    if [[ ! -z `ps -ef|grep -v grep|grep nginx` ]] && [[ "$1" = "start" ]]
     then
         nginx
         if [[ -z `ps -ef|grep -v grep|grep nginx` ]]
@@ -362,7 +363,7 @@ handleNginx(){
             progressTools "red" "  Nginx启动失败，请检查日志--->"
             exit 0
         fi
-    elif [[  "$1"="stop" ]] && [[ !-z `ps -ef|grep -v grep|grep nginx` ]]
+    elif [[  "$1" = "stop" ]] && [[ ! -z `ps -ef|grep -v grep|grep nginx` ]]
     then
         nginx -s stop
     fi
@@ -525,14 +526,14 @@ handleV2Ray(){
         if [[ -z `ps -ef|grep -v grep|grep v2ray` ]] && [[ "$1" = "start" ]]
         then
             /usr/bin/v2ray/v2ray -config /etc/v2ray/config.json & > /dev/null 2>&1
-        elif [[ !-z `ps -ef|grep -v grep|grep v2ray` ]] && [[ "$1" = "stop" ]]
+        elif [[ ! -z `ps -ef|grep -v grep|grep v2ray` ]] && [[ "$1" = "stop" ]]
         then
             ps -ef|grep -v grep|grep v2ray|awk '{print $2}'|xargs kill -9
         fi
     fi
     if [[ "$1" = "start" ]]
     then
-        if [[ !-z `ps -ef|grep -v grep|grep v2ray` ]]
+        if [[ ! -z `ps -ef|grep -v grep|grep v2ray` ]]
         then
             echoContent green "V2Ray启动成功" no
         else
@@ -973,8 +974,8 @@ menu(){
     echoContent yellow "5.安装BBR" "no"
     echoContent yellow "6.卸载脚本" "no"
     echoContent red "=============================================================="
-    installTools
-
+    read -p "请选择:"
+    installV2RayWSSNginxWeb
     exit 0;
     # ===============
     # todo 这里判断每次安装的内容
