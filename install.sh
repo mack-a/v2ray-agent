@@ -137,13 +137,13 @@ installTools(){
         echo
     fi
 
-    progressTools "yellow" "卸载acme.sh--->" 4
-    rm -rf ~/.acme.sh > /dev/null
-    if [[ ! -z `cat /root/.bashrc|grep -n acme` ]]
-    then
-        acmeBashrcLine=`cat /root/.bashrc|grep -n acme|awk -F "[:]" '{print $1}'|head -1`
-        sed -i "${acmeBashrcLine}d" /root/.bashrc
-    fi
+    # progressTools "yellow" "卸载acme.sh--->" 4
+    # rm -rf ~/.acme.sh > /dev/null
+    # if [[ ! -z `cat /root/.bashrc|grep -n acme` ]]
+    # then
+    #         acmeBashrcLine=`cat /root/.bashrc|grep -n acme|awk -F "[:]" '{print $1}'|head -1`
+    #     sed -i "${acmeBashrcLine}d" /root/.bashrc
+    # fi
 
 
     progressTools "yellow" "检查、安装更新【新机器会很慢，耐心等待】--->" 5
