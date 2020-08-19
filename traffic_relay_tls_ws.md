@@ -21,12 +21,12 @@
 # 3.配置流量转发服务
 ## 1.配置idc.wiki流量转发
 - 1.服务-->我的产品和服务-->管理产品-->添加普通转发 or 添加IPLC转发
-- 2.配置转发规则，这里只有一个点需要注意下一下【需转发地址，填写自己vps的ip以及https+ws的端口，通常是443。】
+- 2.配置转发规则[tcp]，这里只有一个点需要注意下一下【需转发地址，填写自己vps的ip以及https+ws的端口，通常是443。】
+- 3.添加完成后会给分配ip和端口
 ```
 # 示例
 173.82.112.30:443
 ```
-- 3.协议为TCP
 >示例图
 
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost/wikihost_tcp_setting.png" width=400>
