@@ -28,9 +28,13 @@
 173.82.112.30:443
 ```
 >示例图
+- 添加转发服务示例图
 
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost/wikihost_tcp_setting.png" width=400>
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost/wikihost_rules.png" width=500>
+
+- 添加完成后示例图
+
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost/wikihost_rules.png" width=700>
 
 # 4.修改客户端
 - 思路和CDN手动自选ip一样
