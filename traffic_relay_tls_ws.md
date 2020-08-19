@@ -35,7 +35,11 @@
 - 思路和CDN手动自选ip一样
 - 修改客户端地址和端口为中转IP的端口。
 - header or peer部分填写科学上网的域名
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost/wikihost_rules.png" width=400>
+
 ## 客户端示例
+- 下面的地址、端口都要填写上方示例图中，wikihost分配的ip和端口
+
 ### 1.v2rayU
 - 1.参考下图
 - 2.address、端口部分填写wikihost分配的ip和端口，host部分填写科学上网的域名
