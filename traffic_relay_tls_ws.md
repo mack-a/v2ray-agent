@@ -33,19 +33,18 @@
 
 # 4.修改客户端
 - 思路和CDN手动自选ip一样
-- 修改客户端端口修改为中转IP的端口。
+- 修改客户端地址和端口为中转IP的端口。
 - header or peer部分填写科学上网的域名
 ## 客户端示例
 ### 1.v2rayU
 - 1.参考下图
 - 2.address、端口部分填写wikihost分配的ip和端口，host部分填写科学上网的域名
 - 3.tls servername 同样填写科学上网的域名
-- 4.如果多个自选ip，则复制刚刚添加好的配置，修改address部分即可。
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare自选ip 手动更改 v2rayU.png' width=400/>
 
 ### 2.Quantumult
 - 1.参考下图
-- 2.地址、端口部分填写填写wikihost分配的ip和端口
+- 2.地址、端口部分填写wikihost分配的ip和端口
 - 3.Host部分填写科学上网的域名
 - 4.请求头-->Host部分填写科学上网的域名
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare自选ip 手动更改 Quantumult01.png' width=400/>
