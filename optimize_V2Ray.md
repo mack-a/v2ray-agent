@@ -391,3 +391,8 @@ mobile.xxx.com. 0	IN	A	198.41.214.162
 - action则为Allow
 
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/firewall_rules.png" width=400>
+
+# 3.添加来自某个国家的ip进行放行
+
+- Firewall->Tools
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/firewall_settings_tools.png" width=400>
