@@ -795,7 +795,7 @@ EOF
     }
 }
 EOF
-    elif [[ "$1" = "tls" ]]
+    elif [[ "$1" = "tcp" ]]
     then
     cat << EOF > /etc/v2ray/config.json
 {
@@ -1111,7 +1111,7 @@ installV2RayTCPTLS(){
     # 安装V2Ray
     installV2Ray
     installV2RayService
-    initV2RayConfig tls
+    initV2RayConfig tcp
     handleV2Ray start
     # 生成账号
     checkGFWStatue tcp
