@@ -6,6 +6,7 @@ upgrade="yum -y update"
 echoType='echo -e'
 domain=
 add=
+globalType=
 customPath=alone
 centosVersion=0
 installProgress=0
@@ -93,6 +94,11 @@ installTools(){
         rpm -ivh ${nginxEpel} > /dev/null 2>&1
         # yum-utils
         yum install yum-utils -y > /dev/null 2>&1
+    fi
+    # 修复ubuntu个别系统问题
+    if [[ "${release}" = "ubuntu" ]]
+    then
+        dpkg --configure -a
     fi
 
     if [[ ! -z `ps -ef|grep -v grep|grep apt`  ]]
@@ -289,7 +295,7 @@ installTLS(){
 # 安装Nginx科学上网配置
 initNginxConfig(){
     installType=$1
-    if [[ "${installType}" = "WSS" ]]
+    if [[ "${installType}" = "wss" ]]
     then
     cat << EOF > /etc/nginx/conf.d/alone.conf
     server {
@@ -461,17 +467,38 @@ installV2Ray(){
 }
 # 验证整个服务是否可用
 checkGFWStatue(){
-     # 验证整个服务是否可用
+    # 验证整个服务是否可用
     progressTools "yellow" "验证服务是否可用--->"
-    sleep 1
-    if [[ ! -z `curl -s -L https://${domain}/${customPath}|grep -v grep|grep "Bad Request"` ]]
+    if [[ "${globalType}" = "wss" ]]
     then
-        progressTools "green" "  服务可用--->"
-    else
-        progressTools "red" "    服务不可用，请检查Cloudflare->域名->SSL/TLS->Overview->Your SSL/TLS encryption mode is 是否是Full--->"
-        progressTools "red" "  错误日志:`curl -s -L https://${domain}/${customPath}`"
-        exit 0
+
+        sleep 1
+        if [[ ! -z `curl -s -L https://${domain}/${customPath}|grep -v grep|grep "Bad Request"` ]]
+        then
+            progressTools "green" "  服务可用--->"
+        else
+            progressTools "red" "    服务不可用，请检查Cloudflare->域名->SSL/TLS->Overview->Your SSL/TLS encryption mode is 是否是Full--->"
+            progressTools "red" "  错误日志:`curl -s -L https://${domain}/${customPath}`"
+            exit 0
+        fi
+    elif [[ "${globalType}" = "tcp" ]]
+    then
+        echo '' > /etc/v2ray/v2ray_access_ws_tls.log
+        curl --connect-time 3  --max-time 1 --url https://${domain} > /dev/null 2>&1
+        sleep 0.1
+        if [[ ! -z `cat /etc/v2ray/v2ray_access_ws_tls.log|grep -v grep|grep "Not Found"` ]]
+        then
+            progressTools "green" "  服务可用--->"
+        else
+            progressTools "red" "    服务不可用"
+            progressTools "red" "     1.请检查云朵是否关闭"
+            progressTools "red" "     2.请手动尝试使用账号并观察日志，日志路径[/etc/v2ray/v2ray_access_ws_tls.log]"
+            exit 0
+        fi
     fi
+
+
+
 }
 # 开机自启
 installV2RayService(){
@@ -691,7 +718,7 @@ initV2RayConfig(){
     }
 }
 EOF
-    elif [[ "$1" = "WSS" ]]
+    elif [[ "$1" = "wss" ]]
     then
         cat << EOF > /etc/v2ray/config.json
 {
@@ -699,31 +726,6 @@ EOF
         "access":"/etc/v2ray/v2ray_access_ws_tls.log",
         "error":"/etc/v2ray/v2ray_error_ws_tls.log",
         "loglevel":"debug"
-    },
-    "stats":{
-
-    },
-    "api":{
-        "services":[
-            "StatsService"
-        ],
-        "tag":"api"
-    },
-    "policy":{
-        "levels":{
-            "1":{
-                "handshake":4,
-                "connIdle":300,
-                "uplinkOnly":2,
-                "downlinkOnly":5,
-                "statsUserUplink":false,
-                "statsUserDownlink":false
-            }
-        },
-        "system":{
-            "statsInboundUplink":true,
-            "statsInboundDownlink":true
-        }
     },
     "allocate":{
         "strategy":"always",
@@ -738,7 +740,7 @@ EOF
                 "clients":[
                     {
                         "id":"${uuid}",
-                        "alterId":64,
+                        "alterId":0,
                         "level":1,
                         "email":"test@v2ray.com"
                     }
@@ -758,7 +760,7 @@ EOF
                 "clients":[
                     {
                         "id":"${uuid}",
-                        "alterId":64,
+                        "alterId":0,
                         "level":1,
                         "email":"test_vless@v2ray.com"
                     }
@@ -784,20 +786,6 @@ EOF
             }
         }
     ],
-    "routing":{
-        "settings":{
-            "rules":[
-                {
-                    "inboundTag":[
-                        "api"
-                    ],
-                    "outboundTag":"api",
-                    "type":"field"
-                }
-            ]
-        },
-        "strategy":"rules"
-    },
     "dns":{
         "servers":[
             "8.8.8.8",
@@ -807,14 +795,58 @@ EOF
     }
 }
 EOF
+    elif [[ "$1" = "tls" ]]
+    then
+    cat << EOF > /etc/v2ray/config.json
+{
+"log":{
+        "access":"/etc/v2ray/v2ray_access_ws_tls.log",
+        "error":"/etc/v2ray/v2ray_error_ws_tls.log",
+        "loglevel":"debug"
+    },
+  "inbounds": [
+    {
+      "port": 443,
+      "protocol": "vmess",
+      "settings": {
+        "clients": [
+          {
+            "id": "${uuid}",
+            "alterId": 0
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "tls",
+        "tlsSettings": {
+          "certificates": [
+            {
+              "certificateFile": "/etc/nginx/v2ray-agent-https/${domain}.crt",
+              "keyFile": "/etc/nginx/v2ray-agent-https/${domain}.key"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "outbounds":[
+        {
+          "protocol": "freedom",
+          "settings": {}
+        }
+    ],
+    "dns":{
+        "servers":[
+            "8.8.8.8",
+            "8.8.4.4"
+        ],
+        "tag":"dns_inbound"
+    }
+}
+EOF
+
     fi
-    # 自定义路径
-    # if [[ ! -z "${customPath}" ]]
-    # then
-    #     sed -i "s/alone/${1}/g" `grep alone -rl /etc/v2ray/config.json`
-    #     sed -i "s/vlesspath/${1}vld/g" `grep vlesspath -rl /etc/v2ray/config.json`
-    # fi
-    # sed -i "s/654765fe-5fb1-271f-7c3f-18ed82827f72/${uuid}/g" `grep 654765fe-5fb1-271f-7c3f-18ed82827f72 -rl /etc/v2ray/config.json`
 }
 # 自定义CDN IP
 customCDNIP(){
@@ -842,7 +874,7 @@ buildAccounts(){
     path=`echo ${user}|jq .streamSettings.wsSettings.path`
     echoContent yellow "客户端链接--->\n"
     defaultBase64Code "${ps}" "${id}" "${host}" "${path}" "${add}"
-    quanMultBase64Code "${ps}" "${id}" "${host}" "${path}" "${add}"
+    # quanMultBase64Code "${ps}" "${id}" "${host}" "${path}" "${add}"
 }
 # 通用
 defaultBase64Code(){
@@ -851,17 +883,32 @@ defaultBase64Code(){
     local host=$3
     local path=$4
     local add=$5
+    if [[ ${globalType} = "tcp" ]]
+    then
+        qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","net":"tcp","add":"'${host}'","allowInsecure":0,"method":"none","peer":""}'|sed 's#/#\\\/#g'|base64`
+        qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
+        echoContent red "通用json--->" "no"
+        echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","net":"tcp","add":"'${host}'","allowInsecure":0,"method":"none","peer":""}\n'
+    elif [[ ${globalType} = "wss" ]]
+    then
+        qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":""}'|sed 's#/#\\\/#g'|base64`
+        qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
+        echoContent red "通用json--->" "no"
+        echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":""}\n'
+    elif [[ "${globalType}" = "h2" ]]
+    then
+        qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"h2","add":"'${add}'","allowInsecure":0,"method":"none","peer":""}'|sed 's#/#\\\/#g'|base64`
+        qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
+        echoContent red "通用json--->" "no"
+        echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"h2","add":"'${add}'","allowInsecure":0,"method":"none","peer":""}\n'
+    fi
 
-    qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"64","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'"}'|sed 's#/#\\\/#g'|base64`
-    qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
     # 通用Vmess
     echoContent red "通用vmess链接--->" "no"
     echoContent green "    vmess://${qrCodeBase64Default}\n"
     echo "通用vmess链接: " > /etc/v2ray/usersv2ray.conf
     echo "   vmess://${qrCodeBase64Default}" >> /etc/v2ray/usersv2ray.conf
-    echoContent red "通用json--->" "no"
-    echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"64","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'"}\n'
-    echoContent green '    V2Ray v4.27.0 目前无通用订阅需要手动配置，VLESS和上面大部分一样，path则是"'/${2}vld'"，其余内容不变'
+    # echoContent green '    V2Ray v4.27.0 目前无通用订阅需要手动配置，VLESS和上面大部分一样，path则是"'/${2}vld'"，其余内容不变'
 }
 # quanMult base64Code
 quanMultBase64Code(){
@@ -958,11 +1005,11 @@ menu(){
     mkdirTools
     cd
     echoContent red "=============================================================="
-    echoContent green "V2Ray+WSS+Nginx+Web/TLS+TCP+V2Ray/VLESS+TCP+V2Ray+Web一键脚本"
-    echoContent green "作者：mack-a"
-    echoContent green "Version：v1.0.9"
+    echoContent green "V2Ray+wss+Nginx+Web/TLS+TCP+V2Ray/VLESS+TCP+V2Ray+Web一键脚本"
+    echoContent green "作者：mack-a" no
+    echoContent green "Version：v1.0.9" no
     echoContent red "=============================================================="
-    echoContent yellow "1.V2Ray+WSS+Nginx+Web" "no"
+    echoContent yellow "1.V2Ray+wss+Nginx+Web" "no"
     echoContent yellow "2.TLS+TCP+V2Ray" "no"
     echoContent yellow "3.VLESS+TCP+V2Ray+Web" "no"
     echoContent yellow "4.状态展示" "no"
@@ -970,7 +1017,8 @@ menu(){
     echoContent yellow "6.卸载脚本" "no"
     echoContent red "=============================================================="
     read -p "请选择:"
-    installV2RayWSSNginxWeb
+    # installV2RaywssNginxWeb
+    installV2RayTCPTLS
     exit 0;
     # ===============
     # todo 这里判断每次安装的内容
@@ -1032,23 +1080,42 @@ menu(){
         exit 0;
     fi
 }
-# 安装V2Ray+WSS+Nginx+Web
-installV2RayWSSNginxWeb(){
+# 安装V2Ray+wss+Nginx+Web
+installV2RaywssNginxWeb(){
+    globalType=wss
     installTools
     initTLSNginxConfig
     installTLS
     handleNginx stop
-    initNginxConfig WSS
+    initNginxConfig wss
     randomPathFunction
     installCronTLS
     installV2Ray
     installV2RayService
-    initV2RayConfig WSS
+    initV2RayConfig wss
     handleV2Ray start
     handleNginx start
     customCDNIP
     buildAccounts
     checkGFWStatue
+    progressTools "yellow" "安装完毕[100%]--->"
+}
+# 安装V2Ray+TLS
+installV2RayTCPTLS(){
+    globalType=tcp
+    installTools
+    # 申请tls
+    initTLSNginxConfig
+    installTLS
+    handleNginx stop
+    # 安装V2Ray
+    installV2Ray
+    installV2RayService
+    initV2RayConfig tls
+    handleV2Ray start
+    # 生成账号
+    checkGFWStatue tcp
+    buildAccounts
     progressTools "yellow" "安装完毕[100%]--->"
 }
 # 注意事项
