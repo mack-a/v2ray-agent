@@ -36,16 +36,13 @@ domain08.qiu4.ml|1.0.0.83|上午峰值2.3w，4k稍显卡顿、晚九点峰值1.5
 ```
 bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh)
 ```
-- 1.自动检测并安装所需环境
-- 2.自动安装Nginx、生成TLS证书，验证是否正常工作。
-- 3.自动安装V2Ray、配置文件、生成随机uuid、开机自启。
-- 4.自动验证是否服务搭建成功
-- 5.自动添加伪装博客。
-- 6.添加默认的CDN，自选ip智能解析。
-- 7.默认安装最新的V2Ray版本。
-- 8.定时任务，自动续期tls，tls证书状态
-- 9.状态展示（V2Ray、TLS、定时任务）路径日志
-- 10.常见错误处理
+
+## 尝鲜版脚本
+- 在WebSocket+TLS+CDN基础上增加tcp+tls+vmess
+- 适合线路较好或者中专线路【中专教程会稍后补充】
+```
+bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/dev/install.sh)
+```
 
 # 示例图
 - 未安装
