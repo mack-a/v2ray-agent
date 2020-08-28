@@ -1004,21 +1004,29 @@ menu(){
      # 新建所需目录
     mkdirTools
     cd
-    echoContent red "=============================================================="
-    echoContent green "V2Ray+wss+Nginx+Web/TLS+TCP+V2Ray/VLESS+TCP+V2Ray+Web一键脚本"
+    echoContent red "==============================================================" "no"
+    echoContent green "V2Ray+wss+Nginx+Web/TLS+TCP+V2Ray/VLESS+TCP+V2Ray+Web一键脚本" "no"
     echoContent green "作者：mack-a" no
     echoContent green "Version：v1.0.9" no
-    echoContent red "=============================================================="
+    echoContent red "==============================================================" "no"
     echoContent yellow "1.V2Ray+wss+Nginx+Web" "no"
     echoContent yellow "2.TLS+TCP+V2Ray" "no"
-    echoContent yellow "3.VLESS+TCP+V2Ray+Web" "no"
-    echoContent yellow "4.状态展示" "no"
-    echoContent yellow "5.安装BBR" "no"
-    echoContent yellow "6.卸载脚本" "no"
-    echoContent red "=============================================================="
-    read -p "请选择:"
-    # installV2RaywssNginxWeb
-    installV2RayTCPTLS
+#    echoContent yellow "3.VLESS+TCP+V2Ray+Web" "no"
+#    echoContent yellow "4.状态展示" "no"
+#    echoContent yellow "5.安装BBR" "no"
+#    echoContent yellow "6.卸载脚本" "no"
+
+    echoContent red "==============================================================" "no"
+    read -n1 -p "请选择:" selectInstallType
+     case ${selectInstallType} in
+        1)
+            installV2RaywssNginxWeb
+        ;;
+        2)
+            installV2RayTCPTLS
+        ;;
+    esac
+
     exit 0;
     # ===============
     # todo 这里判断每次安装的内容
