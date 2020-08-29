@@ -329,9 +329,17 @@ initNginxConfig(){
     }
 EOF
 
-    elif [[ "${installType}" = "vlessTCP" ]]
+    elif [[ "${installType}" = "vlesstcpws" ]]
     then
-        echo vlessTCP
+        cat << EOF > /etc/nginx/conf.d/alone.conf
+server {
+    listen 80;
+    server_name ${domain};
+    root /usr/share/nginx/html;
+    location ~ /.well-known {allow all;}
+    location /test {return 200 'fjkvymb6len';}
+}
+EOF
     fi
 }
 # 自定义/随机路径
@@ -493,6 +501,17 @@ checkGFWStatue(){
             progressTools "red" "    服务不可用"
             progressTools "red" "     1.请检查云朵是否关闭"
             progressTools "red" "     2.请手动尝试使用账号并观察日志，日志路径[/etc/v2ray/v2ray_access_ws_tls.log]"
+            exit 0
+        fi
+    elif [[ "${globalType}" = "vlesstcpws" ]]
+    then
+        sleep 1
+        if [[ ! -z `curl -s -L https://${domain}/${customPath}|grep -v grep|grep "Bad Request"` ]]
+        then
+            progressTools "green" "  服务可用--->"
+        else
+            progressTools "red" "    服务不可用，请检查Cloudflare->域名->SSL/TLS->Overview->Your SSL/TLS encryption mode is 是否是Full--->"
+            progressTools "red" "  错误日志:`curl -s -L https://${domain}/${customPath}`"
             exit 0
         fi
     fi
@@ -812,7 +831,8 @@ EOF
         "clients": [
           {
             "id": "${uuid}",
-            "alterId": 0
+            "alterId": 0,
+            "email":"test@v2ray.com"
           }
         ]
       },
@@ -845,6 +865,93 @@ EOF
     }
 }
 EOF
+    elif [[ "$1" = "vlesstcpws" ]]
+    then
+        cat << EOF > /etc/v2ray/config.json
+{
+  "log": {
+    "access": "/etc/v2ray/v2ray_access_ws_tls.log",
+    "error": "/etc/v2ray/v2ray_error_ws_tls.log",
+    "loglevel": "debug"
+  },
+  "inbounds": [
+    {
+      "port": 443,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "${uuid}",
+            "alterId": 0,
+            "email": "test@v2ray.com"
+          }
+        ],
+        "decryption": "none",
+        "fallbacks": [
+          {
+            "dest": 80
+          },
+          {
+            "path": "/${customPath}",
+            "dest": 31299,
+            "xver": 1
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "tls",
+        "tlsSettings": {
+          "alpn": [
+            "http/1.1"
+          ],
+          "certificates": [
+            {
+              "certificateFile": "/etc/nginx/v2ray-agent-https/${domain}.crt",
+              "keyFile": "/etc/nginx/v2ray-agent-https/${domain}.key"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "port": 31299,
+      "protocol": "vmess",
+      "settings": {
+        "clients": [
+          {
+            "id": "${uuid}",
+            "alterId": 0,
+            "level": 1,
+            "email": "test@v2ray.com"
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "none",
+        "wsSettings": {
+          "acceptProxyProtocol": true,
+          "path": "/${customPath}"
+        }
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "freedom",
+      "settings": {}
+    }
+  ],
+  "dns": {
+    "servers": [
+      "8.8.8.8",
+      "8.8.4.4"
+    ],
+    "tag": "dns_inbound"
+  }
+}
+EOF
 
     fi
 }
@@ -853,9 +960,9 @@ customCDNIP(){
     echoContent green "是否使用DNS智能解析进行自定义CDN IP？"
 
     echoContent yellow " 智能DNS提供一下自定义CDN IP，会根据运营商自动切换ip，测试结果请查看[https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md]" "no"
-    echoContent yellow "  移动:1.0.0.83" "no"
+    echoContent yellow "  移动:104.16.160.136" "no"
     echoContent yellow "  联通:104.16.160.136" "no"
-    echoContent yellow "  电信CNAME:www.digitalocean.com" "no"
+    echoContent yellow "  电信:104.16.160.136" "no"
     echoContent green   "输入[y]使用，[任意]不使用" "no"
     read dnsProxy
     if [[ "${dnsProxy}" = "y" ]]
@@ -872,6 +979,12 @@ buildAccounts(){
     host="${domain}"
     add="${add}"
     path=`echo ${user}|jq .streamSettings.wsSettings.path`
+    if [[ "${path}" = "null" ]]
+    then
+        path=\"/${customPath}\"
+    fi
+    echoContent red path:${path}
+    echoContent red customPath:${customPath}
     echoContent yellow "客户端链接--->\n"
     defaultBase64Code "${ps}" "${id}" "${host}" "${path}" "${add}"
     # quanMultBase64Code "${ps}" "${id}" "${host}" "${path}" "${add}"
@@ -887,28 +1000,47 @@ defaultBase64Code(){
     then
         qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","net":"tcp","add":"'${host}'","allowInsecure":0,"method":"none","peer":""}'|sed 's#/#\\\/#g'|base64`
         qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
-        echoContent red "通用json--->" "no"
+        echoContent red "通用json(tcp+tls)--->" "no"
         echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","net":"tcp","add":"'${host}'","allowInsecure":0,"method":"none","peer":""}\n'
+        # 通用Vmess
+        echoContent red "通用vmess(tcp+tls)链接--->" "no"
+        echoContent green "    vmess://${qrCodeBase64Default}\n"
+        echo "通用vmess(tcp+tls)链接: " > /etc/v2ray/usersv2ray.conf
+        echo "   vmess://${qrCodeBase64Default}" >> /etc/v2ray/usersv2ray.conf
     elif [[ ${globalType} = "wss" ]]
     then
-        qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":""}'|sed 's#/#\\\/#g'|base64`
+        qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
         qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
-        echoContent red "通用json--->" "no"
-        echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":""}\n'
+        echoContent red "通用json(ws+tls)--->" "no"
+        echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}\n'
+        echoContent red "通用vmess(ws+tls)链接--->" "no"
+        echoContent green "    vmess://${qrCodeBase64Default}\n"
+        echo "通用vmess(ws+tls)链接: " > /etc/v2ray/usersv2ray.conf
+        echo "   vmess://${qrCodeBase64Default}" >> /etc/v2ray/usersv2ray.conf
     elif [[ "${globalType}" = "h2" ]]
     then
         qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"h2","add":"'${add}'","allowInsecure":0,"method":"none","peer":""}'|sed 's#/#\\\/#g'|base64`
         qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
         echoContent red "通用json--->" "no"
         echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"h2","add":"'${add}'","allowInsecure":0,"method":"none","peer":""}\n'
+    elif [[ "${globalType}" = "vlesstcpws" ]]
+    then
+        echoContent red path:${path}
+        qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
+        qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
+        echoContent red "通用json(ws+tls)--->" "no"
+        echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}\n'
+        echoContent red "通用vmess(ws+tls)链接--->" "no"
+        echoContent green "    vmess://${qrCodeBase64Default}\n"
+        echo "通用vmess(ws+tls)链接: " > /etc/v2ray/usersv2ray.conf
+        echo "   vmess://${qrCodeBase64Default}" >> /etc/v2ray/usersv2ray.conf
+
+        echoContent red "通用json(VLESS+tcp+tls)--->" "no"
+        echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"host":"'${host}'","type":"none","net":"tcp","add":"'${host}'","allowInsecure":0,"method":"none","peer":""}\n'
+        echoContent green '    V2Ray v4.27.4 目前无通用订阅需要手动配置，VLESS和tcp大部分一样，其余内容不变'
     fi
 
-    # 通用Vmess
-    echoContent red "通用vmess链接--->" "no"
-    echoContent green "    vmess://${qrCodeBase64Default}\n"
-    echo "通用vmess链接: " > /etc/v2ray/usersv2ray.conf
-    echo "   vmess://${qrCodeBase64Default}" >> /etc/v2ray/usersv2ray.conf
-    # echoContent green '    V2Ray v4.27.0 目前无通用订阅需要手动配置，VLESS和上面大部分一样，path则是"'/${2}vld'"，其余内容不变'
+#     echoContent green '    V2Ray v4.27.0 目前无通用订阅需要手动配置，VLESS和上面大部分一样，path则是"'/${2}vld'"，其余内容不变'
 }
 # quanMult base64Code
 quanMultBase64Code(){
@@ -1009,9 +1141,9 @@ menu(){
     echoContent green "作者：mack-a" no
     echoContent green "Version：v1.0.9" no
     echoContent red "==============================================================" "no"
-    echoContent yellow "1.V2Ray+wss+Nginx+Web" "no"
-    echoContent yellow "2.TLS+TCP+V2Ray" "no"
-#    echoContent yellow "3.VLESS+TCP+V2Ray+Web" "no"
+    echoContent yellow "1.V2Ray+WS+TLS+Nginx+Web" "no"
+    echoContent yellow "2.V2Ray+TCP+TLS" "no"
+    echoContent yellow "3.V2Ray+VLESS+TLS+TCP+Web/V2Ray+Vmess+TLS+WS+Web[CDN 云朵必须为灰色]" "no"
 #    echoContent yellow "4.状态展示" "no"
 #    echoContent yellow "5.安装BBR" "no"
 #    echoContent yellow "6.卸载脚本" "no"
@@ -1020,10 +1152,13 @@ menu(){
     read -n1 -p "请选择:" selectInstallType
      case ${selectInstallType} in
         1)
-            installV2RaywssNginxWeb
+            installV2RayVmessWSSNginxWeb
         ;;
         2)
-            installV2RayTCPTLS
+            installV2RayVmessTCPTLS
+        ;;
+        3)
+            installV2RayVLESSTCPWSTLS
         ;;
     esac
 
@@ -1089,7 +1224,7 @@ menu(){
     fi
 }
 # 安装V2Ray+wss+Nginx+Web
-installV2RaywssNginxWeb(){
+installV2RayVmessWSSNginxWeb(){
     globalType=wss
     installTools
     initTLSNginxConfig
@@ -1109,20 +1244,44 @@ installV2RaywssNginxWeb(){
     progressTools "yellow" "安装完毕[100%]--->"
 }
 # 安装V2Ray+TLS
-installV2RayTCPTLS(){
+installV2RayVmessTCPTLS(){
     globalType=tcp
     installTools
     # 申请tls
     initTLSNginxConfig
     installTLS
     handleNginx stop
+    installCronTLS
     # 安装V2Ray
     installV2Ray
     installV2RayService
     initV2RayConfig tcp
     handleV2Ray start
     # 生成账号
-    checkGFWStatue tcp
+    checkGFWStatue
+    buildAccounts
+    progressTools "yellow" "安装完毕[100%]--->"
+}
+installV2RayVLESSTCPWSTLS(){
+    globalType=vlesstcpws
+    installTools
+    # 申请tls
+    initTLSNginxConfig
+    installTLS
+    handleNginx stop
+    initNginxConfig vlesstcpws
+    randomPathFunction
+    installCronTLS
+    # 安装V2Ray
+    installV2Ray
+    installV2RayService
+    initV2RayConfig vlesstcpws
+    nginxBlog
+    handleV2Ray start
+    handleNginx start
+    customCDNIP
+    # 生成账号
+    checkGFWStatue
     buildAccounts
     progressTools "yellow" "安装完毕[100%]--->"
 }
