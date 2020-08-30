@@ -960,7 +960,7 @@ customCDNIP(){
     echoContent green "是否使用DNS智能解析进行自定义CDN IP？"
 
     echoContent yellow " 智能DNS提供一下自定义CDN IP，会根据运营商自动切换ip，测试结果请查看[https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md]" "no"
-    echoContent yellow "  移动:104.16.160.136" "no"
+    echoContent yellow "  移动:104.19.16.102" "no"
     echoContent yellow "  联通:104.16.160.136" "no"
     echoContent yellow "  电信:104.16.160.136" "no"
     echoContent green   "输入[y]使用，[任意]不使用" "no"
