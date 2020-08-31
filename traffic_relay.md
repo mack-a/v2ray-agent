@@ -56,7 +56,7 @@ ip:port
 
 #### 4.V2RayNG
 - 伪装域名需填写你的域名
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost/wikhost_V2RayNG.png" width=400>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost/wikihost_V2RayNG.png" width=400>
 
 ## 2.TCP[IPLC专属]
 - [wikihost添加步骤与TCP+TLS相同](添加普通转发协议tcp)
