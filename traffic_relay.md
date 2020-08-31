@@ -4,7 +4,8 @@
 - [2.配置流量转发服务](#2配置流量转发服务)
   * [1.V2Ray(Vmess/VLESS)+TCP+TLS[推荐VLESS]](#1v2rayvmessvlesstcptls推荐vless)
   * [2.TCP[IPLC专属]](#2tcpiplc专属)
-  * [3.WS+TLS[不推荐]](#3wstls不推荐)
+  * [3.V2Ray+WS+TLS[不推荐]](#3wstls不推荐)
+  * [4.Trojan+TCP+TLS[推荐]](#3trojantcptls)
 - [3.线路建议](#3线路建议)
 - [4.流量转发、计费方式](#4流量转发计费方式)
 
@@ -97,7 +98,8 @@ ip:port
 - 3.注意伪装域名部分填写科学上网的域名
 <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare自选ip 手动更改 v2rayN.png' width=400/>
 
-
+## 4.Trojan+TCP+TLS
+- 暂无
 
 # 3.线路建议
 - 1.广东移动+hk vps
