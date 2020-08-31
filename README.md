@@ -3,7 +3,7 @@
 - 推荐 [一键CDN+TLS+WebSocket+Nginx+V2Ray（Vmess/VLESS）+伪装博客脚本【小白推荐】](#全自动websockettlscdn智能优选cloudflare-ip一键脚本)
 - 此项目采用[CDN+TLS+Nginx+V2Ray（Vmess/VLESS）](#全自动websockettlscdn智能优选cloudflare-ip一键脚本)、[Trojan](#2Trojan)、[Cloudflare Workers](#方法3workers) 进行模拟正常网站并突破防火墙，同时包含优化方法，以及简单的原理讲解。
 - [优化方案【CDN自选IP、断流优化】](https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md)
-- [流量中转教程 wikihost](#流量转发服务)
+- [流量中转教程 wikihost](https://github.com/mack-a/v2ray-agent/blob/master/traffic_relay.md)
 - [自建教程](#自建教程)可以快速入手并知晓其中的步骤。如遇到不懂以及不理解的可以加入[TG群讨论](https://t.me/technologyshare)。
 - [免费订阅链接【1330.10 GB of 2 TB Used 2020-8-29】](https://github.com/mack-a/v2ray-agent/blob/master/free_account.md)。
 - [建议安装脚本前先安装适合自己的BBR](https://github.com/mack-a/v2ray-agent/blob/master/bbr.md)
@@ -77,8 +77,3 @@ bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/dev/insta
 - 速度取决于VPS的线路。
 - 需要自己维护证书。
 - [官方Github](https://github.com/trojan-gfw/trojan)
-
-# 流量转发服务
-## 1.[TLS+WS[不推荐]](https://github.com/mack-a/v2ray-agent/blob/master/traffic_relay_tls_ws.md)
-## 1.[TLS+WS[不推荐]](https://github.com/mack-a/v2ray-agent/blob/master/traffic_relay_tls_ws.md)
-## 2.[TCP+Vmess](https://github.com/mack-a/v2ray-agent/blob/master/traffic_relay_tcp_vmess.md)
