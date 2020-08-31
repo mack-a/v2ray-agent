@@ -79,5 +79,6 @@ bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/dev/insta
 - [官方Github](https://github.com/trojan-gfw/trojan)
 
 # 流量转发服务
-## 1.TLS+WS[点击查看](https://github.com/mack-a/v2ray-agent/blob/master/traffic_relay_tls_ws.md)
-## 2.TCP+Vmess[点击查看](https://github.com/mack-a/v2ray-agent/blob/master/traffic_relay_tcp_vmess.md)
+## 1.[TLS+WS[不推荐]](https://github.com/mack-a/v2ray-agent/blob/master/traffic_relay_tls_ws.md)
+## 1.[TLS+WS[不推荐]](https://github.com/mack-a/v2ray-agent/blob/master/traffic_relay_tls_ws.md)
+## 2.[TCP+Vmess](https://github.com/mack-a/v2ray-agent/blob/master/traffic_relay_tcp_vmess.md)
