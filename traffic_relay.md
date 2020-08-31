@@ -2,10 +2,9 @@
   * [1.注意事项](#1注意事项)
   * [2.购买流量转发服务](#2购买流量转发服务)
 - [2.配置流量转发服务](#2配置流量转发服务)
-  * [1.V2Ray(Vmess/VLESS)+TCP+TLS[推荐VLESS]](#1v2ray-vmess-vless--tcp-tls---vless-)
-  * [2.TCP[IPLC专属]](#2tcpIPLC专属)
-  * [3.WS+TLS[不推荐]](#3ws-tls不推荐)
-  * [1.配置客户端](#1配置客户端)
+  * [1.V2Ray(Vmess/VLESS)+TCP+TLS[推荐VLESS]](#1v2rayvmessvlesstcptls推荐vless)
+  * [2.TCP[IPLC专属]](#2tcpiplc专属)
+  * [3.WS+TLS[不推荐]](#3wstls不推荐)
 - [3.线路建议](#3线路建议)
 - [4.流量转发、计费方式](#4流量转发计费方式)
 
@@ -22,7 +21,9 @@
 ### 1.添加普通转发[协议tcp]
 
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost/wikihost_add_01.png" width=400>
+
 ### 2.填写ip+端口号
+
 - 格式
 ```
 ip:port
