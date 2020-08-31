@@ -21,8 +21,7 @@
 ## 1.V2Ray(Vmess/VLESS)+TCP+TLS[推荐VLESS]
 ### 1.添加普通转发[协议tcp]
 
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost_add_01.png" width=400>
-
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost/wikihost_add_01.png" width=400>
 ### 2.填写ip+端口号
 - 格式
 ```
@@ -31,10 +30,10 @@ ip:port
 103.11.119.22:443
 ```
 
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost_add_02.png" width=400>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost/wikihost_add_02.png" width=400>
 
 ### 3.添加完毕后会给分配ip/域名+port
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost_add_02.png" width=400>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost/wikihost_add_02.png" width=400>
 
 ### 4.配置客户端
 - 地址位置填写wikihost分配的ip/域名
@@ -44,18 +43,18 @@ ip:port
 
 #### 1.Shadowrocket[VLESS]
 - peer需填写你的域名
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost_Shadowrocket.png" width=400>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost/wikihost_Shadowrocket.png" width=400>
 
 #### 2.V2rayU[Vmess]
 - tls servername填写你的域名
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost_V2RayU.png" width=400>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost/wikihost_V2RayU.png" width=400>
 
 #### 3.V2RayN
 - 暂无
 
 #### 4.V2RayNG
 - 伪装域名需填写你的域名
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost_V2RayU.png" width=400>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost/wikihost_V2RayU.png" width=400>
 
 ## 2.TCP[IPLC专属]
 - [wikihost添加步骤与TCP+TLS]()
