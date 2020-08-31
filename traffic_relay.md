@@ -35,7 +35,7 @@ ip:port
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost/wikihost_add_02.png" width=400>
 
 ### 3.添加完毕后会给分配ip/域名+port
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost/wikihost_show_01.png" width=400>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost/wikihost_show_01.png" width=600>
 
 ### 4.配置客户端
 - 地址位置填写wikihost分配的ip/域名
