@@ -3,26 +3,11 @@
   * [2.购买流量转发服务](#2购买流量转发服务)
 - [2.配置流量转发服务](#2配置流量转发服务)
   * [1.V2Ray(Vmess/VLESS)+TCP+TLS[推荐VLESS]](#1v2ray-vmess-vless--tcp-tls---vless-)
-    + [1.添加普通转发[协议tcp]](#1添加普通转发协议tcp)
-    + [2.填写ip+端口号](#2填写ipip端口号)
-    + [3.添加完毕后会给分配ip/域名+port](#3添加完毕后会给分配ip域名port)
-    + [4.配置客户端](#4配置客户端)
-      - [1.Shadowrocket[VLESS]](#1shadowrocketvless)
-      - [2.V2rayU[Vmess]](#2v2rayuvmess)
-      - [3.V2RayN](#3v2rayn)
-      - [4.V2RayNG](#4v2rayng)
   * [2.TCP[IPLC专属]](#2tcpIPLC专属)
-    + [1.配置客户端](#1配置客户端)
   * [3.WS+TLS[不推荐]](#3ws-tls不推荐)
   * [1.配置客户端](#1配置客户端)
-    + [1.v2rayU](#1v2rayu)
-    + [2.Quantumult](#2quantumult)
-    + [3.ShadowRocket](#3shadowrocket)
-    + [4.v2rayN](#4v2rayn)
 - [3.线路建议](#3线路建议)
 - [4.流量转发、计费方式](#4流量转发计费方式)
-  * [1.流量转发方式](#1流量转发方式)
-  * [2.计费方式](#2计费方式)
 
 # 1.准备工作
 ## 1.注意事项
@@ -35,7 +20,9 @@
 # 2.配置流量转发服务
 ## 1.V2Ray(Vmess/VLESS)+TCP+TLS[推荐VLESS]
 ### 1.添加普通转发[协议tcp]
+
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost_add_01.png" width=400>
+
 ### 2.填写ip+端口号
 - 格式
 ```
@@ -43,6 +30,7 @@ ip:port
 # 例子
 103.11.119.22:443
 ```
+
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost_add_02.png" width=400>
 
 ### 3.添加完毕后会给分配ip/域名+port
