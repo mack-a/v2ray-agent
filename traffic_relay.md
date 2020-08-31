@@ -21,7 +21,7 @@
 ## 1.V2Ray(Vmess/VLESS)+TCP+TLS[推荐VLESS]
 ### 1.添加普通转发[协议tcp]
 
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost/wikihost_add_01.png" width=400>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost/wikihost_add_01.png" width=800>
 
 ### 2.填写ip+端口号
 
@@ -35,12 +35,12 @@ ip:port
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost/wikihost_add_02.png" width=400>
 
 ### 3.添加完毕后会给分配ip/域名+port
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost/wikihost_add_02.png" width=400>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost/wikihost_show_01.png" width=400>
 
 ### 4.配置客户端
 - 地址位置填写wikihost分配的ip/域名
 - 端口则为wikihost分配的端口
-- 加密算法建议none并且不打开允许不安全连接
+- 加密算法建议***none***并且***不打开***允许不安全连接
 
 
 #### 1.Shadowrocket[VLESS]
@@ -59,7 +59,7 @@ ip:port
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost/wikihost_V2RayU.png" width=400>
 
 ## 2.TCP[IPLC专属]
-- [wikihost添加步骤与TCP+TLS]()
+- [wikihost添加步骤与TCP+TLS相同](添加普通转发协议tcp)
 ### 1.配置客户端
 - 修改 地址+端口 为wikihost分配的 ip/域名+端口 即可
 - 加密不建议选择none
@@ -67,7 +67,7 @@ ip:port
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/Quantumult_Setting_vmess.png" width=400>
 
 ## 3.WS+TLS[不推荐]
-- [wikihost添加步骤与TCP+TLS]()
+- [wikihost添加步骤与TCP+TLS相同](添加普通转发协议tcp)
 - 加密算法建议none并且不打开允许不安全连接
 
 ## 1.配置客户端
