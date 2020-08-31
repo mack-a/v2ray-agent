@@ -44,7 +44,7 @@ ip:port
 
 
 #### 1.Shadowrocket[VLESS]
-- peer需填写你的域名
+- Peer名称 需填写你的域名
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost/wikihost_Shadowrocket.png" width=400>
 
 #### 2.V2rayU[Vmess]
