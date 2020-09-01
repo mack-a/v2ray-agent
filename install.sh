@@ -449,7 +449,7 @@ checkGFWStatue(){
     if [[ "${globalType}" = "wss" ]]
     then
 
-        sleep 1
+        sleep 3
         if [[ ! -z `curl -s -L https://${domain}/${customPath}|grep -v grep|grep "Bad Request"` ]]
         then
             progressTools "green" "  服务可用--->"
@@ -474,7 +474,8 @@ checkGFWStatue(){
         fi
     elif [[ "${globalType}" = "vlesstcpws" ]]
     then
-        sleep 1
+        progressTools "yellow" "等待三秒--->"
+        sleep 3
         if [[ ! -z `curl -s -L https://${domain}/${customPath}|grep -v grep|grep "Bad Request"` ]]
         then
             progressTools "green" "  服务可用--->"
