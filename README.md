@@ -33,8 +33,10 @@
 - 脚本示例图
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/dev/fodder/install/install_尝鲜版_01.png" width=400>
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/dev/fodder/install/install_尝鲜版_02.png" width=400>
+
 - V2Ray+VLESS+TLS+TCP+Web/V2Ray+Vmess+TLS+WS+Web[CDN 云朵必须为灰色]
 - 适合线路较好或者线路中专，[中专教程](https://github.com/mack-a/v2ray-agent/blob/master/traffic_relay.md)
+
 ```
 bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/dev/install.sh)
 ```
