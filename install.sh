@@ -160,7 +160,7 @@ installTools(){
     # then
     #    yum-complete-transaction --cleanup-only
     # fi
-    ${upgrade} > /dev/null 2>&1
+    ${upgrade} > /dev/null
     if [[ "${release}" = "centos" ]]
     then
         # yum要删除pid
@@ -484,7 +484,7 @@ installV2Ray(){
         version=`curl -s https://github.com/v2fly/v2ray-core/releases|grep /v2ray-core/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
 #        progressTools "green" "  v2ray-core版本:${version}"
         echoContent green " ---> v2ray-core版本:${version}"
-        wget -q -P /etc/v2ray-agent/v2ray https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip
+        wget -q -P /etc/v2ray-agent/v2ray/ https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip
         unzip /etc/v2ray-agent/v2ray/v2ray-linux-64.zip -d /etc/v2ray-agent/v2ray > /dev/null
         rm -rf /etc/v2ray-agent/v2ray/v2ray-linux-64.zip
     else
