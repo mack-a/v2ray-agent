@@ -211,9 +211,8 @@ installTools(){
     # mkdirTools
 
     progressTools "yellow" "检查、安装acme--->" 14
-    mkdir -p /etc/tls/
     curl -s https://get.acme.sh | sh > /etc/tls/acme.log
-    if [[ ! -d "~/.acme.sh" ]]
+    if [[ -d "~/.acme.sh" ]] && [[ -z `ls -F ~/.acme.sh/|grep -w "acme.sh"` ]]
     then
         echoContent red "  acme安装失败--->"
         echoContent yellow "错误排查："
@@ -993,7 +992,7 @@ defaultBase64Code(){
         echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"h2","add":"'${add}'","allowInsecure":0,"method":"none","peer":""}\n'
     elif [[ "${globalType}" = "vlesstcpws" ]]
     then
-        echoContent red path:${path}
+        echoContent red path:${path} "no"
         qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
         qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
         echoContent red "通用json(ws+tls)--->" "no"
@@ -1171,7 +1170,7 @@ installV2RayVmessTCPTLS(){
 installV2RayVLESSTCPWSTLS(){
     mkdirTools
     globalType=vlesstcpws
-#    installTools
+    installTools
     # 申请tls
     initTLSNginxConfig
     installTLS
