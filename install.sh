@@ -490,6 +490,12 @@ installV2Ray(){
     else
 #        progressTools "green" "  v2ray-core版本:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`"
         echoContent green " ---> v2ray-core版本:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`"
+        read -p "是否重新安装？[y/n]:" reInstalV2RayStatus
+        if [[ "${reInstalV2RayStatus}"="y" ]]
+        then
+            rm -rf /etc/v2ray-agent/v2ray/*
+            installV2Ray $1
+        fi
     fi
 }
 # 验证整个服务是否可用
