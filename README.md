@@ -29,6 +29,16 @@
 - 如果对默认的不满意，则可以[自己进行测试](https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md#1%E6%89%8B%E5%8A%A8%E8%87%AA%E9%80%89ip%E5%BB%BA%E8%AE%AE%E4%BD%BF%E7%94%A8%E8%AF%A5%E7%A7%8D%E6%96%B9%E6%B3%95)，寻找适合自己的CDN IP。
 - [脚本更新日志](https://github.com/mack-a/v2ray-agent/releases)
 
+
+# 示例图
+- 未安装
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/一键脚本未安装.png" width=400>
+
+- 已安装
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/一键脚本已安装01.png" width=400>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/一键脚本已安装02.png" width=400>
+
+
 ## 尝鲜版脚本
 - 脚本示例图
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/dev/fodder/install/install_尝鲜版_01.png" width=400>
@@ -40,14 +50,6 @@
 ```
 bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/dev/install.sh)
 ```
-
-# 示例图
-- 未安装
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/一键脚本未安装.png" width=400>
-
-- 已安装
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/一键脚本已安装01.png" width=400>
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/一键脚本已安装02.png" width=400>
 
 # 自建教程
 # 1.V2Ray
