@@ -9,7 +9,7 @@ add=
 globalType=
 customPath=alone
 centosVersion=0
-totalProgress=
+totalProgress=1
 iplc=$1
 uuidws=
 uuidtcp=
@@ -495,6 +495,45 @@ installV2Ray(){
         then
             rm -rf /etc/v2ray-agent/v2ray/*
             installV2Ray $1
+        fi
+    fi
+}
+# 更新V2Ray
+updateV2Ray(){
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 更新V2Ray"
+    if [[ ! -d "/etc/v2ray-agent/v2ray/" ]]
+    then
+        echoContent red " ---> 没有检测到安装目录，请执行脚本安装内容"
+        menu
+        exit 0;
+    fi
+    if [[ -z `ls -F /etc/v2ray-agent/v2ray/|grep "v2ray"` ]] || [[ -z `ls -F /etc/v2ray-agent/v2ray/|grep "v2ctl"` ]]
+    then
+        version=`curl -s https://github.com/v2fly/v2ray-core/releases|grep /v2ray-core/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
+        echoContent green " ---> v2ray-core版本:${version}"
+        wget -q -P /etc/v2ray-agent/v2ray/ https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip
+        unzip /etc/v2ray-agent/v2ray/v2ray-linux-64.zip -d /etc/v2ray-agent/v2ray > /dev/null
+        rm -rf /etc/v2ray-agent/v2ray/v2ray-linux-64.zip
+        handleV2Ray start
+    else
+        echoContent green " ---> 当前v2ray-core版本:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`"
+        if [[ ! -z `/etc/v2ray-agent/v2ray/v2ray --version` ]]
+        then
+            version=`curl -s https://github.com/v2fly/v2ray-core/releases|grep /v2ray-core/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
+            echo version:${version}
+            echo version2:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`
+            if [[ "${version}" = "v`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`" ]]
+            then
+                read -p "当前版本与最新版相同，是否重新安装？[y/n]:" reInstalV2RayStatus
+                if [[ "${reInstalV2RayStatus}" = "y" ]]
+                then
+                    handleV2Ray stop
+                    rm -rf /etc/v2ray-agent/v2ray/*
+                    updateV2Ray $1
+                else
+                    echoContent green " ---> 放弃更新"
+                fi
+            fi
         fi
     fi
 }
@@ -1184,10 +1223,10 @@ menu(){
     echoContent green "作者：mack-a"
     echoContent green "Version：v1.0.9"
     echoContent red "=============================================================="
-    echoContent yellow "1.V2Ray+VLESS+TLS+TCP+Web/V2Ray+Vmess+TLS+WS+Web[CDN 云朵必须为灰色]"
+    echoContent yellow "1.V2Ray+VLESS+TLS+TCP+Web/V2Ray+Vmess+TLS+WS+Web[CDN 云朵必须为灰色] 二合一脚本"
 #    echoContent yellow "2.V2Ray+TCP+TLS"
     echoContent red "=============================================================="
-    echoContent yellow "4.更新V2Ray[todo]"
+    echoContent yellow "4.更新V2Ray"
     echoContent yellow "5.状态展示[todo]"
     echoContent yellow "6.安装BBR"
     echoContent yellow "7.卸载脚本"
@@ -1196,6 +1235,9 @@ menu(){
      case ${selectInstallType} in
         1)
             installV2RayVLESSTCPWSTLS
+        ;;
+        4)
+            updateV2Ray 1
         ;;
         6)
             bbrInstall
