@@ -537,6 +537,11 @@ updateV2Ray(){
         fi
     fi
 }
+updateV2RayAgent(){
+    rm -rf /etc/v2ray-agent/upgradeStatus
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 更新v2ray-agent脚本"
+    wget -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/dev/install.sh" && chmod +x install.sh && ./install.sh
+}
 # 验证整个服务是否可用
 checkGFWStatue(){
     # 验证整个服务是否可用
@@ -1221,16 +1226,37 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "Version：v1.0.9"
+    echoContent green "当前版本：v1.1.0"
     echoContent red "=============================================================="
     echoContent yellow "1.V2Ray+VLESS+TLS+TCP+Web/V2Ray+Vmess+TLS+WS+Web[CDN 云朵必须为灰色] 二合一脚本"
-#    echoContent yellow "2.V2Ray+TCP+TLS"
+    # echoContent yellow "2.V2Ray+TCP+TLS"
     echoContent red "=============================================================="
     echoContent yellow "4.更新V2Ray"
     echoContent yellow "5.状态展示[todo]"
     echoContent yellow "6.安装BBR"
-    echoContent yellow "7.卸载脚本"
+    echoContent yellow "7.更新脚本"
+    echoContent yellow "8.卸载脚本"
     echoContent red "=============================================================="
+    if [[ -f "/root/install.sh" ]] && [[ ! -z `cat ~/install.sh|grep -v grep|grep mack-a` ]] && [[ -d "/etc/v2ray-agent" ]] && [[ ! -f "/etc/v2ray-agent/upgradeStatus" ]]
+    then
+        local version=`curl -s https://github.com/mack-a/v2ray-agent/releases|grep -v grep|grep /mack-a/v2ray-agent/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
+        local currentVersion=`cat /root/install.sh|grep -v grep|grep "当前版本："|awk '{print $3}'|awk -F "[\"]" '{print $2}'|awk -F "[v]" '{print $2}'`
+        echoContent yellow " ---> 当前版本：`echo ${version}|grep -v grep|awk -F '[v]' '{print $2}'`"
+        echoContent green " ---> 新 版 本：${currentVersion}"
+        if [[ "${currentVersion}" != "${version}" ]]
+        then
+            read -p "发现新版本，是否更新[y/n]？：" upgradeStatus
+            if [[ "${upgradeStatus}" = "y" ]]
+            then
+                updateV2RayAgent 1
+                menu
+            else
+                mkdir -p /etc/v2ray-agent/ && touch /etc/v2ray-agent/upgradeStatus
+                menu
+                exit;
+            fi
+        fi
+    fi
     read -p "请选择:" selectInstallType
      case ${selectInstallType} in
         1)
@@ -1243,6 +1269,9 @@ menu(){
             bbrInstall
         ;;
         7)
+            updateV2RayAgent 1
+        ;;
+        8)
             unInstall
         ;;
     esac
