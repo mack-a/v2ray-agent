@@ -236,12 +236,27 @@ installTools(){
     # 新建所需目录
     # mkdirTools
 
-    if [[ -d "~/.acme.sh" ]] || [[ -z `ls -F ~/.acme.sh/|grep -w "acme.sh"` ]]
+    if [[ ! -d "/root/.acme.sh" ]]
     then
         # progressTools "yellow" "安装acme.sh--->"
         echoContent green " ---> 安装acme.sh"
-        curl -s https://get.acme.sh | sh > /etc/tls/acme.log
+        curl -s https://get.acme.sh | sh > /etc/v2ray-agent/tls/acme.log
         if [[ -d "~/.acme.sh" ]] && [[ -z `ls -F ~/.acme.sh/|grep -w "acme.sh"` ]]
+        then
+            echoContent red "  acme安装失败--->"
+            echoContent yellow "错误排查："
+            echoContent red "  1.获取Github文件失败，请等待GitHub恢复后尝试，恢复进度可查看 [https://www.githubstatus.com/]"
+            echoContent red "  2.acme.sh脚本出现bug，可查看[https://github.com/acmesh-official/acme.sh] issues"
+            echoContent red "  3.反馈给开发者[私聊：https://t.me/mack_a] 或 [提issues]"
+            killSleep > /dev/null 2>&1
+            exit 0
+        fi
+    fi
+    if [[ -d "/root/.acme.sh" ]] && [[ -z `find /root/.acme.sh/ -name "acme.sh"` ]]
+    then
+        echoContent green " ---> 安装acme.sh"
+        curl -s https://get.acme.sh | sh > /etc/v2ray-agent/tls/acme.log
+        if [[ -d "~/.acme.sh" ]] && [[ -z `find /root/.acme.sh/ -name "acme.sh"` ]]
         then
             echoContent red "  acme安装失败--->"
             echoContent yellow "错误排查："
@@ -1109,7 +1124,7 @@ defaultBase64Code(){
 
         echoContent yellow " ---> 通用json(VLESS+tcp+tls)"
         echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"host":"'${host}'","type":"none","net":"tcp","add":"'${host}'","allowInsecure":0,"method":"none","peer":""}\n'
-        echoContent green '    V2Ray v4.27.4 目前无通用订阅需要手动配置，VLESS和tcp大部分一样，其余内容不变'
+        echoContent green '    V2Ray v4.27.4 目前无通用订阅，需要手动配置，VLESS和tcp大部分一样，其余内容不变'
     fi
 
 #     echoContent green '    V2Ray v4.27.0 目前无通用订阅需要手动配置，VLESS和上面大部分一样，path则是"'/${2}vld'"，其余内容不变'
