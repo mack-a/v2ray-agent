@@ -7,7 +7,7 @@
 - [自建教程](#自建教程)可以快速入手并知晓其中的步骤。如遇到不懂以及不理解的可以加入[TG群讨论](https://t.me/technologyshare)。
 - [免费订阅链接【1330.10 GB of 2 TB Used 2020-8-29】](https://github.com/mack-a/v2ray-agent/blob/master/free_account.md)。
 - [建议安装脚本前先安装适合自己的BBR](https://github.com/mack-a/v2ray-agent/blob/master/bbr.md)
-- 以上有问题可以提issues或者可以加入[TG群](https://t.me/technologyshare)反馈。
+- 以上有问题可以提issues、加入[TG群](https://t.me/technologyshare)、[订阅频道](https://t.me/v2rayagentshare)。
 - [博客地址](https://blog.v2ray-agent.com/)
 
 * * *
