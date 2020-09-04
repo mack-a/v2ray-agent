@@ -506,7 +506,7 @@ installV2Ray(){
 #        progressTools "green" "  v2ray-core版本:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`"
         echoContent green " ---> v2ray-core版本:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`"
         read -p "是否重新安装？[y/n]:" reInstalV2RayStatus
-        if [[ "${reInstalV2RayStatus}"="y" ]]
+        if [[ "${reInstalV2RayStatus}" = "y" ]]
         then
             rm -rf /etc/v2ray-agent/v2ray/*
             installV2Ray $1
@@ -1013,6 +1013,7 @@ EOF
           {
             "id": "${uuidws}",
             "alterId": 0,
+            "add":"${add}",
             "level": 1,
             "email": "test@v2ray.com"
           }
@@ -1056,6 +1057,8 @@ customCDNIP(){
     if [[ "${dnsProxy}" = "y" ]]
     then
         add="domain08.qiu4.ml"
+    else
+        add="${domain}"
     fi
 }
 # 生成账号base64链接
@@ -1079,12 +1082,13 @@ buildAccounts(){
 }
 # 通用
 defaultBase64Code(){
-    local ps=$1
-    local id=$2
-    local host=$3
-    local path=$4
-    local add=$5
-    if [[ ${globalType} = "tcp" ]]
+    local type=$1
+    local ps=$2
+    local id=$3
+    local host=$4
+    local path=$5
+    local add=$6
+    if [[ ${type} = "tcp" ]]
     then
         qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","net":"tcp","add":"'${host}'","allowInsecure":0,"method":"none","peer":""}'|sed 's#/#\\\/#g'|base64`
         qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
@@ -1095,7 +1099,7 @@ defaultBase64Code(){
         echoContent green "    vmess://${qrCodeBase64Default}\n"
         echo "通用vmess(tcp+tls)链接: " > /etc/v2ray-agent/v2ray/usersv2ray.conf
         echo "   vmess://${qrCodeBase64Default}" >> /etc/v2ray-agent/v2ray/usersv2ray.conf
-    elif [[ ${globalType} = "wss" ]]
+    elif [[ ${type} = "wss" ]]
     then
         qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
         qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
@@ -1105,13 +1109,23 @@ defaultBase64Code(){
         echoContent green "    vmess://${qrCodeBase64Default}\n"
         echo "通用vmess(ws+tls)链接: " > /etc/v2ray-agent/v2ray/usersv2ray.conf
         echo "   vmess://${qrCodeBase64Default}" >> /etc/v2ray-agent/v2ray/usersv2ray.conf
-    elif [[ "${globalType}" = "h2" ]]
+    elif [[ "${type}" = "h2" ]]
     then
         qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"h2","add":"'${add}'","allowInsecure":0,"method":"none","peer":""}'|sed 's#/#\\\/#g'|base64`
         qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
         echoContent red "通用json--->"
         echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"h2","add":"'${add}'","allowInsecure":0,"method":"none","peer":""}\n'
-    elif [[ "${globalType}" = "vlesstcpws" ]]
+    elif [[ "${type}" = "vlesstcp" ]]
+    then
+        qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
+        qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
+        echo "通用vmess(ws+tls)链接: " > /etc/v2ray-agent/v2ray/usersv2ray.conf
+        echo "   vmess://${qrCodeBase64Default}" >> /etc/v2ray-agent/v2ray/usersv2ray.conf
+        echoContent yellow " ---> 通用json(VLESS+tcp+tls)"
+        echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"host":"'${host}'","type":"none","net":"tcp","add":"'${host}'","allowInsecure":0,"method":"none","peer":""}\n'
+        echoContent green '    V2Ray v4.27.4 目前无通用订阅，需要手动配置，VLESS和tcp大部分一样，其余内容不变'
+
+    elif [[ "${type}" = "vmessws" ]]
     then
         qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
         qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
@@ -1119,15 +1133,8 @@ defaultBase64Code(){
         echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}\n'
         echoContent yellow " ---> 通用vmess(ws+tls)链接"
         echoContent green "    vmess://${qrCodeBase64Default}\n"
-        echo "通用vmess(ws+tls)链接: " > /etc/v2ray-agent/v2ray/usersv2ray.conf
-        echo "   vmess://${qrCodeBase64Default}" >> /etc/v2ray-agent/v2ray/usersv2ray.conf
-
-        echoContent yellow " ---> 通用json(VLESS+tcp+tls)"
-        echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"host":"'${host}'","type":"none","net":"tcp","add":"'${host}'","allowInsecure":0,"method":"none","peer":""}\n'
-        echoContent green '    V2Ray v4.27.4 目前无通用订阅，需要手动配置，VLESS和tcp大部分一样，其余内容不变'
     fi
 
-#     echoContent green '    V2Ray v4.27.0 目前无通用订阅需要手动配置，VLESS和上面大部分一样，path则是"'/${2}vld'"，其余内容不变'
 }
 # quanMult base64Code
 quanMultBase64Code(){
@@ -1209,6 +1216,29 @@ installProgressFunction(){
         sleep 0.1
     done
 }
+# 账号展示
+showAccounts(){
+    echoContent skyBlue "\n进度 $1/${totalProgress} : 查看账号"
+    if [[ -d "/etc/v2ray-agent/" ]] && [[ -d "/etc/v2ray-agent/v2ray/" ]] && [[ -f "/etc/v2ray-agent/v2ray/config.json" ]]
+    then
+        # tcp
+        local tcp=`cat /etc/v2ray-agent/v2ray/config.json|jq .inbounds[0]`
+        local tcpID=`echo ${tcp}|jq .settings.clients[0].id`
+        local tcpEmail="`echo ${tcp}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`_tcp"
+        local host=`echo ${tcp}|jq .streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+        # ws
+        local ws=`cat /etc/v2ray-agent/v2ray/config.json|jq .inbounds[1]`
+        local wsID=`echo ${ws}|jq .settings.clients[0].id`
+        local wsAdd=`echo ${ws}|jq .settings.clients[0].add|awk -F '["]' '{print $2}'`
+        local wsEmail="`echo ${ws}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`_ws"
+        local wsPath=`echo ${ws}|jq .streamSettings.wsSettings.path`
+
+        defaultBase64Code vmessws ${wsEmail} "${wsID}" "${host}" "${wsPath}" ${wsAdd}
+        defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${host}" ${add}
+    else
+        echoContent red " ---> 未安装"
+    fi
+}
 
 # 卸载脚本
 unInstall(){
@@ -1248,9 +1278,10 @@ menu(){
     echoContent red "=============================================================="
     echoContent yellow "4.更新V2Ray"
     echoContent yellow "5.状态展示[todo]"
-    echoContent yellow "6.安装BBR"
-    echoContent yellow "7.更新脚本"
-    echoContent yellow "8.卸载脚本"
+    echoContent yellow "6.账号查看"
+    echoContent yellow "7.安装BBR"
+    echoContent yellow "8.更新脚本"
+    echoContent yellow "9.卸载脚本"
     echoContent red "=============================================================="
     if [[ -f "/root/install.sh" ]] && [[ ! -z `cat ~/install.sh|grep -v grep|grep mack-a` ]] && [[ -d "/etc/v2ray-agent" ]] && [[ ! -f "/etc/v2ray-agent/upgradeStatus" ]]
     then
@@ -1281,12 +1312,15 @@ menu(){
             updateV2Ray 1
         ;;
         6)
-            bbrInstall
+            showAccounts 1
         ;;
         7)
-            updateV2RayAgent 1
+            bbrInstall
         ;;
         8)
+            updateV2RayAgent 1
+        ;;
+        9)
             unInstall
         ;;
     esac
@@ -1362,11 +1396,11 @@ installV2RayVLESSTCPWSTLS(){
     # 安装V2Ray
     installV2Ray 8
     installV2RayService 9
-    initV2RayConfig vlesstcpws 10
-    nginxBlog 11
+    customCDNIP 10
+    initV2RayConfig vlesstcpws 11
+    nginxBlog 12
     handleV2Ray start
     handleNginx start
-    customCDNIP 12
     # 生成账号
     checkGFWStatue 13
     buildAccounts 14
