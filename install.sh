@@ -497,6 +497,7 @@ installV2Ray(){
     then
 #        progressTools "yellow" "检查、安装V2Ray--->" 20
         version=`curl -s https://github.com/v2fly/v2ray-core/releases|grep /v2ray-core/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
+#        version="v4.27.4"
 #        progressTools "green" "  v2ray-core版本:${version}"
         echoContent green " ---> v2ray-core版本:${version}"
         wget -q -P /etc/v2ray-agent/v2ray/ https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip
@@ -528,26 +529,50 @@ updateV2Ray(){
         echoContent green " ---> v2ray-core版本:${version}"
         wget -q -P /etc/v2ray-agent/v2ray/ https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip
         unzip /etc/v2ray-agent/v2ray/v2ray-linux-64.zip -d /etc/v2ray-agent/v2ray > /dev/null
+        if [[ "$2" = "backup" ]]
+        then
+            cp /tmp/config.json /etc/v2ray-agent/v2ray/config.json
+        fi
+
         rm -rf /etc/v2ray-agent/v2ray/v2ray-linux-64.zip
+        handleV2Ray stop
         handleV2Ray start
     else
         echoContent green " ---> 当前v2ray-core版本:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`"
         if [[ ! -z `/etc/v2ray-agent/v2ray/v2ray --version` ]]
         then
             version=`curl -s https://github.com/v2fly/v2ray-core/releases|grep /v2ray-core/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
-            echo version:${version}
-            echo version2:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`
+#            echo version:${version}
+#            echo version2:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`
             if [[ "${version}" = "v`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`" ]]
             then
                 read -p "当前版本与最新版相同，是否重新安装？[y/n]:" reInstalV2RayStatus
                 if [[ "${reInstalV2RayStatus}" = "y" ]]
                 then
                     handleV2Ray stop
+                    cp /etc/v2ray-agent/v2ray/config.json /tmp/config.json
+#                    cp /etc/v2ray-agent/v2ray/v2ray_access.log /tmp/v2ray_access.log
+#                    cp /etc/v2ray-agent/v2ray/v2ray_error.log /tmp/v2ray_error.log
                     rm -rf /etc/v2ray-agent/v2ray/*
-                    updateV2Ray $1
+#                    cp /tmp/config.json /etc/v2ray-agent/v2ray/config.json
+#                    cp /tmp/v2ray_access.log /etc/v2ray-agent/v2ray/v2ray_access.log
+#                    cp /tmp/v2ray_error.log /etc/v2ray-agent/v2ray/v2ray_error.log
+                    updateV2Ray $1 backup
+                else
+                    echoContent green " ---> 放弃重新安装"
+                fi
+            else
+                read -p "最新版本为：${version}，是否更新？[y/n]：" installV2RayStatus
+                if [[ "${installV2RayStatus}" = "y" ]]
+                then
+                    cp /etc/v2ray-agent/v2ray/config.json /tmp/config.json
+                    rm -rf /etc/v2ray-agent/v2ray/*
+#                    cp /tmp/config.json /etc/v2ray-agent/v2ray/config.json
+                    updateV2Ray $1 backup
                 else
                     echoContent green " ---> 放弃更新"
                 fi
+
             fi
         fi
     fi
@@ -577,17 +602,17 @@ checkGFWStatue(){
         fi
     elif [[ "${globalType}" = "tcp" ]]
     then
-        echo '' > /etc/v2ray-agent/v2ray/v2ray_access_ws_tls.log
+        echo '' > /etc/v2ray-agent/v2ray/v2ray_access.log
         curl --connect-time 3  --max-time 1 --url https://${domain} > /dev/null 2>&1
         sleep 0.1
-        if [[ ! -z `cat /etc/v2ray-agent/v2ray/v2ray_access_ws_tls.log|grep -v grep|grep "Not Found"` ]]
+        if [[ ! -z `cat /etc/v2ray-agent/v2ray/v2ray_access.log|grep -v grep|grep "Not Found"` ]]
         then
 #            progressTools "green" "  服务可用--->"
             echoContent green " ---> 服务可用"
         else
             progressTools "red" "    服务不可用"
             progressTools "red" "     1.请检查云朵是否关闭"
-            progressTools "red" "     2.请手动尝试使用账号并观察日志，日志路径[/etc/v2ray-agent/v2ray/v2ray_access_ws_tls.log]"
+            progressTools "red" "     2.请手动尝试使用账号并观察日志，日志路径[/etc/v2ray-agent/v2ray/v2ray_access.log]"
             exit 0
         fi
     elif [[ "${globalType}" = "vlesstcpws" ]]
@@ -696,8 +721,8 @@ initV2RayConfig(){
         cat << EOF > /etc/v2ray-agent/v2ray/config.json
 {
     "log":{
-        "access":"/etc/v2ray-agent/v2ray/v2ray_access_ws_tls.log",
-        "error":"/etc/v2ray-agent/v2ray/v2ray_error_ws_tls.log",
+        "access":"/etc/v2ray-agent/v2ray/v2ray_access.log",
+        "error":"/etc/v2ray-agent/v2ray/v2ray_error.log",
         "loglevel":"debug"
     },
     "stats":{
@@ -832,8 +857,8 @@ EOF
         cat << EOF > /etc/v2ray-agent/v2ray/config.json
 {
     "log":{
-        "access":"/etc/v2ray-agent/v2ray/v2ray_access_ws_tls.log",
-        "error":"/etc/v2ray-agent/v2ray/v2ray_error_ws_tls.log",
+        "access":"/etc/v2ray-agent/v2ray/v2ray_access.log",
+        "error":"/etc/v2ray-agent/v2ray/v2ray_error.log",
         "loglevel":"debug"
     },
     "allocate":{
@@ -909,8 +934,8 @@ EOF
     cat << EOF > /etc/v2ray-agent/v2ray/config.json
 {
 "log":{
-        "access":"/etc/v2ray-agent/v2ray/v2ray_access_ws_tls.log",
-        "error":"/etc/v2ray-agent/v2ray/v2ray_error_ws_tls.log",
+        "access":"/etc/v2ray-agent/v2ray/v2ray_access.log",
+        "error":"/etc/v2ray-agent/v2ray/v2ray_error.log",
         "loglevel":"debug"
     },
   "inbounds": [
@@ -960,8 +985,8 @@ EOF
         cat << EOF > /etc/v2ray-agent/v2ray/config.json
 {
   "log": {
-    "access":"/etc/v2ray-agent/v2ray/v2ray_access_ws_tls.log",
-     "error":"/etc/v2ray-agent/v2ray/v2ray_error_ws_tls.log",
+    "access":"/etc/v2ray-agent/v2ray/v2ray_access.log",
+     "error":"/etc/v2ray-agent/v2ray/v2ray_error.log",
     "loglevel": "debug"
   },
   "inbounds": [
@@ -973,7 +998,7 @@ EOF
           {
             "id": "${uuidtcp}",
             "alterId": 0,
-            "email": "test@v2ray.com"
+            "email": "${domain}_VLESS_TCP"
           }
         ],
         "decryption": "none",
@@ -1015,7 +1040,7 @@ EOF
             "alterId": 0,
             "add":"${add}",
             "level": 1,
-            "email": "test@v2ray.com"
+            "email": "${domain}_vmess_ws"
           }
         ]
       },
@@ -1123,7 +1148,7 @@ defaultBase64Code(){
         echo "   vmess://${qrCodeBase64Default}" >> /etc/v2ray-agent/v2ray/usersv2ray.conf
         echoContent yellow " ---> 通用json(VLESS+tcp+tls)"
         echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"host":"'${host}'","type":"none","net":"tcp","add":"'${host}'","allowInsecure":0,"method":"none","peer":""}\n'
-        echoContent green '    V2Ray v4.27.4 目前无通用订阅，需要手动配置，VLESS和tcp大部分一样，其余内容不变'
+        echoContent green '    V2Ray v4.27.4+ 目前无通用订阅，需要手动配置，VLESS和tcp大部分一样，其余内容不变'
 
     elif [[ "${type}" = "vmessws" ]]
     then
@@ -1133,8 +1158,9 @@ defaultBase64Code(){
         echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}\n'
         echoContent yellow " ---> 通用vmess(ws+tls)链接"
         echoContent green "    vmess://${qrCodeBase64Default}\n"
+        echoContent yellow " ---> 二维码 vmess(ws+tls)"
+        echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vmess://${qrCodeBase64Default}"
     fi
-
 }
 # quanMult base64Code
 quanMultBase64Code(){
@@ -1216,9 +1242,9 @@ installProgressFunction(){
         sleep 0.1
     done
 }
-# 账号展示
+# 账号
 showAccounts(){
-    echoContent skyBlue "\n进度 $1/${totalProgress} : 查看账号"
+    echoContent skyBlue "\n进度 $1/${totalProgress} : 账号"
     if [[ -d "/etc/v2ray-agent/" ]] && [[ -d "/etc/v2ray-agent/v2ray/" ]] && [[ -f "/etc/v2ray-agent/v2ray/config.json" ]]
     then
         # tcp
@@ -1277,7 +1303,7 @@ menu(){
     # echoContent yellow "2.V2Ray+TCP+TLS"
     echoContent red "=============================================================="
     echoContent yellow "4.更新V2Ray"
-    echoContent yellow "5.状态展示[todo]"
+    echoContent yellow "5.运行状态查看[todo]"
     echoContent yellow "6.账号查看"
     echoContent yellow "7.安装BBR"
     echoContent yellow "8.更新脚本"
@@ -1399,11 +1425,12 @@ installV2RayVLESSTCPWSTLS(){
     customCDNIP 10
     initV2RayConfig vlesstcpws 11
     nginxBlog 12
+    handleV2Ray stop
     handleV2Ray start
     handleNginx start
     # 生成账号
     checkGFWStatue 13
-    buildAccounts 14
+    showAccounts 14
 #    progressTools "yellow" "安装完毕[100%]--->"
 }
 # 注意事项
@@ -1443,8 +1470,8 @@ state(){
         echoContent yellow "    安装路径：/usr/bin/v2ray/"
         echoContent yellow "    配置文件：/etc/v2ray-agent/v2ray/config.json"
         echoContent yellow "    日志路径："
-        echoContent yellow "      access:  /etc/v2ray-agent/v2ray/v2ray_access_ws_tls.log"
-        echoContent yellow "      error:  /etc/v2ray-agent/v2ray/v2ray_error_ws_tls.log"
+        echoContent yellow "      access:  /etc/v2ray-agent/v2ray/v2ray_access.log"
+        echoContent yellow "      error:  /etc/v2ray-agent/v2ray/v2ray_error.log"
     else
         echoContent yellow "    暂未安装"
     fi
