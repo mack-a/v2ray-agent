@@ -6,9 +6,10 @@
 - [订阅频道](https://t.me/v2rayagentshare)、[TG群](https://t.me/technologyshare)、[博客地址](https://blog.v2ray-agent.com/)
 - [公益订阅链接【240.93 GB of 2 TB Used 2020-9-6】](https://github.com/mack-a/v2ray-agent/blob/master/documents/free_account.md)。
 
+* * *
 - [1.VLESS+TCP+TLS+伪装博客/Vmess+WS+TLS+伪装博客[Cloudflare 云朵需设置灰色] 二合一脚本](#1vlesstcptls伪装博客vmesswstls伪装博客cloudflare云朵需设置灰色二合一脚本)
 - [2.手动自建教程](#3手动自建教程)
-
+* * *
 # 1.VLESS+TCP+TLS+伪装博客/Vmess+WS+TLS+伪装博客[Cloudflare 云朵需设置灰色] 二合一脚本
 - 安装脚本
 ```
