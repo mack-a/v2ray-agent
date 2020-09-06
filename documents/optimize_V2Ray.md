@@ -12,9 +12,8 @@
 - 2.只需要客户端修改，也就是可以多账号实现自选IP。
 - 3.需要保证在不自选ip的情况可以正常使用
 
-## 最优ip测试脚本
-- 建议使用一下Github仓库的脚本进行测试
-- 支持Linux、Windows
+## 最优ip测试工具
+- 支持Linux、Windows、Android
 ```
 https://github.com/badafans/better-cloudflare-ip
 ```
