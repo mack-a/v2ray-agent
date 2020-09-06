@@ -1,5 +1,5 @@
 # v2ray-agent
-- 新版教程，如需查看旧版请点击["返回旧版"](https://github.com/mack-a/v2ray-agent/blob/master_backup/documents/README_backup.md)
+- 新版教程，如需查看旧版请点击["返回旧版"](https://github.com/mack-a/v2ray-agent/blob/master_backup/README_backup.md)
 - [Cloudflare 优化方案](https://github.com/mack-a/v2ray-agent/blob/dev/documents/optimize_V2Ray.md)
 - [流量中转](https://github.com/mack-a/v2ray-agent/blob/master/documents/traffic_relay.md)
 - [手动自建教程](#3手动自建教程)
