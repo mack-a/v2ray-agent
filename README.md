@@ -14,7 +14,7 @@
 # 1.VLESS+TCP+TLS+伪装博客/Vmess+WS+TLS+伪装博客[Cloudflare 云朵需设置灰色] 二合一脚本
 - 安装脚本
 ```
-bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/dev/install.sh)
+bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh)
 ```
 - 示例图
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/dev/fodder/install/install_尝鲜版_01.png" width=400>
