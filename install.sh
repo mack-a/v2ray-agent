@@ -577,8 +577,67 @@ updateV2Ray(){
         fi
     fi
 }
+# 自动升级
+automaticUpgrade(){
+    if [[ -f "/root/install.sh" ]] && [[ ! -z `cat ~/install.sh|grep -v grep|grep mack-a` ]] && [[ -d "/etc/v2ray-agent" ]]
+    then
+        local currentTime=`date +%s`
+        local version=0
+        local currentVersion=0
+        # 首次安装完毕后再次使用时出发
+        if [[ ! -f "/etc/v2ray-agent/upgradeStatus" ]]
+        then
+            echo "firstUpgrade|${currentTime}" > /etc/v2ray-agent/upgradeStatus
+        fi
+
+        if [[  -z `cat /etc/v2ray-agent/upgradeStatus` ]]
+        then
+            echo "firstUpgrade|${currentTime}" > /etc/v2ray-agent/upgradeStatus
+        fi
+
+        # 第一次升级不计算时间
+        if [[ "`cat /etc/v2ray-agent/upgradeStatus|awk -F '[|]' '{print $1}'`" = "firstUpgrade" ]]
+        then
+            version=`curl -s https://github.com/mack-a/v2ray-agent/releases|grep -v grep|grep /mack-a/v2ray-agent/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
+            currentVersion=`cat /root/install.sh|grep -v grep|grep "当前版本："|awk '{print $3}'|awk -F "[\"]" '{print $2}'|awk -F "[v]" '{print $2}'`
+            echo "upgrade|${currentTime}" > /etc/v2ray-agent/upgradeStatus
+        elif [[ "`cat /etc/v2ray-agent/upgradeStatus|awk -F '[|]' '{print $1}'`" = "upgrade" ]]
+        then
+            # 第二次计算时间 三天
+            local lastTime=`cat /etc/v2ray-agent/upgradeStatus|awk -F '[|]' '{print $2}'`
+            local stampDiff=`expr ${currentTime} - ${lastTime}`
+            dayDiff=`expr ${stampDiff} / 86400`
+#            echoContent red lastTime:${lastTime}
+#            echoContent red currentTime:${currentTime}
+#            echoContent red dayDiff:${dayDiff}
+            if [[ ${dayDiff} -gt 3 ]]
+            then
+                version=`curl -s https://github.com/mack-a/v2ray-agent/releases|grep -v grep|grep /mack-a/v2ray-agent/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
+                currentVersion=`cat /root/install.sh|grep -v grep|grep "当前版本："|awk '{print $3}'|awk -F "[\"]" '{print $2}'|awk -F "[v]" '{print $2}'`
+                echo "upgrade|${currentTime}" > /etc/v2ray-agent/upgradeStatus
+            fi
+        fi
+#        echoContent red version:${version}
+#        echoContent red currentVersion:${currentVersion}
+        if [[ "v${currentVersion}" != "${version}" ]] && [[ "${version}" != "0" ]] && [[ "${currentVersion}" != "0" ]]
+        then
+            echoContent yellow " ---> 当前版本：`echo ${version}|grep -v grep|awk -F '[v]' '{print $2}'`"
+            echoContent green " ---> 新 版 本：${currentVersion}"
+            read -p "发现新版本，是否更新[y/n]？：" upgradeStatus
+            if [[ "${upgradeStatus}" = "y" ]]
+            then
+                updateV2RayAgent 1
+                menu
+            else
+                echo "notUpgrade|${currentTime}" > /etc/v2ray-agent/upgradeStatus
+                menu
+                exit;
+            fi
+        fi
+    fi
+}
 updateV2RayAgent(){
-    rm -rf /etc/v2ray-agent/upgradeStatus
+    echo "upgrade|${currentTime}" > /etc/v2ray-agent/upgradeStatus
     echoContent skyBlue "\n进度  $1/${totalProgress} : 更新v2ray-agent脚本"
     wget -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/dev/install.sh" && chmod +x install.sh && ./install.sh
 }
@@ -1292,43 +1351,62 @@ unInstall(){
     rm -rf /etc/v2ray-agent
     echoContent green "卸载完成"
 }
+# 检查错误
+checkFail(){
+    echoContent skyBlue "\n进度 $1/${totalProgress} : 检查错误"
+    if [[ -d "/etc/v2ray-agent" ]]
+    then
+        if [[ -d "/etc/v2ray-agent/v2ray/" ]]
+        then
+            if [[ -z `ls -F /etc/v2ray-agent/v2ray/|grep "v2ray"` ]] || [[ -z `ls -F /etc/v2ray-agent/v2ray/|grep "v2ctl"` ]]
+            then
+                echoContent red " ---> V2Ray 未安装"
+            else
+                echoContent green " ---> v2ray-core版本:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`"
+                if [[ -z `/etc/v2ray-agent/v2ray/v2ray --test /etc/v2ray-agent/v2ray/config.json|tail -n +3|grep "Configuration OK"` ]]
+                then
+                    echoContent red " ---> V2Ray 配置文件异常"
+                    /etc/v2ray-agent/v2ray/v2ray --test /etc/v2ray-agent/v2ray/config.json
+                elif [[ -z `ps -ef|grep -v grep|grep v2ray` ]]
+                then
+                    echoContent red " ---> V2Ray 未启动"
+                else
+                    echoContent green " ---> V2Ray 正常运行"
+                fi
+            fi
+        else
+            echoContent red " ---> V2Ray 未安装"
+        fi
+
+        if [[ -z `ps -ef|grep -v grep|grep nginx` ]]
+        then
+            echoContent red " ---> Nginx 未启动，伪装博客无法使用"
+        else
+            echoContent green " ---> Nginx 正常运行"
+        fi
+    else
+        echoContent red " ---> 未使用脚本安装"
+    fi
+}
 menu(){
+
      # 新建所需目录
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.0.0"
+    echoContent green "当前版本：v2.0.1"
     echoContent red "=============================================================="
     echoContent yellow "1.V2Ray+VLESS+TLS+TCP+Web/V2Ray+Vmess+TLS+WS+Web[CDN 云朵必须为灰色] 二合一脚本"
     # echoContent yellow "2.V2Ray+TCP+TLS"
     echoContent red "=============================================================="
     echoContent yellow "4.更新V2Ray"
-    echoContent yellow "5.运行状态查看[todo]"
+    echoContent yellow "5.自动排错"
     echoContent yellow "6.账号查看"
     echoContent yellow "7.安装BBR"
     echoContent yellow "8.更新脚本"
     echoContent yellow "9.卸载脚本"
     echoContent red "=============================================================="
-    if [[ -f "/root/install.sh" ]] && [[ ! -z `cat ~/install.sh|grep -v grep|grep mack-a` ]] && [[ -d "/etc/v2ray-agent" ]] && [[ ! -f "/etc/v2ray-agent/upgradeStatus" ]]
-    then
-        local version=`curl -s https://github.com/mack-a/v2ray-agent/releases|grep -v grep|grep /mack-a/v2ray-agent/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
-        local currentVersion=`cat /root/install.sh|grep -v grep|grep "当前版本："|awk '{print $3}'|awk -F "[\"]" '{print $2}'|awk -F "[v]" '{print $2}'`
-        echoContent yellow " ---> 当前版本：`echo ${version}|grep -v grep|awk -F '[v]' '{print $2}'`"
-        echoContent green " ---> 新 版 本：${currentVersion}"
-        if [[ "${currentVersion}" != "${version}" ]]
-        then
-            read -p "发现新版本，是否更新[y/n]？：" upgradeStatus
-            if [[ "${upgradeStatus}" = "y" ]]
-            then
-                updateV2RayAgent 1
-                menu
-            else
-                mkdir -p /etc/v2ray-agent/ && touch /etc/v2ray-agent/upgradeStatus
-                menu
-                exit;
-            fi
-        fi
-    fi
+    automaticUpgrade
     read -p "请选择:" selectInstallType
      case ${selectInstallType} in
         1)
@@ -1336,6 +1414,9 @@ menu(){
         ;;
         4)
             updateV2Ray 1
+        ;;
+        5)
+            checkFail 1
         ;;
         6)
             showAccounts 1
@@ -1405,7 +1486,6 @@ installV2RayVmessTCPTLS(){
     # 生成账号
     checkGFWStatue
     buildAccounts
-    progressTools "yellow" "安装完毕[100%]--->"
 }
 installV2RayVLESSTCPWSTLS(){
     totalProgress=14
