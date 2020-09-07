@@ -1,13 +1,19 @@
 #!/usr/bin/env bash
 
-installType='yum -y install'
+installType='yum -y install --nobest'
 removeType='yum -y remove'
 upgrade="yum -y update"
 echoType='echo -e'
+domain=
+add=
+globalType=
+customPath=alone
 centosVersion=0
-installProgress=0
-totalProgress=20
+totalProgress=1
 iplc=$1
+uuidws=
+uuidtcp=
+
 trap 'onCtrlC' INT
 function onCtrlC () {
     echo
@@ -16,11 +22,12 @@ function onCtrlC () {
 }
 # echo颜色方法
 echoContent(){
-    printN='\n'
-    if [[ ! -z "$3" ]]
-    then
-        printN=''
-    fi
+#    printN=''
+#    if [[ ! -z "$3" ]]
+#    then
+#        echo 1
+#        printN='\n'
+#    fi
     case $1 in
         # 红色
         "red")
@@ -28,7 +35,7 @@ echoContent(){
         ;;
         # 天蓝色
         "skyBlue")
-            ${echoType} "\033[36m${printN}$2 \033[0m"
+            ${echoType} "\033[1;36m${printN}$2 \033[0m"
         ;;
         # 绿色
         "green")
@@ -50,27 +57,20 @@ echoContent(){
         ;;
     esac
 }
-# 修复bug
-fixBug(){
-    echo
-}
 # 新建目录
 mkdirTools(){
-    mkdir -p /etc/v2ray/
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 创建文件夹"
+    mkdir -p /etc/v2ray-agent/tls
+    mkdir -p /etc/v2ray-agent/v2ray
     mkdir -p /etc/systemd/system/
-    mkdir -p /etc/nginx/v2ray-agent-https/
-    mkdir -p /usr/bin/v2ray/
-    mkdir -p /tmp/v2ray/
-    mkdir -p /tmp/tls/
 }
 # 安装工具包
 installTools(){
-    # echo "export LC_ALL=en_US.UTF-8"  >>  /etc/profile
-    # source /etc/profile
-    # kill lock
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 安装工具"
     if [[ "${release}" = "centos" ]]
     then
-        progressTools "yellow" "检查安装jq、nginx epel源、yum-utils--->" 0
+        echoContent green " ---> 检查安装jq、nginx epel源、yum-utils"
+#        progressTools "yellow" "检查安装jq、nginx epel源、yum-utils--->"
         # jq epel源
         rpm -ivh http://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm > /dev/null 2>&1
 
@@ -90,160 +90,214 @@ installTools(){
             nginxEpel="http://nginx.org/packages/centos/8/x86_64/RPMS/nginx-1.18.0-1.el8.ngx.x86_64.rpm"
         fi
         # nginx epel源
-        rpm -ivh ${nginxEpel} > /dev/null 2>&1
+        rpm -ivh ${nginxEpel} > /etc/v2ray-agent/error.log 2>&1
         # yum-utils
-        yum install yum-utils -y > /dev/null 2>&1
+        yum install yum-utils --nobest -y > /etc/v2ray-agent/error.log 2>&1
+    fi
+    # 修复ubuntu个别系统问题
+    if [[ "${release}" = "ubuntu" ]]
+    then
+        dpkg --configure -a
     fi
 
     if [[ ! -z `ps -ef|grep -v grep|grep apt`  ]]
     then
         ps -ef|grep -v grep|grep apt|awk '{print $2}'|xargs kill -9
     fi
-    progressTools "yellow" "卸载Nginx--->" 1
-#    echoContent yellow "删除Nginx、V2Ray，请等待--->"
-    if [[ ! -z `find /usr/sbin/ -name nginx` ]]
-    then
-        if [[ ! -z `ps -ef|grep nginx|grep -v grep`  ]]
-        then
-            ps -ef|grep nginx|grep -v grep|awk '{print $2}'|xargs kill -9
-        fi
 
-        if [[ "${release}" = "ubuntu" ]] || [[ "${release}" = "debian" ]]
-        then
-            dpkg --get-selections | grep nginx|awk '{print $1}'|xargs sudo apt --purge remove -y > /dev/null
-        else
-            removeLog=`${removeType} nginx`
-        fi
-        rm -rf /etc/nginx/nginx.conf
-        rm -rf /usr/share/nginx/html.zip
-    fi
+    # 卸载V2Ray
+    # progressTools "yellow" "卸载Nginx--->" 1
+    # echoContent yellow "删除Nginx、V2Ray，请等待--->"
+    #    if [[ ! -z `find /usr/sbin/ -name nginx` ]]
+    #    then
+    #        if [[ ! -z `ps -ef|grep nginx|grep -v grep`  ]]
+    #        then
+    #            ps -ef|grep nginx|grep -v grep|awk '{print $2}'|xargs kill -9
+    #        fi
+    #
+    #        if [[ "${release}" = "ubuntu" ]] || [[ "${release}" = "debian" ]]
+    #        then
+    #            dpkg --get-selections | grep nginx|awk '{print $1}'|xargs sudo apt --purge remove -y > /dev/null
+    #        else
+    #            removeLog=`${removeType} nginx`
+    #        fi
+    #        rm -rf /etc/nginx/nginx.conf
+    #        rm -rf /usr/share/nginx/html.zip
+    #    fi
 
-    progressTools "yellow" "卸载V2Ray--->" 2
-    if [[ ! -z `find /usr/bin/ -name "v2ray*"` ]]
-    then
-        if [[ ! -z `ps -ef|grep v2ray|grep -v grep`  ]]
-        then
-            ps -ef|grep v2ray|grep -v grep|awk '{print $2}'|xargs kill -9
-        fi
-        rm -rf  /usr/bin/v2ray
-    fi
+    # 卸载V2Ray
+    #    progressTools "yellow" "卸载V2Ray--->" 2
+    #    if [[ ! -z `find /usr/bin/ -name "v2ray*"` ]]
+    #    then
+    #        if [[ ! -z `ps -ef|grep v2ray|grep -v grep`  ]]
+    #        then
+    #            ps -ef|grep v2ray|grep -v grep|awk '{print $2}'|xargs kill -9
+    #        fi
+    #        rm -rf  /usr/bin/v2ray
+    #    fi
 
-    progressTools "yellow" "卸载V2Ray开机自启--->" 3
-    rm -rf /etc/systemd/system/v2ray.service
-    if [[ ! -z `find /bin /usr/bin -name "systemctl"` ]]
-    then
-        systemctl daemon-reload
-    else
-        echo
-    fi
+    # 卸载V2Ray开机自启
+    #    progressTools "yellow" "卸载V2Ray开机自启--->" 3
+    #    rm -rf /etc/systemd/system/v2ray.service
+    #    if [[ ! -z `find /bin /usr/bin -name "systemctl"` ]]
+    #    then
+    #        systemctl daemon-reload
+    #    else
+    #        echo
+    #    fi
 
-    progressTools "yellow" "卸载acme.sh--->" 4
-    rm -rf ~/.acme.sh > /dev/null
-    if [[ ! -z `cat /root/.bashrc|grep -n acme` ]]
-    then
-        acmeBashrcLine=`cat /root/.bashrc|grep -n acme|awk -F "[:]" '{print $1}'|head -1`
-        sed -i "${acmeBashrcLine}d" /root/.bashrc
-    fi
+    # 卸载acme.sh
+    # progressTools "yellow" "卸载acme.sh--->" 4
+    # rm -rf ~/.acme.sh > /dev/null
+    # if [[ ! -z `cat /root/.bashrc|grep -n acme` ]]
+    # then
+    #         acmeBashrcLine=`cat /root/.bashrc|grep -n acme|awk -F "[:]" '{print $1}'|head -1`
+    #     sed -i "${acmeBashrcLine}d" /root/.bashrc
+    # fi
 
-
-    progressTools "yellow" "检查、安装更新【新机器会很慢，耐心等待】--->" 5
+    echoContent green " ---> 检查、安装更新【新机器会很慢，耐心等待】"
     # if [[ "${release}" = "centos" ]]
     # then
     #    yum-complete-transaction --cleanup-only
     # fi
     ${upgrade} > /dev/null
+    if [[ "${release}" = "centos" ]]
+    then
+        # yum要删除pid
+        rm -rf /var/run/yum.pid
 
-    # yum要删除pid
-    rm -rf /var/run/yum.pid
+    fi
 
-    progressTools "yellow" "检查、安装wget--->" 6
-    ${installType} wget > /dev/null
+    if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep wget` ]]
+    then
+#        progressTools "yellow" "安装wget--->"
+        echoContent green " ---> 安装wget"
+        ${installType} wget > /dev/null
+    fi
 
-    progressTools "yellow" "检查、安装unzip--->" 7
-    ${installType} unzip > /dev/null
+    if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep unzip` ]]
+    then
+        echoContent green " ---> 安装unzip"
+#        progressTools "yellow" "安装unzip--->"
+        ${installType} unzip > /dev/null
+    fi
+
+    if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep socat` ]]
+    then
+#        progressTools "yellow" "安装socat--->"
+        echoContent green " ---> 安装socat"
+        ${installType} socat > /dev/null
+    fi
+
+    if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep tar` ]]
+    then
+        # progressTools "yellow" "安装tar--->"
+        echoContent green " ---> 安装tar"
+        ${installType} tar > /dev/null
+    fi
 
     # echoContent yellow "检查、安装qrencode--->"
     # # progressTool qrencode &
     # ${installType} qrencode > /dev/null
-
-    progressTools "yellow" "检查、安装socat--->" 8
-    ${installType} socat > /dev/null
-
-    progressTools "yellow" "检查、安装tar--->" 9
-    ${installType} tar > /dev/null
-
-    progressTools "yellow" "检查、安装crontabs--->" 10
-    if [[ "${release}" = "ubuntu" ]] || [[ "${release}" = "debian" ]]
+    if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep cron` ]]
     then
-        ${installType} cron > /dev/null
-    else
-        ${installType} crontabs > /dev/null
+#        progressTools "yellow" "安装crontabs--->"
+        echoContent green " ---> 安装crontabs"
+        if [[ "${release}" = "ubuntu" ]] || [[ "${release}" = "debian" ]]
+        then
+            ${installType} cron > /dev/null
+        else
+            ${installType} crontabs > /dev/null
+        fi
+    fi
+    if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep jq` ]]
+    then
+        echoContent green " ---> 安装jq"
+        # progressTools "yellow" "安装jq--->"
+        ${installType} jq > /dev/null
     fi
 
-    progressTools "yellow" "检查、安装jq--->" 11
-    ${installType} jq > /dev/null
-
-    # echoContent skyBlue "检查、安装bind-utils--->"
-    # # progressTool bind-utils
-    # 关闭防火墙
-
-    # 安装nginx
-    progressTools "yellow" "检查、安装Nginx--->" 12
-    # progressTool nginx &
-    ${installType} nginx > /dev/null
-    if [[ ! -z `ps -ef|grep -v grep|grep nginx` ]]
+    if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep binutils` ]]
     then
-        nginx -s stop
+        echoContent green " ---> 安装binutils"
+        # progressTools "yellow" "安装binutils--->"
+        ${installType} binutils > /dev/null  2>&1
     fi
-    progressTools "yellow" "检查、安装binutils--->" 13
-    # progressTool nginx &
-    ${installType} binutils > /dev/null
+
+    if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep nginx` ]]
+    then
+        echoContent green " ---> 安装nginx"
+#        progressTools "yellow" "安装nginx--->"
+        ${installType} nginx > /dev/null
+    fi
+
+    # todo 关闭防火墙
+
     # 新建所需目录
-    mkdirTools
+    # mkdirTools
 
-    progressTools "yellow" "检查、安装acme--->" 14
-    mkdir -p /etc/tls/
-    curl -s https://get.acme.sh | sh > /etc/tls/acme.log
-    if [[ -z `find ~/.acme.sh -name "acme.sh"` ]]
+    if [[ ! -d "/root/.acme.sh" ]]
     then
-        echoContent red "  acme安装失败--->"
-        echoContent yellow "错误排查："
-        echoContent red "  1.获取Github文件失败，请等待GitHub恢复后尝试，恢复进度可查看 [https://www.githubstatus.com/]"
-        echoContent red "  2.acme.sh脚本出现bug，可查看[https://github.com/acmesh-official/acme.sh] issues"
-        echoContent red "  3.反馈给开发者[私聊：https://t.me/mack_a] 或 [提issues]"
-        killSleep > /dev/null 2>&1
-        exit 0
+        # progressTools "yellow" "安装acme.sh--->"
+        echoContent green " ---> 安装acme.sh"
+        curl -s https://get.acme.sh | sh > /etc/v2ray-agent/tls/acme.log
+        if [[ -d "~/.acme.sh" ]] && [[ -z `ls -F ~/.acme.sh/|grep -w "acme.sh"` ]]
+        then
+            echoContent red "  acme安装失败--->"
+            echoContent yellow "错误排查："
+            echoContent red "  1.获取Github文件失败，请等待GitHub恢复后尝试，恢复进度可查看 [https://www.githubstatus.com/]"
+            echoContent red "  2.acme.sh脚本出现bug，可查看[https://github.com/acmesh-official/acme.sh] issues"
+            echoContent red "  3.反馈给开发者[私聊：https://t.me/mack_a] 或 [提issues]"
+            killSleep > /dev/null 2>&1
+            exit 0
+        fi
+    fi
+    if [[ -d "/root/.acme.sh" ]] && [[ -z `find /root/.acme.sh/ -name "acme.sh"` ]]
+    then
+        echoContent green " ---> 安装acme.sh"
+        curl -s https://get.acme.sh | sh > /etc/v2ray-agent/tls/acme.log
+        if [[ -d "~/.acme.sh" ]] && [[ -z `find /root/.acme.sh/ -name "acme.sh"` ]]
+        then
+            echoContent red "  acme安装失败--->"
+            echoContent yellow "错误排查："
+            echoContent red "  1.获取Github文件失败，请等待GitHub恢复后尝试，恢复进度可查看 [https://www.githubstatus.com/]"
+            echoContent red "  2.acme.sh脚本出现bug，可查看[https://github.com/acmesh-official/acme.sh] issues"
+            echoContent red "  3.反馈给开发者[私聊：https://t.me/mack_a] 或 [提issues]"
+            killSleep > /dev/null 2>&1
+            exit 0
+        fi
     fi
 }
-# 安装Nginx tls证书
-installNginx(){
+# 初始化Nginx申请证书配置
+initTLSNginxConfig(){
+    handleNginx stop
     killSleep > /dev/null 2>&1
     killSleep > /dev/null 2>&1
-    echoContent yellow  "请输入要配置的域名 例：worker.v2ray-agent.com --->"
-    read domain
+#    echoContent green  "初始化Nginx申请证书配置 --->"
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 初始化Nginx申请证书配置"
+    echoContent yellow  "请输入要配置的域名 例：blog.v2ray-agent.com --->"
+    read -p "域名:" domain
     if [[ -z ${domain} ]]
     then
         echoContent red "  域名不可为空--->"
-        installNginx
+        initTLSNginxConfig
     else
         # 修改配置
-        progressTools "yellow" "配置Nginx--->" 15
+        echoContent green " ---> 配置Nginx"
+#        progressTools "yellow" "配置Nginx--->" 15
         touch /etc/nginx/conf.d/alone.conf
         echo "server {listen 80;server_name ${domain};root /usr/share/nginx/html;location ~ /.well-known {allow all;}location /test {return 200 'fjkvymb6len';}}" > /etc/nginx/conf.d/alone.conf
-        # sed -i "1i 1" /etc/nginx/conf.d/alone.conf
-        # installLine=`expr ${installLine} + 1`
-        # sed -i "${installLine}i location /test {return 200 'fjkvymb6len';}" /etc/nginx/nginx.conf
         # 启动nginx
-        nginx
-
+        handleNginx start
         # 测试nginx
-        progressTools "yellow" "检查Nginx是否正常访问--->" 16
+        echoContent green " ---> 检查Nginx是否正常访问"
+#        progressTools "yellow" "检查Nginx是否正常访问--->" 16
         domainResult=`curl -s ${domain}/test|grep fjkvymb6len`
         if [[ ! -z ${domainResult} ]]
         then
-            ps -ef|grep nginx|grep -v grep|awk '{print $2}'|xargs kill -9
-            progressTools "green" "Nginx配置成功--->"
-            installTLS ${domain}
+            handleNginx stop
+            echoContent green " ---> Nginx配置成功"
+#            progressTools "green" "Nginx配置成功--->"
         else
             echoContent red "    无法正常访问服务器，请检测域名是否正确、域名的DNS解析以及防火墙设置是否正确--->"
             killSleep > /dev/null 2>&1
@@ -253,135 +307,152 @@ installNginx(){
 }
 # 安装TLS
 installTLS(){
-    mkdir -p /etc/nginx/v2ray-agent-https/
-    mkdir -p /etc/v2ray-agent/tls/
-    touch /etc/nginx/v2ray-agent-https/config
-    if [[ -z `find /etc/v2ray-agent/tls/ -name "$1*"` ]]
+#    progressTools "yellow" "申请TLS证书" 17
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 申请TLS证书"
+    if [[ -z `find /etc/v2ray-agent/tls/ -name "${domain}*"` ]]
     then
-        progressTools "yellow" "检查、安装TLS证书--->" 17
+        echoContent green " ---> 安装TLS证书"
+#        progressTools "yellow" "安装TLS证书--->" 17
 
-        sudo ~/.acme.sh/acme.sh --issue -d $1 --standalone -k ec-256 >/dev/null
-        ~/.acme.sh/acme.sh --installcert -d $1 --fullchainpath /etc/nginx/v2ray-agent-https/$1.crt --keypath /etc/nginx/v2ray-agent-https/$1.key --ecc >/dev/null
-        if [[ -z `cat /etc/nginx/v2ray-agent-https/$1.crt` ]]
+        sudo ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 >/dev/null
+        ~/.acme.sh/acme.sh --installcert -d ${domain} --fullchainpath /etc/v2ray-agent/tls/${domain}.crt --keypath /etc/v2ray-agent/tls/${domain}.key --ecc >/dev/null
+        if [[ -z `cat /etc/v2ray-agent/tls/${domain}.crt` ]]
         then
             progressTools "yellow" "    TLS安装失败，请检查acme日志--->"
             exit 0
-        elif [[ -z `cat /etc/nginx/v2ray-agent-https/$1.key` ]]
+        elif [[ -z `cat /etc/v2ray-agent/tls/${domain}.key` ]]
         then
             progressTools "yellow" "    TLS安装失败，请检查acme日志--->"
             exit 0
         fi
-        progressTools "green" "  TLS生成成功--->>"
-
-        echo $1 `date +%s` > /etc/nginx/v2ray-agent-https/config
-
-        cp -R /etc/nginx/v2ray-agent-https/config /etc/v2ray-agent/tls/config
-        cp -R /etc/nginx/v2ray-agent-https/$1.crt /etc/v2ray-agent/tls/$1.crt
-        cp -R /etc/nginx/v2ray-agent-https/$1.key /etc/v2ray-agent/tls/$1.key
-        progressTools "yellow" "  TLS证书备份成功，证书位置：/etc/v2ray-agent/tls--->"
-    elif  [[ -z `cat /etc/v2ray-agent/tls/$1.crt` ]] || [[ -z `cat /etc/v2ray-agent/tls/$1.key` ]]
+        echoContent green " ---> TLS生成成功"
+#        progressTools "green" "  TLS生成成功--->>"
+        # 记录证书生成的时间
+        echo ${domain} `date +%s` > /etc/v2ray-agent/tls/config
+    elif  [[ -z `cat /etc/v2ray-agent/tls/${domain}.crt` ]] || [[ -z `cat /etc/v2ray-agent/tls/${domain}.key` ]]
     then
         progressTools "red" "  检测到错误证书，需重新生成，重新生成中--->" 18
-        rm -rf /etc/v2ray-agent/tls/
-        installTLS $1
+        rm -rf /etc/v2ray-agent/tls/*
+        installTLS
     else
-        progressTools "yellow" "检测到备份证书，使用--->"
-        cp -R /etc/v2ray-agent/tls/$1.crt /etc/nginx/v2ray-agent-https/$1.crt
-        cp -R /etc/v2ray-agent/tls/$1.key /etc/nginx/v2ray-agent-https/$1.key
-        cp -R /etc/v2ray-agent/tls/config /etc/nginx/v2ray-agent-https/config
+        echoContent green " ---> 检测到证书"
+        read -p "是否重新生成？[y/n]:" reInstalTLStatus
+        if [[ "${reInstalTLStatus}" = "y" ]]
+        then
+            rm -rf /etc/v2ray-agent/tls/*
+            installTLS $1
+        fi
+#        progressTools "yellow" "检测到证书，自动使用--->"
     fi
-    # nginxInstallLine=`cat /etc/nginx/nginx.conf|grep -n "}"|awk -F "[:]" 'END{print $1-1}'`
-    # sed -i "${nginxInstallLine}i server {listen 443 ssl;server_name $1;root /usr/share/nginx/html;ssl_certificate /etc/nginx/$1.crt;ssl_certificate_key /etc/nginx/$1.key;ssl_protocols TLSv1 TLSv1.1 TLSv1.2;ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;ssl_prefer_server_ciphers on;location / {} location /alone { proxy_redirect off;proxy_pass http://127.0.0.1:31299;proxy_http_version 1.1;proxy_set_header Upgrade \$http_upgrade;proxy_set_header Connection "upgrade";proxy_set_header X-Real-IP \$remote_addr;proxy_set_header Host \$host;proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;}}" /etc/nginx/nginx.conf
-    # todo
-    cat << EOF > /etc/nginx/conf.d/alone.conf
-server {
-    listen 443 ssl;
-    server_name $1;
-    root /usr/share/nginx/html;
-    ssl_certificate /etc/nginx/v2ray-agent-https/$1.crt;ssl_certificate_key /etc/nginx/v2ray-agent-https/$1.key;
-    ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
-    ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;ssl_prefer_server_ciphers on;
-    location / {}
-    location /alone {
-        proxy_redirect off;
-        proxy_pass http://127.0.0.1:31299;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-    }
-    location /vlesspath {
-        proxy_redirect off;
-        proxy_pass http://127.0.0.1:31298;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-    }
 }
+# 安装Nginx科学上网配置
+initNginxConfig(){
+    echoContent skyBlue "\n进度  $2/${totalProgress} : 配置Nginx"
+#    echoContent green "配置Nginx"
+    installType=$1
+    if [[ "${installType}" = "wss" ]]
+    then
+    cat << EOF > /etc/nginx/conf.d/alone.conf
+    server {
+        listen 443 ssl;
+        server_name ${domain};
+        root /usr/share/nginx/html;
+        ssl_certificate /etc/v2ray-agent/tls/${domain}.crt;ssl_certificate_key /etc/v2ray-agent/tls/${domain}.key;
+        ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+        ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;ssl_prefer_server_ciphers on;
+        location / {}
+        location /alone {
+            proxy_redirect off;
+            proxy_pass http://127.0.0.1:31299;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade \$http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        }
+        location /vlesspath {
+            proxy_redirect off;
+            proxy_pass http://127.0.0.1:31298;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade \$http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        }
+    }
 EOF
 
-
-    # 自定义路径
-    # todo 随机路径
-    progressTools "yellow" "请输入自定义路径Vmess[例: alone]，不需要斜杠，[回车]随机路径，VLESS则为随机路径"
-    read customPath
-
-    if [[ ! -z "${customPath}" ]]
+    elif [[ "${installType}" = "vlesstcpws" ]]
     then
-        sed -i "s/alone/${customPath}/g" `grep alone -rl /etc/nginx/conf.d/alone.conf`
-        sed -i "s/vlesspath/${customPath}vld/g" `grep vlesspath -rl /etc/nginx/conf.d/alone.conf`
-    else
+        cat << EOF > /etc/nginx/conf.d/alone.conf
+server {
+    listen 80;
+    server_name ${domain};
+    root /usr/share/nginx/html;
+    location ~ /.well-known {allow all;}
+    location /test {return 200 'fjkvymb6len';}
+}
+EOF
+    fi
+}
+# 自定义/随机路径
+randomPathFunction(){
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 生成随机路径"
+    progressTools "yellow" "请输入自定义路径[例: alone]，不需要斜杠，[回车]随机路径"
+    read -p '路径:' customPath
+
+    if [[ -z "${customPath}" ]]
+    then
         customPath=`head -n 50 /dev/urandom|sed 's/[^a-z]//g'|strings -n 4|tr 'A-Z' 'a-z'|head -1`
-        if [[ ! -z "${customPath}" ]]
-        then
-            sed -i "s/alone/${customPath}/g" `grep alone -rl /etc/nginx/conf.d/alone.conf`
-            sed -i "s/vlesspath/${customPath}vld/g" `grep vlesspath -rl /etc/nginx/conf.d/alone.conf`
-        fi
     fi
     echoContent yellow "path：${customPath}"
-    echoContent yellow "vlessPath：${customPath}vld"
-    rm -rf /usr/share/nginx/html
-    wget -q -P /usr/share/nginx https://raw.githubusercontent.com/mack-a/v2ray-agent/master/blog/unable/html.zip >> /dev/null
-    unzip  /usr/share/nginx/html.zip -d /usr/share/nginx/html > /dev/null
-    nginx
-    if [[ -z `ps -ef|grep -v grep|grep nginx` ]]
-    then
-        progressTools "red" "  Nginx启动失败，请检查日志--->"
-        exit 0
-    fi
-
-    # 增加定时任务定时维护证书
-    reInstallTLS $1
-    installV2Ray $1 ${customPath}
 }
-
-# 重新安装&更新tls证书
-reInstallTLS(){
-    progressTools "yellow" "检查、添加定时维护证书--->" 19
-    touch /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-    touch /etc/nginx/v2ray-agent-https/backup_crontab.cron
-    touch /etc/v2ray-agent/tls/tls.log
+# Nginx伪装博客
+nginxBlog(){
+#    echoContent yellow "添加伪装博客--->"
+    echoContent skyBlue "\n进度 $1/${totalProgress} : 添加伪装博客"
+    rm -rf /usr/share/nginx/html
+    wget -q -P /usr/share/nginx https://raw.githubusercontent.com/mack-a/v2ray-agent/master/blog/unable/html.zip > /dev/null
+    unzip  /usr/share/nginx/html.zip -d /usr/share/nginx/html > /dev/null
+#    echoContent yellow "添加伪装博客成功--->"
+    echoContent green " ---> 添加伪装博客成功"
+}
+# 操作Nginx
+handleNginx(){
+    if [[ -z `ps -ef|grep -v grep|grep nginx` ]] && [[ "$1" = "start" ]]
+    then
+        nginx
+        if [[ -z `ps -ef|grep -v grep|grep nginx` ]]
+        then
+            progressTools "red" "  Nginx启动失败，请检查日志--->"
+            exit 0
+        fi
+    elif [[  "$1" = "stop" ]] && [[ ! -z `ps -ef|grep -v grep|grep nginx` ]]
+    then
+        nginx -s stop
+    fi
+}
+# 定时任务更新tls证书
+installCronTLS(){
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 添加定时维护证书"
+#    progressTools "yellow" "检查、添加定时维护证书--->" 19
     if [[ -z `crontab -l|grep -v grep|grep 'reloadInstallTLS'` ]]
     then
-        crontab -l >> /etc/nginx/v2ray-agent-https/backup_crontab.cron
+        crontab -l >> /etc/v2ray-agent/backup_crontab.cron
         # 定时任务
-        echo "30 1 * * * /bin/bash /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh" >> /etc/nginx/v2ray-agent-https/backup_crontab.cron
-        crontab /etc/nginx/v2ray-agent-https/backup_crontab.cron
+        echo "30 1 * * * /bin/bash /etc/v2ray-agent/reloadInstallTLS.sh" >> /etc/v2ray-agent/backup_crontab.cron
+        crontab /etc/v2ray-agent/backup_crontab.cron
     fi
     # 备份
 
-    domain=$1
-    cat << EOF > /etc/nginx/v2ray-agent-https/reloadInstallTLS.sh
-        domain=$1
+    cat << EOF > /etc/v2ray-agent/reloadInstallTLS.sh
+        domain=${domain}
         eccPath=\`find ~/.acme.sh -name "\${domain}_ecc"|head -1\`
-        mkdir -p /etc/v2ray-agent/tls
-        touch /etc/v2ray-agent/tls/tls.log
-        touch /etc/v2ray-agent/tls/acme.log
+#        mkdir -p /etc/v2ray-agent/tls
+#        touch /etc/v2ray-agent/tls/tls.log
+#        touch /etc/v2ray-agent/tls/acme.log
         if [[ ! -z \${eccPath} ]]
         then
             modifyTime=\`stat \${eccPath}/\${domain}.key|sed -n '6,6p'|awk '{print \$2" "\$3" "\$4" "\$5}'\`
@@ -394,7 +465,7 @@ reInstallTLS(){
             if [[ ! -z \${modifyTime} ]] && [[ ! -z \${currentTime} ]] && [[ ! -z \${stampDiff} ]] && [[ ! -z \${minutes} ]] && [[ \${minutes} -lt '120' ]]
             then
                 nginx -s stop
-                ~/.acme.sh/acme.sh --installcert -d \${domain} --fullchainpath /etc/nginx/v2ray-agent-https/\${domain}.crt --keypath /etc/nginx/v2ray-agent-https/\${domain}.key --ecc >> /tmp/tls/acme.log
+                ~/.acme.sh/acme.sh --installcert -d \${domain} --fullchainpath /etc/v2ray-agent/tls/\${domain}.crt --keypath /etc/v2ray-agent/tls/\${domain}.key --ecc >> /etc/v2ray-agent/tls/acme.log
                 nginx
                 reloadTime=\`date -d @\${currentTime} +"%F %H:%M:%S"\`
             fi
@@ -406,132 +477,311 @@ EOF
 
     if [[ ! -z `crontab -l|grep -v grep|grep 'reloadInstallTLS'` ]]
     then
-        progressTools "green" "  添加定时维护证书成功"
+        echoContent green " ---> 添加定时维护证书成功"
+#        progressTools "green" "  添加定时维护证书成功"
     else
-        crontab -l >> /etc/nginx/v2ray-agent-https/backup_crontab.cron
+        crontab -l >> /etc/v2ray-agent/backup_crontab.cron
         # 定时任务
-        crontab /etc/nginx/v2ray-agent-https/backup_crontab.cron
-        progressTools "green" "  检测到已添加定时任务"
+        crontab /etc/v2ray-agent/backup_crontab.cron
+#        progressTools "green" "  检测到已添加定时任务"
+        echoContent green " ---> 添加定时维护证书成功"
     fi
 }
-# V2Ray
+# 安装V2Ray
 installV2Ray(){
-# ls -F /usr/bin/v2ray/|grep "v2ray"
-    mkdir -p /usr/bin/v2ray/
-    mkdir -p /etc/v2ray-agent/v2ray/
+    # ls -F /usr/bin/v2ray/|grep "v2ray"
+    #    mkdir -p /usr/bin/v2ray/
+    #    mkdir -p /etc/v2ray-agent/v2ray/
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 安装V2Ray"
     if [[ -z `ls -F /etc/v2ray-agent/v2ray/|grep "v2ray"` ]] || [[ -z `ls -F /etc/v2ray-agent/v2ray/|grep "v2ctl"` ]]
     then
-        if [[ -z `ls -F /usr/bin/v2ray/|grep "v2ray"` ]] || [[ -z `ls -F /usr/bin/v2ray/|grep "v2ctl"` ]]
+#        progressTools "yellow" "检查、安装V2Ray--->" 20
+        version=`curl -s https://github.com/v2fly/v2ray-core/releases|grep /v2ray-core/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
+#        version="v4.27.4"
+#        progressTools "green" "  v2ray-core版本:${version}"
+        echoContent green " ---> v2ray-core版本:${version}"
+        wget -q -P /etc/v2ray-agent/v2ray/ https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip
+        unzip /etc/v2ray-agent/v2ray/v2ray-linux-64.zip -d /etc/v2ray-agent/v2ray > /dev/null
+        rm -rf /etc/v2ray-agent/v2ray/v2ray-linux-64.zip
+    else
+#        progressTools "green" "  v2ray-core版本:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`"
+        echoContent green " ---> v2ray-core版本:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`"
+        read -p "是否重新安装？[y/n]:" reInstalV2RayStatus
+        if [[ "${reInstalV2RayStatus}" = "y" ]]
         then
-            progressTools "yellow" "检查、安装V2Ray--->" 20
-            version=`curl -s https://github.com/v2ray/v2ray-core/releases|grep /v2ray/v2ray-core/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
-            progressTools "green" "  v2ray-core版本:${version}"
-
-            wget -q -P /etc/v2ray-agent/v2ray https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip
-            unzip /etc/v2ray-agent/v2ray/v2ray-linux-64.zip -d /etc/v2ray-agent/v2ray > /dev/null
-            cp /etc/v2ray-agent/v2ray/v2ray /usr/bin/v2ray/v2ray && cp /etc/v2ray-agent/v2ray/v2ctl /usr/bin/v2ray/v2ctl
-            rm -rf /etc/v2ray-agent/v2ray/v2ray-linux-64.zip
+            rm -rf /etc/v2ray-agent/v2ray/*
+            installV2Ray $1
         fi
-    else
-        progressTools "green" "  v2ray-core版本:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`"
-        cp /etc/v2ray-agent/v2ray/v2ray /usr/bin/v2ray/v2ray && cp /etc/v2ray-agent/v2ray/v2ctl /usr/bin/v2ray/v2ctl
     fi
-
-    if [[ ! -z `find /bin /usr/bin -name "systemctl"` ]]
+}
+# 更新V2Ray
+updateV2Ray(){
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 更新V2Ray"
+    if [[ ! -d "/etc/v2ray-agent/v2ray/" ]]
     then
-        installV2RayService
-    fi
-
-    initV2RayConfig $2
-    if [[ ! -z `find /bin /usr/bin -name "systemctl"` ]]
-    then
-        systemctl daemon-reload
-        systemctl enable v2ray.service
-        systemctl start  v2ray.service
-    else
-        /usr/bin/v2ray/v2ray -config /etc/v2ray/config.json & > /dev/null 2>&1
-    fi
-
-    sleep 0.5
-    if [[ -z `ps -ef|grep v2ray|grep -v grep` ]]
-    then
-        progressTools "red" "      V2Ray启动失败，请检查日志后，重新执行脚本--->"
+        echoContent red " ---> 没有检测到安装目录，请执行脚本安装内容"
+        menu
         exit 0;
     fi
-#    echoContent green "  V2Ray启动成功--->\n"
-    echoContent yellow "V2Ray日志目录："
-    echoContent green "  access:  /etc/v2ray/v2ray_access_ws_tls.log"
-    echoContent green "  error:  /etc/v2ray/v2ray_error_ws_tls.log"
-
-    # 验证整个服务是否可用
-    progressTools "yellow" "验证服务是否可用--->"
-    nginxPath=$2;
-    if [[ -z "${nginxPath}" ]]
+    if [[ -z `ls -F /etc/v2ray-agent/v2ray/|grep "v2ray"` ]] || [[ -z `ls -F /etc/v2ray-agent/v2ray/|grep "v2ctl"` ]]
     then
-        nginxPath="alone"
-    fi
+        version=`curl -s https://github.com/v2fly/v2ray-core/releases|grep /v2ray-core/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
+        echoContent green " ---> v2ray-core版本:${version}"
+        wget -q -P /etc/v2ray-agent/v2ray/ https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip
+        unzip /etc/v2ray-agent/v2ray/v2ray-linux-64.zip -d /etc/v2ray-agent/v2ray > /dev/null
+        if [[ "$2" = "backup" ]]
+        then
+            cp /tmp/config.json /etc/v2ray-agent/v2ray/config.json
+        fi
 
-    if [[ ! -z `curl -s -L https://$1/${nginxPath}|grep -v grep|grep "Bad Request"` ]]
-    then
-        progressTools "green" "  服务可用--->"
+        rm -rf /etc/v2ray-agent/v2ray/v2ray-linux-64.zip
+        handleV2Ray stop
+        handleV2Ray start
     else
-        progressTools "red" "    服务不可用，请检查Cloudflare->域名->SSL/TLS->Overview->Your SSL/TLS encryption mode is 是否是Full--->"
-        progressTools "red" "  错误日志:`curl -s -L https://$1/${nginxPath}`"
-        exit 0
-    fi
-    qrEncode $1 $2
-    progressTools "yellow" "安装完毕[100%]--->"
-    echoContent yellow "============================成功分界线============================="
+        echoContent green " ---> 当前v2ray-core版本:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`"
+        if [[ ! -z `/etc/v2ray-agent/v2ray/v2ray --version` ]]
+        then
+            version=`curl -s https://github.com/v2fly/v2ray-core/releases|grep /v2ray-core/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
+#            echo version:${version}
+#            echo version2:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`
+            if [[ "${version}" = "v`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`" ]]
+            then
+                read -p "当前版本与最新版相同，是否重新安装？[y/n]:" reInstalV2RayStatus
+                if [[ "${reInstalV2RayStatus}" = "y" ]]
+                then
+                    handleV2Ray stop
+                    cp /etc/v2ray-agent/v2ray/config.json /tmp/config.json
+#                    cp /etc/v2ray-agent/v2ray/v2ray_access.log /tmp/v2ray_access.log
+#                    cp /etc/v2ray-agent/v2ray/v2ray_error.log /tmp/v2ray_error.log
+                    rm -rf /etc/v2ray-agent/v2ray/*
+#                    cp /tmp/config.json /etc/v2ray-agent/v2ray/config.json
+#                    cp /tmp/v2ray_access.log /etc/v2ray-agent/v2ray/v2ray_access.log
+#                    cp /tmp/v2ray_error.log /etc/v2ray-agent/v2ray/v2ray_error.log
+                    updateV2Ray $1 backup
+                else
+                    echoContent green " ---> 放弃重新安装"
+                fi
+            else
+                read -p "最新版本为：${version}，是否更新？[y/n]：" installV2RayStatus
+                if [[ "${installV2RayStatus}" = "y" ]]
+                then
+                    cp /etc/v2ray-agent/v2ray/config.json /tmp/config.json
+                    rm -rf /etc/v2ray-agent/v2ray/*
+#                    cp /tmp/config.json /etc/v2ray-agent/v2ray/config.json
+                    updateV2Ray $1 backup
+                else
+                    echoContent green " ---> 放弃更新"
+                fi
 
-    progressTools "yellow" "监听V2Ray日志中，请使用上方生成的vmess访问，如有日志出现则证明线路可用，退出监听也无妨，Ctrl+c退出监听日志，--->"
-    echo '' > /etc/v2ray/v2ray_access_ws_tls.log
-    killSleep > /dev/null 2>&1
-    tail -f /etc/v2ray/v2ray_access_ws_tls.log
+            fi
+        fi
+    fi
+}
+# 自动升级
+automaticUpgrade(){
+    if [[ -f "/root/install.sh" ]] && [[ ! -z `cat ~/install.sh|grep -v grep|grep mack-a` ]] && [[ -d "/etc/v2ray-agent" ]]
+    then
+        local currentTime=`date +%s`
+        local version=0
+        local currentVersion=0
+        # 首次安装完毕后再次使用时出发
+        if [[ ! -f "/etc/v2ray-agent/upgradeStatus" ]]
+        then
+            echo "firstUpgrade|${currentTime}" > /etc/v2ray-agent/upgradeStatus
+        fi
+
+        if [[  -z `cat /etc/v2ray-agent/upgradeStatus` ]]
+        then
+            echo "firstUpgrade|${currentTime}" > /etc/v2ray-agent/upgradeStatus
+        fi
+
+        # 第一次升级不计算时间
+        if [[ "`cat /etc/v2ray-agent/upgradeStatus|awk -F '[|]' '{print $1}'`" = "firstUpgrade" ]]
+        then
+            version=`curl -s https://github.com/mack-a/v2ray-agent/releases|grep -v grep|grep /mack-a/v2ray-agent/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
+            currentVersion=`cat /root/install.sh|grep -v grep|grep "当前版本："|awk '{print $3}'|awk -F "[\"]" '{print $2}'|awk -F "[v]" '{print $2}'`
+            echo "upgrade|${currentTime}" > /etc/v2ray-agent/upgradeStatus
+        elif [[ "`cat /etc/v2ray-agent/upgradeStatus|awk -F '[|]' '{print $1}'`" = "upgrade" ]]
+        then
+            # 第二次计算时间 三天
+            local lastTime=`cat /etc/v2ray-agent/upgradeStatus|awk -F '[|]' '{print $2}'`
+            local stampDiff=`expr ${currentTime} - ${lastTime}`
+            dayDiff=`expr ${stampDiff} / 86400`
+#            echoContent red lastTime:${lastTime}
+#            echoContent red currentTime:${currentTime}
+#            echoContent red dayDiff:${dayDiff}
+            if [[ ${dayDiff} -gt 3 ]]
+            then
+                version=`curl -s https://github.com/mack-a/v2ray-agent/releases|grep -v grep|grep /mack-a/v2ray-agent/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
+                currentVersion=`cat /root/install.sh|grep -v grep|grep "当前版本："|awk '{print $3}'|awk -F "[\"]" '{print $2}'|awk -F "[v]" '{print $2}'`
+                echo "upgrade|${currentTime}" > /etc/v2ray-agent/upgradeStatus
+            fi
+        fi
+#        echoContent red version:${version}
+#        echoContent red currentVersion:${currentVersion}
+        if [[ "v${currentVersion}" != "${version}" ]] && [[ "${version}" != "0" ]] && [[ "${currentVersion}" != "0" ]]
+        then
+            echoContent yellow " ---> 当前版本：`echo ${version}|grep -v grep|awk -F '[v]' '{print $2}'`"
+            echoContent green " ---> 新 版 本：${currentVersion}"
+            read -p "发现新版本，是否更新[y/n]？：" upgradeStatus
+            if [[ "${upgradeStatus}" = "y" ]]
+            then
+                updateV2RayAgent 1
+                menu
+            else
+                echo "notUpgrade|${currentTime}" > /etc/v2ray-agent/upgradeStatus
+                menu
+                exit;
+            fi
+        fi
+    fi
+}
+updateV2RayAgent(){
+    echo "upgrade|${currentTime}" > /etc/v2ray-agent/upgradeStatus
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 更新v2ray-agent脚本"
+    wget -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/dev/install.sh" && chmod +x install.sh && ./install.sh
+}
+# 验证整个服务是否可用
+checkGFWStatue(){
+    # 验证整个服务是否可用
+#    progressTools "yellow" "验证服务是否可用--->"
+    echoContent skyBlue "\n进度 $1/${totalProgress} : 验证服务是否可用"
+    if [[ "${globalType}" = "wss" ]]
+    then
+
+        sleep 3
+        if [[ ! -z `curl -s -L https://${domain}/${customPath}|grep -v grep|grep "Bad Request"` ]]
+        then
+            echoContent green " ---> 服务可用"
+#            progressTools "green" "  服务可用--->"
+        else
+            progressTools "red" "    服务不可用，请检查Cloudflare->域名->SSL/TLS->Overview->Your SSL/TLS encryption mode is 是否是Full--->"
+            progressTools "red" "  错误日志:`curl -s -L https://${domain}/${customPath}`"
+            exit 0
+        fi
+    elif [[ "${globalType}" = "tcp" ]]
+    then
+        echo '' > /etc/v2ray-agent/v2ray/v2ray_access.log
+        curl --connect-time 3  --max-time 1 --url https://${domain} > /dev/null 2>&1
+        sleep 0.1
+        if [[ ! -z `cat /etc/v2ray-agent/v2ray/v2ray_access.log|grep -v grep|grep "Not Found"` ]]
+        then
+#            progressTools "green" "  服务可用--->"
+            echoContent green " ---> 服务可用"
+        else
+            progressTools "red" "    服务不可用"
+            progressTools "red" "     1.请检查云朵是否关闭"
+            progressTools "red" "     2.请手动尝试使用账号并观察日志，日志路径[/etc/v2ray-agent/v2ray/v2ray_access.log]"
+            exit 0
+        fi
+    elif [[ "${globalType}" = "vlesstcpws" ]]
+    then
+#        progressTools "yellow" "等待三秒--->"
+        echoContent green " ---> 等待三秒"
+        sleep 3
+        if [[ ! -z `curl -s -L https://${domain}/${customPath}|grep -v grep|grep "Bad Request"` ]]
+        then
+#            progressTools "green" "  服务可用--->"
+            echoContent green " ---> 服务可用"
+        else
+            progressTools "red" "    服务不可用，请检查Cloudflare->域名->SSL/TLS->Overview->Your SSL/TLS encryption mode is 是否是Full--->"
+            progressTools "red" "  错误日志:`curl -s -L https://${domain}/${customPath}`"
+            exit 0
+        fi
+    fi
 }
 # 开机自启
 installV2RayService(){
-    progressTools "yellow" "  配置V2Ray开机自启--->"
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 配置V2Ray开机自启"
+#    progressTools "yellow" "  配置V2Ray开机自启--->"
+    if [[ ! -z `find /bin /usr/bin -name "systemctl"` ]]
+    then
+        rm -rf /etc/systemd/system/v2ray.service
+        touch /etc/systemd/system/v2ray.service
 
-    rm -rf /etc/systemd/system/v2ray.service
-    touch /etc/systemd/system/v2ray.service
+    cat << EOF > /etc/systemd/system/v2ray.service
+        [Unit]
+        Description=V2Ray - A unified platform for anti-censorship
+        Documentation=https://v2ray.com https://guide.v2fly.org
+        After=network.target nss-lookup.target
+        Wants=network-online.target
 
-cat << EOF > /etc/systemd/system/v2ray.service
-[Unit]
-Description=V2Ray - A unified platform for anti-censorship
-Documentation=https://v2ray.com https://guide.v2fly.org
-After=network.target nss-lookup.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-User=root
-CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_RAW
-NoNewPrivileges=yes
-ExecStart=/usr/bin/v2ray/v2ray -config /etc/v2ray/config.json
-Restart=on-failure
-RestartPreventExitStatus=23
+        [Service]
+        Type=simple
+        User=root
+        CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_RAW
+        NoNewPrivileges=yes
+        ExecStart=/etc/v2ray-agent/v2ray/v2ray -config /etc/v2ray-agent/v2ray/config.json
+        Restart=on-failure
+        RestartPreventExitStatus=23
 
 
-[Install]
-WantedBy=multi-user.target
+        [Install]
+        WantedBy=multi-user.target
 EOF
-    progressTools "green" "  配置V2Ray开机自启成功--->"
+        systemctl daemon-reload
+        systemctl enable v2ray.service
+#        progressTools "green" "  配置V2Ray开机自启成功--->"
+        echoContent green " ---> 配置V2Ray开机自启成功"
+    fi
 }
-
+# 操作V2Ray
+handleV2Ray(){
+    if [[ ! -z `find /bin /usr/bin -name "systemctl"` ]] && [[ ! -z `ls /etc/systemd/system/|grep -v grep|grep v2ray.service` ]]
+    then
+        if [[ -z `ps -ef|grep -v grep|grep v2ray` ]] && [[ "$1" = "start" ]]
+        then
+            systemctl start v2ray.service
+        elif [[ ! -z `ps -ef|grep -v grep|grep v2ray` ]] && [[ "$1" = "stop" ]]
+        then
+            systemctl stop v2ray.service
+        fi
+    elif [[ -z `find /bin /usr/bin -name "systemctl"` ]]
+    then
+        if [[ -z `ps -ef|grep -v grep|grep v2ray` ]] && [[ "$1" = "start" ]]
+        then
+            /usr/bin/v2ray/v2ray -config /etc/v2ray-agent/v2ray/config.json & > /dev/null 2>&1
+        elif [[ ! -z `ps -ef|grep -v grep|grep v2ray` ]] && [[ "$1" = "stop" ]]
+        then
+            ps -ef|grep -v grep|grep v2ray|awk '{print $2}'|xargs kill -9
+        fi
+    fi
+    if [[ "$1" = "start" ]]
+    then
+        if [[ ! -z `ps -ef|grep -v grep|grep v2ray` ]]
+        then
+            echoContent green " ---> V2Ray启动成功"
+        else
+            echoContent red "V2Ray启动失败"
+            echoContent red "请手动执行【/usr/bin/v2ray/v2ray -config /etc/v2ray-agent/v2ray/config.json】,查看错误日志"
+            exit 0;
+        fi
+    elif [[ "$1" = "stop" ]]
+    then
+        if [[ -z `ps -ef|grep -v grep|grep v2ray` ]]
+        then
+            echoContent green " ---> V2Ray关闭成功"
+        else
+            echoContent red "V2Ray关闭失败"
+            echoContent red "请手动执行【ps -ef|grep -v grep|grep v2ray|awk '{print \$2}'|xargs kill -9】"
+            exit 0;
+        fi
+    fi
+}
 # 初始化V2Ray 配置文件
 initV2RayConfig(){
 
-    touch /etc/v2ray/config.json
-    uuid=`/usr/bin/v2ray/v2ctl uuid`
-
+    uuidtcp=`/etc/v2ray-agent/v2ray/v2ctl uuid`
+    uuidws=`/etc/v2ray-agent/v2ray/v2ctl uuid`
+    echoContent skyBlue "\n进度 $2/${totalProgress} : 初始化V2Ray配置"
     # 自定义IPLC端口
     if [[ ! -z ${iplc} ]]
     then
-        cat << EOF > /etc/v2ray/config.json
+        cat << EOF > /etc/v2ray-agent/v2ray/config.json
 {
     "log":{
-        "access":"/etc/v2ray/v2ray_access_ws_tls.log",
-        "error":"/etc/v2ray/v2ray_error_ws_tls.log",
+        "access":"/etc/v2ray-agent/v2ray/v2ray_access.log",
+        "error":"/etc/v2ray-agent/v2ray/v2ray_error.log",
         "loglevel":"debug"
     },
     "stats":{
@@ -571,7 +821,7 @@ initV2RayConfig(){
             "settings":{
                 "clients":[
                     {
-                        "id":"654765fe-5fb1-271f-7c3f-18ed82827f72",
+                        "id":"${uuidws}",
                         "alterId":64,
                         "level":1,
                         "email":"test@v2ray.com"
@@ -581,7 +831,7 @@ initV2RayConfig(){
             "streamSettings":{
                 "network":"ws",
                 "wsSettings":{
-                    "path":"/alone"
+                    "path":"/${customPath}"
                 }
             }
         },
@@ -591,7 +841,7 @@ initV2RayConfig(){
             "settings":{
                 "clients":[
                     {
-                        "id":"654765fe-5fb1-271f-7c3f-18ed82827f72",
+                        "id":"${uuid}",
                         "level":1,
                         "email":"test_vless@v2ray.com"
                     }
@@ -601,7 +851,7 @@ initV2RayConfig(){
             "streamSettings":{
                 "network":"ws",
                 "wsSettings":{
-                    "path":"/vlesspath"
+                    "path":"/${customPath}vld"
                 }
             }
         },
@@ -660,38 +910,15 @@ initV2RayConfig(){
     }
 }
 EOF
-    else
-        cat << EOF > /etc/v2ray/config.json
+    elif [[ "$1" = "wss" ]]
+    then
+        # todo vless 废弃
+        cat << EOF > /etc/v2ray-agent/v2ray/config.json
 {
     "log":{
-        "access":"/etc/v2ray/v2ray_access_ws_tls.log",
-        "error":"/etc/v2ray/v2ray_error_ws_tls.log",
+        "access":"/etc/v2ray-agent/v2ray/v2ray_access.log",
+        "error":"/etc/v2ray-agent/v2ray/v2ray_error.log",
         "loglevel":"debug"
-    },
-    "stats":{
-
-    },
-    "api":{
-        "services":[
-            "StatsService"
-        ],
-        "tag":"api"
-    },
-    "policy":{
-        "levels":{
-            "1":{
-                "handshake":4,
-                "connIdle":300,
-                "uplinkOnly":2,
-                "downlinkOnly":5,
-                "statsUserUplink":false,
-                "statsUserDownlink":false
-            }
-        },
-        "system":{
-            "statsInboundUplink":true,
-            "statsInboundDownlink":true
-        }
     },
     "allocate":{
         "strategy":"always",
@@ -705,8 +932,8 @@ EOF
             "settings":{
                 "clients":[
                     {
-                        "id":"654765fe-5fb1-271f-7c3f-18ed82827f72",
-                        "alterId":64,
+                        "id":"${uuidws}",
+                        "alterId":0,
                         "level":1,
                         "email":"test@v2ray.com"
                     }
@@ -715,7 +942,7 @@ EOF
             "streamSettings":{
                 "network":"ws",
                 "wsSettings":{
-                    "path":"/alone"
+                    "path":"/${customPath}"
                 }
             }
         },
@@ -725,8 +952,8 @@ EOF
             "settings":{
                 "clients":[
                     {
-                        "id":"654765fe-5fb1-271f-7c3f-18ed82827f72",
-                        "alterId":64,
+                        "id":"${uuid}",
+                        "alterId":0,
                         "level":1,
                         "email":"test_vless@v2ray.com"
                     }
@@ -736,7 +963,7 @@ EOF
             "streamSettings":{
                 "network":"ws",
                 "wsSettings":{
-                    "path":"/vlesspath"
+                    "path":"/${customPath}vld"
                 }
             }
         }
@@ -752,20 +979,6 @@ EOF
             }
         }
     ],
-    "routing":{
-        "settings":{
-            "rules":[
-                {
-                    "inboundTag":[
-                        "api"
-                    ],
-                    "outboundTag":"api",
-                    "type":"field"
-                }
-            ]
-        },
-        "strategy":"rules"
-    },
     "dns":{
         "servers":[
             "8.8.8.8",
@@ -775,59 +988,254 @@ EOF
     }
 }
 EOF
-    fi
-    # 自定义路径
-    if [[ ! -z "$1" ]]
+    elif [[ "$1" = "tcp" ]]
     then
-        sed -i "s/alone/${1}/g" `grep alone -rl /etc/v2ray/config.json`
-        sed -i "s/vlesspath/${1}vld/g" `grep vlesspath -rl /etc/v2ray/config.json`
-    fi
-    sed -i "s/654765fe-5fb1-271f-7c3f-18ed82827f72/${uuid}/g" `grep 654765fe-5fb1-271f-7c3f-18ed82827f72 -rl /etc/v2ray/config.json`
+    cat << EOF > /etc/v2ray-agent/v2ray/config.json
+{
+"log":{
+        "access":"/etc/v2ray-agent/v2ray/v2ray_access.log",
+        "error":"/etc/v2ray-agent/v2ray/v2ray_error.log",
+        "loglevel":"debug"
+    },
+  "inbounds": [
+    {
+      "port": 443,
+      "protocol": "vmess",
+      "settings": {
+        "clients": [
+          {
+            "id": "${uuidtcp}",
+            "alterId": 0,
+            "email":"test@v2ray.com"
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "tls",
+        "tlsSettings": {
+          "certificates": [
+            {
+              "certificateFile": "/etc/v2ray-agent/tls/${domain}.crt",
+              "keyFile": "/etc/v2ray-agent/tls/${domain}.key"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "outbounds":[
+        {
+          "protocol": "freedom",
+          "settings": {}
+        }
+    ],
+    "dns":{
+        "servers":[
+            "8.8.8.8",
+            "8.8.4.4"
+        ],
+        "tag":"dns_inbound"
+    }
 }
-qrEncode(){
-    user=`cat /etc/v2ray/config.json|jq .inbounds[0]`
-    ps="$1"
-    id=`echo ${user}|jq .settings.clients[0].id`
-    aid=`echo ${user}|jq .settings.clients[0].alterId`
-    host="$1"
-    add="$1"
-    path=`echo ${user}|jq .streamSettings.wsSettings.path`
-    echoContent green "是否使用DNS智能解析进行自定义CDN IP？"
+EOF
+    elif [[ "$1" = "vlesstcpws" ]]
+    then
+        cat << EOF > /etc/v2ray-agent/v2ray/config.json
+{
+  "log": {
+    "access":"/etc/v2ray-agent/v2ray/v2ray_access.log",
+     "error":"/etc/v2ray-agent/v2ray/v2ray_error.log",
+    "loglevel": "debug"
+  },
+  "inbounds": [
+    {
+      "port": 443,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "${uuidtcp}",
+            "alterId": 0,
+            "email": "${domain}_VLESS_TCP"
+          }
+        ],
+        "decryption": "none",
+        "fallbacks": [
+          {
+            "dest": 80,
+            "xver": 1
+          },
+          {
+            "path": "/${customPath}",
+            "dest": 31299,
+            "xver": 1
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "tls",
+        "tlsSettings": {
+          "alpn": [
+            "http/1.1"
+          ],
+          "certificates": [
+            {
+              "certificateFile": "/etc/v2ray-agent/tls/${domain}.crt",
+              "keyFile": "/etc/v2ray-agent/tls/${domain}.key"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "port": 31299,
+      "protocol": "vmess",
+      "settings": {
+        "clients": [
+          {
+            "id": "${uuidws}",
+            "alterId": 0,
+            "add":"${add}",
+            "level": 1,
+            "email": "${domain}_vmess_ws"
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "none",
+        "wsSettings": {
+          "acceptProxyProtocol": true,
+          "path": "/${customPath}"
+        }
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "freedom",
+      "settings": {}
+    }
+  ],
+  "dns": {
+    "servers": [
+      "8.8.8.8",
+      "8.8.4.4"
+    ],
+    "tag": "dns_inbound"
+  }
+}
+EOF
 
-    echoContent yellow " 智能DNS提供一下自定义CDN IP，会根据运营商自动切换ip，测试结果请查看[https://github.com/mack-a/v2ray-agent/blob/master/optimize_V2Ray.md]" "no"
-    echoContent yellow "  移动:1.0.0.83" "no"
-    echoContent yellow "  联通:104.16.160.136" "no"
-    echoContent yellow "  电信CNAME:www.digitalocean.com" "no"
-    echoContent green   "输入[y]使用，[任意]不使用" "no"
-    read dnsProxy
+    fi
+}
+# 自定义CDN IP
+customCDNIP(){
+    echoContent skyBlue "\n进度 $1/${totalProgress} : 添加DNS智能解析"
+    echoContent yellow " 移动:104.19.41.56"
+    echoContent yellow " 联通:104.16.160.136"
+    echoContent yellow " 电信:104.16.160.136"
+    read -p '是否使用？[y/n]:' dnsProxy
     if [[ "${dnsProxy}" = "y" ]]
     then
         add="domain08.qiu4.ml"
+    else
+        add="${domain}"
     fi
-    echoContent yellow "客户端链接--->\n"
-    qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"64","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'"}'|sed 's#/#\\\/#g'|base64`
-    qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
-    # 通用Vmess
-    echoContent red "通用vmess链接--->" "no"
-    echoContent green "    vmess://${qrCodeBase64Default}\n"
-    echo "通用vmess链接: " > /etc/v2ray/usersv2ray.conf
-    echo "   vmess://${qrCodeBase64Default}" >> /etc/v2ray/usersv2ray.conf
-    echoContent red "通用json--->" "no"
-    echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"64","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'"}\n'
-    echoContent green '    V2Ray v4.27.0 目前无通用订阅需要手动配置，VLESS和上面大部分一样，path则是"'/${2}vld'"，其余内容不变'
-    # Quantumult
+}
+# 生成账号base64链接
+buildAccounts(){
+    echoContent skyBlue "\n进度 $1/${totalProgress} : 初始化账号"
+    user=`cat /etc/v2ray-agent/v2ray/config.json|jq .inbounds[0]`
+    ps="${domain}"
+    id=`echo ${user}|jq .settings.clients[0].id`
+    aid=`echo ${user}|jq .settings.clients[0].alterId`
+    host="${domain}"
+    add="${add}"
+    path=`echo ${user}|jq .streamSettings.wsSettings.path`
+    if [[ "${path}" = "null" ]]
+    then
+        path=\"/${customPath}\"
+    fi
+#    echoContent yellow "客户端链接--->\n"
+    echoContent green " ---> 客户端链接"
+    defaultBase64Code "${ps}" "${id}" "${host}" "${path}" "${add}"
+    # quanMultBase64Code "${ps}" "${id}" "${host}" "${path}" "${add}"
+}
+# 通用
+defaultBase64Code(){
+    local type=$1
+    local ps=$2
+    local id=$3
+    local host=$4
+    local path=$5
+    local add=$6
+    if [[ ${type} = "tcp" ]]
+    then
+        qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","net":"tcp","add":"'${host}'","allowInsecure":0,"method":"none","peer":""}'|sed 's#/#\\\/#g'|base64`
+        qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
+        echoContent yellow " ---> 通用json(tcp+tls)"
+        echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","net":"tcp","add":"'${host}'","allowInsecure":0,"method":"none","peer":""}\n'
+        # 通用Vmess
+        echoContent yellow " ---> 通用vmess(tcp+tls)链接"
+        echoContent green "    vmess://${qrCodeBase64Default}\n"
+        echo "通用vmess(tcp+tls)链接: " > /etc/v2ray-agent/v2ray/usersv2ray.conf
+        echo "   vmess://${qrCodeBase64Default}" >> /etc/v2ray-agent/v2ray/usersv2ray.conf
+    elif [[ ${type} = "wss" ]]
+    then
+        qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
+        qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
+        echoContent yellow " ---> 通用json(ws+tls)"
+        echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}\n'
+        echoContent yellow " ---> 通用vmess(ws+tls)链接"
+        echoContent green "    vmess://${qrCodeBase64Default}\n"
+        echo "通用vmess(ws+tls)链接: " > /etc/v2ray-agent/v2ray/usersv2ray.conf
+        echo "   vmess://${qrCodeBase64Default}" >> /etc/v2ray-agent/v2ray/usersv2ray.conf
+    elif [[ "${type}" = "h2" ]]
+    then
+        qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"h2","add":"'${add}'","allowInsecure":0,"method":"none","peer":""}'|sed 's#/#\\\/#g'|base64`
+        qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
+        echoContent red "通用json--->"
+        echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"h2","add":"'${add}'","allowInsecure":0,"method":"none","peer":""}\n'
+    elif [[ "${type}" = "vlesstcp" ]]
+    then
+        qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
+        qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
+        echo "通用vmess(ws+tls)链接: " > /etc/v2ray-agent/v2ray/usersv2ray.conf
+        echo "   vmess://${qrCodeBase64Default}" >> /etc/v2ray-agent/v2ray/usersv2ray.conf
+        echoContent yellow " ---> 通用json(VLESS+tcp+tls)"
+        echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"host":"'${host}'","type":"none","net":"tcp","add":"'${host}'","allowInsecure":0,"method":"none","peer":""}\n'
+        echoContent green '    V2Ray v4.27.4+ 目前无通用订阅，需要手动配置，VLESS和tcp大部分一样，其余内容不变'
+
+    elif [[ "${type}" = "vmessws" ]]
+    then
+        qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
+        qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
+        echoContent yellow " ---> 通用json(ws+tls)"
+        echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}\n'
+        echoContent yellow " ---> 通用vmess(ws+tls)链接"
+        echoContent green "    vmess://${qrCodeBase64Default}\n"
+        echoContent yellow " ---> 二维码 vmess(ws+tls)"
+        echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vmess://${qrCodeBase64Default}"
+    fi
+}
+# quanMult base64Code
+quanMultBase64Code(){
+    local ps=$1
+    local id=$2
+    local host=$3
+    local path=$4
     qrCodeBase64Quanmult=`echo -n ''${ps}' = vmess, '${add}', 443, aes-128-cfb, '${id}', over-tls=true, tls-host='${host}', certificate=1, obfs=ws, obfs-path='${path}', obfs-header="Host: '${host}'[Rr][Nn]User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 11_2_6 like Mac OS X) AppleWebKit/604.5.6 (KHTML, like Gecko) Mobile/15D100"'|base64`
     qrCodeBase64Quanmult=`echo ${qrCodeBase64Quanmult}|sed 's/ //g'`
-
-    echoContent red "Quantumult vmess--->" "no"
+    echoContent red "Quantumult vmess--->"
     echoContent green "    vmess://${qrCodeBase64Quanmult}\n"
-    echo '' >> /etc/v2ray/usersv2ray.conf
-    echo "Quantumult:" >> /etc/v2ray/usersv2ray.conf
-    echo "  vmess://${qrCodeBase64Quanmult}" >> /etc/v2ray/usersv2ray.conf
-    echoContent red "Quantumult 明文--->" "no"
+    echo '' >> /etc/v2ray-agent/v2ray/usersv2ray.conf
+    echo "Quantumult:" >> /etc/v2ray-agent/v2ray/usersv2ray.conf
+    echo "  vmess://${qrCodeBase64Quanmult}" >> /etc/v2ray-agent/v2ray/usersv2ray.conf
+    echoContent red "Quantumult 明文--->"
     echoContent green  '    '${ps}' = vmess, '${add}', 443, aes-128-cfb, '${id}', over-tls=true, tls-host='${host}', certificate=1, obfs=ws, obfs-path='${path}', obfs-header="Host: '${host}'[Rr][Nn]User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 11_2_6 like Mac OS X) AppleWebKit/604.5.6 (KHTML, like Gecko) Mobile/15D100"'
-    # | qrencode -t UTF8
-    # echo ${qrCodeBase64}
 }
 # 查看本机ip
 checkDomainIP(){
@@ -893,49 +1301,257 @@ installProgressFunction(){
         sleep 0.1
     done
 }
+# 账号
+showAccounts(){
+    echoContent skyBlue "\n进度 $1/${totalProgress} : 账号"
+    if [[ -d "/etc/v2ray-agent/" ]] && [[ -d "/etc/v2ray-agent/v2ray/" ]] && [[ -f "/etc/v2ray-agent/v2ray/config.json" ]]
+    then
+        # tcp
+        local tcp=`cat /etc/v2ray-agent/v2ray/config.json|jq .inbounds[0]`
+        local tcpID=`echo ${tcp}|jq .settings.clients[0].id`
+        local tcpEmail="`echo ${tcp}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`_tcp"
+        local host=`echo ${tcp}|jq .streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+        # ws
+        local ws=`cat /etc/v2ray-agent/v2ray/config.json|jq .inbounds[1]`
+        local wsID=`echo ${ws}|jq .settings.clients[0].id`
+        local wsAdd=`echo ${ws}|jq .settings.clients[0].add|awk -F '["]' '{print $2}'`
+        local wsEmail="`echo ${ws}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`_ws"
+        local wsPath=`echo ${ws}|jq .streamSettings.wsSettings.path`
 
-# 卸载安装的内容
-removeInstall(){
-    rm -rf /etc/v2ray-agent/v2ray
-    rm -rf /etc/v2ray-agent/tls
-    rm -rf /etc/v2ray
-    rm -rf /root/.acme.sh
-    echo ${removeType},${installType}
-    `${removeType} nginx` > /dev/null 2>&1
+        defaultBase64Code vmessws ${wsEmail} "${wsID}" "${host}" "${wsPath}" ${wsAdd}
+        defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${host}" ${add}
+    else
+        echoContent red " ---> 未安装"
+    fi
 }
-init(){
+
+# 卸载脚本
+unInstall(){
+    echo
+    handleNginx stop
+    if [[ -z `ps -ef|grep -v grep|grep nginx` ]]
+    then
+        echoContent green "停止Nginx成功\n"
+    fi
+
+    handleV2Ray stop
+
+    rm -rf /etc/systemd/system/v2ray.service
+    echoContent red "删除V2Ray开机自启成功"
+
+    if [[ -d "/etc/v2ray-agent/tls" ]] && [[ ! -z `find /etc/v2ray-agent/tls/ -name "*.key"` ]] && [[ ! -z `find /etc/v2ray-agent/tls/ -name "*.crt"` ]]
+    then
+        mv /etc/v2ray-agent/tls /tmp
+        if [[ ! -z `find /tmp/tls -name '*.key'` ]]
+        then
+            echoContent green "备份证书成功，请注意留存。[/tmp/tls]"
+        fi
+    fi
+
+    rm -rf /etc/v2ray-agent
+    echoContent green "卸载完成"
+}
+# 检查错误
+checkFail(){
+    echoContent skyBlue "\n进度 $1/${totalProgress} : 检查错误"
+    if [[ -d "/etc/v2ray-agent" ]]
+    then
+        if [[ -d "/etc/v2ray-agent/v2ray/" ]]
+        then
+            if [[ -z `ls -F /etc/v2ray-agent/v2ray/|grep "v2ray"` ]] || [[ -z `ls -F /etc/v2ray-agent/v2ray/|grep "v2ctl"` ]]
+            then
+                echoContent red " ---> V2Ray 未安装"
+            else
+                echoContent green " ---> v2ray-core版本:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`"
+                if [[ -z `/etc/v2ray-agent/v2ray/v2ray --test /etc/v2ray-agent/v2ray/config.json|tail -n +3|grep "Configuration OK"` ]]
+                then
+                    echoContent red " ---> V2Ray 配置文件异常"
+                    /etc/v2ray-agent/v2ray/v2ray --test /etc/v2ray-agent/v2ray/config.json
+                elif [[ -z `ps -ef|grep -v grep|grep v2ray` ]]
+                then
+                    echoContent red " ---> V2Ray 未启动"
+                else
+                    echoContent green " ---> V2Ray 正常运行"
+                fi
+            fi
+        else
+            echoContent red " ---> V2Ray 未安装"
+        fi
+
+        if [[ -z `ps -ef|grep -v grep|grep nginx` ]]
+        then
+            echoContent red " ---> Nginx 未启动，伪装博客无法使用"
+        else
+            echoContent green " ---> Nginx 正常运行"
+        fi
+    else
+        echoContent red " ---> 未使用脚本安装"
+    fi
+}
+menu(){
+
      # 新建所需目录
-    mkdirTools
     cd
-    echoContent red "=============================================================="
-    echoContent green "CDN+WebSocket+TLS+Nginx+伪装博客一键脚本"
+    echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "Version：v1.0.9"
-    echoContent green "Github：https://github.com/mack-a/v2ray-agent"
-    echoContent green "TG群：https://t.me/technologyshare"
-    echoContent green "欢迎找我请求协助与反馈问题"
+    echoContent green "当前版本：v2.0.1"
     echoContent red "=============================================================="
+    echoContent yellow "1.V2Ray+VLESS+TLS+TCP+Web/V2Ray+Vmess+TLS+WS+Web[CDN 云朵必须为灰色] 二合一脚本"
+    # echoContent yellow "2.V2Ray+TCP+TLS"
+    echoContent red "=============================================================="
+    echoContent yellow "4.更新V2Ray"
+    echoContent yellow "5.自动排错"
+    echoContent yellow "6.账号查看"
+    echoContent yellow "7.安装BBR"
+    echoContent yellow "8.更新脚本"
+    echoContent yellow "9.卸载脚本"
+    echoContent red "=============================================================="
+    automaticUpgrade
+    read -p "请选择:" selectInstallType
+     case ${selectInstallType} in
+        1)
+            installV2RayVLESSTCPWSTLS
+        ;;
+        4)
+            updateV2Ray 1
+        ;;
+        5)
+            checkFail 1
+        ;;
+        6)
+            showAccounts 1
+        ;;
+        7)
+            bbrInstall
+        ;;
+        8)
+            updateV2RayAgent 1
+        ;;
+        9)
+            unInstall
+        ;;
+    esac
+#    echoContent red "未实现"
+    exit 0;
+}
+# 安装BBR
+bbrInstall(){
+    echoContent red "\n=============================================================="
+    echoContent green "BBR脚本用的[ylx2016]的成熟作品，地址[https://github.com/ylx2016/Linux-NetSpeed/releases/download/sh/tcp.sh]，请熟知"
+    echoContent red "    1.安装【推荐原版BBR+FQ】"
+    echoContent red "    2.回退主目录"
+    echoContent red "=============================================================="
+    read -p "请选择：" installBBRStatus
+    if [[ "${installBBRStatus}" = "1" ]]
+    then
+        wget -N --no-check-certificate "https://raw.githubusercontent.com/ylx2016/Linux-NetSpeed/master/tcp.sh" && chmod +x tcp.sh && ./tcp.sh
+    else
+        menu
+    fi
+}
+# 安装V2Ray+wss+Nginx+Web
+installV2RayVmessWSSNginxWeb(){
+    globalType=wss
+    installTools
+    initTLSNginxConfig
+    installTLS
+    handleNginx stop
+    initNginxConfig wss
+    randomPathFunction
+    installCronTLS
+    installV2Ray
+    installV2RayService
+    initV2RayConfig wss
+    handleV2Ray start
+    handleNginx start
+    customCDNIP
+    buildAccounts
+    checkGFWStatue
+    progressTools "yellow" "安装完毕[100%]--->"
+}
+# 安装V2Ray+TLS
+installV2RayVmessTCPTLS(){
+    globalType=tcp
+    installTools
+    # 申请tls
+    initTLSNginxConfig
+    installTLS
+    handleNginx stop
+    installCronTLS
+    # 安装V2Ray
+    installV2Ray
+    installV2RayService
+    initV2RayConfig tcp
+    handleV2Ray start
+    # 生成账号
+    checkGFWStatue
+    buildAccounts
+}
+installV2RayVLESSTCPWSTLS(){
+    totalProgress=14
+    globalType=vlesstcpws
+    mkdirTools 1
+    installTools 2
+    # 申请tls
+    initTLSNginxConfig 3
+    installTLS 4
+    handleNginx stop
+    initNginxConfig vlesstcpws 5
+    randomPathFunction 6
+    installCronTLS 7
+    # 安装V2Ray
+    installV2Ray 8
+    installV2RayService 9
+    customCDNIP 10
+    initV2RayConfig vlesstcpws 11
+    nginxBlog 12
+    handleV2Ray stop
+    handleV2Ray start
+    handleNginx start
+    # 生成账号
+    checkGFWStatue 13
+    showAccounts 14
+#    progressTools "yellow" "安装完毕[100%]--->"
+}
+# 注意事项
+warningMessage(){
+    echoContent green "1.脚本会检查并安装工具包"
+    echoContent green "2.如果使用此脚本生成过TLS证书、V2Ray，会继续使用上次生成、安装的内容。"
+    echoContent green "3.会删除、卸载已经安装的应用，包括V2Ray、Nginx。"
+    echoContent green "4.如果显示Nginx不可用，请检查防火墙端口是否开放。"
+    echoContent green "5.证书会在每天的1点30分检查更新"
+    echoContent red "=============================================================="
+}
+# 错误信息处理
+errorMessage(){
+    echoContent yellow "Debian："
+    echoContent green "     错误1：WARNING: apt does not have a stable CLI interface. Use with caution in scripts.【这个错误无需处理】"
+    echoContent green "     错误2：如果错误很多，且安装失败，则需要重启vps，无需重新安装OS。这种情况是在安装过程中意外断开导致。"
+    echoContent red "=============================================================="
+}
+# 状态展示
+state(){
     echoContent red "状态展示"
     echoContent green "已安装账号："
-    if [[ ! -z `find /etc|grep usersv2ray.conf`  ]] && [[ ! -z `cat /etc/v2ray/usersv2ray.conf` ]]
+    if [[ ! -z `find /etc|grep usersv2ray.conf`  ]] && [[ ! -z `cat /etc/v2ray-agent/v2ray/usersv2ray.conf` ]]
     then
-        cat /etc/v2ray/usersv2ray.conf
+        cat /etc/v2ray-agent/v2ray/usersv2ray.conf
     else
         echoContent yellow "    暂无配置"
     fi
     echoContent green "\nV2Ray信息："
 
     v2rayStatus=0
-    if [[ ! -z `ls -F /usr/bin/v2ray/|grep "v2ray"` ]] && [[ ! -z `find /etc/v2ray/ -name "config.json"` ]]
+    if [[ ! -z `ls -F /usr/bin/v2ray/|grep "v2ray"` ]] && [[ ! -z `find /etc/v2ray-agent/v2ray/ -name "config.json"` ]]
     then
         v2rayVersion=`/usr/bin/v2ray/v2ray -version|awk '{print $2}'|head -1`
         v2rayStatus=1
         echoContent yellow "    version：${v2rayVersion}"
         echoContent yellow "    安装路径：/usr/bin/v2ray/"
-        echoContent yellow "    配置文件：/etc/v2ray/config.json"
+        echoContent yellow "    配置文件：/etc/v2ray-agent/v2ray/config.json"
         echoContent yellow "    日志路径："
-        echoContent yellow "      access:  /etc/v2ray/v2ray_access_ws_tls.log"
-        echoContent yellow "      error:  /etc/v2ray/v2ray_error_ws_tls.log"
+        echoContent yellow "      access:  /etc/v2ray-agent/v2ray/v2ray_access.log"
+        echoContent yellow "      error:  /etc/v2ray-agent/v2ray/v2ray_error.log"
     else
         echoContent yellow "    暂未安装"
     fi
@@ -980,89 +1596,16 @@ init(){
     else
         echoContent yellow "    Nginx:【未安装】"
     fi
-
     if [[ ! -z `ps -ef|grep -v grep|grep v2ray`  ]]
     then
         echoContent yellow "    V2Ray:【运行中】"
     elif [[ ! -z `ls -F /usr/bin/v2ray/|grep "v2ray"` ]]
     then
-        echoContent yellow "    V2Ray:【未运行】，执行【/usr/bin/v2ray/v2ray -config /etc/v2ray/config.json &】运行"
+        echoContent yellow "    V2Ray:【未运行】，执行【/usr/bin/v2ray/v2ray -config /etc/v2ray-agent/v2ray/config.json &】运行"
     else
         echoContent yellow "    V2Ray:【未安装】"
     fi
 
-
-    echoContent red "==============================================================" "no"
-    echoContent red "注意事项："
-    echoContent green "    1.脚本会检查并安装工具包"
-    echoContent green "    2.如果使用此脚本生成过TLS证书、V2Ray，会继续使用上次生成、安装的内容。" "no"
-    echoContent green "    3.会删除、卸载已经安装的应用，包括V2Ray、Nginx。" "no"
-    echoContent green "    4.如果显示Nginx不可用，请检查防火墙端口是否开放。" "no"
-    echoContent green "    5.证书会在每天的1点30分检查更新" "no"
-    echoContent green "    6.重启机器后，日志、缓存文件会被删除，不影响正常使用【tls更新日志、缓存|V2Ray执行文件、日志】" "no"
-    echoContent red "==============================================================" "no"
-    echoContent red "错误处理【这里请仔细阅读】" "no"
-    echoContent yellow "Debian：" "no"
-    echoContent green "     错误1：WARNING: apt does not have a stable CLI interface. Use with caution in scripts.【这个错误无需处理】" "no"
-    echoContent green "     错误2：如果错误很多，且安装失败，则需要重启vps，无需重新安装OS。这种情况是在安装过程中意外断开导致。" "no"
-    echoContent red "==============================================================" "no"
-    installSelect=0
-    if [[ ${tlsStatus} = "1" ]] && [[ ${v2rayStatus} = "1" ]]
-    then
-        echoContent green "检测到已使用本脚本安装" "no"
-        echoContent yellow "    1.重新安装【使用缓存的文件（TLS证书、V2Ray）】" "no"
-        echoContent yellow "    2.完全重装【会清理tmp缓存文件（TLS证书、V2Ray）】" "no"
-    else
-        echoContent green "未监测到使用本脚本安装" "no"
-        echoContent yellow "    1.安装【未安装】" "no"
-        echoContent yellow "    2.完全安装【会清理tmp缓存文件（TLS证书、V2Ray）】" "no"
-    fi
-
-    echoContent yellow "    3.BBR安装[推荐BBR+FQ 或者 BBR+Cake]" "no"
-    echoContent yellow "    4.完全卸载[清理Nginx、TLS证书、V2Ray、acme.sh]" "no"
-    echoContent red "==============================================================" "no"
-    echoContent green "请输入上列数字，[任意]结束：" "no"
-    read installStatus
-
-    if [[ "${installStatus}" = "1" ]]
-    then
-        rm -rf /etc/v2ray/usersv2ray.conf
-        installTools
-        installNginx
-    elif [[ "${installStatus}" = "2" ]]
-    then
-        rm -rf /usr/bin/v2ray
-        rm -rf /etc/v2ray-agent/v2ray
-        rm -rf /etc/v2ray-agent/tls
-        rm -rf /etc/v2ray
-        installTools
-        installNginx
-    elif [[ "${installStatus}" = "3" ]]
-    then
-        echoContent red "==============================================================" "no"
-        echoContent green "BBR脚本用的[ylx2016]的成熟作品，地址[https://github.com/ylx2016/Linux-NetSpeed/releases/download/sh/tcp.sh]，请熟知" "no"
-        echoContent red "    1.安装" "no"
-        echoContent red "    2.回退主目录" "no"
-        echoContent red "==============================================================" "no"
-        echoContent green "请输入[1]安装，[2]回到上层目录" "no"
-        read installBBRStatus
-        if [[ "${installBBRStatus}" = "1" ]]
-        then
-            wget -N --no-check-certificate "https://github.com/ylx2016/Linux-NetSpeed/releases/download/sh/tcp.sh" && chmod +x tcp.sh && ./tcp.sh
-        else
-            init
-        fi
-    elif [[ "${installStatus}" = "4" ]]
-    then
-        removeInstall
-        echoContent yellow "卸载完成" "no"
-        killSleep > /dev/null 2>&1
-        exit 0;
-    else
-        echoContent yellow "欢迎下次使用--->" "no"
-        killSleep > /dev/null 2>&1
-        exit 0;
-    fi
 }
 # 杀死sleep
 killSleep(){
@@ -1072,6 +1615,7 @@ killSleep(){
         killSleep > /dev/null 2>&1
     fi
 }
+# 检查系统
 checkSystem(){
 
 	if [[ ! -z `find /etc -name "redhat-release"` ]] || [[ ! -z `cat /proc/version | grep -i "centos" | grep -v grep ` ]] || [[ ! -z `cat /proc/version | grep -i "red hat" | grep -v grep ` ]] || [[ ! -z `cat /proc/version | grep -i "redhat" | grep -v grep ` ]]
@@ -1103,5 +1647,6 @@ checkSystem(){
         exit 0;
     fi
 }
+
 checkSystem
-init
+menu
