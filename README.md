@@ -4,7 +4,7 @@
 - [流量中转](https://github.com/mack-a/v2ray-agent/blob/master/documents/traffic_relay.md)
 - [手动自建教程](#3手动自建教程)
 - [订阅频道](https://t.me/v2rayagentshare)、[TG群](https://t.me/technologyshare)、[博客地址](https://blog.v2ray-agent.com/)
-- [公益订阅链接【240.93 GB of 2 TB Used 2020-9-6】](https://github.com/mack-a/v2ray-agent/blob/master/documents/free_account.md)。
+- [公益订阅链接【313.23 GB of 2 TB Used 2020-9-7】](https://github.com/mack-a/v2ray-agent/blob/master/documents/free_account.md)。
 
 * * *
 # 目录
