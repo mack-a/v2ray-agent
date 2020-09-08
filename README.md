@@ -12,7 +12,7 @@
 - [2.手动自建教程](#2手动自建教程)
 * * *
 
-# 1.(VLESS+TCP+TLS/VMess+TCP+TLS/VMess+WS+TLS)+伪装博客 三合一共存脚本【Cloudflare云朵需为灰色】
+# 1.VLESS+TCP+TLS/VMess+TCP+TLS/VMess+WS+TLS +伪装博客 三合一共存脚本【Cloudflare云朵需为灰色】
 
 - 安装脚本
 ```
