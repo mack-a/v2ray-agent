@@ -1461,7 +1461,7 @@ menu(){
     echoContent green "作者：mack-a"
     echoContent green "当前版本：v2.0.2"
     echoContent red "=============================================================="
-    echoContent yellow "1.V2Ray+VLESS+TLS+TCP+Web/V2Ray+Vmess+TLS+WS+Web[CDN 云朵必须为灰色] 二合一脚本"
+    echoContent yellow "1.（VLESS+TCP+TLS/VMess+TCP+TLS/VMess+WS+TLS）+伪装博客 三合一共存脚本[Cloudflare云朵需为灰色]"
     # echoContent yellow "2.V2Ray+TCP+TLS"
     echoContent red "=============================================================="
     echoContent yellow "4.更新V2Ray"

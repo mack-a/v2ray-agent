@@ -8,10 +8,10 @@
 
 * * *
 # 目录
-- [1.VLESS+TCP+TLS+伪装博客/Vmess+WS+TLS+伪装博客[Cloudflare 云朵需设置灰色] 二合一脚本](#1vlesstcptls伪装博客vmesswstls伪装博客cloudflare-云朵需设置灰色-二合一脚本)
+- [1.（VLESS+TCP+TLS/VMess+TCP+TLS/VMess+WS+TLS）+伪装博客 三合一共存脚本[Cloudflare云朵需为灰色]](#1vlesstcptls伪装博客vmesswstls伪装博客cloudflare-云朵需设置灰色-二合一脚本)
 - [2.手动自建教程](#2手动自建教程)
 * * *
-# 1.VLESS+TCP+TLS+伪装博客/Vmess+WS+TLS+伪装博客[Cloudflare 云朵需设置灰色] 二合一脚本
+# 1.（VLESS+TCP+TLS/VMess+TCP+TLS/VMess+WS+TLS）+伪装博客 三合一共存脚本【Cloudflare云朵需为灰色】
 - 安装脚本
 ```
 bash <(curl -L -s https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh)
