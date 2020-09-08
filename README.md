@@ -8,9 +8,10 @@
 
 * * *
 # 目录
-- [1.(VLESS+TCP+TLS/VMess+TCP+TLS/VMess+WS+TLS)+伪装博客 三合一共存脚本[Cloudflare云朵需为灰色]](#1vlesstcptls伪装博客vmesswstls伪装博客cloudflare-云朵需设置灰色-二合一脚本)
+- [1.(VLESS+TCP+TLS/VMess+TCP+TLS/VMess+WS+TLS)+伪装博客 三合一共存脚本[Cloudflare云朵需为灰色]](#1vlesstcptlsvmesstcptlsvmesswstls伪装博客-三合一共存脚本cloudflare云朵需为灰色)
 - [2.手动自建教程](#2手动自建教程)
 * * *
+
 # 1.(VLESS+TCP+TLS/VMess+TCP+TLS/VMess+WS+TLS)+伪装博客 三合一共存脚本【Cloudflare云朵需为灰色】
 - 安装脚本
 ```
