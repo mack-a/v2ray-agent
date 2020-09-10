@@ -16,6 +16,7 @@
 ## 注意事项
 - 修改Cloudflare->SSL/TLS->Overview->Full
 - A记录解析的云朵必须为灰色
+- wget: command not found [这里需要自己手动安装下wget]
 
 ## 安装脚本
 ```
