@@ -189,7 +189,7 @@ installTools(){
         ${installType} socat > /dev/null
     fi
 
-    if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep tar` ]]
+    if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep -w tar` ]]
     then
         # progressTools "yellow" "安装tar--->"
         echoContent green " ---> 安装tar"
