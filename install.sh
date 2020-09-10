@@ -168,21 +168,21 @@ installTools(){
 
     fi
 
-    if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep wget` ]]
+    if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep -w wget` ]]
     then
 #        progressTools "yellow" "安装wget--->"
         echoContent green " ---> 安装wget"
         ${installType} wget > /dev/null
     fi
 
-    if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep unzip` ]]
+    if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep -w unzip` ]]
     then
         echoContent green " ---> 安装unzip"
 #        progressTools "yellow" "安装unzip--->"
         ${installType} unzip > /dev/null
     fi
 
-    if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep socat` ]]
+    if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep -w socat` ]]
     then
 #        progressTools "yellow" "安装socat--->"
         echoContent green " ---> 安装socat"
@@ -210,7 +210,7 @@ installTools(){
             ${installType} crontabs > /dev/null
         fi
     fi
-    if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep jq` ]]
+    if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep -w jq` ]]
     then
         echoContent green " ---> 安装jq"
         # progressTools "yellow" "安装jq--->"
@@ -224,7 +224,7 @@ installTools(){
         ${installType} binutils > /dev/null  2>&1
     fi
 
-    if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep nginx` ]]
+    if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep -w nginx` ]]
     then
         echoContent green " ---> 安装nginx"
 #        progressTools "yellow" "安装nginx--->"
@@ -415,7 +415,7 @@ nginxBlog(){
 #    echoContent yellow "添加伪装博客--->"
     echoContent skyBlue "\n进度 $1/${totalProgress} : 添加伪装博客"
     rm -rf /usr/share/nginx/html
-    wget -q -P /usr/share/nginx https://raw.githubusercontent.com/mack-a/v2ray-agent/master/blog/unable/html.zip > /dev/null
+    wget -q -P /usr/share/nginx https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html.zip > /dev/null
     unzip  /usr/share/nginx/html.zip -d /usr/share/nginx/html > /dev/null
 #    echoContent yellow "添加伪装博客成功--->"
     echoContent green " ---> 添加伪装博客成功"
