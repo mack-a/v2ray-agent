@@ -1372,11 +1372,11 @@ showAccounts(){
         local vmessTCPEmail="`echo ${vmessTCP}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
         local vmessTCPath=`echo ${vmessTCP}|jq .streamSettings.tcpSettings.header.request.path[0]`
 
-
+        echoContent red "\n===============================VMess+WS+TLS+CDN==============================="
         defaultBase64Code vmessws ${wsEmail} "${wsID}" "${host}" "${wsPath}" ${wsAdd}
-        echoContent red "\n=============================================================="
+        echoContent red "\n=============================== VLESS+TCP+TLS  ==============================="
         defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${host}" ${add}
-        echoContent red "\n=============================================================="
+        echoContent red "\n=============================== VMess+TCP+TLS  ==============================="
         defaultBase64Code vmesstcp ${vmessTCPEmail} "${vmessTCPID}" "${host}" "${vmessTCPath}" "${host}"
 
 #        local type=$1
