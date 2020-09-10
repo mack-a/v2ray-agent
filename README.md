@@ -13,8 +13,11 @@
 * * *
 
 # 1.VLESS+TCP+TLS/VMess+TCP+TLS/VMess+WS+TLS +伪装博客 三合一共存脚本【Cloudflare云朵需为灰色】
+## 注意事项
+- 修改Cloudflare->SSL/TLS->Overview->Full
+- A记录解析的云朵必须为灰色
 
-- 安装脚本
+## 安装脚本
 ```
 wget -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh" && chmod +x install.sh && ./install.sh
 ```
