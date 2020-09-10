@@ -350,6 +350,7 @@ initNginxConfig(){
     echoContent skyBlue "\n进度  $2/${totalProgress} : 配置Nginx"
 #    echoContent green "配置Nginx"
     installType=$1
+    # 这里的wss是Nginx前置用的，这里已经改为VLESS前置，所以不需要review代码
     if [[ "${installType}" = "wss" ]]
     then
     cat << EOF > /etc/nginx/conf.d/alone.conf
@@ -358,7 +359,7 @@ initNginxConfig(){
         server_name ${domain};
         root /usr/share/nginx/html;
         ssl_certificate /etc/v2ray-agent/tls/${domain}.crt;ssl_certificate_key /etc/v2ray-agent/tls/${domain}.key;
-        ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+        ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3;
         ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;ssl_prefer_server_ciphers on;
         location / {}
         location /alone {
