@@ -620,7 +620,7 @@ automaticUpgrade(){
             version=`curl -s https://github.com/mack-a/v2ray-agent/releases|grep -v grep|grep /mack-a/v2ray-agent/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
             currentVersion=`cat /root/install.sh|grep -v grep|grep "当前版本："|awk '{print $3}'|awk -F "[\"]" '{print $2}'|awk -F "[v]" '{print $2}'`
             echo "upgrade|${currentTime}" > /etc/v2ray-agent/upgradeStatus
-        elif [[ "`cat /etc/v2ray-agent/upgradeStatus|awk -F '[|]' '{print $1}'`" = "upgrade" ]]
+        elif [[ "`cat /etc/v2ray-agent/upgradeStatus|awk -F '[|]' '{print $1}'`" = "upgrade" ]] && [[ ! -z `cat /etc/v2ray-agent/upgradeStatus|awk -F '[|]' '{print $2}'` ]]
         then
             # 第二次计算时间 三天
             local lastTime=`cat /etc/v2ray-agent/upgradeStatus|awk -F '[|]' '{print $2}'`
@@ -651,6 +651,7 @@ automaticUpgrade(){
     fi
 }
 updateV2RayAgent(){
+    local currentTime=`date +%s`
     echo "upgrade|${currentTime}" > /etc/v2ray-agent/upgradeStatus
     echoContent skyBlue "\n进度  $1/${totalProgress} : 更新v2ray-agent脚本"
     wget -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/dev/install.sh" && chmod +x install.sh && ./install.sh
