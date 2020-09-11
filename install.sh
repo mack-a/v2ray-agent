@@ -373,33 +373,86 @@ installCronTLS(){
     # 备份
 
     cat << EOF > /etc/v2ray-agent/reloadInstallTLS.sh
-        domain=${domain}
-        eccPath=\`find ~/.acme.sh -name "\${domain}_ecc"|head -1\`
-#        mkdir -p /etc/v2ray-agent/tls
-#        touch /etc/v2ray-agent/tls/tls.log
-#        touch /etc/v2ray-agent/tls/acme.log
-        if [[ ! -z \${eccPath} ]]
+#!/usr/bin/env bash
+echoContent(){
+    case $1 in
+        # 红色
+        "red")
+            echo -e "\033[31m${printN}$2 \033[0m"
+        ;;
+        # 天蓝色
+        "skyBlue")
+            echo -e "\033[1;36m${printN}$2 \033[0m"
+        ;;
+        # 绿色
+        "green")
+            echo -e "\033[32m${printN}$2 \033[0m"
+        ;;
+        # 白色
+        "white")
+            echo -e "\033[37m${printN}$2 \033[0m"
+        ;;
+        "magenta")
+            echo -e "\033[31m${printN}$2 \033[0m"
+        ;;
+        "skyBlue")
+            echo -e "\033[36m${printN}$2 \033[0m"
+        ;;
+        # 黄色
+        "yellow")
+            echo -e "\033[33m${printN}$2 \033[0m"
+        ;;
+    esac
+}
+echoContent skyBlue "\n进度  1/1 : 更新证书"
+if [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]] && [[ -d "/etc/v2ray-agent/tls" ]] && [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]] && [[ -f "/etc/v2ray-agent/v2ray/config.json" ]] && [[ -d "/root/.acme.sh" ]]
+then
+    tcp=`cat /etc/v2ray-agent/v2ray/config.json|jq .inbounds[0]`
+    host=`echo ${tcp}|jq .streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+    if [[ -d "/root/.acme.sh/${host}_ecc" ]] && [[ -f "/root/.acme.sh/${host}_ecc/${host}.key" ]] && [[ -f "/root/.acme.sh/${host}_ecc/${host}.cer" ]]
+    then
+        modifyTime=`stat /root/.acme.sh/${host}_ecc/${host}.key|sed -n '6,6p'|awk '{print $2" "$3" "$4" "$5}'`
+
+        modifyTime=`date +%s -d "${modifyTime}"`
+        currentTime=`date +%s`
+#        currentTime=`date +%s -d "2021-09-04 02:15:56.438105732 +0000"`
+#        currentTIme=1609459200
+        stampDiff=`expr ${currentTime} - ${modifyTime}`
+        days=`expr ${stampDiff} / 86400`
+        remainingDays=`expr 90 - ${days}`
+        tlsStatus=${remainingDays}
+        if [[ ${remainingDays} -le 0 ]]
         then
-            modifyTime=\`stat \${eccPath}/\${domain}.key|sed -n '6,6p'|awk '{print \$2" "\$3" "\$4" "\$5}'\`
-            modifyTime=\`date +%s -d "\${modifyTime}"\`
-            currentTime=\`date +%s\`
-            stampDiff=\`expr \${currentTime} - \${modifyTime}\`
-            minutes=\`expr \${stampDiff} / 60\`
-            status="正常"
-            reloadTime="暂无"
-            if [[ ! -z \${modifyTime} ]] && [[ ! -z \${currentTime} ]] && [[ ! -z \${stampDiff} ]] && [[ ! -z \${minutes} ]] && [[ \${minutes} -lt '120' ]]
+            tlsStatus="已过期"
+        fi
+        echoContent skyBlue " ---> 证书生成日期:"`date -d @${modifyTime} +"%F %H:%M:%S"`
+        echoContent skyBlue " ---> 证书生成天数:"${days}
+        echoContent skyBlue " ---> 证书剩余天数:"${tlsStatus}
+        if [[ ${remainingDays} -le 1 ]]
+        then
+            echoContent yellow " ---> 重新生成证书"
+            if [[ `ps -ef|grep -v grep|grep nginx` ]]
             then
                 nginx -s stop
-                ~/.acme.sh/acme.sh --installcert -d \${domain} --fullchainpath /etc/v2ray-agent/tls/\${domain}.crt --keypath /etc/v2ray-agent/tls/\${domain}.key --ecc >> /etc/v2ray-agent/tls/acme.log
-                nginx
-                reloadTime=\`date -d @\${currentTime} +"%F %H:%M:%S"\`
             fi
-            echo "域名：\${domain}，modifyTime:"\`date -d @\${modifyTime} +"%F %H:%M:%S"\`,"检查时间:"\`date -d @\${currentTime} +"%F %H:%M:%S"\`,上次生成证书的时:\`expr \${minutes} / 1440\`"天前","证书状态："\${status},"重新生成日期："\${reloadTime} >> /etc/v2ray-agent/tls/tls.log
+            sudo ~/.acme.sh/acme.sh --installcert -d ${host} --fullchainpath /etc/v2ray-agent/tls/${host}.crt --keypath /etc/v2ray-agent/tls/${host}.key --ecc >> /etc/v2ray-agent/tls/acme.log
+            nginx
+            if [[ `ps -ef|grep -v grep|grep nginx` ]]
+            then
+                echoContent green " ---> nginx启动成功"
+            else
+                echoContent red " ---> nginx启动失败，请检查[/etc/v2ray-agent/tls/acme.log]"
+            fi
         else
-            echo '无法找到证书路径' >> /etc/v2ray-agent/tls/tls.log
+            echoContent green " ---> 证书有效"
         fi
+    else
+        echoContent red " ---> 无法找到相应路径，请使用脚本重新安装"
+    fi
+else
+    echoContent red " ---> 无法找到相应路径，请使用脚本重新安装"
+fi
 EOF
-
     if [[ ! -z `crontab -l|grep -v grep|grep 'reloadInstallTLS'` ]]
     then
         echoContent green " ---> 添加定时维护证书成功"
@@ -408,6 +461,57 @@ EOF
         # 定时任务
         crontab /etc/v2ray-agent/backup_crontab.cron
         echoContent green " ---> 添加定时维护证书成功"
+    fi
+}
+# 更新证书
+renewalTLS(){
+    echoContent skyBlue "\n进度  1/1 : 更新证书"
+    if [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]] && [[ -d "/etc/v2ray-agent/tls" ]] && [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]] && [[ -f "/etc/v2ray-agent/v2ray/config.json" ]] && [[ -d "/root/.acme.sh" ]]
+    then
+        tcp=`cat /etc/v2ray-agent/v2ray/config.json|jq .inbounds[0]`
+        host=`echo ${tcp}|jq .streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+        if [[ -d "/root/.acme.sh/${host}_ecc" ]] && [[ -f "/root/.acme.sh/${host}_ecc/${host}.key" ]] && [[ -f "/root/.acme.sh/${host}_ecc/${host}.cer" ]]
+        then
+            modifyTime=`stat /root/.acme.sh/${host}_ecc/${host}.key|sed -n '6,6p'|awk '{print $2" "$3" "$4" "$5}'`
+
+            modifyTime=`date +%s -d "${modifyTime}"`
+            currentTime=`date +%s`
+    #        currentTime=`date +%s -d "2021-09-04 02:15:56.438105732 +0000"`
+    #        currentTIme=1609459200
+            stampDiff=`expr ${currentTime} - ${modifyTime}`
+            days=`expr ${stampDiff} / 86400`
+            remainingDays=`expr 90 - ${days}`
+            tlsStatus=${remainingDays}
+            if [[ ${remainingDays} -le 0 ]]
+            then
+                tlsStatus="已过期"
+            fi
+            echoContent skyBlue " ---> 证书生成日期:"`date -d @${modifyTime} +"%F %H:%M:%S"`
+            echoContent skyBlue " ---> 证书生成天数:"${days}
+            echoContent skyBlue " ---> 证书剩余天数:"${tlsStatus}
+            if [[ ${remainingDays} -le 1 ]]
+            then
+                echoContent yellow " ---> 重新生成证书"
+                if [[ `ps -ef|grep -v grep|grep nginx` ]]
+                then
+                    nginx -s stop
+                fi
+                sudo ~/.acme.sh/acme.sh --installcert -d ${host} --fullchainpath /etc/v2ray-agent/tls/${host}.crt --keypath /etc/v2ray-agent/tls/${host}.key --ecc >> /etc/v2ray-agent/tls/acme.log
+                nginx
+                if [[ `ps -ef|grep -v grep|grep nginx` ]]
+                then
+                    echoContent green " ---> nginx启动成功"
+                else
+                    echoContent red " ---> nginx启动失败，请检查[/etc/v2ray-agent/tls/acme.log]"
+                fi
+            else
+                echoContent green " ---> 证书有效"
+            fi
+        else
+            echoContent red " ---> 无法找到相应路径，请使用脚本重新安装"
+        fi
+    else
+        echoContent red " ---> 无法找到相应路径，请使用脚本重新安装"
     fi
 }
 # 安装V2Ray
@@ -1400,14 +1504,13 @@ menu(){
     echoContent green "当前版本：v2.0.3"
     echoContent red "=============================================================="
     echoContent yellow "1.(VLESS+TCP+TLS/VMess+TCP+TLS/VMess+WS+TLS/VLESS+WS+TLS)+伪装博客 四合一共存脚本[Cloudflare云朵需为灰色]"
-    # echoContent yellow "2.V2Ray+TCP+TLS"
     echoContent red "=============================================================="
     echoContent yellow "4.升级V2Ray"
     echoContent yellow "5.自动排错"
     echoContent yellow "6.账号查看"
     echoContent yellow "7.安装BBR"
     echoContent yellow "8.升级脚本"
-    echoContent yellow "9.更新证书[todo]"
+    echoContent yellow "9.更新证书"
     echoContent yellow "10.卸载脚本"
     echoContent red "=============================================================="
     automaticUpgrade
@@ -1430,6 +1533,9 @@ menu(){
         ;;
         8)
             updateV2RayAgent 1
+        ;;
+        9)
+            renewalTLS 1
         ;;
         10)
             unInstall
