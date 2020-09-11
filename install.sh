@@ -1510,12 +1510,13 @@ menu(){
     echoContent yellow "1.(VLESS+TCP+TLS/VMess+TCP+TLS/VMess+WS+TLS/VLESS+WS+TLS)+伪装博客 四合一共存脚本[Cloudflare云朵需为灰色]"
     # echoContent yellow "2.V2Ray+TCP+TLS"
     echoContent red "=============================================================="
-    echoContent yellow "4.更新V2Ray"
+    echoContent yellow "4.升级V2Ray"
     echoContent yellow "5.自动排错"
     echoContent yellow "6.账号查看"
     echoContent yellow "7.安装BBR"
-    echoContent yellow "8.更新脚本"
-    echoContent yellow "9.卸载脚本"
+    echoContent yellow "8.升级脚本"
+    echoContent yellow "9.更新证书[todo]"
+    echoContent yellow "10.卸载脚本"
     echoContent red "=============================================================="
     automaticUpgrade
     read -p "请选择:" selectInstallType
@@ -1538,7 +1539,7 @@ menu(){
         8)
             updateV2RayAgent 1
         ;;
-        9)
+        10)
             unInstall
         ;;
     esac
