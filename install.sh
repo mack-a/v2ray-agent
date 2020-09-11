@@ -375,69 +375,69 @@ installCronTLS(){
     cat << EOF > /etc/v2ray-agent/reloadInstallTLS.sh
 #!/usr/bin/env bash
 echoContent(){
-    case $1 in
+    case \$1 in
         # 红色
         "red")
-            echo -e "\033[31m${printN}$2 \033[0m"
+            echo -e "\033[31m\${printN}\$2 \033[0m"
         ;;
         # 天蓝色
         "skyBlue")
-            echo -e "\033[1;36m${printN}$2 \033[0m"
+            echo -e "\033[1;36m\${printN}\$2 \033[0m"
         ;;
         # 绿色
         "green")
-            echo -e "\033[32m${printN}$2 \033[0m"
+            echo -e "\033[32m\${printN}\$2 \033[0m"
         ;;
         # 白色
         "white")
-            echo -e "\033[37m${printN}$2 \033[0m"
+            echo -e "\033[37m\${printN}\$2 \033[0m"
         ;;
         "magenta")
-            echo -e "\033[31m${printN}$2 \033[0m"
+            echo -e "\033[31m\${printN}\$2 \033[0m"
         ;;
         "skyBlue")
-            echo -e "\033[36m${printN}$2 \033[0m"
+            echo -e "\033[36m\${printN}\$2 \033[0m"
         ;;
         # 黄色
         "yellow")
-            echo -e "\033[33m${printN}$2 \033[0m"
+            echo -e "\033[33m\${printN}\$2 \033[0m"
         ;;
     esac
 }
 echoContent skyBlue "\n进度  1/1 : 更新证书"
 if [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]] && [[ -d "/etc/v2ray-agent/tls" ]] && [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]] && [[ -f "/etc/v2ray-agent/v2ray/config.json" ]] && [[ -d "/root/.acme.sh" ]]
 then
-    tcp=`cat /etc/v2ray-agent/v2ray/config.json|jq .inbounds[0]`
-    host=`echo ${tcp}|jq .streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
-    if [[ -d "/root/.acme.sh/${host}_ecc" ]] && [[ -f "/root/.acme.sh/${host}_ecc/${host}.key" ]] && [[ -f "/root/.acme.sh/${host}_ecc/${host}.cer" ]]
+    tcp=\`cat /etc/v2ray-agent/v2ray/config.json|jq .inbounds[0]\`
+    host=\`echo \${tcp}|jq .streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print \$2}'|awk -F '["]' '{print \$1}'|awk -F '[.][c][r][t]' '{print \$1}'\`
+    if [[ -d "/root/.acme.sh/\${host}_ecc" ]] && [[ -f "/root/.acme.sh/\${host}_ecc/\${host}.key" ]] && [[ -f "/root/.acme.sh/\${host}_ecc/\${host}.cer" ]]
     then
-        modifyTime=`stat /root/.acme.sh/${host}_ecc/${host}.key|sed -n '6,6p'|awk '{print $2" "$3" "$4" "$5}'`
+        modifyTime=\`stat /root/.acme.sh/\${host}_ecc/\${host}.key|sed -n '6,6p'|awk '{print \$2" "\$3" "\$4" "\$5}'\`
 
-        modifyTime=`date +%s -d "${modifyTime}"`
-        currentTime=`date +%s`
-#        currentTime=`date +%s -d "2021-09-04 02:15:56.438105732 +0000"`
+        modifyTime=\`date +%s -d "\${modifyTime}"\`
+        currentTime=\`date +%s\`
+#        currentTime=\`date +%s -d "2021-09-04 02:15:56.438105732 +0000"\`
 #        currentTIme=1609459200
-        stampDiff=`expr ${currentTime} - ${modifyTime}`
-        days=`expr ${stampDiff} / 86400`
-        remainingDays=`expr 90 - ${days}`
-        tlsStatus=${remainingDays}
-        if [[ ${remainingDays} -le 0 ]]
+        stampDiff=\`expr \${currentTime} - \${modifyTime}\`
+        days=\`expr \${stampDiff} / 86400\`
+        remainingDays=\`expr 90 - \${days}\`
+        tlsStatus=\${remainingDays}
+        if [[ \${remainingDays} -le 0 ]]
         then
             tlsStatus="已过期"
         fi
-        echoContent skyBlue " ---> 证书生成日期:"`date -d @${modifyTime} +"%F %H:%M:%S"`
-        echoContent skyBlue " ---> 证书生成天数:"${days}
-        echoContent skyBlue " ---> 证书剩余天数:"${tlsStatus}
-        if [[ ${remainingDays} -le 1 ]]
+        echoContent skyBlue " ---> 证书生成日期:"\`date -d @\${modifyTime} +"%F %H:%M:%S"\`
+        echoContent skyBlue " ---> 证书生成天数:"\${days}
+        echoContent skyBlue " ---> 证书剩余天数:"\${tlsStatus}
+        if [[ \${remainingDays} -le 1 ]]
         then
             echoContent yellow " ---> 重新生成证书"
-            if [[ `ps -ef|grep -v grep|grep nginx` ]]
+            if [[ \`ps -ef|grep -v grep|grep nginx\` ]]
             then
                 nginx -s stop
             fi
-            sudo ~/.acme.sh/acme.sh --installcert -d ${host} --fullchainpath /etc/v2ray-agent/tls/${host}.crt --keypath /etc/v2ray-agent/tls/${host}.key --ecc >> /etc/v2ray-agent/tls/acme.log
+            sudo ~/.acme.sh/acme.sh --installcert -d \${host} --fullchainpath /etc/v2ray-agent/tls/\${host}.crt --keypath /etc/v2ray-agent/tls/\${host}.key --ecc >> /etc/v2ray-agent/tls/acme.log
             nginx
-            if [[ `ps -ef|grep -v grep|grep nginx` ]]
+            if [[ \`ps -ef|grep -v grep|grep nginx\` ]]
             then
                 echoContent green " ---> nginx启动成功"
             else
@@ -1608,12 +1608,12 @@ installV2RayVLESSTCPWSTLS(){
     handleNginx stop
     initNginxConfig vlesstcpws 5
     randomPathFunction 6
-    installCronTLS 7
     # 安装V2Ray
-    installV2Ray 8
-    installV2RayService 9
-    customCDNIP 10
-    initV2RayConfig vlesstcpws 11
+    installV2Ray 7
+    installV2RayService 8
+    customCDNIP 9
+    initV2RayConfig vlesstcpws 10
+    installCronTLS 11
     nginxBlog 12
     handleV2Ray stop
     handleV2Ray start
