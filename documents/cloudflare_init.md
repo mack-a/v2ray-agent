@@ -20,7 +20,7 @@
 - 3.修改NameServer
 >这里以godaddy为例
 
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/cloudflare/cloudflare_add_website_ns.png" width=400>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/cloudflare/cloudflare_website_godaddy_ns.png" width=400>
 
 # 3.修改SSL/TLS mode
 - SSL/TLS->Full
