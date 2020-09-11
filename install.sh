@@ -13,6 +13,7 @@ totalProgress=1
 iplc=$1
 uuidws=
 uuidtcp=
+uuidVlessWS=
 
 trap 'onCtrlC' INT
 function onCtrlC () {
@@ -775,6 +776,7 @@ initV2RayConfig(){
     uuidtcp=`/etc/v2ray-agent/v2ray/v2ctl uuid`
     uuidws=`/etc/v2ray-agent/v2ray/v2ctl uuid`
     uuidVmessTcp=`/etc/v2ray-agent/v2ray/v2ctl uuid`
+    uuidVlessWS=`/etc/v2ray-agent/v2ray/v2ctl uuid`
     echoContent skyBlue "\n进度 $2/${totalProgress} : 初始化V2Ray配置"
     # 自定义IPLC端口
     if [[ ! -z ${iplc} ]]
@@ -1047,7 +1049,7 @@ EOF
 {
   "log": {
     "access":"/etc/v2ray-agent/v2ray/v2ray_access.log",
-     "error":"/etc/v2ray-agent/v2ray/v2ray_error.log",
+    "error":"/etc/v2ray-agent/v2ray/v2ray_error.log",
     "loglevel": "debug"
   },
   "inbounds": [
@@ -1077,6 +1079,11 @@ EOF
             "path": "/${customPath}tcp",
             "dest": 31298,
             "xver": 1
+          },
+          {
+            "path": "/${customPath}ws",
+            "dest": 31297,
+            "xver": 1
           }
         ]
       },
@@ -1104,7 +1111,7 @@ EOF
           {
             "id": "${uuidws}",
             "alterId": 0,
-            "add":"${add}",
+            "add": "${add}",
             "level": 1,
             "email": "${domain}_vmess_ws"
           }
@@ -1120,34 +1127,57 @@ EOF
       }
     },
     {
-            "port": 31298,
-            "listen": "127.0.0.1",
-            "protocol": "vmess",
-            "settings": {
-                "clients": [
-                    {
-                        "id": "${uuidVmessTcp}",
-                        "level": 0,
-                        "email": "${domain}_vmess_tcp"
-                    }
-                ]
-            },
-            "streamSettings": {
-                "network": "tcp",
-                "security": "none",
-                "tcpSettings": {
-                    "acceptProxyProtocol": true,
-                    "header": {
-                        "type": "http",
-                        "request": {
-                            "path": [
-                                "/${customPath}tcp"
-                            ]
-                        }
-                    }
-                }
+      "port": 31298,
+      "listen": "127.0.0.1",
+      "protocol": "vmess",
+      "settings": {
+        "clients": [
+          {
+            "id": "${uuidVmessTcp}",
+            "level": 0,
+            "email": "${domain}_vmess_tcp"
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "none",
+        "tcpSettings": {
+          "acceptProxyProtocol": true,
+          "header": {
+            "type": "http",
+            "request": {
+              "path": [
+                "/${customPath}tcp"
+              ]
             }
+          }
         }
+      }
+    },
+    {
+      "port": 31297,
+      "listen": "127.0.0.1",
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "${uuidVlessWS}",
+            "level": 0,
+            "email": "${domain}_vless_ws"
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "none",
+        "wsSettings": {
+          "acceptProxyProtocol": true,
+          "path": "/${customPath}ws"
+        }
+      }
+    }
   ],
   "outbounds": [
     {
