@@ -1055,8 +1055,8 @@ EOF
         cat << EOF > /etc/v2ray-agent/v2ray/config.json
 {
   "log": {
-    "access":"/etc/v2ray-agent/v2ray/v2ray_access.log",
-    "error":"/etc/v2ray-agent/v2ray/v2ray_error.log",
+    "access": "/etc/v2ray-agent/v2ray/v2ray_access.log",
+    "error": "/etc/v2ray-agent/v2ray/v2ray_error.log",
     "loglevel": "debug"
   },
   "inbounds": [
@@ -1189,15 +1189,19 @@ EOF
   "outbounds": [
     {
       "protocol": "freedom",
-      "settings": {}
+      "settings": {
+        "domainStrategy": "UseIP"
+      }
     }
   ],
   "dns": {
     "servers": [
+      "74.82.42.42",
       "8.8.8.8",
-      "8.8.4.4"
-    ],
-    "tag": "dns_inbound"
+      "8.8.4.4",
+      "1.1.1.1",
+      "localhost"
+    ]
   }
 }
 EOF
@@ -1502,7 +1506,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.0.3"
+    echoContent green "当前版本：v2.0.4"
     echoContent red "=============================================================="
     echoContent yellow "1.(VLESS+TCP+TLS/VMess+TCP+TLS/VMess+WS+TLS/VLESS+WS+TLS)+伪装博客 四合一共存脚本[Cloudflare云朵需为灰色]"
     echoContent red "=============================================================="
