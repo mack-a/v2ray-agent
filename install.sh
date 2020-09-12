@@ -1117,9 +1117,9 @@ EOF
         "clients": [
           {
             "id": "${uuidws}",
-            "alterId": 0,
+            "alterId": 1,
             "add": "${add}",
-            "level": 1,
+            "level": 0,
             "email": "${domain}_vmess_ws"
           }
         ]
