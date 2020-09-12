@@ -1223,23 +1223,7 @@ customCDNIP(){
         add="${domain}"
     fi
 }
-# 生成账号base64链接
-buildAccounts(){
-    echoContent skyBlue "\n进度 $1/${totalProgress} : 初始化账号"
-    user=`cat /etc/v2ray-agent/v2ray/config.json|jq .inbounds[0]`
-    ps="${domain}"
-    id=`echo ${user}|jq .settings.clients[0].id`
-    aid=`echo ${user}|jq .settings.clients[0].alterId`
-    host="${domain}"
-    add="${add}"
-    path=`echo ${user}|jq .streamSettings.wsSettings.path`
-    if [[ "${path}" = "null" ]]
-    then
-        path=\"/${customPath}\"
-    fi
-    echoContent green " ---> 客户端链接"
-    defaultBase64Code "${ps}" "${id}" "${host}" "${path}" "${add}"
-}
+
 # 通用
 defaultBase64Code(){
     local type=$1
@@ -1287,10 +1271,10 @@ defaultBase64Code(){
 
     elif [[ "${type}" = "vmessws" ]]
     then
-        qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
+        qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"1","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
         qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
         echoContent yellow " ---> 通用json(VMess+WS+TLS)"
-        echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}\n'
+        echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"1","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}\n'
         echoContent yellow " ---> 通用vmess(VMess+WS+TLS)链接"
         echoContent green "    vmess://${qrCodeBase64Default}\n"
         echoContent yellow " ---> 二维码 vmess(VMess+WS+TLS)"
@@ -1298,10 +1282,10 @@ defaultBase64Code(){
 
     elif [[ "${type}" = "vmesstcp" ]]
     then
-        qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"http","path":'${path}',"net":"tcp","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'","obfs":"http","obfsParam":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
+        qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"1","v":"2","host":"'${host}'","type":"http","path":'${path}',"net":"tcp","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'","obfs":"http","obfsParam":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
         qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
         echoContent yellow " ---> 通用json(VMess+TCP+TLS)"
-        echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"http","path":'${path}',"net":"tcp","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'","obfs":"http","obfsParam":"'${host}'"}\n'
+        echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"1","v":"2","host":"'${host}'","type":"http","path":'${path}',"net":"tcp","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'","obfs":"http","obfsParam":"'${host}'"}\n'
         echoContent yellow " ---> 通用vmess(VMess+TCP+TLS)链接"
         echoContent green "    vmess://${qrCodeBase64Default}\n"
         echoContent yellow " ---> 二维码 vmess(VMess+TCP+TLS)"
@@ -1403,6 +1387,14 @@ showAccounts(){
         local tcpID=`echo ${tcp}|jq .settings.clients[0].id`
         local tcpEmail="`echo ${tcp}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
         local host=`echo ${tcp}|jq .streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+
+         # VLESS ws
+        local vlessWS=`cat /etc/v2ray-agent/v2ray/config.json|jq .inbounds[3]`
+        local vlessWSID=`echo ${vlessWS}|jq .settings.clients[0].id`
+        local vlessWSAdd=`echo ${vlessWS}|jq .settings.clients[0].add|awk -F '["]' '{print $2}'`
+        local vlessWSEmail="`echo ${vlessWS}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
+        local vlessWSPath=`echo ${vlessWS}|jq .streamSettings.wsSettings.path`
+
         # Vmess ws
         local ws=`cat /etc/v2ray-agent/v2ray/config.json|jq .inbounds[1]`
         local wsID=`echo ${ws}|jq .settings.clients[0].id`
@@ -1417,19 +1409,16 @@ showAccounts(){
         local vmessTCPEmail="`echo ${vmessTCP}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
         local vmessTCPath=`echo ${vmessTCP}|jq .streamSettings.tcpSettings.header.request.path[0]`
 
-        # VLESS ws
-        local vlessWS=`cat /etc/v2ray-agent/v2ray/config.json|jq .inbounds[3]`
-        local vlessWSID=`echo ${vlessWS}|jq .settings.clients[0].id`
-        local vlessWSAdd=`echo ${vlessWS}|jq .settings.clients[0].add|awk -F '["]' '{print $2}'`
-        local vlessWSEmail="`echo ${vlessWS}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
-        local vlessWSPath=`echo ${vlessWS}|jq .streamSettings.wsSettings.path`
+
+        echoContent skyBlue "\n=============================== VLESS+TCP+TLS  ==============================="
+        defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${host}" ${add}
+
+        echoContent skyBlue "\n===============================VLESS+WS+TLS+CDN==============================="
+        defaultBase64Code vlessws ${vlessWSEmail} "${vlessWSID}" "${host}" "${vlessWSPath}" ${vlessWSAdd}
 
         echoContent skyBlue "\n===============================VMess+WS+TLS+CDN==============================="
         defaultBase64Code vmessws ${wsEmail} "${wsID}" "${host}" "${wsPath}" ${wsAdd}
-        echoContent skyBlue "\n=============================== VLESS+TCP+TLS  ==============================="
-        defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${host}" ${add}
-        echoContent skyBlue "\n===============================VLESS+WS+TLS+CDN==============================="
-        defaultBase64Code vlessws ${vlessWSEmail} "${vlessWSID}" "${host}" "${vlessWSPath}" ${vlessWSAdd}
+
         echoContent skyBlue "\n=============================== VMess+TCP+TLS  ==============================="
         defaultBase64Code vmesstcp ${vmessTCPEmail} "${vmessTCPID}" "${host}" "${vmessTCPath}" "${host}"
 
@@ -1580,7 +1569,7 @@ installV2RayVmessWSSNginxWeb(){
     handleV2Ray start
     handleNginx start
     customCDNIP
-    buildAccounts
+#    buildAccounts
     checkGFWStatue
     progressTools "yellow" "安装完毕[100%]--->"
 }
@@ -1600,7 +1589,7 @@ installV2RayVmessTCPTLS(){
     handleV2Ray start
     # 生成账号
     checkGFWStatue
-    buildAccounts
+#    buildAccounts
 }
 installV2RayVLESSTCPWSTLS(){
     totalProgress=14
