@@ -1142,6 +1142,7 @@ EOF
           {
             "id": "${uuidVmessTcp}",
             "level": 0,
+            "alterId": 1,
             "email": "${domain}_vmess_tcp"
           }
         ]
