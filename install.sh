@@ -1429,7 +1429,7 @@ showAccounts(){
 
 # 卸载脚本
 unInstall(){
-    echo
+    echoContent skyBlue "\n进度 $1/${totalProgress} : 卸载脚本"
     handleNginx stop
     if [[ -z `ps -ef|grep -v grep|grep nginx` ]]
     then
@@ -1500,11 +1500,11 @@ menu(){
     echoContent red "=============================================================="
     echoContent yellow "1.(VLESS+TCP+TLS/VMess+TCP+TLS/VMess+WS+TLS/VLESS+WS+TLS)+伪装博客 四合一共存脚本[Cloudflare云朵需为灰色]"
     echoContent red "=============================================================="
-    echoContent yellow "4.升级V2Ray"
-    echoContent yellow "5.自动排错"
-    echoContent yellow "6.账号查看"
+    echoContent yellow "4.查看账号"
+    echoContent yellow "5.升级V2Ray"
+    echoContent yellow "6.升级脚本"
     echoContent yellow "7.安装BBR"
-    echoContent yellow "8.升级脚本"
+    echoContent yellow "8.自动排错"
     echoContent yellow "9.更新证书"
     echoContent yellow "10.卸载脚本"
     echoContent red "=============================================================="
@@ -1515,19 +1515,20 @@ menu(){
             installV2RayVLESSTCPWSTLS
         ;;
         4)
-            updateV2Ray 1
+            showAccounts 1
+
         ;;
         5)
-            checkFail 1
+            updateV2Ray 1
         ;;
         6)
-            showAccounts 1
+            updateV2RayAgent 1
         ;;
         7)
             bbrInstall
         ;;
         8)
-            updateV2RayAgent 1
+            checkFail 1
         ;;
         9)
             renewalTLS 1
