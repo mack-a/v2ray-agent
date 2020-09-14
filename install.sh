@@ -1433,25 +1433,27 @@ unInstall(){
     handleNginx stop
     if [[ -z `ps -ef|grep -v grep|grep nginx` ]]
     then
-        echoContent green "停止Nginx成功\n"
+        echoContent green " ---> 停止Nginx成功"
     fi
 
     handleV2Ray stop
 
     rm -rf /etc/systemd/system/v2ray.service
-    echoContent red "删除V2Ray开机自启成功"
+    echoContent green " ---> 删除V2Ray开机自启完成"
 
     if [[ -d "/etc/v2ray-agent/tls" ]] && [[ ! -z `find /etc/v2ray-agent/tls/ -name "*.key"` ]] && [[ ! -z `find /etc/v2ray-agent/tls/ -name "*.crt"` ]]
     then
         mv /etc/v2ray-agent/tls /tmp
         if [[ ! -z `find /tmp/tls -name '*.key'` ]]
         then
-            echoContent green "备份证书成功，请注意留存。[/tmp/tls]"
+            echoContent yellow " ---> 备份证书成功，请注意留存。[/tmp/tls]"
         fi
     fi
 
     rm -rf /etc/v2ray-agent
-    echoContent green "卸载完成"
+    rm -rf /etc/nginx/conf.d/alone.conf
+    echoContent green " ---> 卸载V2Ray完成"
+    echoContent green " ---> 卸载完成"
 }
 # 检查错误
 checkFail(){
@@ -1534,7 +1536,7 @@ menu(){
             renewalTLS 1
         ;;
         10)
-            unInstall
+            unInstall 1
         ;;
     esac
     exit 0;
