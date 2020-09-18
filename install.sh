@@ -357,7 +357,11 @@ handleNginx(){
         fi
     elif [[  "$1" = "stop" ]] && [[ ! -z `ps -ef|grep -v grep|grep nginx` ]]
     then
-        nginx -s stop
+        nginx -s stop > /dev/null 2>&1
+        if [[ ! -z `ps -ef|grep -v grep|grep nginx` ]]
+        then
+            ps -ef|grep -v grep|grep nginx|awk '{print $2}'|xargs kill -9
+        fi
     fi
 }
 # 定时任务更新tls证书
