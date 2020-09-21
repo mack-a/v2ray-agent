@@ -57,6 +57,7 @@ mkdirTools(){
     echoContent skyBlue "\n进度  $1/${totalProgress} : 创建文件夹"
     mkdir -p /etc/v2ray-agent/tls
     mkdir -p /etc/v2ray-agent/v2ray
+    mkdir -p /etc/v2ray-agent/trojan
     mkdir -p /etc/systemd/system/
 }
 # 安装工具包
@@ -543,6 +544,28 @@ installV2Ray(){
         fi
     fi
 }
+# 安装Trojan-go
+installTrojanGo(){
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 安装Trojan-Go"
+    if [[ -z `ls -F /etc/v2ray-agent/trojan/|grep "trojan-go"` ]] || [[ -z `ls -F /etc/v2ray-agent/trojan/|grep "trojan-go"` ]]
+    then
+        version=`curl -s https://github.com/p4gefau1t/trojan-go/releases|grep /trojan-go/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
+        # version="v4.27.4"
+        echoContent green " ---> Trojan-Go版本:${version}"
+        wget -q -P /etc/v2ray-agent/trojan/ https://github.com/p4gefau1t/trojan-go/releases/download/${version}/trojan-go-linux-amd64.zip
+        unzip /etc/v2ray-agent/trojan/trojan-go-linux-amd64.zip -d /etc/v2ray-agent/trojan > /dev/null
+        rm -rf /etc/v2ray-agent/trojan/trojan-go-linux-amd64.zip
+    else
+        # progressTools "green" "  v2ray-core版本:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`"
+        echoContent green " ---> Trojan-Go版本:`/etc/v2ray-agent/trojan/trojan-go --version|awk '{print $2}'|head -1`"
+        read -p "是否重新安装？[y/n]:" reInstalTrojanStatus
+        if [[ "${reInstalV2RayStatus}" = "y" ]]
+        then
+            rm -rf /etc/v2ray-agent/trojan/*
+            installTrojanGo $1
+        fi
+    fi
+}
 # 更新V2Ray
 updateV2Ray(){
     echoContent skyBlue "\n进度  $1/${totalProgress} : 更新V2Ray"
@@ -673,7 +696,13 @@ checkGFWStatue(){
         then
             echoContent green " ---> 服务可用"
         else
-            progressTools "red" "    服务不可用，请检查Cloudflare->域名->SSL/TLS->Overview->Your SSL/TLS encryption mode is 是否是Full--->"
+            echoContent red " ---> 服务不可用"
+            progressTools "red" "    1.请检查Cloudflare->域名->SSL/TLS->Overview->Your SSL/TLS encryption mode is 是否是Full--->"
+            progressTools "red" "    2.请执行[ps -ef|grep v2ray]查看结果是否有如下信息，如果存在则执行脚本选择[4查看账号]即可--->"
+            progressTools "red" "       /etc/v2ray-agent/trojan/trojan-go -config /etc/v2ray-agent/trojan/config.json"
+            progressTools "red" "       /etc/v2ray-agent/v2ray/v2ray -config /etc/v2ray-agent/v2ray/config.json"
+            progressTools "red" "    3.如以上都无法解决，请联系开发者[https://t.me/mack_a]"
+
             progressTools "red" "  错误日志:`curl -s -L https://${domain}/${customPath}`"
             exit 0
         fi
@@ -705,7 +734,7 @@ checkGFWStatue(){
         fi
     fi
 }
-# 开机自启
+# V2Ray开机自启
 installV2RayService(){
     echoContent skyBlue "\n进度  $1/${totalProgress} : 配置V2Ray开机自启"
     if [[ ! -z `find /bin /usr/bin -name "systemctl"` ]]
@@ -738,14 +767,47 @@ EOF
         echoContent green " ---> 配置V2Ray开机自启成功"
     fi
 }
+# Trojan开机自启
+installTrojanService(){
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 配置Trojan开机自启"
+    if [[ ! -z `find /bin /usr/bin -name "systemctl"` ]]
+    then
+        rm -rf /etc/systemd/system/trojan-go.service
+        touch /etc/systemd/system/trojan-go.service
+
+    cat << EOF > /etc/systemd/system/trojan-go.service
+        [Unit]
+        Description=Trojan-Go - A unified platform for anti-censorship
+        Documentation=Trojan-Go
+        After=network.target nss-lookup.target
+        Wants=network-online.target
+
+        [Service]
+        Type=simple
+        User=root
+        CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_RAW
+        NoNewPrivileges=yes
+        ExecStart=/etc/v2ray-agent/trojan/trojan-go -config /etc/v2ray-agent/trojan/config.json
+        Restart=on-failure
+        RestartPreventExitStatus=23
+
+
+        [Install]
+        WantedBy=multi-user.target
+EOF
+        systemctl daemon-reload
+        systemctl enable trojan-go.service
+        echoContent green " ---> 配置Trojan开机自启成功"
+    fi
+}
 # 操作V2Ray
 handleV2Ray(){
     if [[ ! -z `find /bin /usr/bin -name "systemctl"` ]] && [[ ! -z `ls /etc/systemd/system/|grep -v grep|grep v2ray.service` ]]
     then
-        if [[ -z `ps -ef|grep -v grep|grep v2ray` ]] && [[ "$1" = "start" ]]
+        if [[ -z `ps -ef|grep -v grep|grep "v2ray/v2ray"` ]] && [[ "$1" = "start" ]]
         then
             systemctl start v2ray.service
-        elif [[ ! -z `ps -ef|grep -v grep|grep v2ray` ]] && [[ "$1" = "stop" ]]
+        elif [[ ! -z `ps -ef|grep -v grep|grep "v2ray/v2ray"` ]] && [[ "$1" = "stop" ]]
         then
             systemctl stop v2ray.service
         fi
@@ -761,22 +823,65 @@ handleV2Ray(){
     fi
     if [[ "$1" = "start" ]]
     then
-        if [[ ! -z `ps -ef|grep -v grep|grep v2ray` ]]
+        if [[ ! -z `ps -ef|grep -v grep|grep "v2ray/v2ray"` ]]
         then
             echoContent green " ---> V2Ray启动成功"
         else
             echoContent red "V2Ray启动失败"
-            echoContent red "请手动执行【/usr/bin/v2ray/v2ray -config /etc/v2ray-agent/v2ray/config.json】,查看错误日志"
+            echoContent red "请手动执行【/etc/v2ray-agent/v2ray/v2ray -config /etc/v2ray-agent/v2ray/config.json】,查看错误日志"
             exit 0;
         fi
     elif [[ "$1" = "stop" ]]
     then
-        if [[ -z `ps -ef|grep -v grep|grep v2ray` ]]
+        if [[ -z `ps -ef|grep -v grep|grep "v2ray/v2ray"` ]]
         then
             echoContent green " ---> V2Ray关闭成功"
         else
             echoContent red "V2Ray关闭失败"
             echoContent red "请手动执行【ps -ef|grep -v grep|grep v2ray|awk '{print \$2}'|xargs kill -9】"
+            exit 0;
+        fi
+    fi
+}
+# 操作Trojan-Go
+handleTrojanGo(){
+    if [[ ! -z `find /bin /usr/bin -name "systemctl"` ]] && [[ ! -z `ls /etc/systemd/system/|grep -v grep|grep trojan-go.service` ]]
+    then
+        if [[ -z `ps -ef|grep -v grep|grep trojan-go` ]] && [[ "$1" = "start" ]]
+        then
+            systemctl start trojan-go.service
+        elif [[ ! -z `ps -ef|grep -v grep|grep trojan-go` ]] && [[ "$1" = "stop" ]]
+        then
+            systemctl stop trojan-go.service
+        fi
+    elif [[ -z `find /bin /usr/bin -name "systemctl"` ]]
+    then
+        if [[ -z `ps -ef|grep -v grep|grep trojan-go` ]] && [[ "$1" = "start" ]]
+        then
+            /usr/bin/trojan/trojan-go -config /etc/v2ray-agent/trojan/config.json & > /dev/null 2>&1
+        elif [[ ! -z `ps -ef|grep -v grep|grep trojan-go` ]] && [[ "$1" = "stop" ]]
+        then
+            ps -ef|grep -v grep|grep trojan-go|awk '{print $2}'|xargs kill -9
+        fi
+    fi
+    if [[ "$1" = "start" ]]
+    then
+        if [[ ! -z `ps -ef|grep -v grep|grep trojan-go ` ]]
+        then
+            echoContent green " ---> Trojan-Go启动成功"
+        else
+            echoContent red "Trojan-Go启动失败"
+            echoContent red "请手动执行【/usr/bin/trojan/trojan-go -config /etc/v2ray-agent/trojan/config.json】,查看错误日志"
+            exit 0;
+        fi
+    elif [[ "$1" = "stop" ]]
+    then
+        if [[ -z `ps -ef|grep -v grep|grep trojan-go` ]]
+        then
+            echoContent green " ---> Trojan-Go关闭成功"
+        else
+            echoContent red "Trojan-Go关闭失败"
+            echoContent red "请手动执行【ps -ef|grep -v grep|grep trojan-go|awk '{print \$2}'|xargs kill -9】"
             exit 0;
         fi
     fi
@@ -1078,8 +1183,8 @@ EOF
         "decryption": "none",
         "fallbacks": [
           {
-            "dest": 80,
-            "xver": 1
+            "dest": 31296,
+            "xver": 0
           },
           {
             "path": "/${customPath}",
@@ -1213,6 +1318,29 @@ EOF
 
     fi
 }
+# 初始化Trojan-Go配置
+initTrojanGoConfig(){
+    uuidTrojanGo=`/etc/v2ray-agent/v2ray/v2ctl uuid`
+    echoContent skyBlue "\n进度 $1/${totalProgress} : 初始化Trojan配置"
+    cat << EOF > /etc/v2ray-agent/trojan/config.json
+{
+    "run_type": "server",
+    "local_addr": "0.0.0.0",
+    "local_port": 31296,
+    "remote_addr": "127.0.0.1",
+    "remote_port": 80,
+    "log_level":0,
+    "log_file":"/etc/v2ray-agent/trojan/trojan.log",
+    "password": [
+        "${uuidTrojanGo}"
+    ],
+    "transport_plugin":{
+        "enabled":true,
+        "type":"plaintext"
+    }
+}
+EOF
+}
 # 自定义CDN IP
 customCDNIP(){
     echoContent skyBlue "\n进度 $1/${totalProgress} : 添加DNS智能解析"
@@ -1300,6 +1428,14 @@ defaultBase64Code(){
         qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
         echoContent yellow " ---> 通用json(VLESS+WS+TLS)"
         echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}\n'
+    elif [[ "${type}" = "trojan" ]]
+    then
+        qrCodeBase64Default=`echo -n ${id}@${host}:443?peer=${host}&sni=${host}|base64`
+        qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
+        echoContent yellow " ---> Trojan(TLS)"
+        echoContent green "    trojan://${id}@${host}:443?peer=${host}&sni=${host}\n"
+        echoContent yellow " ---> 二维码 vmess(VMess+TCP+TLS)"
+        echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan://${qrCodeBase64Default}\n"
     fi
 }
 # quanMult base64Code
@@ -1383,14 +1519,17 @@ installProgressFunction(){
 }
 # 账号
 showAccounts(){
+    showStatus=
+    local host=
     echoContent skyBlue "\n进度 $1/${totalProgress} : 账号"
     if [[ -d "/etc/v2ray-agent/" ]] && [[ -d "/etc/v2ray-agent/v2ray/" ]] && [[ -f "/etc/v2ray-agent/v2ray/config.json" ]]
     then
+        showStatus=true
         # VLESS tcp
         local tcp=`cat /etc/v2ray-agent/v2ray/config.json|jq .inbounds[0]`
         local tcpID=`echo ${tcp}|jq .settings.clients[0].id`
         local tcpEmail="`echo ${tcp}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
-        local host=`echo ${tcp}|jq .streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+        host=`echo ${tcp}|jq .streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
 
          # VLESS ws
         local vlessWS=`cat /etc/v2ray-agent/v2ray/config.json|jq .inbounds[3]`
@@ -1425,8 +1564,16 @@ showAccounts(){
 
         echoContent skyBlue "\n=============================== VMess+TCP+TLS  ==============================="
         defaultBase64Code vmesstcp ${vmessTCPEmail} "${vmessTCPID}" "${host}" "${vmessTCPath}" "${host}"
-
-    else
+    fi
+    if [[ -d "/etc/v2ray-agent/" ]] && [[ -d "/etc/v2ray-agent/trojan/" ]] && [[ -f "/etc/v2ray-agent/trojan/config.json" ]]
+    then
+        showStatus=true
+        local trojanUUID=`cat /etc/v2ray-agent/trojan/config.json |jq .password[0]|awk -F '["]' '{print $2}'`
+        echoContent skyBlue "\n=============================== Trojan TLS  ==============================="
+        defaultBase64Code trojan trojan ${trojanUUID} ${host}
+    fi
+    if [[ -z ${showStatus} ]]
+    then
         echoContent red " ---> 未安装"
     fi
 }
@@ -1444,6 +1591,8 @@ unInstall(){
 
     rm -rf /etc/systemd/system/v2ray.service
     echoContent green " ---> 删除V2Ray开机自启完成"
+    rm -rf /etc/systemd/system/trojan-go.service
+    echoContent green " ---> 删除Trojan-Go开机自启完成"
 
     if [[ -d "/etc/v2ray-agent/tls" ]] && [[ ! -z `find /etc/v2ray-agent/tls/ -name "*.key"` ]] && [[ ! -z `find /etc/v2ray-agent/tls/ -name "*.crt"` ]]
     then
@@ -1502,17 +1651,18 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.0.7"
+    echoContent green "当前版本：v2.0.8"
     echoContent red "=============================================================="
-    echoContent yellow "1.(VLESS+TCP+TLS/VMess+TCP+TLS/VMess+WS+TLS/VLESS+WS+TLS)+伪装博客 四合一共存脚本[Cloudflare云朵需为灰色]"
+    echoContent yellow "1.(VLESS+TCP+TLS/VMess+TCP+TLS/VMess+WS+TLS/VLESS+WS+TLS/Trojan)+伪装博客 五合一共存脚本[Cloudflare云朵需为灰色]"
     echoContent red "=============================================================="
     echoContent yellow "4.查看账号"
     echoContent yellow "5.升级V2Ray"
-    echoContent yellow "6.升级脚本"
-    echoContent yellow "7.安装BBR"
-    echoContent yellow "8.自动排错"
-    echoContent yellow "9.更新证书"
-    echoContent yellow "10.卸载脚本"
+    echoContent yellow "6.升级Trojan[todo]"
+    echoContent yellow "7.升级脚本"
+    echoContent yellow "8.安装BBR"
+    echoContent yellow "9.自动排错"
+    echoContent yellow "10.更新证书"
+    echoContent yellow "11.卸载脚本"
     echoContent red "=============================================================="
     automaticUpgrade
     read -p "请选择:" selectInstallType
@@ -1527,19 +1677,19 @@ menu(){
         5)
             updateV2Ray 1
         ;;
-        6)
+        7)
             updateV2RayAgent 1
         ;;
-        7)
+        8)
             bbrInstall
         ;;
-        8)
+        9)
             checkFail 1
         ;;
-        9)
+        10)
             renewalTLS 1
         ;;
-        10)
+        11)
             unInstall 1
         ;;
     esac
@@ -1599,7 +1749,7 @@ installV2RayVmessTCPTLS(){
 #    buildAccounts
 }
 installV2RayVLESSTCPWSTLS(){
-    totalProgress=14
+    totalProgress=17
     globalType=vlesstcpws
     mkdirTools 1
     installTools 2
@@ -1612,16 +1762,21 @@ installV2RayVLESSTCPWSTLS(){
     # 安装V2Ray
     installV2Ray 7
     installV2RayService 8
-    customCDNIP 9
-    initV2RayConfig vlesstcpws 10
-    installCronTLS 11
-    nginxBlog 12
+    installTrojanGo 9
+    installTrojanService 10
+    customCDNIP 11
+    initTrojanGoConfig 12
+    initV2RayConfig vlesstcpws 13
+    installCronTLS 14
+    nginxBlog 15
     handleV2Ray stop
     handleV2Ray start
     handleNginx start
+    handleTrojanGo stop
+    handleTrojanGo start
     # 生成账号
-    checkGFWStatue 13
-    showAccounts 14
+    checkGFWStatue 16
+    showAccounts 17
 #    progressTools "yellow" "安装完毕[100%]--->"
 }
 # 注意事项
@@ -1712,7 +1867,7 @@ state(){
         echoContent yellow "    V2Ray:【运行中】"
     elif [[ ! -z `ls -F /usr/bin/v2ray/|grep "v2ray"` ]]
     then
-        echoContent yellow "    V2Ray:【未运行】，执行【/usr/bin/v2ray/v2ray -config /etc/v2ray-agent/v2ray/config.json &】运行"
+        echoContent yellow "    V2Ray:【未运行】，执行【/etc/v2ray-agent/v2ray/v2ray -config /etc/v2ray-agent/v2ray/config.json &】运行"
     else
         echoContent yellow "    V2Ray:【未安装】"
     fi
