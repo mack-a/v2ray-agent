@@ -8,11 +8,11 @@
 
 * * *
 # 目录
-- [1.(VLESS+TCP+TLS/VMess+TCP+TLS/VMess+WS+TLS)+伪装博客 四合一共存脚本[Cloudflare云朵需为灰色]](#1vlesstcptlsvmesstcptlsvmesswstls-伪装博客-四合一共存脚本cloudflare云朵需为灰色)
+- [1.(VLESS+TCP+TLS/VMess+TCP+TLS/VMess+WS+TLS/Trojan)+伪装博客 五合一共存脚本[Cloudflare云朵需为灰色]](#1vlesstcptlsvmesstcptlsvmesswstlstrojan-伪装博客-四合一共存脚本cloudflare云朵需为灰色)
 - [2.手动自建教程](#2手动自建教程)
 * * *
 
-# 1.VLESS+TCP+TLS/VMess+TCP+TLS/VMess+WS+TLS +伪装博客 四合一共存脚本【Cloudflare云朵需为灰色】
+# 1.VLESS+TCP+TLS/VMess+TCP+TLS/VMess+WS+TLS/Trojan +伪装博客 四合一共存脚本【Cloudflare云朵需为灰色】
 - 如果没有使用过Cloudflare[点击这里](https://github.com/mack-a/v2ray-agent/blob/master/documents/cloudflare_init.md)查看入门教程
 ## 注意事项
 - 修改Cloudflare->SSL/TLS->Overview->Full
