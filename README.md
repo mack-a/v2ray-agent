@@ -8,8 +8,10 @@
 
 * * *
 # 目录
-- [1.(VLESS+TCP+TLS/VLESS+WS+TLS/VMess+TCP+TLS/VMess+WS+TLS/Trojan)+伪装博客 五合一共存脚本](#1vlesstcptlsvlesswstlsvmesstcptlsvmesswstlstrojan-伪装博客-五合一共存脚本)
-- [2.手动自建教程](#2手动自建教程)
+- [1.脚本安装](#1vlesstcptlsvlesswstlsvmesstcptlsvmesswstlstrojan-伪装博客-五合一共存脚本)
+  * [组合推荐](#组合推荐)
+  * [注意事项](#注意事项)
+- [2.手动自建](#2手动自建)
 * * *
 
 # 1.VLESS+TCP+TLS/VLESS+WS+TLS/VMess+TCP+TLS/VMess+WS+TLS/Trojan +伪装博客 五合一共存脚本
