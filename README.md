@@ -31,9 +31,7 @@
 wget -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh" && chmod +x install.sh && ./install.sh
 ```
 - 示例图
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/install01.png" width=700>
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/install02.png" width=700>
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/install03.png" width=700>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/install.jpg" width=700>
 
 # 2.手动自建教程
 ## 1.V2Ray
