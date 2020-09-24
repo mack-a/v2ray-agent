@@ -37,6 +37,9 @@ wget -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-a
 - 示例图
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/install.jpg" width=700>
 
+# 许可证
+[MIT](https://github.com/mack-a/v2ray-agent/blob/master/LICENSE)
+
 ## Stargazers over time
 
 [![Stargazers over time](https://starchart.cc/mack-a/v2ray-agent.svg)](https://starchart.cc/mack-a/v2ray-agent)
