@@ -1711,7 +1711,6 @@ checkFail(){
 }
 menu(){
 
-     # 新建所需目录
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
@@ -1765,9 +1764,9 @@ menu(){
 # 安装BBR
 bbrInstall(){
     echoContent red "\n=============================================================="
-    echoContent green "BBR脚本用的[ylx2016]的成熟作品，地址[https://github.com/ylx2016/Linux-NetSpeed/releases/download/sh/tcp.sh]，请熟知"
-    echoContent red "    1.安装【推荐原版BBR+FQ】"
-    echoContent red "    2.回退主目录"
+    echoContent green "BBR脚本用的[ylx2016]的成熟作品，地址[https://github.com/ylx2016/Linux-NetSpeed]，请熟知"
+    echoContent red "   1.安装【推荐原版BBR+FQ】"
+    echoContent red "   2.回退主目录"
     echoContent red "=============================================================="
     read -p "请选择：" installBBRStatus
     if [[ "${installBBRStatus}" = "1" ]]
