@@ -359,6 +359,7 @@ handleNginx(){
     elif [[  "$1" = "stop" ]] && [[ ! -z `ps -ef|grep -v grep|grep nginx` ]]
     then
         nginx -s stop > /dev/null 2>&1
+        sleep 0.5
         if [[ ! -z `ps -ef|grep -v grep|grep nginx` ]]
         then
             ps -ef|grep -v grep|grep nginx|awk '{print $2}'|xargs kill -9
@@ -619,6 +620,62 @@ updateV2Ray(){
                     echoContent green " ---> 放弃更新"
                 fi
 
+            fi
+        fi
+    fi
+}
+# 更新Trojan-Go
+updateTrojanGo(){
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 更新Trojan-Go"
+    if [[ ! -d "/etc/v2ray-agent/trojan/" ]]
+    then
+        echoContent red " ---> 没有检测到安装目录，请执行脚本安装内容"
+        menu
+        exit 0;
+    fi
+    if [[ -z `ls -F /etc/v2ray-agent/trojan/|grep "trojan-go"` ]]
+    then
+        version=`curl -s https://github.com/p4gefau1t/trojan-go/releases|grep /trojan-go/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
+        echoContent green " ---> Trojan-Go版本:${version}"
+        wget -q -P /etc/v2ray-agent/trojan/ https://github.com/p4gefau1t/trojan-go/releases/download/${version}/trojan-go-linux-amd64.zip
+        unzip /etc/v2ray-agent/trojan/trojan-go-linux-amd64.zip -d /etc/v2ray-agent/trojan > /dev/null
+        if [[ "$2" = "backup" ]]
+        then
+            cp /tmp/trojan_config.json /etc/v2ray-agent/trojan/config.json
+        fi
+
+        rm -rf /etc/v2ray-agent/trojan/trojan-go-linux-amd64.zip
+        handleTrojanGo stop
+        handleTrojanGo start
+    else
+        echoContent green " ---> 当前Trojan-Go版本:`/etc/v2ray-agent/trojan/trojan-go --version|awk '{print $2}'|head -1`"
+        if [[ ! -z `/etc/v2ray-agent/trojan/trojan-go --version` ]]
+        then
+            version=`curl -s https://github.com/p4gefau1t/trojan-go/releases|grep /trojan-go/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
+#             echo version:${version}
+#             echo version2:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`
+            if [[ "${version}" = "`/etc/v2ray-agent/trojan/trojan-go --version|awk '{print $2}'|head -1`" ]]
+            then
+                read -p "当前版本与最新版相同，是否重新安装？[y/n]:" reInstalTrojanGoStatus
+                if [[ "${reInstalTrojanGoStatus}" = "y" ]]
+                then
+                    handleTrojanGo stop
+                    cp /etc/v2ray-agent/trojan/config.json /tmp/trojan_config.json
+                    rm -rf /etc/v2ray-agent/trojan/*
+                    updateTrojanGo $1 backup
+                else
+                    echoContent green " ---> 放弃重新安装"
+                fi
+            else
+                read -p "最新版本为：${version}，是否更新？[y/n]：" installTrojanGoStatus
+                if [[ "${installTrojanGoStatus}" = "y" ]]
+                then
+                    cp /etc/v2ray-agent/trojan/config.json /tmp/trojan_config.json
+                    rm -rf /etc/v2ray-agent/trojan/*
+                    updateTrojanGo $1 backup
+                else
+                    echoContent green " ---> 放弃更新"
+                fi
             fi
         fi
     fi
@@ -1580,7 +1637,14 @@ showAccounts(){
 
 # 卸载脚本
 unInstall(){
-    echoContent skyBlue "\n进度 $1/${totalProgress} : 卸载脚本"
+    read -p "是否确认卸载安装内容？[y/n]:" unInstallStatus
+    if [[ "${unInstallStatus}" != "y" ]]
+    then
+        echoContent green " ---> 放弃卸载"
+        menu
+        exit;
+    fi
+
     handleNginx stop
     if [[ -z `ps -ef|grep -v grep|grep nginx` ]]
     then
@@ -1651,13 +1715,13 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.0.8"
+    echoContent green "当前版本：v2.0.9"
     echoContent red "=============================================================="
     echoContent yellow "1.安装(VLESS+TCP+TLS/VMess+TCP+TLS/VMess+WS+TLS/VLESS+WS+TLS/Trojan)+伪装博客 五合一共存脚本"
     echoContent red "=============================================================="
     echoContent yellow "4.查看账号"
     echoContent yellow "5.升级V2Ray"
-    echoContent yellow "6.升级Trojan-Go[todo]"
+    echoContent yellow "6.升级Trojan-Go"
     echoContent yellow "7.升级脚本"
     echoContent yellow "8.安装BBR"
     echoContent yellow "9.自动排错"
@@ -1679,6 +1743,9 @@ menu(){
         ;;
         7)
             updateV2RayAgent 1
+        ;;
+        6)
+            updateTrojanGo 1
         ;;
         8)
             bbrInstall
