@@ -17,6 +17,11 @@
 # 1.VLESS+TCP+TLS/VLESS+WS+TLS/VMess+TCP+TLS/VMess+WS+TLS/Trojan +伪装博客 五合一共存脚本
 - 如果没有使用过Cloudflare[点击这里](https://github.com/mack-a/v2ray-agent/blob/master/documents/cloudflare_init.md)查看入门教程
 
+## 特性
+- VLESS/VMess/Trojan-Go三种工具合并为一个脚本，可以体验不同的工具之间的不同特性、兼容更多的设备。
+- 支持Debian、Ubuntu、Centos
+- 脚本自动检查升级
+
 ## 组合推荐
 - 中专/gia ---> VLESS+TCP+TLS/Trojan
 - 移动宽带  ---> VLESS+WS+TLS/VMESS+WS+TLS + Cloudflare
