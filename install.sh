@@ -97,6 +97,7 @@ installTools(){
         # yum-utils
         if [[ "${centosVersion}" = "8" ]]
         then
+            upgrade="yum update -y --skip-broken --nobest"
             installType="yum -y install --nobest"
             ${installType} yum-utils > /etc/v2ray-agent/error.log 2>&1
         else
@@ -120,7 +121,6 @@ installTools(){
     # then
     #    yum-complete-transaction --cleanup-only
     # fi
-
     ${upgrade} > /dev/null
     if [[ "${release}" = "centos" ]]
     then
@@ -898,7 +898,7 @@ handleTrojanGo(){
     then
         if [[ -z `ps -ef|grep -v grep|grep trojan-go` ]] && [[ "$1" = "start" ]]
         then
-            /usr/bin/trojan/trojan-go -config /etc/v2ray-agent/trojan/config.json & > /dev/null 2>&1
+            /etc/v2ray-agent/trojan/trojan-go -config /etc/v2ray-agent/trojan/config.json & > /dev/null 2>&1
         elif [[ ! -z `ps -ef|grep -v grep|grep trojan-go` ]] && [[ "$1" = "stop" ]]
         then
             ps -ef|grep -v grep|grep trojan-go|awk '{print $2}'|xargs kill -9
@@ -907,7 +907,7 @@ handleTrojanGo(){
     sleep 0.5
     if [[ "$1" = "start" ]]
     then
-        if [[ ! -z `ps -ef|grep -v grep|grep trojan-go ` ]]
+        if [[ ! -z `ps -ef|grep -v grep|grep trojan-go` ]]
         then
             echoContent green " ---> Trojan-Go启动成功"
         else
@@ -1538,7 +1538,7 @@ killSleep(){
 checkSystem(){
 	if [[ ! -z `find /etc -name "redhat-release"` ]] || [[ ! -z `cat /proc/version | grep -i "centos" | grep -v grep ` ]] || [[ ! -z `cat /proc/version | grep -i "red hat" | grep -v grep ` ]] || [[ ! -z `cat /proc/version | grep -i "redhat" | grep -v grep ` ]]
 	then
-	    centosVersion=`rpm -q centos-release|awk -F "[-]" '{print $3}'`
+	    centosVersion=`rpm -q centos-release|awk -F "[-]" '{print $3}'|awk -F "[.]" '{print $1}'`
 		release="centos"
 		installType='yum -y install'
 		removeType='yum -y remove'
