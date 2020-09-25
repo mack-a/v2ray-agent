@@ -815,24 +815,24 @@ installTrojanService(){
         touch /etc/systemd/system/trojan-go.service
 
     cat << EOF > /etc/systemd/system/trojan-go.service
-        [Unit]
-        Description=Trojan-Go - A unified platform for anti-censorship
-        Documentation=Trojan-Go
-        After=network.target nss-lookup.target
-        Wants=network-online.target
+[Unit]
+Description=Trojan-Go - A unified platform for anti-censorship
+Documentation=Trojan-Go
+After=network.target nss-lookup.target
+Wants=network-online.target
 
-        [Service]
-        Type=simple
-        User=root
-        CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_RAW
-        NoNewPrivileges=yes
-        ExecStart=/etc/v2ray-agent/trojan/trojan-go -config /etc/v2ray-agent/trojan/config.json
-        Restart=on-failure
-        RestartPreventExitStatus=23
+[Service]
+Type=simple
+User=root
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_RAW
+NoNewPrivileges=yes
+ExecStart=/etc/v2ray-agent/trojan/trojan-go -config /etc/v2ray-agent/trojan/config.json
+Restart=on-failure
+RestartPreventExitStatus=23
 
 
-        [Install]
-        WantedBy=multi-user.target
+[Install]
+WantedBy=multi-user.target
 EOF
         systemctl daemon-reload
         systemctl enable trojan-go.service
