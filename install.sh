@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-installType='yum -y install --nobest'
+installType='yum -y install'
 removeType='yum -y remove'
 upgrade="yum -y update"
 echoType='echo -e'
@@ -67,12 +67,19 @@ installTools(){
     then
         echoContent green " ---> 检查安装jq、nginx epel源、yum-utils"
         # jq epel源
-        rpm -ivh http://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm > /dev/null 2>&1
+        if [[ -z `command -v jq` ]]
+        then
+            rpm -ivh http://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm > /dev/null 2>&1
+        fi
 
         nginxEpel=""
         if [[ ! -z `rpm -qa|grep -v grep|grep nginx` ]]
         then
-            rpm -qa|grep -v grep|grep nginx|xargs rpm -e > /dev/null 2>&1
+            local nginxVersion=`rpm -qa|grep -v grep|grep nginx|head -1|awk -F '[-]' '{print $2}'`;
+            if [[ `echo ${nginxVersion}|awk -F '[.]' '{print $1}'` < 1 ]] && [[ `echo ${nginxVersion}|awk -F '[.]' '{print $2}'` < 17 ]]
+            then
+                rpm -qa|grep -v grep|grep nginx|xargs rpm -e > /dev/null 2>&1
+            fi
         fi
         if [[ "${centosVersion}" = "6" ]]
         then
@@ -86,8 +93,16 @@ installTools(){
         fi
         # nginx epel源
         rpm -ivh ${nginxEpel} > /etc/v2ray-agent/error.log 2>&1
+
         # yum-utils
-        yum install yum-utils --nobest -y > /etc/v2ray-agent/error.log 2>&1
+        if [[ "${centosVersion}" = "8" ]]
+        then
+            installType="yum -y install --nobest"
+            ${installType} yum-utils > /etc/v2ray-agent/error.log 2>&1
+        else
+            ${installType} yum-utils > /etc/v2ray-agent/error.log 2>&1
+        fi
+
     fi
     # 修复ubuntu个别系统问题
     if [[ "${release}" = "ubuntu" ]]
@@ -105,6 +120,7 @@ installTools(){
     # then
     #    yum-complete-transaction --cleanup-only
     # fi
+
     ${upgrade} > /dev/null
     if [[ "${release}" = "centos" ]]
     then
@@ -156,7 +172,6 @@ installTools(){
         echoContent green " ---> 安装binutils"
         ${installType} binutils > /dev/null  2>&1
     fi
-
     if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep -w nginx` ]]
     then
         echoContent green " ---> 安装nginx"
@@ -317,6 +332,7 @@ handleNginx(){
     if [[ -z `ps -ef|grep -v grep|grep nginx` ]] && [[ "$1" = "start" ]]
     then
         nginx
+        sleep 0.5
         if [[ -z `ps -ef|grep -v grep|grep nginx` ]]
         then
             progressTools "red" "  Nginx启动失败，请检查日志--->"
@@ -844,6 +860,7 @@ handleV2Ray(){
             ps -ef|grep -v grep|grep v2ray|awk '{print $2}'|xargs kill -9
         fi
     fi
+    sleep 0.5
     if [[ "$1" = "start" ]]
     then
         if [[ ! -z `ps -ef|grep -v grep|grep "v2ray/v2ray"` ]]
@@ -887,6 +904,7 @@ handleTrojanGo(){
             ps -ef|grep -v grep|grep trojan-go|awk '{print $2}'|xargs kill -9
         fi
     fi
+    sleep 0.5
     if [[ "$1" = "start" ]]
     then
         if [[ ! -z `ps -ef|grep -v grep|grep trojan-go ` ]]
@@ -1418,14 +1436,14 @@ menu(){
     echoContent magenta "=============================================================="
     echoContent yellow "3.查看日志[todo]"
     echoContent yellow "4.查看账号"
-    echoContent white "--------------------------------------------------------------"
+    echoContent skyBlue "--------------------------------------------------------------"
     echoContent yellow "5.升级V2Ray"
     echoContent yellow "6.升级Trojan-Go"
     echoContent yellow "7.升级脚本"
     echoContent yellow "8.安装BBR"
     echoContent yellow "9.自动排错"
     echoContent yellow "10.更新证书"
-    echoContent white "--------------------------------------------------------------"
+    echoContent skyBlue "--------------------------------------------------------------"
     echoContent yellow "11.卸载脚本"
     echoContent red "=============================================================="
     automaticUpgrade
