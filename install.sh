@@ -273,46 +273,12 @@ installTLS(){
         fi
     fi
 }
-# 安装Nginx科学上网配置
+# 配置伪装博客
 initNginxConfig(){
     echoContent skyBlue "\n进度  $2/${totalProgress} : 配置Nginx"
     installType=$1
-    # 这里的wss是Nginx前置用的，这里已经改为VLESS前置，所以不需要review代码
-    if [[ "${installType}" = "wss" ]]
-    then
-    cat << EOF > /etc/nginx/conf.d/alone.conf
-    server {
-        listen 443 ssl;
-        server_name ${domain};
-        root /usr/share/nginx/html;
-        ssl_certificate /etc/v2ray-agent/tls/${domain}.crt;ssl_certificate_key /etc/v2ray-agent/tls/${domain}.key;
-        ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3;
-        ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;ssl_prefer_server_ciphers on;
-        location / {}
-        location /alone {
-            proxy_redirect off;
-            proxy_pass http://127.0.0.1:31299;
-            proxy_http_version 1.1;
-            proxy_set_header Upgrade \$http_upgrade;
-            proxy_set_header Connection "upgrade";
-            proxy_set_header X-Real-IP \$remote_addr;
-            proxy_set_header Host \$host;
-            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        }
-        location /vlesspath {
-            proxy_redirect off;
-            proxy_pass http://127.0.0.1:31298;
-            proxy_http_version 1.1;
-            proxy_set_header Upgrade \$http_upgrade;
-            proxy_set_header Connection "upgrade";
-            proxy_set_header X-Real-IP \$remote_addr;
-            proxy_set_header Host \$host;
-            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        }
-    }
-EOF
 
-    elif [[ "${installType}" = "vlesstcpws" ]]
+   if [[ "${installType}" = "vlesstcpws" ]]
     then
         cat << EOF > /etc/nginx/conf.d/alone.conf
 server {
@@ -951,272 +917,8 @@ initV2RayConfig(){
     uuidVmessTcp=`/etc/v2ray-agent/v2ray/v2ctl uuid`
     uuidVlessWS=`/etc/v2ray-agent/v2ray/v2ctl uuid`
     echoContent skyBlue "\n进度 $2/${totalProgress} : 初始化V2Ray配置"
-    # 自定义IPLC端口
-    if [[ ! -z ${iplc} ]]
-    then
-        cat << EOF > /etc/v2ray-agent/v2ray/config.json
-{
-    "log":{
-        "access":"/etc/v2ray-agent/v2ray/v2ray_access.log",
-        "error":"/etc/v2ray-agent/v2ray/v2ray_error.log",
-        "loglevel":"debug"
-    },
-    "stats":{
 
-    },
-    "api":{
-        "services":[
-            "StatsService"
-        ],
-        "tag":"api"
-    },
-    "policy":{
-        "levels":{
-            "1":{
-                "handshake":4,
-                "connIdle":300,
-                "uplinkOnly":2,
-                "downlinkOnly":5,
-                "statsUserUplink":false,
-                "statsUserDownlink":false
-            }
-        },
-        "system":{
-            "statsInboundUplink":true,
-            "statsInboundDownlink":true
-        }
-    },
-    "allocate":{
-        "strategy":"always",
-        "refresh":5,
-        "concurrency":3
-    },
-    "inbounds":[
-        {
-            "port":31299,
-            "protocol":"vmess",
-            "settings":{
-                "clients":[
-                    {
-                        "id":"${uuidws}",
-                        "alterId":64,
-                        "level":1,
-                        "email":"test@v2ray.com"
-                    }
-                ]
-            },
-            "streamSettings":{
-                "network":"ws",
-                "wsSettings":{
-                    "path":"/${customPath}"
-                }
-            }
-        },
-        {
-            "port":31298,
-            "protocol":"vless",
-            "settings":{
-                "clients":[
-                    {
-                        "id":"${uuid}",
-                        "level":1,
-                        "email":"test_vless@v2ray.com"
-                    }
-                ],
-                "decryption": "none"
-            },
-            "streamSettings":{
-                "network":"ws",
-                "wsSettings":{
-                    "path":"/${customPath}vld"
-                }
-            }
-        },
-        {
-            "port":31294,
-            "protocol":"vmess",
-            "settings":{
-                "clients":[
-                    {
-                        "id":"ab11e002-7008-ef16-4363-217aea8dc81c",
-                        "alterId":64,
-                        "level":1,
-                        "email":"HK_深港0.35x IPLC@v2ray.com"
-                    },
-                    {
-                        "id":"246d748a-dd07-2172-a397-ab110aa5ad2a",
-                        "alterId":64,
-                        "level":1,
-                        "email":"HK_莞港IPLC@v2ray.com"
-                    }
-                ]
-            }
-        }
-    ],
-    "outbounds":[
-        {
-            "protocol":"freedom",
-            "settings":{
-                "OutboundConfigurationObject":{
-                    "domainStrategy":"AsIs",
-                    "userLevel":0
-                }
-            }
-        }
-    ],
-    "routing":{
-        "settings":{
-            "rules":[
-                {
-                    "inboundTag":[
-                        "api"
-                    ],
-                    "outboundTag":"api",
-                    "type":"field"
-                }
-            ]
-        },
-        "strategy":"rules"
-    },
-    "dns":{
-        "servers":[
-            "8.8.8.8",
-            "8.8.4.4"
-        ],
-        "tag":"dns_inbound"
-    }
-}
-EOF
-    elif [[ "$1" = "wss" ]]
-    then
-        # todo vless 废弃
-        cat << EOF > /etc/v2ray-agent/v2ray/config.json
-{
-    "log":{
-        "access":"/etc/v2ray-agent/v2ray/v2ray_access.log",
-        "error":"/etc/v2ray-agent/v2ray/v2ray_error.log",
-        "loglevel":"debug"
-    },
-    "allocate":{
-        "strategy":"always",
-        "refresh":5,
-        "concurrency":3
-    },
-    "inbounds":[
-        {
-            "port":31299,
-            "protocol":"vmess",
-            "settings":{
-                "clients":[
-                    {
-                        "id":"${uuidws}",
-                        "alterId":0,
-                        "level":1,
-                        "email":"test@v2ray.com"
-                    }
-                ]
-            },
-            "streamSettings":{
-                "network":"ws",
-                "wsSettings":{
-                    "path":"/${customPath}"
-                }
-            }
-        },
-        {
-            "port":31298,
-            "protocol":"vless",
-            "settings":{
-                "clients":[
-                    {
-                        "id":"${uuid}",
-                        "alterId":0,
-                        "level":1,
-                        "email":"test_vless@v2ray.com"
-                    }
-                ],
-                "decryption": "none"
-            },
-            "streamSettings":{
-                "network":"ws",
-                "wsSettings":{
-                    "path":"/${customPath}vld"
-                }
-            }
-        }
-    ],
-    "outbounds":[
-        {
-            "protocol":"freedom",
-            "settings":{
-                "OutboundConfigurationObject":{
-                    "domainStrategy":"AsIs",
-                    "userLevel":0
-                }
-            }
-        }
-    ],
-    "dns":{
-        "servers":[
-            "8.8.8.8",
-            "8.8.4.4"
-        ],
-        "tag":"dns_inbound"
-    }
-}
-EOF
-    elif [[ "$1" = "tcp" ]]
-    then
-    cat << EOF > /etc/v2ray-agent/v2ray/config.json
-{
-"log":{
-        "access":"/etc/v2ray-agent/v2ray/v2ray_access.log",
-        "error":"/etc/v2ray-agent/v2ray/v2ray_error.log",
-        "loglevel":"debug"
-    },
-  "inbounds": [
-    {
-      "port": 443,
-      "protocol": "vmess",
-      "settings": {
-        "clients": [
-          {
-            "id": "${uuidtcp}",
-            "alterId": 0,
-            "email":"test@v2ray.com"
-          }
-        ]
-      },
-      "streamSettings": {
-        "network": "tcp",
-        "security": "tls",
-        "tlsSettings": {
-          "certificates": [
-            {
-              "certificateFile": "/etc/v2ray-agent/tls/${domain}.crt",
-              "keyFile": "/etc/v2ray-agent/tls/${domain}.key"
-            }
-          ]
-        }
-      }
-    }
-  ],
-  "outbounds":[
-        {
-          "protocol": "freedom",
-          "settings": {}
-        }
-    ],
-    "dns":{
-        "servers":[
-            "8.8.8.8",
-            "8.8.4.4"
-        ],
-        "tag":"dns_inbound"
-    }
-}
-EOF
-    elif [[ "$1" = "vlesstcpws" ]]
+    if [[ "$1" = "vlesstcpws" ]]
     then
         cat << EOF > /etc/v2ray-agent/v2ray/config.json
 {
@@ -1372,7 +1074,6 @@ EOF
   }
 }
 EOF
-
     fi
 }
 # 初始化Trojan-Go配置
@@ -1511,11 +1212,8 @@ quanMultBase64Code(){
     echoContent red "Quantumult 明文--->"
     echoContent green  '    '${ps}' = vmess, '${add}', 443, aes-128-cfb, '${id}', over-tls=true, tls-host='${host}', certificate=1, obfs=ws, obfs-path='${path}', obfs-header="Host: '${host}'[Rr][Nn]User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 11_2_6 like Mac OS X) AppleWebKit/604.5.6 (KHTML, like Gecko) Mobile/15D100"'
 }
-# 查看本机ip
-checkDomainIP(){
-    currentIP=`curl -s ifconfig.me|awk '{print}'`
-    echoContent skyBlue ${currentIP}
-}
+
+# 进度条工具 废弃
 progressTool(){
     #
     i=0
@@ -1539,7 +1237,6 @@ progressTool(){
     done
     echoContent green "  $1已安装--->"
 }
-# 进度条工具
 progressTools(){
     color=$1
     content=$2
@@ -1574,6 +1271,7 @@ installProgressFunction(){
         sleep 0.1
     done
 }
+
 # 账号
 showAccounts(){
     showStatus=
@@ -1709,22 +1407,25 @@ checkFail(){
         echoContent red " ---> 未使用脚本安装"
     fi
 }
+# 主菜单
 menu(){
-
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
     echoContent green "当前版本：v2.0.9"
     echoContent red "=============================================================="
     echoContent yellow "1.安装(VLESS+TCP+TLS/VMess+TCP+TLS/VMess+WS+TLS/VLESS+WS+TLS/Trojan)+伪装博客 五合一共存脚本"
-    echoContent red "=============================================================="
+    echoContent magenta "=============================================================="
+    echoContent yellow "3.查看日志[todo]"
     echoContent yellow "4.查看账号"
+    echoContent white "--------------------------------------------------------------"
     echoContent yellow "5.升级V2Ray"
     echoContent yellow "6.升级Trojan-Go"
     echoContent yellow "7.升级脚本"
     echoContent yellow "8.安装BBR"
     echoContent yellow "9.自动排错"
     echoContent yellow "10.更新证书"
+    echoContent white "--------------------------------------------------------------"
     echoContent yellow "11.卸载脚本"
     echoContent red "=============================================================="
     automaticUpgrade
@@ -1776,44 +1477,6 @@ bbrInstall(){
         menu
     fi
 }
-# 安装V2Ray+wss+Nginx+Web
-installV2RayVmessWSSNginxWeb(){
-    globalType=wss
-    installTools
-    initTLSNginxConfig
-    installTLS
-    handleNginx stop
-    initNginxConfig wss
-    randomPathFunction
-    installCronTLS
-    installV2Ray
-    installV2RayService
-    initV2RayConfig wss
-    handleV2Ray start
-    handleNginx start
-    customCDNIP
-#    buildAccounts
-    checkGFWStatue
-    progressTools "yellow" "安装完毕[100%]--->"
-}
-# 安装V2Ray+TLS
-installV2RayVmessTCPTLS(){
-    globalType=tcp
-    installTools
-    # 申请tls
-    initTLSNginxConfig
-    installTLS
-    handleNginx stop
-    installCronTLS
-    # 安装V2Ray
-    installV2Ray
-    installV2RayService
-    initV2RayConfig tcp
-    handleV2Ray start
-    # 生成账号
-    checkGFWStatue
-#    buildAccounts
-}
 installV2RayVLESSTCPWSTLS(){
     totalProgress=17
     globalType=vlesstcpws
@@ -1845,100 +1508,6 @@ installV2RayVLESSTCPWSTLS(){
     showAccounts 17
 #    progressTools "yellow" "安装完毕[100%]--->"
 }
-# 注意事项
-warningMessage(){
-    echoContent green "1.脚本会检查并安装工具包"
-    echoContent green "2.如果使用此脚本生成过TLS证书、V2Ray，会继续使用上次生成、安装的内容。"
-    echoContent green "3.会删除、卸载已经安装的应用，包括V2Ray、Nginx。"
-    echoContent green "4.如果显示Nginx不可用，请检查防火墙端口是否开放。"
-    echoContent green "5.证书会在每天的1点30分检查更新"
-    echoContent red "=============================================================="
-}
-# 错误信息处理
-errorMessage(){
-    echoContent yellow "Debian："
-    echoContent green "     错误1：WARNING: apt does not have a stable CLI interface. Use with caution in scripts.【这个错误无需处理】"
-    echoContent green "     错误2：如果错误很多，且安装失败，则需要重启vps，无需重新安装OS。这种情况是在安装过程中意外断开导致。"
-    echoContent red "=============================================================="
-}
-# 状态展示
-state(){
-    echoContent red "状态展示"
-    echoContent green "已安装账号："
-    if [[ ! -z `find /etc|grep usersv2ray.conf`  ]] && [[ ! -z `cat /etc/v2ray-agent/v2ray/usersv2ray.conf` ]]
-    then
-        cat /etc/v2ray-agent/v2ray/usersv2ray.conf
-    else
-        echoContent yellow "    暂无配置"
-    fi
-    echoContent green "\nV2Ray信息："
-
-    v2rayStatus=0
-    if [[ ! -z `ls -F /usr/bin/v2ray/|grep "v2ray"` ]] && [[ ! -z `find /etc/v2ray-agent/v2ray/ -name "config.json"` ]]
-    then
-        v2rayVersion=`/usr/bin/v2ray/v2ray -version|awk '{print $2}'|head -1`
-        v2rayStatus=1
-        echoContent yellow "    version：${v2rayVersion}"
-        echoContent yellow "    安装路径：/usr/bin/v2ray/"
-        echoContent yellow "    配置文件：/etc/v2ray-agent/v2ray/config.json"
-        echoContent yellow "    日志路径："
-        echoContent yellow "      access:  /etc/v2ray-agent/v2ray/v2ray_access.log"
-        echoContent yellow "      error:  /etc/v2ray-agent/v2ray/v2ray_error.log"
-    else
-        echoContent yellow "    暂未安装"
-    fi
-    tlsStatus=0
-    echoContent green "\nTLS证书状态："
-
-    if [[ ! -z `find /etc/nginx/v2ray-agent-https/ -name config` ]] && [[ ! -z `cat /etc/nginx/v2ray-agent-https/config` ]]
-    then
-        tlsStatus=1
-        domain=`cat /etc/nginx/v2ray-agent-https/config|awk '{print $1}'`
-        tlsCreateTime=`cat /etc/nginx/v2ray-agent-https/config|awk '{print $2}'`
-        currentTime=`date +%s`
-        stampDiff=`expr ${currentTime} - ${tlsCreateTime}`
-        dayDiff=`expr ${stampDiff} / 86400`
-        echoContent yellow "    证书域名：${domain}"
-        echoContent yellow "    安装日期：`date -d @${tlsCreateTime} +"%F %H:%M:%S"`，剩余天数：`expr 90 - ${dayDiff}`"
-        echoContent yellow "    证书路径："
-        echoContent yellow "      /etc/nginx/v2ray-agent-https/${domain}.key"
-        echoContent yellow "      /etc/nginx/v2ray-agent-https/${domain}.crt"
-    else
-        echoContent yellow "    暂未安装或未使用最新的脚本安装"
-    fi
-
-    echoContent green "\n定时任务相关文件路径："
-    if [[ ! -z `find  /etc/nginx/v2ray-agent-https/ -name backup_crontab.cron`  ]]
-    then
-        echoContent yellow "    定时更新tls脚本路径：/etc/nginx/v2ray-agent-https/reloadInstallTLS.sh"
-        echoContent yellow "    定时任务文件路径：/etc/nginx/v2ray-agent-https/backup_crontab.cron"
-        echoContent yellow "    定时任务日志路径：/etc/v2ray-agent/tls/tls.log"
-        echoContent yellow "    acme.sh日志路径：/etc/v2ray-agent/tls/acme.log"
-    else
-        echoContent yellow "    暂未安装或未使用最新的脚本安装"
-    fi
-
-    echoContent green "\n软件运行状态："
-    if [[ ! -z `ps -ef|grep -v grep|grep nginx`  ]]
-    then
-        echoContent yellow "    Nginx:【运行中】"
-    elif [[ ! -z `find /usr/sbin/ -name 'nginx'` ]]
-    then
-        echoContent yellow "    Nginx:【未运行】，执行【nginx】运行"
-    else
-        echoContent yellow "    Nginx:【未安装】"
-    fi
-    if [[ ! -z `ps -ef|grep -v grep|grep v2ray`  ]]
-    then
-        echoContent yellow "    V2Ray:【运行中】"
-    elif [[ ! -z `ls -F /usr/bin/v2ray/|grep "v2ray"` ]]
-    then
-        echoContent yellow "    V2Ray:【未运行】，执行【/etc/v2ray-agent/v2ray/v2ray -config /etc/v2ray-agent/v2ray/config.json &】运行"
-    else
-        echoContent yellow "    V2Ray:【未安装】"
-    fi
-
-}
 # 杀死sleep
 killSleep(){
     if [[ ! -z `ps -ef|grep -v grep|grep sleep` ]]
@@ -1949,7 +1518,6 @@ killSleep(){
 }
 # 检查系统
 checkSystem(){
-
 	if [[ ! -z `find /etc -name "redhat-release"` ]] || [[ ! -z `cat /proc/version | grep -i "centos" | grep -v grep ` ]] || [[ ! -z `cat /proc/version | grep -i "red hat" | grep -v grep ` ]] || [[ ! -z `cat /proc/version | grep -i "redhat" | grep -v grep ` ]]
 	then
 	    centosVersion=`rpm -q centos-release|awk -F "[-]" '{print $3}'`

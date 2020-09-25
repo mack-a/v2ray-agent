@@ -4,7 +4,7 @@
 - [流量中转](https://github.com/mack-a/v2ray-agent/blob/master/documents/traffic_relay.md)
 - [手动自建教程](https://github.com/mack-a/v2ray-agent/blob/master/documents/Cloudflare_install_manual.md)
 - [订阅频道](https://t.me/v2rayagentshare)、[TG群](https://t.me/technologyshare)、[博客地址](https://blog.v2ray-agent.com/)
-- [公益订阅链接【1496.59 GB of 2 TB Used 2020-9-23】](https://github.com/mack-a/v2ray-agent/blob/master/documents/free_account.md)。
+- [公益订阅链接【1771.40 GB of 2 TB Used 2020-9-25】](https://github.com/mack-a/v2ray-agent/blob/master/documents/free_account.md)。
 
 * * *
 # 目录
@@ -20,6 +20,7 @@
 - VLESS/VMess/Trojan-Go三种工具合并为一个脚本，可以体验不同的工具之间的不同特性、兼容更多的设备。
 - 支持Debian、Ubuntu、Centos
 - 脚本自动检查升级
+- 自动更新TLS证书
 
 ## 组合推荐
 - 中专/gia ---> VLESS+TCP+TLS/Trojan
@@ -29,6 +30,7 @@
 - 修改Cloudflare->SSL/TLS->Overview->Full
 - Cloudflare ---> A记录解析的云朵必须为灰色
 - wget: command not found [这里需要自己手动安装下wget]
+- 脚本安装路径[/etc/v2ray-agent]
 
 ## 安装脚本
 ```
