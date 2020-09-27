@@ -1215,6 +1215,7 @@ defaultBase64Code(){
         echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}\n'
     elif [[ "${type}" = "trojan" ]]
     then
+        # URLEncode
         echoContent yellow " ---> Trojan(TLS)"
         echoContent green "    trojan://${id}@${host}:443?peer=${host}&sni=${host}\n"
         echoContent yellow " ---> 二维码 Trojan(TLS)"
@@ -1222,6 +1223,7 @@ defaultBase64Code(){
 
     elif [[ "${type}" = "trojangows" ]]
     then
+        # URLEncode
         echoContent yellow " ---> Trojan-Go(WS+TLS)"
         echoContent green "    trojan://${id}@${host}:443?plugin=obfs-local&obfs=websocket&obfs-host=${host}&obfs-uri=${path}&peer=${host}&sni=${host}\n"
         echoContent yellow " ---> 二维码 Trojan-Go(WS+TLS)"
