@@ -396,7 +396,7 @@ echoContent skyBlue "\n进度  1/1 : 更新证书"
 if [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]] && [[ -d "/etc/v2ray-agent/tls" ]] && [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]] && [[ -f "/etc/v2ray-agent/v2ray/config.json" ]] && [[ -d "/root/.acme.sh" ]]
 then
     tcp=\`cat /etc/v2ray-agent/v2ray/config.json|jq .inbounds[0]\`
-    host=\`echo \${tcp}|jq .streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print \$2}'|awk -F '["]' '{print \$1}'|awk -F '[.][c][r][t]' '{print \$1}'\`
+    host=\`echo \${tcp}|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print \$2}'|awk -F '["]' '{print \$1}'|awk -F '[.][c][r][t]' '{print \$1}'\`
     if [[ -d "/root/.acme.sh/\${host}_ecc" ]] && [[ -f "/root/.acme.sh/\${host}_ecc/\${host}.key" ]] && [[ -f "/root/.acme.sh/\${host}_ecc/\${host}.cer" ]]
     then
         modifyTime=\`stat /root/.acme.sh/\${host}_ecc/\${host}.key|sed -n '6,6p'|awk '{print \$2" "\$3" "\$4" "\$5}'\`
@@ -457,7 +457,7 @@ renewalTLS(){
     if [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]] && [[ -d "/etc/v2ray-agent/tls" ]] && [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]] && [[ -f "/etc/v2ray-agent/v2ray/config.json" ]] && [[ -d "/root/.acme.sh" ]]
     then
         tcp=`cat /etc/v2ray-agent/v2ray/config.json|jq .inbounds[0]`
-        host=`echo ${tcp}|jq .streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+        host=`echo ${tcp}|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
         if [[ -d "/root/.acme.sh/${host}_ecc" ]] && [[ -f "/root/.acme.sh/${host}_ecc/${host}.key" ]] && [[ -f "/root/.acme.sh/${host}_ecc/${host}.cer" ]]
         then
             modifyTime=`stat /root/.acme.sh/${host}_ecc/${host}.key|sed -n '6,6p'|awk '{print $2" "$3" "$4" "$5}'`
@@ -912,7 +912,7 @@ handleTrojanGo(){
             echoContent green " ---> Trojan-Go启动成功"
         else
             echoContent red "Trojan-Go启动失败"
-            echoContent red "请手动执行【/usr/bin/trojan/trojan-go -config /etc/v2ray-agent/trojan/config.json】,查看错误日志"
+            echoContent red "请手动执行【/etc/v2ray-agent/trojan/trojan-go -config /etc/v2ray-agent/trojan/config.json】,查看错误日志"
             exit 0;
         fi
     elif [[ "$1" = "stop" ]]
@@ -954,6 +954,7 @@ initV2RayConfig(){
           {
             "id": "${uuidtcp}",
             "alterId": 0,
+            "flow":"xtls-rprx-origin",
             "email": "${domain}_VLESS_TCP"
           }
         ],
@@ -982,8 +983,8 @@ initV2RayConfig(){
       },
       "streamSettings": {
         "network": "tcp",
-        "security": "tls",
-        "tlsSettings": {
+        "security": "xtls",
+        "xtlsSettings": {
           "alpn": [
             "http/1.1"
           ],
@@ -1101,7 +1102,7 @@ initTrojanGoConfig(){
     cat << EOF > /etc/v2ray-agent/trojan/config.json
 {
     "run_type": "server",
-    "local_addr": "0.0.0.0",
+    "local_addr": "127.0.0.1",
     "local_port": 31296,
     "remote_addr": "127.0.0.1",
     "remote_port": 80,
@@ -1113,6 +1114,14 @@ initTrojanGoConfig(){
     "transport_plugin":{
         "enabled":true,
         "type":"plaintext"
+    },
+    "websocket": {
+        "enabled": true,
+        "path": "/${customPath}tws",
+        "host": "${domain}"
+    },
+    "router": {
+        "enabled": false
     }
 }
 EOF
@@ -1206,12 +1215,21 @@ defaultBase64Code(){
         echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}\n'
     elif [[ "${type}" = "trojan" ]]
     then
-        qrCodeBase64Default=`echo -n ${id}@${host}:443?peer=${host}&sni=${host}|base64`
-        qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
         echoContent yellow " ---> Trojan(TLS)"
         echoContent green "    trojan://${id}@${host}:443?peer=${host}&sni=${host}\n"
-        echoContent yellow " ---> 二维码 vmess(VMess+TCP+TLS)"
-        echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan://${qrCodeBase64Default}\n"
+        echoContent yellow " ---> 二维码 Trojan(TLS)"
+        echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan://${id}@${host}:443?peer=${host}&sni=${host}\n"
+
+    elif [[ "${type}" = "trojangows" ]]
+    then
+        echoContent yellow " ---> Trojan-Go(WS+TLS)"
+        echoContent green "    trojan://${id}@${host}:443?plugin=obfs-local&obfs=websocket&obfs-host=${host}&obfs-uri=${path}&peer=${host}&sni=${host}\n"
+        echoContent yellow " ---> 二维码 Trojan-Go(WS+TLS)"
+        echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan://${id}@${host}:443?allowInsecure=0&peer=${host}&plugin=obfs-local;obfs=websocket;obfs-host=${host};obfs-uri=${path}\n"
+        trojan://ae2729a3d-cfa8-f813-d558-0de1c7334b3@centos7.z0fk.xyz:443?allowInsecure=0&peer=centos7.z0fk.xyz&plugin=obfs-local;obfs=websocket;obfs-host=centos7.z0fk.xyz;obfs-uri=/faaqtws
+        trojan://e2729a3d-cfa8-f813-d558-0de1c7334b3@192.168.2.156:4433?allowInsecure=1&peer=v2ray.me&plugin=obfs-local;obfs=websocket;obfs-host=v2ray.me;obfs-uri=/ws
+
+        # trojan://e2729a3d-cfa8-f813-d558-0de1c7334b3a@centos7.z0fk.xyz:443?peer=centos7.z0fk.xyz&sni=centos7.z0fk.xyz&plugin=obfs-local&obfs=websocket&obfs-host=centos7.z0fk.xyz&obfs-uri="/faaqtws"
     fi
 }
 # quanMult base64Code
@@ -1302,7 +1320,7 @@ showAccounts(){
         local tcp=`cat /etc/v2ray-agent/v2ray/config.json|jq .inbounds[0]`
         local tcpID=`echo ${tcp}|jq .settings.clients[0].id`
         local tcpEmail="`echo ${tcp}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
-        host=`echo ${tcp}|jq .streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+        host=`echo ${tcp}|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
 
          # VLESS ws
         local vlessWS=`cat /etc/v2ray-agent/v2ray/config.json|jq .inbounds[3]`
@@ -1326,24 +1344,28 @@ showAccounts(){
         local vmessTCPath=`echo ${vmessTCP}|jq .streamSettings.tcpSettings.header.request.path[0]`
 
 
-        echoContent skyBlue "\n=============================== VLESS+TCP+TLS  ==============================="
+        echoContent skyBlue "\n=============================== VLESS TCP TLS  ==============================="
         defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${host}" ${add}
 
-        echoContent skyBlue "\n===============================VLESS+WS+TLS+CDN==============================="
+        echoContent skyBlue "\n===============================VLESS WS TLS CDN==============================="
         defaultBase64Code vlessws ${vlessWSEmail} "${vlessWSID}" "${host}" "${vlessWSPath}" ${vlessWSAdd}
 
-        echoContent skyBlue "\n===============================VMess+WS+TLS+CDN==============================="
+        echoContent skyBlue "\n===============================VMess WS TLS CDN==============================="
         defaultBase64Code vmessws ${wsEmail} "${wsID}" "${host}" "${wsPath}" ${wsAdd}
 
-        echoContent skyBlue "\n=============================== VMess+TCP+TLS  ==============================="
+        echoContent skyBlue "\n=============================== VMess TCP TLS  ==============================="
         defaultBase64Code vmesstcp ${vmessTCPEmail} "${vmessTCPID}" "${host}" "${vmessTCPath}" "${host}"
     fi
     if [[ -d "/etc/v2ray-agent/" ]] && [[ -d "/etc/v2ray-agent/trojan/" ]] && [[ -f "/etc/v2ray-agent/trojan/config.json" ]]
     then
         showStatus=true
         local trojanUUID=`cat /etc/v2ray-agent/trojan/config.json |jq .password[0]|awk -F '["]' '{print $2}'`
+        local trojanGoPath=`cat /etc/v2ray-agent/trojan/config.json|jq .websocket.path`
         echoContent skyBlue "\n=============================== Trojan TLS  ==============================="
         defaultBase64Code trojan trojan ${trojanUUID} ${host}
+
+        echoContent skyBlue "\n=============================== Trojan WS TLS  ==============================="
+        defaultBase64Code trojangows trojan ${trojanUUID} ${host} ${trojanGoPath}
     fi
     if [[ -z ${showStatus} ]]
     then
@@ -1445,6 +1467,8 @@ menu(){
     echoContent yellow "10.更新证书"
     echoContent skyBlue "--------------------------------------------------------------"
     echoContent yellow "11.卸载脚本"
+    echoContent yellow "12.重置uuid[todo]"
+    echoContent yellow "13.任意组合安装[todo]"
     echoContent red "=============================================================="
     automaticUpgrade
     read -p "请选择:" selectInstallType
