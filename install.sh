@@ -1118,7 +1118,8 @@ initTrojanGoConfig(){
     "websocket": {
         "enabled": true,
         "path": "/${customPath}tws",
-        "host": "${domain}"
+        "host": "${domain}",
+        "add":"${add}"
     },
     "router": {
         "enabled": false
@@ -1219,17 +1220,17 @@ defaultBase64Code(){
         echoContent yellow " ---> Trojan(TLS)"
         echoContent green "    trojan://${id}@${host}:443?peer=${host}&sni=${host}\n"
         echoContent yellow " ---> 二维码 Trojan(TLS)"
-        echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan://${id}@${host}:443?peer=${host}&sni=${host}\n"
+        echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${host}%3a443%3fpeer%3d${host}%26sni%3d${host}%23${host}_trojan\n"
 
     elif [[ "${type}" = "trojangows" ]]
     then
         # URLEncode
         echoContent yellow " ---> Trojan-Go(WS+TLS)"
-        echoContent green "    trojan://${id}@${host}:443?plugin=obfs-local&obfs=websocket&obfs-host=${host}&obfs-uri=${path}&peer=${host}&sni=${host}\n"
+        echoContent green "    trojan://${id}@${host}:443?plugin=obfs-local&obfs=websocket&obfs-host=${host}&obfs-uri=${path}&peer=${host}&sni=${host}%23${host}_trojan_ws\n"
         echoContent yellow " ---> 二维码 Trojan-Go(WS+TLS)"
-        echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan://${id}@${host}:443?allowInsecure=0&peer=${host}&plugin=obfs-local;obfs=websocket;obfs-host=${host};obfs-uri=${path}\n"
-        trojan://ae2729a3d-cfa8-f813-d558-0de1c7334b3@centos7.z0fk.xyz:443?allowInsecure=0&peer=centos7.z0fk.xyz&plugin=obfs-local;obfs=websocket;obfs-host=centos7.z0fk.xyz;obfs-uri=/faaqtws
-        trojan://e2729a3d-cfa8-f813-d558-0de1c7334b3@192.168.2.156:4433?allowInsecure=1&peer=v2ray.me&plugin=obfs-local;obfs=websocket;obfs-host=v2ray.me;obfs-uri=/ws
+        echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${add}%3a443%3fallowInsecure%3d0%26peer%3d${host}%26plugin%3dobfs-local%3bobfs%3dwebsocket%3bobfs-host%3d${host}%3bobfs-uri%3d${path}%23${host}_trojan_ws\n"
+#        trojan://ae2729a3d-cfa8-f813-d558-0de1c7334b3@centos7.z0fk.xyz:443?allowInsecure=0&peer=centos7.z0fk.xyz&plugin=obfs-local;obfs=websocket;obfs-host=centos7.z0fk.xyz;obfs-uri=/faaqtws
+#        trojan://e2729a3d-cfa8-f813-d558-0de1c7334b3@192.168.2.156:4433?allowInsecure=1&peer=v2ray.me&plugin=obfs-local;obfs=websocket;obfs-host=v2ray.me;obfs-uri=/ws
 
         # trojan://e2729a3d-cfa8-f813-d558-0de1c7334b3a@centos7.z0fk.xyz:443?peer=centos7.z0fk.xyz&sni=centos7.z0fk.xyz&plugin=obfs-local&obfs=websocket&obfs-host=centos7.z0fk.xyz&obfs-uri="/faaqtws"
     fi
@@ -1362,12 +1363,17 @@ showAccounts(){
     then
         showStatus=true
         local trojanUUID=`cat /etc/v2ray-agent/trojan/config.json |jq .password[0]|awk -F '["]' '{print $2}'`
-        local trojanGoPath=`cat /etc/v2ray-agent/trojan/config.json|jq .websocket.path`
+        local trojanGoPath=`cat /etc/v2ray-agent/trojan/config.json|jq .websocket.path|awk -F '["]' '{print $2}'`
+        local trojanGoAdd=`cat /etc/v2ray-agent/trojan/config.json|jq .websocket.add|awk -F '["]' '{print $2}'`
         echoContent skyBlue "\n=============================== Trojan TLS  ==============================="
         defaultBase64Code trojan trojan ${trojanUUID} ${host}
 
         echoContent skyBlue "\n=============================== Trojan WS TLS  ==============================="
-        defaultBase64Code trojangows trojan ${trojanUUID} ${host} ${trojanGoPath}
+        if [[ -z ${trojanGoAdd} ]]
+        then
+            trojanGoAdd=${host}
+        fi
+        defaultBase64Code trojangows trojan ${trojanUUID} ${host} ${trojanGoPath} ${trojanGoAdd}
     fi
     if [[ -z ${showStatus} ]]
     then
@@ -1457,20 +1463,20 @@ menu(){
     echoContent green "当前版本：v2.0.9"
     echoContent red "=============================================================="
     echoContent yellow "1.安装(VLESS+TCP+TLS/VMess+TCP+TLS/VMess+WS+TLS/VLESS+WS+TLS/Trojan)+伪装博客 五合一共存脚本"
-    echoContent magenta "=============================================================="
-    echoContent yellow "3.查看日志[todo]"
-    echoContent yellow "4.查看账号"
-    echoContent skyBlue "--------------------------------------------------------------"
+    echoContent skyBlue "-------------------------工具管理-----------------------------"
+    echoContent yellow "2.查看账号"
+    echoContent yellow "3.自动排错"
+    echoContent yellow "4.更新证书"
+    echoContent skyBlue "-------------------------版本管理-----------------------------"
     echoContent yellow "5.升级V2Ray"
     echoContent yellow "6.升级Trojan-Go"
     echoContent yellow "7.升级脚本"
     echoContent yellow "8.安装BBR"
-    echoContent yellow "9.自动排错"
-    echoContent yellow "10.更新证书"
-    echoContent skyBlue "--------------------------------------------------------------"
-    echoContent yellow "11.卸载脚本"
-    echoContent yellow "12.重置uuid[todo]"
-    echoContent yellow "13.任意组合安装[todo]"
+    echoContent skyBlue "-------------------------脚本管理-----------------------------"
+    echoContent yellow "9.查看日志[todo]"
+    echoContent yellow "10.卸载脚本"
+    echoContent yellow "11.重置uuid[todo]"
+    echoContent yellow "12.任意组合安装[todo]"
     echoContent red "=============================================================="
     automaticUpgrade
     read -p "请选择:" selectInstallType
@@ -1478,29 +1484,28 @@ menu(){
         1)
             installV2RayVLESSTCPWSTLS
         ;;
-        4)
+        2)
             showAccounts 1
-
+        ;;
+        3)
+            checkFail 1
+        ;;
+        4)
+            renewalTLS 1
         ;;
         5)
             updateV2Ray 1
         ;;
-        7)
-            updateV2RayAgent 1
-        ;;
         6)
             updateTrojanGo 1
+        ;;
+        7)
+            updateV2RayAgent 1
         ;;
         8)
             bbrInstall
         ;;
-        9)
-            checkFail 1
-        ;;
         10)
-            renewalTLS 1
-        ;;
-        11)
             unInstall 1
         ;;
     esac
@@ -1550,7 +1555,6 @@ installV2RayVLESSTCPWSTLS(){
     # 生成账号
     checkGFWStatue 16
     showAccounts 17
-#    progressTools "yellow" "安装完毕[100%]--->"
 }
 # 杀死sleep
 killSleep(){
