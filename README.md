@@ -13,7 +13,7 @@
   * [注意事项](#注意事项)
 * * *
 
-# 1.五合一共存脚本+伪装博客
+# 1.七合一共存脚本+伪装博客
 - 如果没有使用过Cloudflare[点击这里](https://github.com/mack-a/v2ray-agent/blob/master/documents/cloudflare_init.md)查看入门教程
 
 ## 组合方式
