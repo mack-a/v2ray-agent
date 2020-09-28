@@ -1460,7 +1460,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.0.9"
+    echoContent green "当前版本：v2.0.10"
     echoContent red "=============================================================="
     echoContent yellow "1.安装(VLESS+TCP+TLS/VMess+TCP+TLS/VMess+WS+TLS/VLESS+WS+TLS/Trojan)+伪装博客 五合一共存脚本"
     echoContent skyBlue "-------------------------工具管理-----------------------------"
