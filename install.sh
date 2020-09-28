@@ -1469,6 +1469,7 @@ menu(){
     echoContent yellow "2.查看账号"
     echoContent yellow "3.自动排错"
     echoContent yellow "4.更新证书"
+    echoContent yellow "更换CDN节点[todo]"
     echoContent skyBlue "-------------------------版本管理-----------------------------"
     echoContent yellow "5.升级V2Ray"
     echoContent yellow "6.升级Trojan-Go"
