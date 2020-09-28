@@ -1226,13 +1226,9 @@ defaultBase64Code(){
     then
         # URLEncode
         echoContent yellow " ---> Trojan-Go(WS+TLS)"
-        echoContent green "    trojan://${id}@${host}:443?plugin=obfs-local&obfs=websocket&obfs-host=${host}&obfs-uri=${path}&peer=${host}&sni=${host}%23${host}_trojan_ws\n"
+        echoContent green "    trojan://${id}@${add}:443?allowInsecure=0&&peer=${host}&sni=${host}&plugin=obfs-local;obfs=websocket;obfs-host=${host};obfs-uri=${path}#${host}_trojan_ws\n"
         echoContent yellow " ---> 二维码 Trojan-Go(WS+TLS)"
         echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${add}%3a443%3fallowInsecure%3d0%26peer%3d${host}%26plugin%3dobfs-local%3bobfs%3dwebsocket%3bobfs-host%3d${host}%3bobfs-uri%3d${path}%23${host}_trojan_ws\n"
-#        trojan://ae2729a3d-cfa8-f813-d558-0de1c7334b3@centos7.z0fk.xyz:443?allowInsecure=0&peer=centos7.z0fk.xyz&plugin=obfs-local;obfs=websocket;obfs-host=centos7.z0fk.xyz;obfs-uri=/faaqtws
-#        trojan://e2729a3d-cfa8-f813-d558-0de1c7334b3@192.168.2.156:4433?allowInsecure=1&peer=v2ray.me&plugin=obfs-local;obfs=websocket;obfs-host=v2ray.me;obfs-uri=/ws
-
-        # trojan://e2729a3d-cfa8-f813-d558-0de1c7334b3a@centos7.z0fk.xyz:443?peer=centos7.z0fk.xyz&sni=centos7.z0fk.xyz&plugin=obfs-local&obfs=websocket&obfs-host=centos7.z0fk.xyz&obfs-uri="/faaqtws"
     fi
 }
 # quanMult base64Code
