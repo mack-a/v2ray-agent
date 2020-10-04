@@ -1504,6 +1504,9 @@ menu(){
         8)
             bbrInstall
         ;;
+        9)
+            checkLog 1
+        ;;
         10)
             unInstall 1
         ;;
@@ -1524,6 +1527,63 @@ bbrInstall(){
     else
         menu
     fi
+}
+# 查看、检查日志
+checkLog(){
+    echoContent skyBlue "\n功能 $1/${totalProgress} : 查看日志"
+    echoContent red "\n=============================================================="
+    echoContent skyBlue "--------V2Ray--------"
+    echoContent yellow "1.查看V2Ray Info日志"
+    echoContent yellow "2.监听V2Ray Info日志"
+    echoContent yellow "3.查看V2Ray Error日志"
+    echoContent yellow "4.监听V2Ray Error日志"
+    echoContent yellow "5.清空V2Ray日志"
+    echoContent skyBlue "------Trojan-Go------"
+    echoContent yellow "6.查看Trojan-Go日志"
+    echoContent yellow "7.监听Trojan-GO日志"
+    echoContent yellow "8.清空Trojan-GO日志"
+    echoContent skyBlue "--------Nginx--------"
+    echoContent yellow "9.查看Nginx日志"
+    echoContent yellow "10.清空Nginx日志"
+    echoContent red "=============================================================="
+    read -p "请选择：" selectLogType
+    case ${selectLogType} in
+        1)
+            cat /etc/v2ray-agent/v2ray/v2ray_access.log
+        ;;
+        2)
+            tail -f /etc/v2ray-agent/v2ray/v2ray_access.log
+        ;;
+        3)
+            cat /etc/v2ray-agent/v2ray/v2ray_error.log
+        ;;
+        4)
+            tail -f /etc/v2ray-agent/v2ray/v2ray_error.log
+        ;;
+        5)
+            echo '' > /etc/v2ray-agent/v2ray/v2ray_access.log
+            echo '' > /etc/v2ray-agent/v2ray/v2ray_error.log
+            echoContent green " ---> 清空完毕"
+        ;;
+        6)
+            cat /etc/v2ray-agent/trojan/trojan.log
+        ;;
+        7)
+            tail -f /etc/v2ray-agent/trojan/trojan.log
+        ;;
+        8)
+            echo '' > /etc/v2ray-agent/trojan/trojan.log
+            echoContent green " ---> 清空完毕"
+        ;;
+        9)
+            cat /var/log/nginx/access.log
+        ;;
+        10)
+            echo '' > /var/log/nginx/access.log
+        ;;
+    esac
+    sleep 2
+    menu
 }
 installV2RayVLESSTCPWSTLS(){
     totalProgress=17
