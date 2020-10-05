@@ -1454,11 +1454,76 @@ checkFail(){
 # 修改V2Ray CDN节点
 updateV2RayCDN(){
     echoContent skyBlue "\n进度 $1/${totalProgress} : 修改CDN节点"
-    echoContent yellow " 1.CNAME www.digitalocean.com"
-    echoContent yellow " 2.CNAME amp.cloudflare.com"
-    echoContent yellow " 3.CNAME domain08.qiu4.ml"
-    read -p "请选择:" selectCDNType
+    if [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]] && [[ -f "/etc/v2ray-agent/v2ray/config.json" ]]
+    then
+        local add=`cat /etc/v2ray-agent/v2ray/config.json|grep -v grep|grep add`
+        if [[ ! -z ${add} ]]
+        then
+            echoContent red "=============================================================="
+            echoContent yellow "1.CNAME www.digitalocean.com"
+            echoContent yellow "2.CNAME amp.cloudflare.com"
+            echoContent yellow "3.CNAME domain08.qiu4.ml"
+            echoContent yellow "4.手动输入"
+            echoContent red "=============================================================="
+            read -p "请选择:" selectCDNType
+            case ${selectCDNType} in
+            1)
+                setDomain="www.digitalocean.com"
+            ;;
+            2)
+                setDomain="amp.cloudflare.com"
+            ;;
+            3)
+                setDomain="domain08.qiu4.ml"
+            ;;
+            4)
+                read -p "请输入想要自定义CDN IP或者域名:" setDomain
+            ;;
+            esac
+            if [[ ! -z ${setDomain} ]]
+            then
+                # v2ray
+                add=`echo ${add}|awk -F '["]' '{print $4}'`
+                if [[ ! -z ${add} ]]
+                then
+                    sed -i "s/${add}/${setDomain}/g"  `grep "${add}" -rl /etc/v2ray-agent/v2ray/config.json`
+                fi
+                # sed -i "s/domain08.qiu4.ml1/domain08.qiu4.ml/g"  `grep "domain08.qiu4.ml1" -rl /etc/v2ray-agent/v2ray/config.json`
+                if [[ `cat /etc/v2ray-agent/v2ray/config.json|grep -v grep|grep add|awk -F '["]' '{print $4}'` = ${setDomain} ]]
+                then
+                    echoContent green " ---> V2Ray CDN修改成功"
+                    handleV2Ray stop
+                    handleV2Ray start
+                else
+                    echoContent red " ---> 修改V2Ray CDN失败"
+                fi
 
+                # trojan
+                if [[ -d "/etc/v2ray-agent/trojan" ]] && [[ -f "/etc/v2ray-agent/trojan/config.json" ]]
+                then
+                    add=`cat /etc/v2ray-agent/trojan/config.json|jq .websocket.add|awk -F '["]' '{print $2}'`
+                    if [[ ! -z ${add} ]]
+                    then
+                        sed -i "s/${add}/${setDomain}/g"  `grep "${add}" -rl /etc/v2ray-agent/trojan/config.json`
+                    fi
+                fi
+
+                if [[ `cat /etc/v2ray-agent/trojan/config.json|jq .websocket.add|awk -F '["]' '{print $2}'` = ${setDomain} ]]
+                then
+                    echoContent green "\n ---> Trojan CDN修改成功"
+                    handleTrojanGo stop
+                    handleTrojanGo start
+                else
+                    echoContent red " ---> 修改Trojan CDN失败"
+                fi
+            fi
+        else
+            echoContent red " ---> 未安装可用类型"
+        fi
+    else
+        echoContent red " ---> 未安装"
+    fi
+    menu
 }
 # 主菜单
 menu(){
@@ -1474,7 +1539,7 @@ menu(){
     echoContent yellow "2.查看账号"
     echoContent yellow "3.自动排错"
     echoContent yellow "4.更新证书"
-    echoContent yellow "5.更换CDN节点[todo]"
+    echoContent yellow "5.更换CDN节点"
     echoContent skyBlue "-------------------------版本管理-----------------------------"
     echoContent yellow "6.升级V2Ray"
     echoContent yellow "7.升级Trojan-Go"
@@ -1544,17 +1609,17 @@ bbrInstall(){
 checkLog(){
     echoContent skyBlue "\n功能 $1/${totalProgress} : 查看日志"
     echoContent red "\n=============================================================="
-    echoContent skyBlue "--------V2Ray--------"
+    echoContent skyBlue "-------------------------V2Ray--------------------------------"
     echoContent yellow "1.查看V2Ray Info日志"
     echoContent yellow "2.监听V2Ray Info日志"
     echoContent yellow "3.查看V2Ray Error日志"
     echoContent yellow "4.监听V2Ray Error日志"
     echoContent yellow "5.清空V2Ray日志"
-    echoContent skyBlue "------Trojan-Go------"
+    echoContent skyBlue "-----------------------Trojan-Go------------------------------"
     echoContent yellow "6.查看Trojan-Go日志"
     echoContent yellow "7.监听Trojan-GO日志"
     echoContent yellow "8.清空Trojan-GO日志"
-    echoContent skyBlue "--------Nginx--------"
+    echoContent skyBlue "-------------------------Nginx--------------------------------"
     echoContent yellow "9.查看Nginx日志"
     echoContent yellow "10.清空Nginx日志"
     echoContent red "=============================================================="
