@@ -33,5 +33,7 @@
 
 # 4.添加A记录
 - 云朵必须为灰色
+- 到这里Cloudflare的添加域名、A解析就完成了。
 
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/cloudflare/cloudflare_dns_a.png" width=600>
+
