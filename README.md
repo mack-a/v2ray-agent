@@ -1,10 +1,9 @@
 # v2ray-agent
-- 新版教程，如需查看旧版请点击["返回旧版"](https://github.com/mack-a/v2ray-agent/blob/master_backup/README.md)
 - [Cloudflare 优化方案](https://github.com/mack-a/v2ray-agent/blob/master/documents/optimize_V2Ray.md)
 - [流量中转](https://github.com/mack-a/v2ray-agent/blob/master/documents/traffic_relay.md)
 - [手动自建教程](https://github.com/mack-a/v2ray-agent/blob/master/documents/Cloudflare_install_manual.md)
-- [订阅频道](https://t.me/v2rayagentshare)、[TG群](https://t.me/technologyshare)、[博客地址](https://blog.v2ray-agent.com/)
-- [公益订阅链接【1771.40 GB of 2 TB Used 2020-9-25】](https://github.com/mack-a/v2ray-agent/blob/master/documents/free_account.md)。
+- [TG群](https://t.me/technologyshare)、[订阅频道](https://t.me/v2rayagentshare)、[博客地址](https://blog.v2ray-agent.com/)
+- [公益订阅链接【575.71 GB of 2 TB Used 2020-10-05】](https://github.com/mack-a/v2ray-agent/blob/master/documents/free_account.md)。
 
 * * *
 # 目录
