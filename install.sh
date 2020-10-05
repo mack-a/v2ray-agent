@@ -1451,6 +1451,15 @@ checkFail(){
         echoContent red " ---> 未使用脚本安装"
     fi
 }
+# 修改V2Ray CDN节点
+updateV2RayCDN(){
+    echoContent skyBlue "\n进度 $1/${totalProgress} : 修改CDN节点"
+    echoContent yellow " 1.CNAME www.digitalocean.com"
+    echoContent yellow " 2.CNAME amp.cloudflare.com"
+    echoContent yellow " 3.CNAME domain08.qiu4.ml"
+    read -p "请选择:" selectCDNType
+
+}
 # 主菜单
 menu(){
     cd
@@ -1465,17 +1474,17 @@ menu(){
     echoContent yellow "2.查看账号"
     echoContent yellow "3.自动排错"
     echoContent yellow "4.更新证书"
-    echoContent yellow "更换CDN节点[todo]"
+    echoContent yellow "5.更换CDN节点[todo]"
     echoContent skyBlue "-------------------------版本管理-----------------------------"
-    echoContent yellow "5.升级V2Ray"
-    echoContent yellow "6.升级Trojan-Go"
-    echoContent yellow "7.升级脚本"
-    echoContent yellow "8.安装BBR"
+    echoContent yellow "6.升级V2Ray"
+    echoContent yellow "7.升级Trojan-Go"
+    echoContent yellow "8.升级脚本"
+    echoContent yellow "9.安装BBR"
     echoContent skyBlue "-------------------------脚本管理-----------------------------"
-    echoContent yellow "9.查看日志[todo]"
-    echoContent yellow "10.卸载脚本"
-    echoContent yellow "11.重置uuid[todo]"
-    echoContent yellow "12.任意组合安装[todo]"
+    echoContent yellow "10.查看日志"
+    echoContent yellow "11.卸载脚本"
+    echoContent yellow "12.重置uuid[todo]"
+    echoContent yellow "13.任意组合安装[todo]"
     echoContent red "=============================================================="
     automaticUpgrade
     read -p "请选择:" selectInstallType
@@ -1493,21 +1502,24 @@ menu(){
             renewalTLS 1
         ;;
         5)
-            updateV2Ray 1
+            updateV2RayCDN 1
         ;;
         6)
-            updateTrojanGo 1
+            updateV2Ray 1
         ;;
         7)
-            updateV2RayAgent 1
+            updateTrojanGo 1
         ;;
         8)
-            bbrInstall
+            updateV2RayAgent 1
         ;;
         9)
-            checkLog 1
+            bbrInstall
         ;;
         10)
+            checkLog 1
+        ;;
+        11)
             unInstall 1
         ;;
     esac
