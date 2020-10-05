@@ -20,7 +20,7 @@
 - 2.domain08.qiu4.ml 这个域名是通过中国大陆的DNS解析服务商进行解析，众所周知中国大陆是一个局域网的环境，如果想要使用这个域名进行解析IP，则需要使用国内的DNS服务商，例如114.114.114.114
 - 3.当客户端请求DNS解析时，DNS服务商会根据你的本地电信运营商，进行对应设置的DNS解析，例如我设置domain08.qiu4.ml这个域名的中国移动解析ip为104.19.41.56，当本地电信运营商为中国移动，解析这个域名时会解析出104.19.41.56。
 - 4.如果既想要使用TCP+TLS又想要使用WS+TLS，则不需要开启云朵。
-- 5.不开启云朵时，当address为自己的域名时，ip解析为真实的vps服务器ip则为直连，当address为智能DNS解析的IP时，流量则会通过Cloudflare回源机制到Cloudflare服务器来实现CDN进行转发ws，则为CDN代理。
+- 5.不开启云朵时，当address为自己的域名时，ip解析为真实的vps服务器ip则为直连，当address为智能DNS解析的IP时，流量则会通过Cloudflare回源机制到Cloudflare服务器来实现CDN进行转发ws，则为CDN转发。
 
 ## 最优ip测试工具
 - 支持Linux、Windows、Android
