@@ -14,6 +14,7 @@ iplc=$1
 uuidws=
 uuidtcp=
 uuidVlessWS=
+uuidtcpdirect=
 
 trap 'onCtrlC' INT
 function onCtrlC () {
@@ -934,6 +935,8 @@ initV2RayConfig(){
     uuidws=`/etc/v2ray-agent/v2ray/v2ctl uuid`
     uuidVmessTcp=`/etc/v2ray-agent/v2ray/v2ctl uuid`
     uuidVlessWS=`/etc/v2ray-agent/v2ray/v2ctl uuid`
+    uuidtcpdirect=`/etc/v2ray-agent/v2ray/v2ctl uuid`
+
     echoContent skyBlue "\n进度 $2/${totalProgress} : 初始化V2Ray配置"
 
     if [[ "$1" = "vlesstcpws" ]]
@@ -953,9 +956,13 @@ initV2RayConfig(){
         "clients": [
           {
             "id": "${uuidtcp}",
-            "alterId": 0,
             "flow":"xtls-rprx-origin",
-            "email": "${domain}_VLESS_TCP"
+            "email": "${domain}_VLESS_XTLS/TLS-origin_TCP"
+          },
+          {
+            "id": "${uuidtcpdirect}",
+            "flow":"xtls-rprx-direct",
+            "email": "${domain}_VLESS_XTLS/TLS-direct_TCP"
           }
         ],
         "decryption": "none",
@@ -1185,7 +1192,7 @@ defaultBase64Code(){
         echo "   vmess://${qrCodeBase64Default}" >> /etc/v2ray-agent/v2ray/usersv2ray.conf
         echoContent yellow " ---> 通用json(VLESS+TCP+TLS)"
         echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"host":"'${host}'","type":"none","net":"tcp","add":"'${host}'","allowInsecure":0,"method":"none","peer":""}\n'
-        echoContent green '    V2Ray v4.27.4+ 目前无通用订阅，需要手动配置，VLESS TCP、XTLS和TCP大部分一样，其余内容不变，\n'
+        echoContent green '    V2Ray v4.27.4+ 目前无通用订阅，需要手动配置，VLESS TCP、XTLS和TCP大部分一样，其余内容不变，请注意手动输入的流控flow类型\n'
 
     elif [[ "${type}" = "vmessws" ]]
     then
@@ -1319,6 +1326,10 @@ showAccounts(){
         local tcp=`cat /etc/v2ray-agent/v2ray/config.json|jq .inbounds[0]`
         local tcpID=`echo ${tcp}|jq .settings.clients[0].id`
         local tcpEmail="`echo ${tcp}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
+
+        # XTLS Direct
+        local tcpIDirect=`echo ${tcp}|jq .settings.clients[1].id`
+        local tcpDirectEmail="`echo ${tcp}|jq .settings.clients[1].email|awk -F '["]' '{print $2}'`"
         host=`echo ${tcp}|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
 
          # VLESS ws
@@ -1343,16 +1354,19 @@ showAccounts(){
         local vmessTCPath=`echo ${vmessTCP}|jq .streamSettings.tcpSettings.header.request.path[0]`
 
 
-        echoContent skyBlue "\n=============================== VLESS TCP TLS/XTLS  ==============================="
+        echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-origin ==========================="
         defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${host}" ${add}
 
-        echoContent skyBlue "\n===============================VLESS WS TLS CDN==============================="
+        echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-direct ==========================="
+        defaultBase64Code vlesstcp ${tcpDirectEmail} "${tcpIDirect}" "${host}" ${add}
+
+        echoContent skyBlue "\n================================ VLESS WS TLS CDN ================================"
         defaultBase64Code vlessws ${vlessWSEmail} "${vlessWSID}" "${host}" "${vlessWSPath}" ${wsAdd}
 
-        echoContent skyBlue "\n===============================VMess WS TLS CDN==============================="
+        echoContent skyBlue "\n================================ VMess WS TLS CDN ================================"
         defaultBase64Code vmessws ${wsEmail} "${wsID}" "${host}" "${wsPath}" ${wsAdd}
 
-        echoContent skyBlue "\n=============================== VMess TCP TLS  ==============================="
+        echoContent skyBlue "\n================================= VMess TCP TLS  ================================="
         defaultBase64Code vmesstcp ${vmessTCPEmail} "${vmessTCPID}" "${host}" "${vmessTCPath}" "${host}"
     fi
     if [[ -d "/etc/v2ray-agent/" ]] && [[ -d "/etc/v2ray-agent/trojan/" ]] && [[ -f "/etc/v2ray-agent/trojan/config.json" ]]
@@ -1361,10 +1375,10 @@ showAccounts(){
         local trojanUUID=`cat /etc/v2ray-agent/trojan/config.json |jq .password[0]|awk -F '["]' '{print $2}'`
         local trojanGoPath=`cat /etc/v2ray-agent/trojan/config.json|jq .websocket.path|awk -F '["]' '{print $2}'`
         local trojanGoAdd=`cat /etc/v2ray-agent/trojan/config.json|jq .websocket.add|awk -F '["]' '{print $2}'`
-        echoContent skyBlue "\n=============================== Trojan TLS  ==============================="
+        echoContent skyBlue "\n==================================  Trojan TLS  =================================="
         defaultBase64Code trojan trojan ${trojanUUID} ${host}
 
-        echoContent skyBlue "\n=============================== Trojan WS TLS  ==============================="
+        echoContent skyBlue "\n================================  Trojan WS TLS   ================================"
         if [[ -z ${trojanGoAdd} ]]
         then
             trojanGoAdd=${host}
