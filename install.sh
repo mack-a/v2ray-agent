@@ -1347,7 +1347,7 @@ showAccounts(){
         defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${host}" ${add}
 
         echoContent skyBlue "\n===============================VLESS WS TLS CDN==============================="
-        defaultBase64Code vlessws ${vlessWSEmail} "${vlessWSID}" "${host}" "${vlessWSPath}" ${vlessWSAdd}
+        defaultBase64Code vlessws ${vlessWSEmail} "${vlessWSID}" "${host}" "${vlessWSPath}" ${wsAdd}
 
         echoContent skyBlue "\n===============================VMess WS TLS CDN==============================="
         defaultBase64Code vmessws ${wsEmail} "${wsID}" "${host}" "${wsPath}" ${wsAdd}
