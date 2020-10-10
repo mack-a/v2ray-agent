@@ -20,7 +20,8 @@
 
 ## 组合方式
 - VLESS+TCP+TLS
-- VLESS+TCP+XTLS
+- VLESS+TCP+xtls-rprx-origin
+- VLESS+TCP+xtls-rprx-direct
 - VLESS+WS+TLS 
 - VMess+TCP+TLS
 - VMess+WS+TLS
