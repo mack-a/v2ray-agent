@@ -550,18 +550,54 @@ installTrojanGo(){
         fi
     fi
 }
-# 更新V2Ray
-updateV2Ray(){
-    echoContent skyBlue "\n进度  $1/${totalProgress} : 更新V2Ray"
+# V2Ray版本管理
+v2rayVersionManageMenu(){
+    echoContent skyBlue "\n进度  $1/${totalProgress} : V2Ray版本管理"
     if [[ ! -d "/etc/v2ray-agent/v2ray/" ]]
     then
         echoContent red " ---> 没有检测到安装目录，请执行脚本安装内容"
         menu
         exit 0;
     fi
+    echoContent red "\n=============================================================="
+    echoContent yellow "1.升级"
+    echoContent yellow "2.回退"
+    echoContent red "=============================================================="
+    read -p "请选择：" selectV2RayType
+    if [[ "${selectV2RayType}" = "1" ]]
+    then
+        updateV2Ray 1 1
+    elif [[ "${selectV2RayType}" = "2" ]]
+    then
+        echoContent yellow "\n1.只可以回退最近的两个版本"
+        echoContent yellow "2.不保证回退后一定可以正常使用"
+        echoContent yellow "3.如果回退的版本不支持当前的config，则会无法连接，谨慎操作"
+        echoContent skyBlue "------------------------Version-------------------------------"
+        curl -s https://github.com/v2fly/v2ray-core/releases|grep /v2ray-core/releases/tag/|head -3|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'|tail -n 2|awk '{print ""NR""":"$0}'
+        echoContent skyBlue "--------------------------------------------------------------"
+        read -p "请输入要回退的版本：" selectV2rayVersionType
+        version=`curl -s https://github.com/v2fly/v2ray-core/releases|grep /v2ray-core/releases/tag/|head -3|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'|tail -n 2|awk '{print ""NR""":"$0}'|grep "${selectV2rayVersionType}:"|awk -F "[:]" '{print $2}'`
+        if [[ ! -z "${version}" ]]
+        then
+            updateV2Ray 1 1 ${version}
+        else
+            echoContent red "\n ---> 输入有误，请重新输入"
+            v2rayVersionManageMenu 1
+        fi
+    fi
+
+}
+# 更新V2Ray
+updateV2Ray(){
+
     if [[ -z `ls -F /etc/v2ray-agent/v2ray/|grep "v2ray"` ]] || [[ -z `ls -F /etc/v2ray-agent/v2ray/|grep "v2ctl"` ]]
     then
-        version=`curl -s https://github.com/v2fly/v2ray-core/releases|grep /v2ray-core/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
+        if [[ ! -z "$3" ]]
+        then
+            version=$3
+        else
+            version=`curl -s https://github.com/v2fly/v2ray-core/releases|grep /v2ray-core/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
+        fi
         echoContent green " ---> v2ray-core版本:${version}"
         wget -q -P /etc/v2ray-agent/v2ray/ https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip
         unzip /etc/v2ray-agent/v2ray/v2ray-linux-64.zip -d /etc/v2ray-agent/v2ray > /dev/null
@@ -577,10 +613,28 @@ updateV2Ray(){
         echoContent green " ---> 当前v2ray-core版本:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`"
         if [[ ! -z `/etc/v2ray-agent/v2ray/v2ray --version` ]]
         then
-            version=`curl -s https://github.com/v2fly/v2ray-core/releases|grep /v2ray-core/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
+            if [[ ! -z "$3" ]]
+            then
+                version=$3
+            else
+                version=`curl -s https://github.com/v2fly/v2ray-core/releases|grep /v2ray-core/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
+            fi
+
             # echo version:${version}
             # echo version2:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`
-            if [[ "${version}" = "v`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`" ]]
+            if [[ ! -z "$3" ]]
+            then
+                read -p "回退版本为${version}，是否继续？[y/n]:" rollbackV2RayStatus
+                if [[ "${rollbackV2RayStatus}" = "y" ]]
+                then
+                    handleV2Ray stop
+                    cp /etc/v2ray-agent/v2ray/config.json /tmp/config.json
+                    rm -rf /etc/v2ray-agent/v2ray/*
+                    updateV2Ray $1 backup $3
+                else
+                    echoContent green " ---> 放弃回退版本"
+                fi
+            elif [[ "${version}" = "v`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`" ]]
             then
                 read -p "当前版本与最新版相同，是否重新安装？[y/n]:" reInstalV2RayStatus
                 if [[ "${reInstalV2RayStatus}" = "y" ]]
@@ -607,6 +661,7 @@ updateV2Ray(){
         fi
     fi
 }
+
 # 更新Trojan-Go
 updateTrojanGo(){
     echoContent skyBlue "\n进度  $1/${totalProgress} : 更新Trojan-Go"
@@ -1555,7 +1610,7 @@ menu(){
     echoContent yellow "4.更新证书"
     echoContent yellow "5.更换CDN节点"
     echoContent skyBlue "-------------------------版本管理-----------------------------"
-    echoContent yellow "6.升级V2Ray"
+    echoContent yellow "6.V2Ray版本管理"
     echoContent yellow "7.升级Trojan-Go"
     echoContent yellow "8.升级脚本"
     echoContent yellow "9.安装BBR"
@@ -1584,7 +1639,7 @@ menu(){
             updateV2RayCDN 1
         ;;
         6)
-            updateV2Ray 1
+            v2rayVersionManageMenu 1
         ;;
         7)
             updateTrojanGo 1
