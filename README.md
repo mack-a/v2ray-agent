@@ -45,6 +45,7 @@
 ## 注意事项
 - 修改Cloudflare->SSL/TLS->Overview->Full
 - Cloudflare ---> A记录解析的云朵必须为灰色
+- Windows系统不可以使用FinalShell，会导致ssh断开，建议使用xshell或者原版ssh等其他工具代替
 - wget: command not found [这里需要自己手动安装下wget]
 - 脚本安装路径[/etc/v2ray-agent]
 
