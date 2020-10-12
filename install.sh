@@ -1594,6 +1594,52 @@ updateV2RayCDN(){
     fi
     menu
 }
+# 重置UUID
+resetUUID(){
+    echoContent skyBlue "\n进度 $1/${totalProgress} : 重置UUID"
+    local resetStatus=false
+    if [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]] && [[ -f "/etc/v2ray-agent/v2ray/config.json" ]]
+    then
+        cat /etc/v2ray-agent/v2ray/config.json|jq .inbounds|jq -c '.[].settings.clients'|jq -c '.[].id'|while read row
+        do
+            oldUUID=`echo ${row}|awk -F "[\"]" '{print $2}'`
+            newUUID=`/etc/v2ray-agent/v2ray/v2ctl uuid`
+            echoContent red "旧：${oldUUID}"
+            echoContent red "新UUID：${newUUID}"
+            sed -i "s/${oldUUID}/${newUUID}/g"  `grep "${oldUUID}" -rl /etc/v2ray-agent/v2ray/config.json`
+        done
+        echoContent green " ---> V2Ray UUID重置完毕"
+        handleV2Ray stop
+        handleV2Ray start
+        resetStatus=true
+    else
+        echoContent red " ---> 未使用脚本安装V2Ray"
+        menu
+        exit 0;
+    fi
+
+    if [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/trojan" ]] && [[ -f "/etc/v2ray-agent/trojan/config.json" ]]
+    then
+        cat /etc/v2ray-agent/trojan/config.json|jq .password|jq -c '.[]'|while read row
+        do
+            oldUUID=`echo ${row}|awk -F "[\"]" '{print $2}'`
+            newUUID=`/etc/v2ray-agent/v2ray/v2ctl uuid`
+            echoContent red "旧：${oldUUID}"
+            echoContent red "新UUID：${newUUID}"
+            sed -i "s/${oldUUID}/${newUUID}/g"  `grep "${oldUUID}" -rl /etc/v2ray-agent/trojan/config.json`
+        done
+        echoContent green " ---> Trojan UUID重置完毕"
+        handleTrojanGo stop
+        handleTrojanGo start
+        resetStatus=true
+    else
+        echoContent red " ---> 未使用脚本安装Trojan"
+    fi
+    if [[ "${resetStatus}" = "true" ]]
+    then
+        showAccounts 1
+    fi
+}
 # 主菜单
 menu(){
     cd
@@ -1604,21 +1650,21 @@ menu(){
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
     echoContent yellow "1.安装"
+    echoContent yellow "2.任意组合安装[todo]"
     echoContent skyBlue "-------------------------工具管理-----------------------------"
-    echoContent yellow "2.查看账号"
-    echoContent yellow "3.自动排错"
-    echoContent yellow "4.更新证书"
-    echoContent yellow "5.更换CDN节点"
+    echoContent yellow "3.查看账号"
+    echoContent yellow "4.自动排错"
+    echoContent yellow "5.更新证书"
+    echoContent yellow "6.更换CDN节点"
+    echoContent yellow "7.重置uuid"
     echoContent skyBlue "-------------------------版本管理-----------------------------"
-    echoContent yellow "6.V2Ray版本管理"
-    echoContent yellow "7.升级Trojan-Go"
-    echoContent yellow "8.升级脚本"
-    echoContent yellow "9.安装BBR"
+    echoContent yellow "8.V2Ray版本管理"
+    echoContent yellow "9.升级Trojan-Go"
+    echoContent yellow "10.升级脚本"
+    echoContent yellow "11.安装BBR"
     echoContent skyBlue "-------------------------脚本管理-----------------------------"
-    echoContent yellow "10.查看日志"
-    echoContent yellow "11.卸载脚本"
-    echoContent yellow "12.重置uuid[todo]"
-    echoContent yellow "13.任意组合安装[todo]"
+    echoContent yellow "12.查看日志"
+    echoContent yellow "13.卸载脚本"
     echoContent red "=============================================================="
     automaticUpgrade
     read -p "请选择:" selectInstallType
@@ -1626,34 +1672,37 @@ menu(){
         1)
             installV2RayVLESSTCPWSTLS
         ;;
-        2)
+        3)
             showAccounts 1
         ;;
-        3)
+        4)
             checkFail 1
         ;;
-        4)
+        5)
             renewalTLS 1
         ;;
-        5)
+        6)
             updateV2RayCDN 1
         ;;
-        6)
-            v2rayVersionManageMenu 1
-        ;;
         7)
-            updateTrojanGo 1
+            resetUUID 1
         ;;
         8)
-            updateV2RayAgent 1
+            v2rayVersionManageMenu 1
         ;;
         9)
-            bbrInstall
+            updateTrojanGo 1
         ;;
         10)
-            checkLog 1
+            updateV2RayAgent 1
         ;;
         11)
+            bbrInstall
+        ;;
+        12)
+            checkLog 1
+        ;;
+        13)
             unInstall 1
         ;;
     esac
