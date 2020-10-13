@@ -15,6 +15,7 @@ uuidws=
 uuidtcp=
 uuidVlessWS=
 uuidtcpdirect=
+customInstallType=
 
 trap 'onCtrlC' INT
 function onCtrlC () {
@@ -57,7 +58,7 @@ echoContent(){
 mkdirTools(){
     echoContent skyBlue "\n进度  $1/${totalProgress} : 创建文件夹"
     mkdir -p /etc/v2ray-agent/tls
-    mkdir -p /etc/v2ray-agent/v2ray
+    mkdir -p /etc/v2ray-agent/v2ray/conf
     mkdir -p /etc/v2ray-agent/trojan
     mkdir -p /etc/systemd/system/
 }
@@ -783,48 +784,13 @@ checkGFWStatue(){
     # 验证整个服务是否可用
 #    progressTools "yellow" "验证服务是否可用--->"
     echoContent skyBlue "\n进度 $1/${totalProgress} : 验证服务是否可用"
-    if [[ "${globalType}" = "wss" ]]
+    if [[ "${globalType}" = "vlesstcpws" ]]
     then
-
-        sleep 3
-        if [[ ! -z `curl -s -L https://${domain}/${customPath}|grep -v grep|grep "Bad Request"` ]]
+        if [[ ! -z `ps -ef|grep -v grep|grep v2ray` ]]
         then
-            echoContent green " ---> 服务可用"
+            echoContent green " ---> 服务启动成功"
         else
-            echoContent red " ---> 服务不可用"
-            progressTools "red" "    1.请检查Cloudflare->域名->SSL/TLS->Overview->Your SSL/TLS encryption mode is 是否是Full--->"
-            progressTools "red" "    2.请执行[ps -ef|grep v2ray]查看结果是否有如下信息，如果存在则执行脚本选择[4查看账号]即可--->"
-            progressTools "red" "       /etc/v2ray-agent/trojan/trojan-go -config /etc/v2ray-agent/trojan/config.json"
-            progressTools "red" "       /etc/v2ray-agent/v2ray/v2ray -config /etc/v2ray-agent/v2ray/config.json"
-            progressTools "red" "    3.如以上都无法解决，请联系开发者[https://t.me/mack_a]"
-
-            progressTools "red" "  错误日志:`curl -s -L https://${domain}/${customPath}`"
-            exit 0
-        fi
-    elif [[ "${globalType}" = "tcp" ]]
-    then
-        echo '' > /etc/v2ray-agent/v2ray/v2ray_access.log
-        curl --connect-time 3  --max-time 1 --url https://${domain} > /dev/null 2>&1
-        sleep 0.1
-        if [[ ! -z `cat /etc/v2ray-agent/v2ray/v2ray_access.log|grep -v grep|grep "Not Found"` ]]
-        then
-            echoContent green " ---> 服务可用"
-        else
-            progressTools "red" "    服务不可用"
-            progressTools "red" "     1.请检查云朵是否关闭"
-            progressTools "red" "     2.请手动尝试使用账号并观察日志，日志路径[/etc/v2ray-agent/v2ray/v2ray_access.log]"
-            exit 0
-        fi
-    elif [[ "${globalType}" = "vlesstcpws" ]]
-    then
-        echoContent green " ---> 等待三秒"
-        sleep 3
-        if [[ ! -z `curl -s -L https://${domain}/${customPath}|grep -v grep|grep "Bad Request"` ]]
-        then
-            echoContent green " ---> 服务可用"
-        else
-            progressTools "red" "    服务不可用，请检查Cloudflare->域名->SSL/TLS->Overview->Your SSL/TLS encryption mode is 是否是Full--->"
-            progressTools "red" "  错误日志:`curl -s -L https://${domain}/${customPath}`"
+            progressTools "red" " ---> 服务不可用，请检查终端是否有日志打印"
             exit 0
         fi
     fi
@@ -836,7 +802,11 @@ installV2RayService(){
     then
         rm -rf /etc/systemd/system/v2ray.service
         touch /etc/systemd/system/v2ray.service
-
+        execStart='/etc/v2ray-agent/v2ray/v2ray -config /etc/v2ray-agent/v2ray/config.json'
+        if [[ ! -z ${customInstallType} ]]
+        then
+            execStart='/etc/v2ray-agent/v2ray/v2ray -confdir /etc/v2ray-agent/v2ray/conf'
+        fi
     cat << EOF > /etc/systemd/system/v2ray.service
         [Unit]
         Description=V2Ray - A unified platform for anti-censorship
@@ -849,7 +819,7 @@ installV2RayService(){
         User=root
         CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_RAW
         NoNewPrivileges=yes
-        ExecStart=/etc/v2ray-agent/v2ray/v2ray -config /etc/v2ray-agent/v2ray/config.json
+        ExecStart=${execStart}
         Restart=on-failure
         RestartPreventExitStatus=23
 
@@ -993,7 +963,8 @@ initV2RayConfig(){
     uuidtcpdirect=`/etc/v2ray-agent/v2ray/v2ctl uuid`
 
     echoContent skyBlue "\n进度 $2/${totalProgress} : 初始化V2Ray配置"
-
+    rm -rf /etc/v2ray-agent/v2ray/conf/*
+    rm -rf /etc/v2ray-agent/v2ray/config.json
     if [[ "$1" = "vlesstcpws" ]]
     then
         cat << EOF > /etc/v2ray-agent/v2ray/config.json
@@ -1011,6 +982,7 @@ initV2RayConfig(){
         "clients": [
           {
             "id": "${uuidtcp}",
+            "add": "${add}",
             "flow":"xtls-rprx-origin",
             "email": "${domain}_VLESS_XTLS/TLS-origin_TCP"
           },
@@ -1067,7 +1039,6 @@ initV2RayConfig(){
           {
             "id": "${uuidws}",
             "alterId": 1,
-            "add": "${add}",
             "level": 0,
             "email": "${domain}_vmess_ws"
           }
@@ -1153,6 +1124,211 @@ initV2RayConfig(){
       "localhost"
     ]
   }
+}
+EOF
+    elif [[ "$1" = "custom" ]]
+    then
+        # log
+        cat << EOF > /etc/v2ray-agent/v2ray/conf/log.json
+{
+  "log": {
+    "access": "/etc/v2ray-agent/v2ray/v2ray_access.log",
+    "error": "/etc/v2ray-agent/v2ray/v2ray_error.log",
+    "loglevel": "debug"
+  }
+}
+EOF
+        # outbounds
+       cat << EOF > /etc/v2ray-agent/v2ray/conf/outbounds.json
+{
+    "outbounds": [
+        {
+          "protocol": "freedom",
+          "settings": {
+            "domainStrategy": "UseIP"
+          }
+        }
+    ]
+}
+EOF
+        # dns
+       cat << EOF > /etc/v2ray-agent/v2ray/conf/dns.json
+{
+    "dns": {
+        "servers": [
+          "74.82.42.42",
+          "8.8.8.8",
+          "8.8.4.4",
+          "1.1.1.1",
+          "localhost"
+        ]
+  }
+}
+EOF
+        # VLESS_TCP_TLS/XTLS
+        # 没有path则回落到此端口
+        local fallbacksList='{"dest":31296,"xver":0}'
+
+        if [[ ! -z `echo ${customInstallType}|grep 4` ]]
+        then
+            fallbacksList='{"dest":80,"xver":0}'
+        fi
+
+        # {"dest":31296,"xver":0},{"path":"/${customPath}","dest":31299,"xver":1},{"path":"/${customPath}tcp","dest":31298,"xver":1},{"path":"/${customPath}ws","dest":31297,"xver":1}
+
+        # VLESS_WS_TLS
+        if [[ ! -z `echo ${customInstallType}|grep 1` ]]
+        then
+            fallbacksList=${fallbacksList}',{"path":"/${customPath}ws","dest":31297,"xver":1}'
+            cat << EOF > /etc/v2ray-agent/v2ray/conf/VLESS_WS_inbounds.json
+{
+"inbounds":[
+        {
+      "port": 31297,
+      "listen": "127.0.0.1",
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "${uuidVlessWS}",
+            "level": 0,
+            "email": "${domain}_vless_ws"
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "none",
+        "wsSettings": {
+          "acceptProxyProtocol": true,
+          "path": "/${customPath}ws"
+        }
+      }
+    }
+    ]
+}
+EOF
+        fi
+# VMess_TCP
+        if [[ ! -z `echo ${customInstallType}|grep 2` ]]
+        then
+            fallbacksList=${fallbacksList}',{"path":"/${customPath}tcp","dest":31298,"xver":1}'
+            cat << EOF > /etc/v2ray-agent/v2ray/conf/VMess_TCP_inbounds.json
+{
+"inbounds":[
+    {
+      "port": 31298,
+      "listen": "127.0.0.1",
+      "protocol": "vmess",
+      "settings": {
+        "clients": [
+          {
+            "id": "${uuidVmessTcp}",
+            "level": 0,
+            "alterId": 1,
+            "email": "${domain}_vmess_tcp"
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "none",
+        "tcpSettings": {
+          "acceptProxyProtocol": true,
+          "header": {
+            "type": "http",
+            "request": {
+              "path": [
+                "/${customPath}tcp"
+              ]
+            }
+          }
+        }
+      }
+    }
+]
+}
+EOF
+        # VMess_WS
+        if [[ ! -z `echo ${customInstallType}|grep 3` ]]
+        then
+            fallbacksList=${fallbacksList}',{"path":"/${customPath}","dest":31299,"xver":1}'
+            cat << EOF > /etc/v2ray-agent/v2ray/conf/VMess_WS_inbounds.json
+{
+"inbounds":[
+{
+      "port": 31299,
+      "protocol": "vmess",
+      "settings": {
+        "clients": [
+          {
+            "id": "${uuidws}",
+            "alterId": 1,
+            "add": "${add}",
+            "level": 0,
+            "email": "${domain}_vmess_ws"
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "none",
+        "wsSettings": {
+          "acceptProxyProtocol": true,
+          "path": "/${customPath}"
+        }
+      }
+    }
+]
+}
+EOF
+        fi
+
+        fi
+        # VLESS_TCP
+        cat << EOF > /etc/v2ray-agent/v2ray/conf/VLESS_TCP_inbounds.json
+{
+  "inbounds":[
+    {
+      "port": 443,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "${uuidtcp}",
+            "add": "${add}",
+            "flow":"xtls-rprx-origin",
+            "email": "${domain}_VLESS_XTLS/TLS-origin_TCP"
+          },
+          {
+            "id": "${uuidtcpdirect}",
+            "flow":"xtls-rprx-direct",
+            "email": "${domain}_VLESS_XTLS/TLS-direct_TCP"
+          }
+        ],
+        "decryption": "none",
+        "fallbacks": [
+            ${fallbacksList}
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "xtls",
+        "xtlsSettings": {
+          "alpn": [
+            "http/1.1"
+          ],
+          "certificates": [
+            {
+              "certificateFile": "/etc/v2ray-agent/tls/${domain}.crt",
+              "keyFile": "/etc/v2ray-agent/tls/${domain}.key"
+            }
+          ]
+        }
+      }
+    }
+  ]
 }
 EOF
     fi
@@ -1374,14 +1550,14 @@ showAccounts(){
     showStatus=
     local host=
     echoContent skyBlue "\n进度 $1/${totalProgress} : 账号"
-    if [[ -d "/etc/v2ray-agent/" ]] && [[ -d "/etc/v2ray-agent/v2ray/" ]] && [[ -f "/etc/v2ray-agent/v2ray/config.json" ]]
+    if [[ -d "/etc/v2ray-agent/" ]] && [[ -d "/etc/v2ray-agent/v2ray/" ]] && [[ -f "/etc/v2ray-agent/v2ray/config.json" ]] && [[ -z "${customInstallType}" ]]
     then
         showStatus=true
         # VLESS tcp
         local tcp=`cat /etc/v2ray-agent/v2ray/config.json|jq .inbounds[0]`
         local tcpID=`echo ${tcp}|jq .settings.clients[0].id`
         local tcpEmail="`echo ${tcp}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
-
+        local CDNADD=`echo ${tcp}|jq .settings.clients[0].add|awk -F '["]' '{print $2}'`
         # XTLS Direct
         local tcpIDirect=`echo ${tcp}|jq .settings.clients[1].id`
         local tcpDirectEmail="`echo ${tcp}|jq .settings.clients[1].email|awk -F '["]' '{print $2}'`"
@@ -1390,21 +1566,18 @@ showAccounts(){
          # VLESS ws
         local vlessWS=`cat /etc/v2ray-agent/v2ray/config.json|jq .inbounds[3]`
         local vlessWSID=`echo ${vlessWS}|jq .settings.clients[0].id`
-        local vlessWSAdd=`echo ${vlessWS}|jq .settings.clients[0].add|awk -F '["]' '{print $2}'`
         local vlessWSEmail="`echo ${vlessWS}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
         local vlessWSPath=`echo ${vlessWS}|jq .streamSettings.wsSettings.path`
 
         # Vmess ws
         local ws=`cat /etc/v2ray-agent/v2ray/config.json|jq .inbounds[1]`
         local wsID=`echo ${ws}|jq .settings.clients[0].id`
-        local wsAdd=`echo ${ws}|jq .settings.clients[0].add|awk -F '["]' '{print $2}'`
         local wsEmail="`echo ${ws}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
         local wsPath=`echo ${ws}|jq .streamSettings.wsSettings.path`
 
         # Vmess tcp
         local vmessTCP=`cat /etc/v2ray-agent/v2ray/config.json|jq .inbounds[2]`
         local vmessTCPID=`echo ${vmessTCP}|jq .settings.clients[0].id`
-        local vmessTCPAdd=`echo ${vmessTCP}|jq .settings.clients[0].add|awk -F '["]' '{print $2}'`
         local vmessTCPEmail="`echo ${vmessTCP}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
         local vmessTCPath=`echo ${vmessTCP}|jq .streamSettings.tcpSettings.header.request.path[0]`
 
@@ -1414,16 +1587,74 @@ showAccounts(){
 
         echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-direct ==========================="
         defaultBase64Code vlesstcp ${tcpDirectEmail} "${tcpIDirect}" "${host}" ${add}
-
         echoContent skyBlue "\n================================ VLESS WS TLS CDN ================================"
-        defaultBase64Code vlessws ${vlessWSEmail} "${vlessWSID}" "${host}" "${vlessWSPath}" ${wsAdd}
+        defaultBase64Code vlessws ${vlessWSEmail} "${vlessWSID}" "${host}" "${vlessWSPath}" ${CDNADD}
 
         echoContent skyBlue "\n================================ VMess WS TLS CDN ================================"
-        defaultBase64Code vmessws ${wsEmail} "${wsID}" "${host}" "${wsPath}" ${wsAdd}
+        defaultBase64Code vmessws ${wsEmail} "${wsID}" "${host}" "${wsPath}" ${CDNADD}
 
         echoContent skyBlue "\n================================= VMess TCP TLS  ================================="
         defaultBase64Code vmesstcp ${vmessTCPEmail} "${vmessTCPID}" "${host}" "${vmessTCPath}" "${host}"
+
+    elif [[ -d "/etc/v2ray-agent/" ]] && [[ -d "/etc/v2ray-agent/v2ray/" ]] && [[ -d "/etc/v2ray-agent/v2ray/conf" ]] && [[ ! -z "${customInstallType}" ]]
+    then
+        showStatus=true
+
+        # VLESS tcp
+        local tcp=`cat /etc/v2ray-agent/v2ray/conf/VLESS_TCP_inbounds.json|jq .inbounds[0]`
+        local tcpID=`echo ${tcp}|jq .settings.clients[0].id`
+        local tcpEmail="`echo ${tcp}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
+
+        local CDNADD=`echo ${tcp}|jq .settings.clients[0].add|awk -F '["]' '{print $2}'`
+        # XTLS Direct
+        local tcpIDirect=`echo ${tcp}|jq .settings.clients[1].id`
+        local tcpDirectEmail="`echo ${tcp}|jq .settings.clients[1].email|awk -F '["]' '{print $2}'`"
+        host=`echo ${tcp}|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+        echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-origin ==========================="
+        defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${host}" ${add}
+
+        echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-direct ==========================="
+        defaultBase64Code vlesstcp ${tcpDirectEmail} "${tcpIDirect}" "${host}" ${add}
+
+        if [[ ! -z "${customInstallType}" ]]
+        then
+            if [[ ! -z `echo ${customInstallType}|grep 1` ]]
+            then
+                # VLESS ws
+                local vlessWS=`cat /etc/v2ray-agent/v2ray/conf/VLESS_WS_inbounds.json|jq .inbounds[0]`
+                local vlessWSID=`echo ${vlessWS}|jq .settings.clients[0].id`
+                local vlessWSAdd=`echo ${tcp}|jq .settings.clients[0].add|awk -F '["]' '{print $2}'`
+                local vlessWSEmail="`echo ${vlessWS}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
+                local vlessWSPath=`echo ${vlessWS}|jq .streamSettings.wsSettings.path`
+
+                echoContent skyBlue "\n================================ VLESS WS TLS CDN ================================"
+                defaultBase64Code vlessws ${vlessWSEmail} "${vlessWSID}" "${host}" "${vlessWSPath}" ${CDNADD}
+            fi
+            if [[ ! -z `echo ${customInstallType}|grep 2` ]]
+            then
+
+                local vmessTCP=`cat /etc/v2ray-agent/v2ray/conf/VMess_TCP_inbounds.json|jq .inbounds[0]`
+                local vmessTCPID=`echo ${vmessTCP}|jq .settings.clients[0].id`
+                local vmessTCPEmail="`echo ${vmessTCP}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
+                local vmessTCPath=`echo ${vmessTCP}|jq .streamSettings.tcpSettings.header.request.path[0]`
+
+                echoContent skyBlue "\n================================= VMess TCP TLS  ================================="
+                defaultBase64Code vmesstcp ${vmessTCPEmail} "${vmessTCPID}" "${host}" "${vmessTCPath}" "${host}"
+            fi
+            if [[ ! -z `echo ${customInstallType}|grep 3` ]]
+            then
+
+                local ws=`cat /etc/v2ray-agent/v2ray/conf/VMess_WS_inbounds.json|jq .inbounds[1]`
+                local wsID=`echo ${ws}|jq .settings.clients[0].id`
+                local wsEmail="`echo ${ws}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
+                local wsPath=`echo ${ws}|jq .streamSettings.wsSettings.path`
+
+                echoContent skyBlue "\n================================ VMess WS TLS CDN ================================"
+                defaultBase64Code vmessws ${wsEmail} "${wsID}" "${host}" "${wsPath}" ${CDNADD}
+            fi
+        fi
     fi
+
     if [[ -d "/etc/v2ray-agent/" ]] && [[ -d "/etc/v2ray-agent/trojan/" ]] && [[ -f "/etc/v2ray-agent/trojan/config.json" ]]
     then
         showStatus=true
@@ -1523,9 +1754,20 @@ checkFail(){
 # 修改V2Ray CDN节点
 updateV2RayCDN(){
     echoContent skyBlue "\n进度 $1/${totalProgress} : 修改CDN节点"
-    if [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]] && [[ -f "/etc/v2ray-agent/v2ray/config.json" ]]
+    if [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]]
     then
-        local add=`cat /etc/v2ray-agent/v2ray/config.json|grep -v grep|grep add`
+        local configPath=
+        if [[ -f "/etc/v2ray-agent/v2ray/config.json" ]]
+        then
+            configPath="/etc/v2ray-agent/v2ray/config.json"
+        elif [[ -d "/etc/v2ray-agent/v2ray/conf" ]] && [[ -f "/etc/v2ray-agent/v2ray/conf/VLESS_TCP_inbounds.json" ]]
+        then
+            configPath="/etc/v2ray-agent/v2ray/conf/VLESS_TCP_inbounds.json"
+        else
+            echoContent red " ---> 未安装"
+            exit 0;
+        fi
+        local add=`cat ${configPath}|grep -v grep|grep add`
         if [[ ! -z ${add} ]]
         then
             echoContent red "=============================================================="
@@ -1555,10 +1797,10 @@ updateV2RayCDN(){
                 add=`echo ${add}|awk -F '["]' '{print $4}'`
                 if [[ ! -z ${add} ]]
                 then
-                    sed -i "s/${add}/${setDomain}/g"  `grep "${add}" -rl /etc/v2ray-agent/v2ray/config.json`
+                    sed -i "s/${add}/${setDomain}/g"  `grep "${add}" -rl ${configPath}`
                 fi
-                # sed -i "s/domain08.qiu4.ml1/domain08.qiu4.ml/g"  `grep "domain08.qiu4.ml1" -rl /etc/v2ray-agent/v2ray/config.json`
-                if [[ `cat /etc/v2ray-agent/v2ray/config.json|grep -v grep|grep add|awk -F '["]' '{print $4}'` = ${setDomain} ]]
+                # sed -i "s/domain08.qiu4.ml1/domain08.qiu4.ml/g"  `grep "domain08.qiu4.ml1" -rl ${configPath}`
+                if [[ `cat ${configPath}|grep -v grep|grep add|awk -F '["]' '{print $4}'` = ${setDomain} ]]
                 then
                     echoContent green " ---> V2Ray CDN修改成功"
                     handleV2Ray stop
@@ -1577,12 +1819,13 @@ updateV2RayCDN(){
                     fi
                 fi
 
-                if [[ `cat /etc/v2ray-agent/trojan/config.json|jq .websocket.add|awk -F '["]' '{print $2}'` = ${setDomain} ]]
+                if [[ -d "/etc/v2ray-agent/trojan" ]] && [[ -f "/etc/v2ray-agent/trojan/config.json" ]] && [[ `cat /etc/v2ray-agent/trojan/config.json|jq .websocket.add|awk -F '["]' '{print $2}'` = ${setDomain} ]]
                 then
                     echoContent green "\n ---> Trojan CDN修改成功"
                     handleTrojanGo stop
                     handleTrojanGo start
-                else
+                elif [[ -d "/etc/v2ray-agent/trojan" ]] && [[ -f "/etc/v2ray-agent/trojan/config.json" ]]
+                then
                     echoContent red " ---> 修改Trojan CDN失败"
                 fi
             fi
@@ -1640,17 +1883,107 @@ resetUUID(){
         showAccounts 1
     fi
 }
+# 个性化安装
+customInstall(){
+    echoContent skyBlue "\n========================个性化安装============================"
+    echoContent yellow "VLESS前置，默认安装0，如果只需要安装0，则只选择0即可"
+    echoContent yellow "0.VLESS+TLS/XTLS+TCP"
+    echoContent yellow "1.VLESS+TLS+WS[CDN]"
+    echoContent yellow "2.VMess+TLS+TCP"
+    echoContent yellow "3.VMess+TLS+WS[CDN]"
+    echoContent yellow "4.Trojan、Trojan+WS[CDN]"
+    read -p "请选择[多选]，[例如:123]:" customInstallType
+    echoContent skyBlue "--------------------------------------------------------------"
+    if [[ -z ${customInstallType} ]]
+    then
+        echoContent red " ---> 不可为空"
+        customInstall
+        exit 0;
+    fi
+    if [[ "${customInstallType}" =~ ^[0-4]+$ ]]
+    then
+        totalProgress=17
+        globalType=vlesstcpws
+        mkdirTools 1
+        installTools 2
+        # 申请tls
+        initTLSNginxConfig 3
+        installTLS 4
+        handleNginx stop
+        initNginxConfig vlesstcpws 5
+        # 随机path
+        if [[ ! -z `echo ${customInstallType}|grep 1` ]] || [[ ! -z `echo ${customInstallType}|grep 3` ]] || [[ ! -z `echo ${customInstallType}|grep 4` ]]
+        then
+            randomPathFunction 6
+            customCDNIP 7
+        fi
+        nginxBlog 8
+        handleNginx start
+
+        # 安装V2Ray
+        installV2Ray 9
+        installV2RayService 10
+        initV2RayConfig custom 11
+        if [[ ! -z `echo ${customInstallType}|grep 4` ]]
+        then
+            installTrojanGo 12
+            installTrojanService 13
+            initTrojanGoConfig 14
+            handleTrojanGo stop
+            handleTrojanGo start
+        else
+            # 这里需要删除trojan的服务
+            handleTrojanGo stop
+            rm -rf /etc/v2ray-agent/trojan/*
+            rm -rf /etc/systemd/system/trojan-go.service
+        fi
+        installCronTLS 15
+        handleV2Ray stop
+        handleV2Ray start
+        # 生成账号
+        checkGFWStatue 16
+        showAccounts 17
+    else
+        echoContent red " ---> 输入不合法"
+    fi
+}
+# 初始化个性化安装类型
+initCustomInstallType(){
+    customInstallType=
+    customInstallType=
+    if [[ -d "/etc/v2ray-agent/" ]] && [[ -d "/etc/v2ray-agent/v2ray/" ]] && [[ -d "/etc/v2ray-agent/v2ray/conf" ]]
+    then
+        while read row
+        do
+            echo row:${row}
+            if [[ ! -z `echo ${row}|grep VLESS_WS_inbounds` ]]
+            then
+                customInstallType=${customInstallType}'1'
+            fi
+            if [[ ! -z `echo ${row}|grep VMess_TCP_inbounds` ]]
+            then
+                customInstallType=${customInstallType}'2'
+            fi
+            if  [[ ! -z `echo ${row}|grep VMess_WS_inbounds` ]]
+            then
+                customInstallType=${customInstallType}'3'
+            fi
+        done < <(echo `ls /etc/v2ray-agent/v2ray/conf|grep -v grep|grep inbounds.json|awk -F "[.]" '{print $1}'`)
+
+        echo done:${customInstallType}
+    fi
+}
 # 主菜单
 menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.0.15"
+    echoContent green "当前版本：v2.0.16"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
     echoContent yellow "1.安装"
-    echoContent yellow "2.任意组合安装[todo]"
+    echoContent yellow "2.任意组合安装"
     echoContent skyBlue "-------------------------工具管理-----------------------------"
     echoContent yellow "3.查看账号"
     echoContent yellow "4.自动排错"
@@ -1667,10 +2000,14 @@ menu(){
     echoContent yellow "13.卸载脚本"
     echoContent red "=============================================================="
     automaticUpgrade
+    initCustomInstallType
     read -p "请选择:" selectInstallType
      case ${selectInstallType} in
         1)
-            installV2RayVLESSTCPWSTLS
+            defaultInstall
+        ;;
+        2)
+            customInstall
         ;;
         3)
             showAccounts 1
@@ -1780,7 +2117,9 @@ checkLog(){
     sleep 2
     menu
 }
-installV2RayVLESSTCPWSTLS(){
+# 默认安装
+defaultInstall(){
+    customInstallType=
     totalProgress=17
     globalType=vlesstcpws
     mkdirTools 1
