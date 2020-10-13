@@ -982,6 +982,7 @@ initV2RayConfig(){
         "clients": [
           {
             "id": "${uuidtcp}",
+            "add": "${add}",
             "flow":"xtls-rprx-origin",
             "email": "${domain}_VLESS_XTLS/TLS-origin_TCP"
           },
@@ -1038,7 +1039,6 @@ initV2RayConfig(){
           {
             "id": "${uuidws}",
             "alterId": 1,
-            "add": "${add}",
             "level": 0,
             "email": "${domain}_vmess_ws"
           }
@@ -1286,6 +1286,7 @@ EOF
         fi
 
         fi
+        # VLESS_TCP
         cat << EOF > /etc/v2ray-agent/v2ray/conf/VLESS_TCP_inbounds.json
 {
   "inbounds":[
@@ -1296,6 +1297,7 @@ EOF
         "clients": [
           {
             "id": "${uuidtcp}",
+            "add": "${add}",
             "flow":"xtls-rprx-origin",
             "email": "${domain}_VLESS_XTLS/TLS-origin_TCP"
           },
@@ -1555,7 +1557,7 @@ showAccounts(){
         local tcp=`cat /etc/v2ray-agent/v2ray/config.json|jq .inbounds[0]`
         local tcpID=`echo ${tcp}|jq .settings.clients[0].id`
         local tcpEmail="`echo ${tcp}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
-
+        local CDNADD=`echo ${tcp}|jq .settings.clients[0].add|awk -F '["]' '{print $2}'`
         # XTLS Direct
         local tcpIDirect=`echo ${tcp}|jq .settings.clients[1].id`
         local tcpDirectEmail="`echo ${tcp}|jq .settings.clients[1].email|awk -F '["]' '{print $2}'`"
@@ -1564,21 +1566,18 @@ showAccounts(){
          # VLESS ws
         local vlessWS=`cat /etc/v2ray-agent/v2ray/config.json|jq .inbounds[3]`
         local vlessWSID=`echo ${vlessWS}|jq .settings.clients[0].id`
-        local vlessWSAdd=`echo ${vlessWS}|jq .settings.clients[0].add|awk -F '["]' '{print $2}'`
         local vlessWSEmail="`echo ${vlessWS}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
         local vlessWSPath=`echo ${vlessWS}|jq .streamSettings.wsSettings.path`
 
         # Vmess ws
         local ws=`cat /etc/v2ray-agent/v2ray/config.json|jq .inbounds[1]`
         local wsID=`echo ${ws}|jq .settings.clients[0].id`
-        local wsAdd=`echo ${ws}|jq .settings.clients[0].add|awk -F '["]' '{print $2}'`
         local wsEmail="`echo ${ws}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
         local wsPath=`echo ${ws}|jq .streamSettings.wsSettings.path`
 
         # Vmess tcp
         local vmessTCP=`cat /etc/v2ray-agent/v2ray/config.json|jq .inbounds[2]`
         local vmessTCPID=`echo ${vmessTCP}|jq .settings.clients[0].id`
-        local vmessTCPAdd=`echo ${vmessTCP}|jq .settings.clients[0].add|awk -F '["]' '{print $2}'`
         local vmessTCPEmail="`echo ${vmessTCP}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
         local vmessTCPath=`echo ${vmessTCP}|jq .streamSettings.tcpSettings.header.request.path[0]`
 
@@ -1589,10 +1588,10 @@ showAccounts(){
         echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-direct ==========================="
         defaultBase64Code vlesstcp ${tcpDirectEmail} "${tcpIDirect}" "${host}" ${add}
         echoContent skyBlue "\n================================ VLESS WS TLS CDN ================================"
-        defaultBase64Code vlessws ${vlessWSEmail} "${vlessWSID}" "${host}" "${vlessWSPath}" ${wsAdd}
+        defaultBase64Code vlessws ${vlessWSEmail} "${vlessWSID}" "${host}" "${vlessWSPath}" ${CDNADD}
 
         echoContent skyBlue "\n================================ VMess WS TLS CDN ================================"
-        defaultBase64Code vmessws ${wsEmail} "${wsID}" "${host}" "${wsPath}" ${wsAdd}
+        defaultBase64Code vmessws ${wsEmail} "${wsID}" "${host}" "${wsPath}" ${CDNADD}
 
         echoContent skyBlue "\n================================= VMess TCP TLS  ================================="
         defaultBase64Code vmesstcp ${vmessTCPEmail} "${vmessTCPID}" "${host}" "${vmessTCPath}" "${host}"
@@ -1606,6 +1605,7 @@ showAccounts(){
         local tcpID=`echo ${tcp}|jq .settings.clients[0].id`
         local tcpEmail="`echo ${tcp}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
 
+        local CDNADD=`echo ${tcp}|jq .settings.clients[0].add|awk -F '["]' '{print $2}'`
         # XTLS Direct
         local tcpIDirect=`echo ${tcp}|jq .settings.clients[1].id`
         local tcpDirectEmail="`echo ${tcp}|jq .settings.clients[1].email|awk -F '["]' '{print $2}'`"
@@ -1623,34 +1623,34 @@ showAccounts(){
                 # VLESS ws
                 local vlessWS=`cat /etc/v2ray-agent/v2ray/conf/VLESS_WS_inbounds.json|jq .inbounds[0]`
                 local vlessWSID=`echo ${vlessWS}|jq .settings.clients[0].id`
-                local vlessWSAdd=`echo ${vlessWS}|jq .settings.clients[0].add|awk -F '["]' '{print $2}'`
+                local vlessWSAdd=`echo ${tcp}|jq .settings.clients[0].add|awk -F '["]' '{print $2}'`
                 local vlessWSEmail="`echo ${vlessWS}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
                 local vlessWSPath=`echo ${vlessWS}|jq .streamSettings.wsSettings.path`
 
                 echoContent skyBlue "\n================================ VLESS WS TLS CDN ================================"
-                defaultBase64Code vlessws ${vlessWSEmail} "${vlessWSID}" "${host}" "${vlessWSPath}" ${wsAdd}
+                defaultBase64Code vlessws ${vlessWSEmail} "${vlessWSID}" "${host}" "${vlessWSPath}" ${CDNADD}
             fi
             if [[ ! -z `echo ${customInstallType}|grep 2` ]]
             then
-                local ws=`cat /etc/v2ray-agent/v2ray/conf/VMess_TCP_inbounds.json|jq .inbounds[0]`
-                local wsID=`echo ${ws}|jq .settings.clients[0].id`
-                local wsAdd=`echo ${ws}|jq .settings.clients[0].add|awk -F '["]' '{print $2}'`
-                local wsEmail="`echo ${ws}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
-                local wsPath=`echo ${ws}|jq .streamSettings.wsSettings.path`
+
+                local vmessTCP=`cat /etc/v2ray-agent/v2ray/conf/VMess_TCP_inbounds.json|jq .inbounds[0]`
+                local vmessTCPID=`echo ${vmessTCP}|jq .settings.clients[0].id`
+                local vmessTCPEmail="`echo ${vmessTCP}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
+                local vmessTCPath=`echo ${vmessTCP}|jq .streamSettings.tcpSettings.header.request.path[0]`
 
                 echoContent skyBlue "\n================================= VMess TCP TLS  ================================="
                 defaultBase64Code vmesstcp ${vmessTCPEmail} "${vmessTCPID}" "${host}" "${vmessTCPath}" "${host}"
             fi
             if [[ ! -z `echo ${customInstallType}|grep 3` ]]
             then
-                local vmessTCP=`cat /etc/v2ray-agent/v2ray/conf/VMess_WS_inbounds.json|jq .inbounds[0]`
-                local vmessTCPID=`echo ${vmessTCP}|jq .settings.clients[0].id`
-                local vmessTCPAdd=`echo ${vmessTCP}|jq .settings.clients[0].add|awk -F '["]' '{print $2}'`
-                local vmessTCPEmail="`echo ${vmessTCP}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
-                local vmessTCPath=`echo ${vmessTCP}|jq .streamSettings.tcpSettings.header.request.path[0]`
+
+                local ws=`cat /etc/v2ray-agent/v2ray/conf/VMess_WS_inbounds.json|jq .inbounds[1]`
+                local wsID=`echo ${ws}|jq .settings.clients[0].id`
+                local wsEmail="`echo ${ws}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
+                local wsPath=`echo ${ws}|jq .streamSettings.wsSettings.path`
 
                 echoContent skyBlue "\n================================ VMess WS TLS CDN ================================"
-                defaultBase64Code vmessws ${wsEmail} "${wsID}" "${host}" "${wsPath}" ${wsAdd}
+                defaultBase64Code vmessws ${wsEmail} "${wsID}" "${host}" "${wsPath}" ${CDNADD}
             fi
         fi
     fi
@@ -1754,9 +1754,20 @@ checkFail(){
 # 修改V2Ray CDN节点
 updateV2RayCDN(){
     echoContent skyBlue "\n进度 $1/${totalProgress} : 修改CDN节点"
-    if [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]] && [[ -f "/etc/v2ray-agent/v2ray/config.json" ]]
+    if [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]]
     then
-        local add=`cat /etc/v2ray-agent/v2ray/config.json|grep -v grep|grep add`
+        local configPath=
+        if [[ -f "/etc/v2ray-agent/v2ray/config.json" ]]
+        then
+            configPath="/etc/v2ray-agent/v2ray/config.json"
+        elif [[ -d "/etc/v2ray-agent/v2ray/conf" ]] && [[ -f "/etc/v2ray-agent/v2ray/conf/VLESS_TCP_inbounds.json" ]]
+        then
+            configPath="/etc/v2ray-agent/v2ray/conf/VLESS_TCP_inbounds.json"
+        else
+            echoContent red " ---> 未安装"
+            exit 0;
+        fi
+        local add=`cat ${configPath}|grep -v grep|grep add`
         if [[ ! -z ${add} ]]
         then
             echoContent red "=============================================================="
@@ -1786,10 +1797,10 @@ updateV2RayCDN(){
                 add=`echo ${add}|awk -F '["]' '{print $4}'`
                 if [[ ! -z ${add} ]]
                 then
-                    sed -i "s/${add}/${setDomain}/g"  `grep "${add}" -rl /etc/v2ray-agent/v2ray/config.json`
+                    sed -i "s/${add}/${setDomain}/g"  `grep "${add}" -rl ${configPath}`
                 fi
-                # sed -i "s/domain08.qiu4.ml1/domain08.qiu4.ml/g"  `grep "domain08.qiu4.ml1" -rl /etc/v2ray-agent/v2ray/config.json`
-                if [[ `cat /etc/v2ray-agent/v2ray/config.json|grep -v grep|grep add|awk -F '["]' '{print $4}'` = ${setDomain} ]]
+                # sed -i "s/domain08.qiu4.ml1/domain08.qiu4.ml/g"  `grep "domain08.qiu4.ml1" -rl ${configPath}`
+                if [[ `cat ${configPath}|grep -v grep|grep add|awk -F '["]' '{print $4}'` = ${setDomain} ]]
                 then
                     echoContent green " ---> V2Ray CDN修改成功"
                     handleV2Ray stop
@@ -2179,4 +2190,3 @@ checkSystem(){
 
 checkSystem
 menu
-
