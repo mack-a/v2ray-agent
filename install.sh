@@ -1819,12 +1819,13 @@ updateV2RayCDN(){
                     fi
                 fi
 
-                if [[ `cat /etc/v2ray-agent/trojan/config.json|jq .websocket.add|awk -F '["]' '{print $2}'` = ${setDomain} ]]
+                if [[ -d "/etc/v2ray-agent/trojan" ]] && [[ -f "/etc/v2ray-agent/trojan/config.json" ]] && [[ `cat /etc/v2ray-agent/trojan/config.json|jq .websocket.add|awk -F '["]' '{print $2}'` = ${setDomain} ]]
                 then
                     echoContent green "\n ---> Trojan CDN修改成功"
                     handleTrojanGo stop
                     handleTrojanGo start
-                else
+                elif [[ -d "/etc/v2ray-agent/trojan" ]] && [[ -f "/etc/v2ray-agent/trojan/config.json" ]]
+                then
                     echoContent red " ---> 修改Trojan CDN失败"
                 fi
             fi
