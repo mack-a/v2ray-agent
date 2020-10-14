@@ -1466,10 +1466,14 @@ defaultBase64Code(){
     elif [[ "${type}" = "trojangows" ]]
     then
         # URLEncode
-        echoContent yellow " ---> Trojan-Go(WS+TLS)"
+        echoContent yellow " ---> Trojan-Go(WS+TLS) Shadowrocket"
         echoContent green "    trojan://${id}@${add}:443?allowInsecure=0&&peer=${host}&sni=${host}&plugin=obfs-local;obfs=websocket;obfs-host=${host};obfs-uri=${path}#${host}_trojan_ws\n"
-        echoContent yellow " ---> 二维码 Trojan-Go(WS+TLS)"
+        echoContent yellow " ---> 二维码 Trojan-Go(WS+TLS) Shadowrocket"
         echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${add}%3a443%3fallowInsecure%3d0%26peer%3d${host}%26plugin%3dobfs-local%3bobfs%3dwebsocket%3bobfs-host%3d${host}%3bobfs-uri%3d${path}%23${host}_trojan_ws\n"
+
+        path=`echo ${path}|awk -F "[/]" '{print $2}'`
+        echoContent yellow " ---> Trojan-Go(WS+TLS) QV2ray"
+        echoContent green "    trojan-go://${id}@${add}:443?sni=${host}&type=ws&host=${host}&path=%2F${path}#${host}_trojan_ws\n"
     fi
 }
 # quanMult base64Code
@@ -1679,7 +1683,6 @@ showAccounts(){
         echoContent red " ---> 未安装"
     fi
 }
-
 # 卸载脚本
 unInstall(){
     read -p "是否确认卸载安装内容？[y/n]:" unInstallStatus
@@ -1995,7 +1998,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.0.19"
+    echoContent green "当前版本：v2.0.20"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
