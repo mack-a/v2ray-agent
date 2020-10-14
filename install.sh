@@ -1129,7 +1129,7 @@ EOF
     elif [[ "$1" = "custom" ]]
     then
         # log
-        cat << EOF > /etc/v2ray-agent/v2ray/conf/log.json
+        cat << EOF > /etc/v2ray-agent/v2ray/conf/00_log.json
 {
   "log": {
     "access": "/etc/v2ray-agent/v2ray/v2ray_access.log",
@@ -1139,7 +1139,7 @@ EOF
 }
 EOF
         # outbounds
-       cat << EOF > /etc/v2ray-agent/v2ray/conf/outbounds.json
+       cat << EOF > /etc/v2ray-agent/v2ray/conf/10_outbounds.json
 {
     "outbounds": [
         {
@@ -1152,7 +1152,7 @@ EOF
 }
 EOF
         # dns
-       cat << EOF > /etc/v2ray-agent/v2ray/conf/dns.json
+       cat << EOF > /etc/v2ray-agent/v2ray/conf/11_dns.json
 {
     "dns": {
         "servers": [
@@ -1169,7 +1169,7 @@ EOF
         # 没有path则回落到此端口
         local fallbacksList='{"dest":31296,"xver":0}'
 
-        if [[ ! -z `echo ${customInstallType}|grep 4` ]]
+        if [[ -z `echo ${customInstallType}|grep 4` ]]
         then
             fallbacksList='{"dest":80,"xver":0}'
         fi
@@ -1179,8 +1179,8 @@ EOF
         # VLESS_WS_TLS
         if [[ ! -z `echo ${customInstallType}|grep 1` ]]
         then
-            fallbacksList=${fallbacksList}',{"path":"/${customPath}ws","dest":31297,"xver":1}'
-            cat << EOF > /etc/v2ray-agent/v2ray/conf/VLESS_WS_inbounds.json
+            fallbacksList=${fallbacksList}',{"path":"/'${customPath}'ws","dest":31297,"xver":1}'
+            cat << EOF > /etc/v2ray-agent/v2ray/conf/03_VLESS_WS_inbounds.json
 {
 "inbounds":[
         {
@@ -1213,14 +1213,15 @@ EOF
 # VMess_TCP
         if [[ ! -z `echo ${customInstallType}|grep 2` ]]
         then
-            fallbacksList=${fallbacksList}',{"path":"/${customPath}tcp","dest":31298,"xver":1}'
-            cat << EOF > /etc/v2ray-agent/v2ray/conf/VMess_TCP_inbounds.json
+            fallbacksList=${fallbacksList}',{"path":"/'${customPath}'tcp","dest":31298,"xver":1}'
+            cat << EOF > /etc/v2ray-agent/v2ray/conf/04_VMess_TCP_inbounds.json
 {
 "inbounds":[
     {
       "port": 31298,
       "listen": "127.0.0.1",
       "protocol": "vmess",
+      "tag":"VMessTCP",
       "settings": {
         "clients": [
           {
@@ -1253,13 +1254,14 @@ EOF
         # VMess_WS
         if [[ ! -z `echo ${customInstallType}|grep 3` ]]
         then
-            fallbacksList=${fallbacksList}',{"path":"/${customPath}","dest":31299,"xver":1}'
-            cat << EOF > /etc/v2ray-agent/v2ray/conf/VMess_WS_inbounds.json
+            fallbacksList=${fallbacksList}',{"path":"/'${customPath}'","dest":31299,"xver":1}'
+            cat << EOF > /etc/v2ray-agent/v2ray/conf/05_VMess_WS_inbounds.json
 {
 "inbounds":[
 {
       "port": 31299,
       "protocol": "vmess",
+      "tag":"VMessWS",
       "settings": {
         "clients": [
           {
@@ -1287,12 +1289,13 @@ EOF
 
         fi
         # VLESS_TCP
-        cat << EOF > /etc/v2ray-agent/v2ray/conf/VLESS_TCP_inbounds.json
+        cat << EOF > /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json
 {
   "inbounds":[
     {
       "port": 443,
       "protocol": "vless",
+      "tag":"VLESSTCP",
       "settings": {
         "clients": [
           {
@@ -1601,7 +1604,7 @@ showAccounts(){
         showStatus=true
 
         # VLESS tcp
-        local tcp=`cat /etc/v2ray-agent/v2ray/conf/VLESS_TCP_inbounds.json|jq .inbounds[0]`
+        local tcp=`cat /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json|jq .inbounds[0]`
         local tcpID=`echo ${tcp}|jq .settings.clients[0].id`
         local tcpEmail="`echo ${tcp}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
 
@@ -1621,7 +1624,7 @@ showAccounts(){
             if [[ ! -z `echo ${customInstallType}|grep 1` ]]
             then
                 # VLESS ws
-                local vlessWS=`cat /etc/v2ray-agent/v2ray/conf/VLESS_WS_inbounds.json|jq .inbounds[0]`
+                local vlessWS=`cat /etc/v2ray-agent/v2ray/conf/03_VLESS_WS_inbounds.json|jq .inbounds[0]`
                 local vlessWSID=`echo ${vlessWS}|jq .settings.clients[0].id`
                 local vlessWSAdd=`echo ${tcp}|jq .settings.clients[0].add|awk -F '["]' '{print $2}'`
                 local vlessWSEmail="`echo ${vlessWS}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
@@ -1633,7 +1636,7 @@ showAccounts(){
             if [[ ! -z `echo ${customInstallType}|grep 2` ]]
             then
 
-                local vmessTCP=`cat /etc/v2ray-agent/v2ray/conf/VMess_TCP_inbounds.json|jq .inbounds[0]`
+                local vmessTCP=`cat /etc/v2ray-agent/v2ray/conf/04_VMess_TCP_inbounds.json|jq .inbounds[0]`
                 local vmessTCPID=`echo ${vmessTCP}|jq .settings.clients[0].id`
                 local vmessTCPEmail="`echo ${vmessTCP}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
                 local vmessTCPath=`echo ${vmessTCP}|jq .streamSettings.tcpSettings.header.request.path[0]`
@@ -1644,7 +1647,7 @@ showAccounts(){
             if [[ ! -z `echo ${customInstallType}|grep 3` ]]
             then
 
-                local ws=`cat /etc/v2ray-agent/v2ray/conf/VMess_WS_inbounds.json|jq .inbounds[1]`
+                local ws=`cat /etc/v2ray-agent/v2ray/conf/05_VMess_WS_inbounds.json|jq .inbounds[0]`
                 local wsID=`echo ${ws}|jq .settings.clients[0].id`
                 local wsEmail="`echo ${ws}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
                 local wsPath=`echo ${ws}|jq .streamSettings.wsSettings.path`
@@ -1760,9 +1763,9 @@ updateV2RayCDN(){
         if [[ -f "/etc/v2ray-agent/v2ray/config.json" ]]
         then
             configPath="/etc/v2ray-agent/v2ray/config.json"
-        elif [[ -d "/etc/v2ray-agent/v2ray/conf" ]] && [[ -f "/etc/v2ray-agent/v2ray/conf/VLESS_TCP_inbounds.json" ]]
+        elif [[ -d "/etc/v2ray-agent/v2ray/conf" ]] && [[ -f "/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json" ]]
         then
-            configPath="/etc/v2ray-agent/v2ray/conf/VLESS_TCP_inbounds.json"
+            configPath="/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json"
         else
             echoContent red " ---> 未安装"
             exit 0;
@@ -1955,7 +1958,6 @@ initCustomInstallType(){
     then
         while read row
         do
-            echo row:${row}
             if [[ ! -z `echo ${row}|grep VLESS_WS_inbounds` ]]
             then
                 customInstallType=${customInstallType}'1'
@@ -1969,8 +1971,6 @@ initCustomInstallType(){
                 customInstallType=${customInstallType}'3'
             fi
         done < <(echo `ls /etc/v2ray-agent/v2ray/conf|grep -v grep|grep inbounds.json|awk -F "[.]" '{print $1}'`)
-
-        echo done:${customInstallType}
     fi
 }
 # 主菜单
@@ -1978,7 +1978,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.0.16"
+    echoContent green "当前版本：v2.0.17"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
