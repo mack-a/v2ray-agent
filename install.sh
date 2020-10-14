@@ -1844,7 +1844,7 @@ updateV2RayCDN(){
 resetUUID(){
     echoContent skyBlue "\n进度 $1/${totalProgress} : 重置UUID"
     local resetStatus=false
-    if [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]] && [[ -f "/etc/v2ray-agent/v2ray/config.json" ]]
+    if [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]] && [[ -f "/etc/v2ray-agent/v2ray/config.json" ]] && [[ -z "${customInstallType}" ]]
     then
         cat /etc/v2ray-agent/v2ray/config.json|jq .inbounds|jq -c '.[].settings.clients'|jq -c '.[].id'|while read row
         do
@@ -1853,6 +1853,23 @@ resetUUID(){
             echoContent red "旧：${oldUUID}"
             echoContent red "新UUID：${newUUID}"
             sed -i "s/${oldUUID}/${newUUID}/g"  `grep "${oldUUID}" -rl /etc/v2ray-agent/v2ray/config.json`
+        done
+        echoContent green " ---> V2Ray UUID重置完毕"
+        handleV2Ray stop
+        handleV2Ray start
+        resetStatus=true
+    elif [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]] && [[ -d "/etc/v2ray-agent/v2ray/conf" ]] && [[ ! -z "${customInstallType}" ]]
+    then
+        ls /etc/v2ray-agent/v2ray/conf|grep inbounds|while read row
+        do
+            cat /etc/v2ray-agent/v2ray/conf/${row}|jq .inbounds|jq -c '.[].settings.clients'|jq -c '.[].id'|while read row2
+            do
+                oldUUID=`echo ${row2}|awk -F "[\"]" '{print $2}'`
+                newUUID=`/etc/v2ray-agent/v2ray/v2ctl uuid`
+                echoContent red "旧：${oldUUID}"
+                echoContent red "新UUID：${newUUID}"
+                sed -i "s/${oldUUID}/${newUUID}/g"  `grep "${oldUUID}" -rl /etc/v2ray-agent/v2ray/conf/${row}`
+            done
         done
         echoContent green " ---> V2Ray UUID重置完毕"
         handleV2Ray stop
@@ -1978,7 +1995,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.0.17"
+    echoContent green "当前版本：v2.0.18"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
