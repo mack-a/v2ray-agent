@@ -33,7 +33,7 @@
 - 中专/gia ---> VLESS+TCP+TLS/XTL or Trojan
 - 移动宽带  ---> VMESS+WS+TLS/Trojan-Go+WS + Cloudflare
 - Trojan建议开启Mux[多路复用]，仅需客户端开启，服务端自适应。
-- VMess/VLESS也可开启Mux，效果需要自己尝试，XTLS不支持MUX。仅需客户端开启，服务端自适应。
+- VMess/VLESS也可开启Mux，效果需要自己尝试，XTLS不支持Mux。仅需客户端开启，服务端自适应。
 
 ## 特性
 - VLESS/VMess/Trojan-Go三种工具合并为一个脚本，可以体验不同的工具之间的不同特性、兼容更多的设备。
