@@ -1716,6 +1716,13 @@ unInstall(){
 
     rm -rf /etc/v2ray-agent
     rm -rf /etc/nginx/conf.d/alone.conf
+    if [[ -f "/root/.bashrc" ]] && [[ ! -z `cat /root/.bashrc|grep "/etc/v2ray-agent/install.sh"` ]]
+    then
+        lineNumber=`nl -b a .bashrc |grep /etc/v2ray-agent/install.sh|awk '{print $1}'`
+        sed -i "${lineNumber}d" /root/.bashrc
+        source /etc/profile
+        echoContent green " ---> 卸载快捷方式完成"
+    fi
     echoContent green " ---> 卸载V2Ray完成"
     echoContent green " ---> 卸载完成"
 }
@@ -1927,6 +1934,7 @@ customInstall(){
         totalProgress=17
         globalType=vlesstcpws
         mkdirTools 1
+        aliasInstall
         installTools 2
         # 申请tls
         initTLSNginxConfig 3
@@ -1977,6 +1985,10 @@ initCustomInstallType(){
     then
         while read row
         do
+             if [[ ! -z `echo ${row}|grep VLESS_TCP_inbounds` ]]
+            then
+                customInstallType=${customInstallType}'0'
+            fi
             if [[ ! -z `echo ${row}|grep VLESS_WS_inbounds` ]]
             then
                 customInstallType=${customInstallType}'1'
@@ -1997,7 +2009,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.0.20"
+    echoContent green "当前版本：v2.0.21"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
@@ -2020,6 +2032,7 @@ menu(){
     echoContent red "=============================================================="
     automaticUpgrade
     initCustomInstallType
+
     read -p "请选择:" selectInstallType
      case ${selectInstallType} in
         1)
@@ -2136,12 +2149,33 @@ checkLog(){
     sleep 2
     menu
 }
+# 脚本快捷方式
+aliasInstall(){
+    if [[ -f "/root/install.sh" ]] && [[ -d "/etc/v2ray-agent" ]] && [[ ! -z `cat /root/install.sh|grep "作者：mack-a"` ]]
+    then
+
+        cp -Rf /root/install.sh /etc/v2ray-agent/install.sh
+        rm -rf /root/install.sh
+        if [[ ! -f "/root/.bashrc" ]]
+        then
+            touch /root/.bashrc
+        fi
+        if [[ -z `cat /root/.bashrc|grep '/etc/v2ray-agent/install.sh'` ]]
+        then
+            echo alias vas=\'bash /etc/v2ray-agent/install.sh\' >> /root/.bashrc
+        fi
+        source /etc/profile
+    else
+        echo noAliasInstall
+    fi
+}
 # 默认安装
 defaultInstall(){
     customInstallType=
     totalProgress=17
     globalType=vlesstcpws
     mkdirTools 1
+    aliasInstall
     installTools 2
     # 申请tls
     initTLSNginxConfig 3
