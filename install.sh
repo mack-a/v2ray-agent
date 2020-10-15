@@ -1251,6 +1251,7 @@ EOF
 ]
 }
 EOF
+        fi
         # VMess_WS
         if [[ ! -z `echo ${customInstallType}|grep 3` ]]
         then
@@ -1285,8 +1286,6 @@ EOF
 ]
 }
 EOF
-        fi
-
         fi
         # VLESS_TCP
         cat << EOF > /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json
