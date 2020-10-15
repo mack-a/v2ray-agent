@@ -41,7 +41,7 @@
 - 支持个性化安装，VLESS+TCP为必选，其余为可选项。
 - 脚本自动检查升级
 - 自动更新TLS证书
-- 支持快捷方式启动，安装完毕后，shell输入[vas]即可打开脚本，脚本路径[/etc/v2ray-agent/install.sh]
+- 支持快捷方式启动，安装完毕后，shell输入[vas]即可打开脚本，脚本执行路径[/etc/v2ray-agent/install.sh]
 
 
 ## 注意事项

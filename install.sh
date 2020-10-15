@@ -777,7 +777,13 @@ updateV2RayAgent(){
     local currentTime=`date +%s`
     echo "upgrade|${currentTime}" > /etc/v2ray-agent/upgradeStatus
     echoContent skyBlue "\n进度  $1/${totalProgress} : 更新v2ray-agent脚本"
-    wget -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh" && chmod +x install.sh && ./install.sh
+    if [[ -d "/etc/v2ray-agent" ]]
+    then
+        wget -P /etc/v2ray-agent/ -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh" && chmod +x /etc/v2ray-agent/install.sh && /etc/v2ray-agent/install.sh
+    else
+        wget -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh" && chmod +x install.sh && ./install.sh
+    fi
+
 }
 # 验证整个服务是否可用
 checkGFWStatue(){
@@ -2168,6 +2174,7 @@ aliasInstall(){
     else
         echo noAliasInstall
     fi
+    echoContent green " ---> 安装完毕，可执行[vas]重新回到打开脚本"
 }
 # 默认安装
 defaultInstall(){
