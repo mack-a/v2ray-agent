@@ -4,7 +4,7 @@
 yum update && yum install -y wget curl
 ```
 
-- Debian&
+- Debian
 ```
 apt update && apt install wget curl -y
 ```
