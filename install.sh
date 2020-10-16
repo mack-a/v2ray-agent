@@ -61,6 +61,11 @@ mkdirTools(){
     mkdir -p /etc/v2ray-agent/v2ray/conf
     mkdir -p /etc/v2ray-agent/trojan
     mkdir -p /etc/systemd/system/
+    mkdir -p /tmp/v2ray-agent-tls/
+}
+# 创建基础的文件目录
+mkdirBaseDIR(){
+    mkdir -p /etc/v2ray-agent
 }
 # 安装工具包
 installTools(){
@@ -777,12 +782,8 @@ updateV2RayAgent(){
     local currentTime=`date +%s`
     echo "upgrade|${currentTime}" > /etc/v2ray-agent/upgradeStatus
     echoContent skyBlue "\n进度  $1/${totalProgress} : 更新v2ray-agent脚本"
-    if [[ -d "/etc/v2ray-agent" ]]
-    then
-        wget -P /etc/v2ray-agent/ -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh" && chmod +x /etc/v2ray-agent/install.sh && /etc/v2ray-agent/install.sh
-    else
-        wget -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh" && chmod +x install.sh && ./install.sh
-    fi
+    mkidr -p /etc/v2ray-agent
+    wget -P /etc/v2ray-agent/ -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh" && chmod 700 /etc/v2ray-agent/install.sh && vasma
 
 }
 # 验证整个服务是否可用
@@ -1717,27 +1718,22 @@ unInstall(){
     echoContent green " ---> 删除V2Ray开机自启完成"
     rm -rf /etc/systemd/system/trojan-go.service
     echoContent green " ---> 删除Trojan-Go开机自启完成"
-
+    rm -rf /tmp/v2ray-agent-tls/*
     if [[ -d "/etc/v2ray-agent/tls" ]] && [[ ! -z `find /etc/v2ray-agent/tls/ -name "*.key"` ]] && [[ ! -z `find /etc/v2ray-agent/tls/ -name "*.crt"` ]]
     then
-        mv /etc/v2ray-agent/tls /tmp
+        mv /etc/v2ray-agent/tls /tmp/v2ray-agent-tls
         if [[ ! -z `find /tmp/tls -name '*.key'` ]]
         then
-            echoContent yellow " ---> 备份证书成功，请注意留存。[/tmp/tls]"
+            echoContent yellow " ---> 备份证书成功，请注意留存。[/tmp/v2ray-agent-tls]"
         fi
     fi
 
     rm -rf /etc/v2ray-agent
     rm -rf /etc/nginx/conf.d/alone.conf
-    if [[ -f "/root/.bashrc" ]] && [[ ! -z `cat /root/.bashrc|grep "/etc/v2ray-agent/install.sh"` ]]
-    then
-        lineNumber=`nl -b a .bashrc |grep /etc/v2ray-agent/install.sh|awk '{print $1}'`
-        sed -i "${lineNumber}d" /root/.bashrc
-        source /etc/profile
-        echoContent green " ---> 卸载快捷方式完成"
-    fi
-    echoContent green " ---> 卸载V2Ray完成"
-    echoContent green " ---> 卸载完成"
+    rm -rf /usr/bin/vasma
+    rm -rf /usr/sbin/vasma
+    echoContent green " ---> 卸载快捷方式完成"
+    echoContent green " ---> 卸载v2ray-agent完成"
 }
 # 检查错误
 checkFail(){
@@ -1947,7 +1943,6 @@ customInstall(){
         totalProgress=17
         globalType=vlesstcpws
         mkdirTools 1
-        aliasInstall
         installTools 2
         # 申请tls
         initTLSNginxConfig 3
@@ -2022,7 +2017,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.0.21"
+    echoContent green "当前版本：v2.0.23"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
@@ -2045,7 +2040,8 @@ menu(){
     echoContent red "=============================================================="
     automaticUpgrade
     initCustomInstallType
-
+    mkdirBaseDIR
+    aliasInstall
     read -p "请选择:" selectInstallType
      case ${selectInstallType} in
         1)
@@ -2166,22 +2162,20 @@ checkLog(){
 aliasInstall(){
     if [[ -f "/root/install.sh" ]] && [[ -d "/etc/v2ray-agent" ]] && [[ ! -z `cat /root/install.sh|grep "作者：mack-a"` ]]
     then
-
-        cp -Rf /root/install.sh /etc/v2ray-agent/install.sh
-        rm -rf /root/install.sh
-        if [[ ! -f "/root/.bashrc" ]]
+        mv /root/install.sh /etc/v2ray-agent/install.sh
+        if [[ -d "/usr/bin/" ]] && [[ ! -f "/usr/bin/vasma" ]]
         then
-            touch /root/.bashrc
-        fi
-        if [[ -z `cat /root/.bashrc|grep '/etc/v2ray-agent/install.sh'` ]]
+            ln -s /etc/v2ray-agent/install.sh /usr/bin/vasma
+            chmod 700 /usr/bin/vasma
+            rm -rf /root/install.sh
+        elif [[ -d "/usr/sbin" ]] && [[ ! -f "/usr/sbin/vasma" ]]
         then
-            echo alias vas=\'bash /etc/v2ray-agent/install.sh\' >> /root/.bashrc
+            ln -s /etc/v2ray-agent/install.sh /usr/sbin/vasma
+            chmod 700 /usr/sbin/vasma
+            rm -rf /root/install.sh
         fi
-        source /etc/profile
-    else
-        echo noAliasInstall
+        echoContent green "快捷方式创建成功，可执行[vasma]重新打开脚本"
     fi
-    echoContent green " ---> 安装完毕，可执行[vas]重新回到打开脚本"
 }
 # 默认安装
 defaultInstall(){
@@ -2189,7 +2183,6 @@ defaultInstall(){
     totalProgress=17
     globalType=vlesstcpws
     mkdirTools 1
-    aliasInstall
     installTools 2
     # 申请tls
     initTLSNginxConfig 3

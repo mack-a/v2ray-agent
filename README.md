@@ -41,7 +41,7 @@
 - 支持个性化安装，VLESS+TCP为必选，其余为可选项。
 - 脚本自动检查升级
 - 自动更新TLS证书
-- 支持快捷方式启动，安装完毕后，shell输入[vas]即可打开脚本，脚本执行路径[/etc/v2ray-agent/install.sh]
+- 支持快捷方式启动，安装完毕后，shell输入[vasma]即可打开脚本，脚本执行路径[/etc/v2ray-agent/install.sh]
 
 
 ## 注意事项
@@ -53,7 +53,7 @@
 
 ## 安装脚本
 ```
-wget -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh" && chmod +x install.sh && ./install.sh
+wget -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh" && chmod 700 /root/install.sh && /root/install.sh
 ```
 - 示例图
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/install.jpg" width=700>
