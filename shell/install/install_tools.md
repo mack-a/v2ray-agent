@@ -1,12 +1,12 @@
-# 安装wget
+# 安装wget、curl
 - centos
 ```
-yum update && yum install -y wget
+yum update && yum install -y wget curl
 ```
 
 - Debian&
 ```
-apt update && apt install wget -y
+apt update && apt install wget curl -y
 ```
 
 - Ubuntu
