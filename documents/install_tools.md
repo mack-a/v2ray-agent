@@ -1,5 +1,5 @@
 # 安装wget、curl
-- centos
+- Centos
 ```
 yum update && yum install -y wget curl
 ```
