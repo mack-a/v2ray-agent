@@ -17,12 +17,12 @@ uuidVlessWS=
 uuidtcpdirect=
 customInstallType=
 
-trap 'onCtrlC' INT
-function onCtrlC () {
-    echo
-    killSleep > /dev/null 2>&1
-    exit;
-}
+# trap 'onCtrlC' INT
+# function onCtrlC () {
+#     echo
+#     killSleep > /dev/null 2>&1
+#     exit;
+# }
 # echo颜色方法
 echoContent(){
     case $1 in
@@ -206,7 +206,6 @@ installTools(){
             echoContent red "  1.获取Github文件失败，请等待GitHub恢复后尝试，恢复进度可查看 [https://www.githubstatus.com/]"
             echoContent red "  2.acme.sh脚本出现bug，可查看[https://github.com/acmesh-official/acme.sh] issues"
             echoContent red "  3.反馈给开发者[私聊：https://t.me/mack_a] 或 [提issues]"
-            killSleep > /dev/null 2>&1
             exit 0
         fi
     fi
@@ -221,7 +220,6 @@ installTools(){
             echoContent red "  1.获取Github文件失败，请等待GitHub恢复后尝试，恢复进度可查看 [https://www.githubstatus.com/]"
             echoContent red "  2.acme.sh脚本出现bug，可查看[https://github.com/acmesh-official/acme.sh] issues"
             echoContent red "  3.反馈给开发者[私聊：https://t.me/mack_a] 或 [提issues]"
-            killSleep > /dev/null 2>&1
             exit 0
         fi
     fi
@@ -229,8 +227,6 @@ installTools(){
 # 初始化Nginx申请证书配置
 initTLSNginxConfig(){
     handleNginx stop
-    killSleep > /dev/null 2>&1
-    killSleep > /dev/null 2>&1
     echoContent skyBlue "\n进度  $1/${totalProgress} : 初始化Nginx申请证书配置"
     echoContent yellow  "请输入要配置的域名 例：blog.v2ray-agent.com --->"
     read -p "域名:" domain
@@ -254,7 +250,6 @@ initTLSNginxConfig(){
             echoContent green " ---> Nginx配置成功"
         else
             echoContent red "    无法正常访问服务器，请检测域名是否正确、域名的DNS解析以及防火墙设置是否正确--->"
-            killSleep > /dev/null 2>&1
             exit 0;
         fi
     fi
@@ -1536,7 +1531,6 @@ progressTools(){
     installProgress=$3
 #    echo ${color},${content},${installProgress}
     echoContent ${color} "${content}"
-    killSleep > /dev/null 2>&1
     if [[ ! -z "${installProgress}" ]]
     then
         installProgressFunction ${installProgress} ${totalProgress} &
@@ -1722,7 +1716,7 @@ unInstall(){
     if [[ -d "/etc/v2ray-agent/tls" ]] && [[ ! -z `find /etc/v2ray-agent/tls/ -name "*.key"` ]] && [[ ! -z `find /etc/v2ray-agent/tls/ -name "*.crt"` ]]
     then
         mv /etc/v2ray-agent/tls /tmp/v2ray-agent-tls
-        if [[ ! -z `find /tmp/tls -name '*.key'` ]]
+        if [[ ! -z `find /tmp/v2ray-agent-tls -name '*.key'` ]]
         then
             echoContent yellow " ---> 备份证书成功，请注意留存。[/tmp/v2ray-agent-tls]"
         fi
@@ -1936,9 +1930,7 @@ customInstall(){
     then
         echoContent red " ---> 不可为空"
         customInstall
-        exit 0;
-    fi
-    if [[ "${customInstallType}" =~ ^[0-4]+$ ]]
+    elif [[ "${customInstallType}" =~ ^[0-4]+$ ]]
     then
         totalProgress=17
         globalType=vlesstcpws
@@ -1983,6 +1975,7 @@ customInstall(){
         showAccounts 17
     else
         echoContent red " ---> 输入不合法"
+        customInstall
     fi
 }
 # 初始化个性化安装类型
@@ -2084,7 +2077,6 @@ menu(){
             unInstall 1
         ;;
     esac
-    exit 0;
 }
 # 安装BBR
 bbrInstall(){
@@ -2244,7 +2236,6 @@ checkSystem(){
         echoContent red "本脚本不支持此系统，请将下方日志反馈给开发者"
         cat /etc/issue
         cat /proc/version
-        killSleep > /dev/null 2>&1
         exit 0;
     fi
 }
