@@ -2193,9 +2193,12 @@ defaultInstall(){
     installCronTLS 14
     nginxBlog 15
     handleV2Ray stop
+    sleep 1
     handleV2Ray start
+
     handleNginx start
     handleTrojanGo stop
+    sleep 1
     handleTrojanGo start
     # 生成账号
     checkGFWStatue 16
