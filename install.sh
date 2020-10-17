@@ -812,24 +812,24 @@ installV2RayService(){
             execStart='/etc/v2ray-agent/v2ray/v2ray -confdir /etc/v2ray-agent/v2ray/conf'
         fi
     cat << EOF > /etc/systemd/system/v2ray.service
-        [Unit]
-        Description=V2Ray - A unified platform for anti-censorship
-        Documentation=https://v2ray.com https://guide.v2fly.org
-        After=network.target nss-lookup.target
-        Wants=network-online.target
+[Unit]
+Description=V2Ray - A unified platform for anti-censorship
+Documentation=https://v2ray.com https://guide.v2fly.org
+After=network.target nss-lookup.target
+Wants=network-online.target
 
-        [Service]
-        Type=simple
-        User=root
-        CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_RAW
-        NoNewPrivileges=yes
-        ExecStart=${execStart}
-        Restart=on-failure
-        RestartPreventExitStatus=23
+[Service]
+Type=simple
+User=root
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_RAW
+NoNewPrivileges=yes
+ExecStart=${execStart}
+Restart=on-failure
+RestartPreventExitStatus=23
 
 
-        [Install]
-        WantedBy=multi-user.target
+[Install]
+WantedBy=multi-user.target
 EOF
         systemctl daemon-reload
         systemctl enable v2ray.service
@@ -2018,7 +2018,7 @@ menu(){
     echoContent yellow "2.任意组合安装"
     echoContent skyBlue "-------------------------工具管理-----------------------------"
     echoContent yellow "3.查看账号"
-    echoContent yellow "4.自动排错"
+    echoContent yellow "4.自动排错 [fail]"
     echoContent yellow "5.更新证书 [fail]"
     echoContent yellow "6.更换CDN节点"
     echoContent yellow "7.重置uuid"
@@ -2046,9 +2046,9 @@ menu(){
         3)
             showAccounts 1
         ;;
-        4)
-            checkFail 1
-        ;;
+#        4)
+#            checkFail 1
+#        ;;
 #        5)
 #            renewalTLS 1
 #        ;;
