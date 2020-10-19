@@ -264,11 +264,7 @@ initTLSNginxConfig(){
 }
 # 检查ip
 checkIP(){
-    pingIP=`ping -c 1 -W 1000 ${domain}|awk  '{print $4}'|head -2|tail -n 1`
-    if [[ ! -z "${pingIP}" ]]
-    then
-        pingIP=`echo ${pingIP}|awk -F "[.]" '{print $1"."$2"."$3"."$4}'`
-    fi
+    pingIP=`ping -c 1 -W 1000 ${domain}|sed '1{s/[^(]*(//;s/).*//;q}'`
     if [[ ! -z "${pingIP}" ]] && [[ `echo ${pingIP}|grep '^\([1-9]\|[1-9][0-9]\|1[0-9][0-9]\|2[0-4][0-9]\|25[0-5]\)\.\([0-9]\|[1-9][0-9]\|1[0-9][0-9]\|2[0-4][0-9]\|25[0-5]\)\.\([0-9]\|[1-9][0-9]\|1[0-9][0-9]\|2[0-4][0-9]\|25[0-5]\)\.\([0-9]\|[1-9][0-9]\|1[0-9][0-9]\|2[0-4][0-9]\|25[0-5]\)$'` ]]
     then
         read -p "当前域名的IP为 [${pingIP}]，是否正确[y/n]？" domainStatus
@@ -2098,7 +2094,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.1.1"
+    echoContent green "当前版本：v2.1.2"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
