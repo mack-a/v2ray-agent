@@ -1854,6 +1854,7 @@ checkFail(){
     else
         echoContent red " ---> 未使用脚本安装"
     fi
+    exit 0;
 }
 # 修改V2Ray CDN节点
 updateV2RayCDN(){
