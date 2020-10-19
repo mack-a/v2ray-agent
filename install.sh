@@ -279,10 +279,10 @@ installTLS(){
     then
         echoContent yellow " ---> 检测到错误证书，需重新生成，重新生成中"
         rm -rf /etc/v2ray-agent/tls/*
-        installTLS
+        installTLS $1
     else
         echoContent green " ---> 检测到证书"
-        read -p "是否重新生成？[y/n]:" reInstalTLStatus
+        read -p "是否重新生成，如未过期请选择n？[y/n]:" reInstalTLStatus
         if [[ "${reInstalTLStatus}" = "y" ]]
         then
             rm -rf /etc/v2ray-agent/tls/*
@@ -456,46 +456,56 @@ EOF
 # 更新证书
 renewalTLS(){
     echoContent skyBlue "\n进度  1/1 : 更新证书"
-    if [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]] && [[ -d "/etc/v2ray-agent/tls" ]] && [[ -f "/etc/v2ray-agent/v2ray/config_full.json" ]] && [[ -d "/root/.acme.sh" ]]
+    if [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]] && [[ -d "/etc/v2ray-agent/tls" ]] && [[ -d "/root/.acme.sh" ]]
     then
-        tcp=`cat /etc/v2ray-agent/v2ray/config_full.json|jq .inbounds[0]`
-        host=`echo ${tcp}|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
-        if [[ -d "/root/.acme.sh/${host}_ecc" ]] && [[ -f "/root/.acme.sh/${host}_ecc/${host}.key" ]] && [[ -f "/root/.acme.sh/${host}_ecc/${host}.cer" ]]
+        if [[ ! -z "${customInstallType}" ]] || [[ -f "/etc/v2ray-agent/v2ray/config_full.json" ]]
         then
-            modifyTime=`stat /root/.acme.sh/${host}_ecc/${host}.key|sed -n '6,6p'|awk '{print $2" "$3" "$4" "$5}'`
-
-            modifyTime=`date +%s -d "${modifyTime}"`
-            currentTime=`date +%s`
-    #        currentTime=`date +%s -d "2021-09-04 02:15:56.438105732 +0000"`
-    #        currentTIme=1609459200
-            stampDiff=`expr ${currentTime} - ${modifyTime}`
-            days=`expr ${stampDiff} / 86400`
-            remainingDays=`expr 90 - ${days}`
-            tlsStatus=${remainingDays}
-            if [[ ${remainingDays} -le 0 ]]
+            tcp=`cat /etc/v2ray-agent/v2ray/config_full.json|jq .inbounds[0]`
+            if [[ -d "/etc/v2ray-agent/v2ray/conf" ]] && [[ -f "/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json" ]]
             then
-                tlsStatus="已过期"
+                tcp=`cat /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json|jq .inbounds[0]`
             fi
-            echoContent skyBlue " ---> 证书生成日期:"`date -d @${modifyTime} +"%F %H:%M:%S"`
-            echoContent skyBlue " ---> 证书生成天数:"${days}
-            echoContent skyBlue " ---> 证书剩余天数:"${tlsStatus}
-            if [[ ${remainingDays} -le 1 ]]
+
+            host=`echo ${tcp}|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+            if [[ -d "/root/.acme.sh/${host}_ecc" ]] && [[ -f "/root/.acme.sh/${host}_ecc/${host}.key" ]] && [[ -f "/root/.acme.sh/${host}_ecc/${host}.cer" ]]
             then
-                echoContent yellow " ---> 重新生成证书"
-                if [[ `ps -ef|grep -v grep|grep nginx` ]]
+                modifyTime=`stat /root/.acme.sh/${host}_ecc/${host}.key|sed -n '6,6p'|awk '{print $2" "$3" "$4" "$5}'`
+
+                modifyTime=`date +%s -d "${modifyTime}"`
+                currentTime=`date +%s`
+        #        currentTime=`date +%s -d "2021-09-04 02:15:56.438105732 +0000"`
+        #        currentTIme=1609459200
+                stampDiff=`expr ${currentTime} - ${modifyTime}`
+                days=`expr ${stampDiff} / 86400`
+                remainingDays=`expr 90 - ${days}`
+                tlsStatus=${remainingDays}
+                if [[ ${remainingDays} -le 0 ]]
                 then
-                    nginx -s stop
+                    tlsStatus="已过期"
                 fi
-                sudo ~/.acme.sh/acme.sh --installcert -d ${host} --fullchainpath /etc/v2ray-agent/tls/${host}.crt --keypath /etc/v2ray-agent/tls/${host}.key --ecc >> /etc/v2ray-agent/tls/acme.log
-                nginx
-                if [[ `ps -ef|grep -v grep|grep nginx` ]]
+                echoContent skyBlue " ---> 证书生成日期:"`date -d @${modifyTime} +"%F %H:%M:%S"`
+                echoContent skyBlue " ---> 证书生成天数:"${days}
+                echoContent skyBlue " ---> 证书剩余天数:"${tlsStatus}
+                if [[ ${remainingDays} -le 1 ]]
                 then
-                    echoContent green " ---> nginx启动成功"
+                    echoContent yellow " ---> 重新生成证书"
+                    if [[ `ps -ef|grep -v grep|grep nginx` ]]
+                    then
+                        nginx -s stop
+                    fi
+                    sudo ~/.acme.sh/acme.sh --installcert -d ${host} --fullchainpath /etc/v2ray-agent/tls/${host}.crt --keypath /etc/v2ray-agent/tls/${host}.key --ecc >> /etc/v2ray-agent/tls/acme.log
+                    nginx
+                    if [[ `ps -ef|grep -v grep|grep nginx` ]]
+                    then
+                        echoContent green " ---> nginx启动成功"
+                    else
+                        echoContent red " ---> nginx启动失败，请检查[/etc/v2ray-agent/tls/acme.log]"
+                    fi
                 else
-                    echoContent red " ---> nginx启动失败，请检查[/etc/v2ray-agent/tls/acme.log]"
+                    echoContent green " ---> 证书有效"
                 fi
             else
-                echoContent green " ---> 证书有效"
+                echoContent red " ---> 无法找到相应证书路径，请使用脚本重新安装"
             fi
         else
             echoContent red " ---> 无法找到相应路径，请使用脚本重新安装"
@@ -2010,7 +2020,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.0.26"
+    echoContent green "当前版本：v2.1.0"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
@@ -2019,7 +2029,7 @@ menu(){
     echoContent skyBlue "-------------------------工具管理-----------------------------"
     echoContent yellow "3.查看账号"
     echoContent yellow "4.自动排错 [fail]"
-    echoContent yellow "5.更新证书 [fail]"
+    echoContent yellow "5.更新证书"
     echoContent yellow "6.更换CDN节点"
     echoContent yellow "7.重置uuid"
     echoContent skyBlue "-------------------------版本管理-----------------------------"
@@ -2049,9 +2059,9 @@ menu(){
 #        4)
 #            checkFail 1
 #        ;;
-#        5)
-#            renewalTLS 1
-#        ;;
+        5)
+            renewalTLS 1
+        ;;
         6)
             updateV2RayCDN 1
         ;;
