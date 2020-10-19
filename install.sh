@@ -140,6 +140,12 @@ installTools(){
         ${installType} wget > /dev/null
     fi
 
+    if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep -w curl` ]]
+    then
+        echoContent green " ---> 安装curl"
+        ${installType} curl > /dev/null
+    fi
+
     if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep -w unzip` ]]
     then
         echoContent green " ---> 安装unzip"
@@ -241,15 +247,45 @@ initTLSNginxConfig(){
         echo "server {listen 80;server_name ${domain};root /usr/share/nginx/html;location ~ /.well-known {allow all;}location /test {return 200 'fjkvymb6len';}}" > /etc/nginx/conf.d/alone.conf
         # 启动nginx
         handleNginx start
+        echoContent yellow "\n检查IP是否设置为当前VPS"
+        checkIP
         # 测试nginx
-        echoContent green " ---> 检查Nginx是否正常访问"
+        echoContent yellow "\n检查Nginx是否正常访问"
         domainResult=`curl -s ${domain}/test|grep fjkvymb6len`
         if [[ ! -z ${domainResult} ]]
         then
             handleNginx stop
             echoContent green " ---> Nginx配置成功"
         else
-            echoContent red "    无法正常访问服务器，请检测域名是否正确、域名的DNS解析以及防火墙设置是否正确--->"
+            echoContent red " ---> 无法正常访问服务器，请检测域名是否正确、域名的DNS解析以及防火墙设置是否正确--->"
+            exit 0;
+        fi
+    fi
+}
+# 检查ip
+checkIP(){
+    pingIP=`ping -c 1 -W 1000 ${domain}|awk  '{print $4}'|head -2|tail -n 1`
+    if [[ ! -z "${pingIP}" ]]
+    then
+        pingIP=`echo ${pingIP}|awk -F "[.]" '{print $1"."$2"."$3"."$4}'`
+    fi
+    if [[ ! -z "${pingIP}" ]] && [[ `echo ${pingIP}|grep '^\([1-9]\|[1-9][0-9]\|1[0-9][0-9]\|2[0-4][0-9]\|25[0-5]\)\.\([0-9]\|[1-9][0-9]\|1[0-9][0-9]\|2[0-4][0-9]\|25[0-5]\)\.\([0-9]\|[1-9][0-9]\|1[0-9][0-9]\|2[0-4][0-9]\|25[0-5]\)\.\([0-9]\|[1-9][0-9]\|1[0-9][0-9]\|2[0-4][0-9]\|25[0-5]\)$'` ]]
+    then
+        read -p "当前域名的IP为 [${pingIP}]，是否正确[y/n]？" domainStatus
+        if [[ "${domainStatus}" = "y" ]]
+        then
+            echoContent green "\n ---> IP确认完成"
+        else
+            echoContent red "\n ---> 1.检查Cloudflare DNS解析是否正常"
+            echoContent red " ---> 2.检查Cloudflare DNS云朵是否为灰色\n"
+            exit 0;
+        fi
+    else
+        read -p "IP查询失败，是否重试[y/n]？" retryStatus
+        if [[ "${retryStatus}" = "y" ]]
+        then
+            checkIP
+        else
             exit 0;
         fi
     fi
@@ -282,7 +318,8 @@ installTLS(){
         installTLS $1
     else
         echoContent green " ---> 检测到证书"
-        read -p "是否重新生成，如未过期请选择n？[y/n]:" reInstalTLStatus
+        echoContent yellow " ---> 如未过期请选择[n]"
+        read -p "是否重新生成？[y/n]:" reInstalTLStatus
         if [[ "${reInstalTLStatus}" = "y" ]]
         then
             rm -rf /etc/v2ray-agent/tls/*
@@ -1744,36 +1781,76 @@ unInstall(){
 # 检查错误
 checkFail(){
     echoContent skyBlue "\n进度 $1/${totalProgress} : 检查错误"
-    if [[ -d "/etc/v2ray-agent" ]]
+    if [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]]
     then
-        if [[ -d "/etc/v2ray-agent/v2ray/" ]]
+        V2RayProcessStatus=
+        # V2Ray
+        if [[ ! -z `ls /etc/v2ray-agent/v2ray/|grep -w v2ray` ]] && [[ ! -z `ls /etc/v2ray-agent/v2ray/|grep -w v2ctl` ]] && [[ ! -z `ps -ef|grep -v grep|grep v2ray-agent/v2ray` ]]
         then
-            if [[ -z `ls -F /etc/v2ray-agent/v2ray/|grep "v2ray"` ]] || [[ -z `ls -F /etc/v2ray-agent/v2ray/|grep "v2ctl"` ]]
+            V2RayProcessStatus=true
+            echoContent green " ---> V2Ray 运行正常"
+        else
+            echoContent yellow "检查V2Ray是否安装"
+            if [[ -z `ls /etc/v2ray-agent/v2ray/|grep -w v2ray` ]] || [[ -z `ls /etc/v2ray-agent/v2ray/|grep -w v2ctl` ]]
             then
                 echoContent red " ---> V2Ray 未安装"
             else
-                echoContent green " ---> v2ray-core版本:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`"
-                if [[ -z `/etc/v2ray-agent/v2ray/v2ray --test /etc/v2ray-agent/v2ray/config_full.json|tail -n +3|grep "Configuration OK"` ]]
-                then
-                    echoContent red " ---> V2Ray 配置文件异常"
-                    /etc/v2ray-agent/v2ray/v2ray --test /etc/v2ray-agent/v2ray/config_full.json
-                elif [[ -z `ps -ef|grep -v grep|grep v2ray` ]]
-                then
-                    echoContent red " ---> V2Ray 未启动"
-                else
-                    echoContent green " ---> V2Ray 正常运行"
-                fi
+                echoContent green " ---> V2Ray 已安装"
             fi
-        else
-            echoContent red " ---> V2Ray 未安装"
+            echoContent yellow "\n检查V2Ray开机自启文件是否存在"
+            if [[ -f "/etc/systemd/system/v2ray.service" ]]
+            then
+                if [[ ! -z `cat /etc/systemd/system/v2ray.service|grep v2ray-agent` ]]
+                then
+                    echoContent green " ---> V2Ray 开机自启文件存在"
+                else
+                    echoContent red " ---> V2Ray 开机自启文件出现异常，请重新使用此脚本安装"
+                fi
+            else
+                echoContent grep " ---> V2Ray 开机自启不存在"
+            fi
+            echoContent yellow "\n检查V2Ray配置文件是否存在"
+            if [[ ! -z `ls /etc/v2ray-agent/v2ray/|grep -w config_full.json` ]] || [[ ! -z "${customInstallType}" ]]
+            then
+                echoContent green " ---> V2Ray配置文件存在"
+                echoContent yellow "\n验证配置文件是否正常"
+                if [[ -f "/etc/v2ray-agent/v2ray/config_full.json" ]]
+                then
+                    # [安装]方式
+                    if [[ ! -z `/etc/v2ray-agent/v2ray/v2ray -test -c /etc/v2ray-agent/v2ray/config_full.json|grep "failed"` ]]
+                    then
+                        echoContent red " ---> V2Ray配置文件验证失败，错误日志如下，如没有手动更改配置请提issues"
+                        /etc/v2ray-agent/v2ray/v2ray -test -c /etc/v2ray-agent/v2ray/config_full.json
+                    else
+                        V2RayProcessStatus=true
+                        echoContent green " ---> V2Ray配置文件验证成功"
+                    fi
+                elif [[ ! -z "${customInstallType}" ]]
+                then
+                    # [个性化]安装方式
+                    /etc/v2ray-agent/v2ray/v2ray -test -confdir /etc/v2ray-agent/v2ray/conf > /tmp/customV2rayAgentLog 2>&1
+                    if [[ ! -z `cat /tmp/customV2rayAgentLog|grep fail` ]]
+                    then
+                        echoContent red " ---> V2Ray配置文件验证失败，错误日志如下，如没有手动更改配置请提issues"
+                        /etc/v2ray-agent/v2ray/v2ray -test -confdir /etc/v2ray-agent/v2ray/conf
+                    else
+                        V2RayProcessStatus=true
+                        echoContent green " ---> V2Ray配置文件验证成功"
+                    fi
+                    rm -f /tmp/customV2rayAgentLog
+                fi
+                if [[ "${V2RayProcessStatus}" = "true" ]] && [[ -z `ps -ef|grep -v grep|grep v2ray-agent/v2ray` ]]
+                then
+                    echoContent yellow "\n尝试重新启动"
+                    handleV2Ray start
+                fi
+            else
+                echoContent red " ---> V2Ray配置文件不存在，请重新使用此脚本安装"
+            fi
         fi
+        # 运行正常的情况需要判定几个连接是否正常 出现400 invalid request
 
-        if [[ -z `ps -ef|grep -v grep|grep nginx` ]]
-        then
-            echoContent red " ---> Nginx 未启动，伪装博客无法使用"
-        else
-            echoContent green " ---> Nginx 正常运行"
-        fi
+        ########
     else
         echoContent red " ---> 未使用脚本安装"
     fi
@@ -2028,7 +2105,7 @@ menu(){
     echoContent yellow "2.任意组合安装"
     echoContent skyBlue "-------------------------工具管理-----------------------------"
     echoContent yellow "3.查看账号"
-    echoContent yellow "4.自动排错 [fail]"
+    echoContent yellow "4.自动排错 [仅V2Ray]"
     echoContent yellow "5.更新证书"
     echoContent yellow "6.更换CDN节点"
     echoContent yellow "7.重置uuid"
@@ -2056,9 +2133,9 @@ menu(){
         3)
             showAccounts 1
         ;;
-#        4)
-#            checkFail 1
-#        ;;
+        4)
+            checkFail 1
+        ;;
         5)
             renewalTLS 1
         ;;
