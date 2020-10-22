@@ -941,7 +941,7 @@ handleV2Ray(){
             echoContent green " ---> V2Ray启动成功"
         else
             echoContent red "V2Ray启动失败"
-            echoContent red "ps -ef|grep v2ray,查看日志"
+            echoContent red "执行 [ps -ef|grep v2ray] 查看日志"
             exit 0;
         fi
     elif [[ "$1" = "stop" ]]
@@ -1529,23 +1529,6 @@ defaultBase64Code(){
         echoContent green "    trojan-go://${id}@${add}:443?sni=${host}&type=ws&host=${host}&path=%2F${path}#${host}_trojan_ws\n"
     fi
 }
-# quanMult base64Code
-quanMultBase64Code(){
-    local ps=$1
-    local id=$2
-    local host=$3
-    local path=$4
-    qrCodeBase64Quanmult=`echo -n ''${ps}' = vmess, '${add}', 443, aes-128-cfb, '${id}', over-tls=true, tls-host='${host}', certificate=1, obfs=ws, obfs-path='${path}', obfs-header="Host: '${host}'[Rr][Nn]User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 11_2_6 like Mac OS X) AppleWebKit/604.5.6 (KHTML, like Gecko) Mobile/15D100"'|base64`
-    qrCodeBase64Quanmult=`echo ${qrCodeBase64Quanmult}|sed 's/ //g'`
-    echoContent red "Quantumult vmess--->"
-    echoContent green "    vmess://${qrCodeBase64Quanmult}\n"
-    echo '' >> /etc/v2ray-agent/v2ray/usersv2ray.conf
-    echo "Quantumult:" >> /etc/v2ray-agent/v2ray/usersv2ray.conf
-    echo "  vmess://${qrCodeBase64Quanmult}" >> /etc/v2ray-agent/v2ray/usersv2ray.conf
-    echoContent red "Quantumult 明文--->"
-    echoContent green  '    '${ps}' = vmess, '${add}', 443, aes-128-cfb, '${id}', over-tls=true, tls-host='${host}', certificate=1, obfs=ws, obfs-path='${path}', obfs-header="Host: '${host}'[Rr][Nn]User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 11_2_6 like Mac OS X) AppleWebKit/604.5.6 (KHTML, like Gecko) Mobile/15D100"'
-}
-
 # 进度条工具 废弃
 progressTool(){
     #
@@ -2277,7 +2260,7 @@ defaultInstall(){
     installCronTLS 14
     nginxBlog 15
     handleV2Ray stop
-    sleep 1
+    sleep 2
     handleV2Ray start
 
     handleNginx start
