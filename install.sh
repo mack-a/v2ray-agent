@@ -1760,9 +1760,9 @@ unInstall(){
 # 检查错误
 checkFail(){
     echoContent skyBlue "\n进度 $1/${totalProgress} : 检查错误"
+    V2RayProcessStatus=
     if [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]]
     then
-        V2RayProcessStatus=
         # V2Ray
         if [[ ! -z `ls /etc/v2ray-agent/v2ray/|grep -w v2ray` ]] && [[ ! -z `ls /etc/v2ray-agent/v2ray/|grep -w v2ctl` ]] && [[ ! -z `ps -ef|grep -v grep|grep v2ray-agent/v2ray` ]]
         then
@@ -1833,6 +1833,84 @@ checkFail(){
     else
         echoContent red " ---> 未使用脚本安装"
     fi
+
+    # 检查服务是否可用
+    if [[ "${V2RayProcessStatus}" = "true" ]]
+    then
+        read -p "是否检查服务是否可用，执行此操作会清空[error]日志，是否执行[y/n]？" checkServerStatus
+        if [[ "${checkServerStatus}" = "y" ]]
+        then
+            filePath=
+            host=
+            echoContent red customInstallType:${customInstallType}
+            if [[ -f "/etc/v2ray-agent/v2ray/config_full.json" ]] && [[ -z "${customInstallType}" ]]
+            then
+                filePath="/etc/v2ray-agent/v2ray/config_full.json"
+                host=`cat /etc/v2ray-agent/v2ray/config_full.json|jq .inbounds[0]|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+            elif [[ ! -z "${customInstallType}" ]]
+            then
+                filePath="/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json"
+                host=`cat /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json|jq .inbounds[0]|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+            fi
+
+            if [[ ! -z "${host}" ]]
+            then
+                checkV2RayServer vlesstcp ${host}
+                cat ${filePath}|jq .inbounds[0].settings.fallbacks|jq -c '.[]'|while read row
+                do
+                    echo ${row}|sed 's/\"/"\""/g'
+                    echo row:${row}|jq .
+                    if [[ "`echo ${row}|jq .dest`" = "31299" ]]
+                    then
+                        # vmess ws
+                        echo
+                    fi
+
+                    if [[ "`echo ${row}|jq .dest`" = "31298" ]]
+                    then
+                        # vmess tcp
+                        echo
+                    fi
+
+                    if [[ "`echo ${row}|jq .dest`" = "31297" ]]
+                    then
+                        # vless ws
+                        echo
+                    fi
+                done
+            fi
+        fi
+    fi
+}
+# 检查V2Ray具体服务是否正常
+checkV2RayServer(){
+    local type=$1
+    local host=$2
+    local path=$3
+
+    echo '' > /etc/v2ray-agent/v2ray_error.log
+
+    case ${type} in
+    vlesstcp)
+        echoContent yellow "判断VLESS+TCP是否可用"
+        curl https://${host} > /dev/null
+        if [[ ! -z `cat /etc/v2ray-agent/v2ray/v2ray_error.log|grep -w "firstLen = 82"` ]] && [[ ! -z `cat /etc/v2ray-agent/v2ray/v2ray_error.log|grep -w "invalid request version"` ]] && [[ ! -z `cat /etc/v2ray-agent/v2ray/v2ray_error.log|grep -w "realPath = /"` ]]
+        then
+            echoContent green " ---> 初步判断VLESS+TCP可用，需自己判断是否真正可用"
+        else
+            echoContent red " ---> 初步判断VLESS+TCP不可用，需自己判断是否真正可用"
+        fi
+    ;;
+    vlessws)
+        setDomain="amp.cloudflare.com"
+    ;;
+    vmessws)
+        setDomain="domain08.qiu4.ml"
+    ;;
+    vmesstcp)
+        read -p "请输入想要自定义CDN IP或者域名:" setDomain
+    ;;
+    esac
 }
 # 修改V2Ray CDN节点
 updateV2RayCDN(){
