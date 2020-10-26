@@ -1833,7 +1833,103 @@ checkFail(){
     else
         echoContent red " ---> 未使用脚本安装"
     fi
-    exit 0;
+
+    # 检查服务是否可用
+    if [[ "${V2RayProcessStatus}" = "true" ]]
+    then
+        echo
+        read -p "是否检查服务是否可用，执行此操作会清空[error]日志，是否执行[y/n]？" checkServerStatus
+        if [[ "${checkServerStatus}" = "y" ]]
+        then
+            filePath=
+            host=
+            if [[ -f "/etc/v2ray-agent/v2ray/config_full.json" ]] && [[ -z "${customInstallType}" ]]
+            then
+                filePath="/etc/v2ray-agent/v2ray/config_full.json"
+                host=`cat /etc/v2ray-agent/v2ray/config_full.json|jq .inbounds[0]|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+            elif [[ ! -z "${customInstallType}" ]]
+            then
+                filePath="/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json"
+                host=`cat /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json|jq .inbounds[0]|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+            fi
+
+            if [[ ! -z "${host}" ]]
+            then
+                checkV2RayServer vlesstcp ${host}
+                cat ${filePath}|jq .inbounds[0].settings.fallbacks|jq -c '.[]'|while read row
+                do
+                    if [[ ! -z `echo ${row}|grep 31299` ]]
+                    then
+                        # vmess ws
+                        path=`echo ${row}|awk -F '["]' '{print $4}'`
+                        checkV2RayServer vmessws ${host} ${path}
+                    fi
+
+                    if [[ ! -z `echo ${row}|grep 31298` ]]
+                    then
+                        path=`echo ${row}|awk -F '["]' '{print $4}'`
+                        checkV2RayServer vmesstcp ${host} ${path}
+                    fi
+
+                    if [[ ! -z `echo ${row}|grep 31297` ]]
+                    then
+                        # vless ws
+                        path=`echo ${row}|awk -F '["]' '{print $4}'`
+                        checkV2RayServer vlessws ${host} ${path}
+                    fi
+                done
+            fi
+        fi
+    fi
+}
+# 检查V2Ray具体服务是否正常
+checkV2RayServer(){
+    local type=$1
+    local host=$2
+    local path=$3
+
+    echo '' > /etc/v2ray-agent/v2ray_error.log
+
+    case ${type} in
+    vlesstcp)
+        echoContent yellow "\n判断VLESS+TCP是否可用"
+        curl -s -L https://${host} > /dev/null
+        if [[ ! -z `cat /etc/v2ray-agent/v2ray/v2ray_error.log|grep -w "firstLen = 83"` ]] && [[ ! -z `cat /etc/v2ray-agent/v2ray/v2ray_error.log|grep -w "invalid request version"` ]] && [[ ! -z `cat /etc/v2ray-agent/v2ray/v2ray_error.log|grep -w "realPath = /"` ]]
+        then
+            echoContent green " ---> 初步判断VLESS+TCP可用，需自己进一步判断是否真正可用"
+        else
+            echoContent red " ---> 初步判断VLESS+TCP不可用，需自己进一步判断是否真正可用"
+        fi
+    ;;
+    vlessws)
+        echoContent yellow "\n判断VLESS+WS是否可用"
+        if [[ ! -z `curl -s -L https://${host}${path}|grep -v grep|grep "Bad Request"` ]]
+        then
+            echoContent green " ---> 初步判断VLESS+WS可用，需自己进一步判断是否真正可用"
+        else
+            echoContent red " ---> 初步判断VLESS+WS不可用，需自己进一步判断是否真正可用"
+        fi
+    ;;
+    vmessws)
+        echoContent yellow "\n判断VMess+WS是否可用"
+        if [[ ! -z `curl -s -L https://${host}${path}|grep -v grep|grep "Bad Request"` ]]
+        then
+            echoContent green " ---> 初步判断VMess+WS可用，需自己进一步判断是否真正可用"
+        else
+            echoContent red " ---> 初步判断VMess+WS不可用，需自己进一步判断是否真正可用"
+        fi
+    ;;
+    vmesstcp)
+        echoContent yellow "\n判断VMess+TCP是否可用"
+        curl -s -L https://${host} > /dev/null
+        if [[ ! -z `cat /etc/v2ray-agent/v2ray/v2ray_error.log|grep -w "firstLen = 89"` ]] && [[ ! -z `cat /etc/v2ray-agent/v2ray/v2ray_error.log|grep -w "invalid request version"` ]]
+        then
+            echoContent green " ---> 初步判断VMess+TCP可用，需自己进一步判断是否真正可用"
+        else
+            echoContent red " ---> 初步判断VMess+TCP不可用，需自己进一步判断是否真正可用"
+        fi
+    ;;
+    esac
 }
 # 修改V2Ray CDN节点
 updateV2RayCDN(){
