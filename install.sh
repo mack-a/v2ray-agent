@@ -1837,12 +1837,12 @@ checkFail(){
     # 检查服务是否可用
     if [[ "${V2RayProcessStatus}" = "true" ]]
     then
+        echo
         read -p "是否检查服务是否可用，执行此操作会清空[error]日志，是否执行[y/n]？" checkServerStatus
         if [[ "${checkServerStatus}" = "y" ]]
         then
             filePath=
             host=
-            echoContent red customInstallType:${customInstallType}
             if [[ -f "/etc/v2ray-agent/v2ray/config_full.json" ]] && [[ -z "${customInstallType}" ]]
             then
                 filePath="/etc/v2ray-agent/v2ray/config_full.json"
@@ -1858,24 +1858,24 @@ checkFail(){
                 checkV2RayServer vlesstcp ${host}
                 cat ${filePath}|jq .inbounds[0].settings.fallbacks|jq -c '.[]'|while read row
                 do
-                    echo ${row}|sed 's/\"/"\""/g'
-                    echo row:${row}|jq .
-                    if [[ "`echo ${row}|jq .dest`" = "31299" ]]
+                    if [[ ! -z `echo ${row}|grep 31299` ]]
                     then
                         # vmess ws
-                        echo
+                        path=`echo ${row}|awk -F '["]' '{print $4}'`
+                        checkV2RayServer vmessws ${host} ${path}
                     fi
 
-                    if [[ "`echo ${row}|jq .dest`" = "31298" ]]
+                    if [[ ! -z `echo ${row}|grep 31298` ]]
                     then
-                        # vmess tcp
-                        echo
+                        path=`echo ${row}|awk -F '["]' '{print $4}'`
+                        checkV2RayServer vmesstcp ${host} ${path}
                     fi
 
-                    if [[ "`echo ${row}|jq .dest`" = "31297" ]]
+                    if [[ ! -z `echo ${row}|grep 31297` ]]
                     then
                         # vless ws
-                        echo
+                        path=`echo ${row}|awk -F '["]' '{print $4}'`
+                        checkV2RayServer vlessws ${host} ${path}
                     fi
                 done
             fi
@@ -1892,23 +1892,42 @@ checkV2RayServer(){
 
     case ${type} in
     vlesstcp)
-        echoContent yellow "判断VLESS+TCP是否可用"
-        curl https://${host} > /dev/null
-        if [[ ! -z `cat /etc/v2ray-agent/v2ray/v2ray_error.log|grep -w "firstLen = 82"` ]] && [[ ! -z `cat /etc/v2ray-agent/v2ray/v2ray_error.log|grep -w "invalid request version"` ]] && [[ ! -z `cat /etc/v2ray-agent/v2ray/v2ray_error.log|grep -w "realPath = /"` ]]
+        echoContent yellow "\n判断VLESS+TCP是否可用"
+        curl -s -L https://${host} > /dev/null
+        if [[ ! -z `cat /etc/v2ray-agent/v2ray/v2ray_error.log|grep -w "firstLen = 83"` ]] && [[ ! -z `cat /etc/v2ray-agent/v2ray/v2ray_error.log|grep -w "invalid request version"` ]] && [[ ! -z `cat /etc/v2ray-agent/v2ray/v2ray_error.log|grep -w "realPath = /"` ]]
         then
-            echoContent green " ---> 初步判断VLESS+TCP可用，需自己判断是否真正可用"
+            echoContent green " ---> 初步判断VLESS+TCP可用，需自己进一步判断是否真正可用"
         else
-            echoContent red " ---> 初步判断VLESS+TCP不可用，需自己判断是否真正可用"
+            echoContent red " ---> 初步判断VLESS+TCP不可用，需自己进一步判断是否真正可用"
         fi
     ;;
     vlessws)
-        setDomain="amp.cloudflare.com"
+        echoContent yellow "\n判断VLESS+WS是否可用"
+        if [[ ! -z `curl -s -L https://${host}${path}|grep -v grep|grep "Bad Request"` ]]
+        then
+            echoContent green " ---> 初步判断VLESS+WS可用，需自己进一步判断是否真正可用"
+        else
+            echoContent red " ---> 初步判断VLESS+WS不可用，需自己进一步判断是否真正可用"
+        fi
     ;;
     vmessws)
-        setDomain="domain08.qiu4.ml"
+        echoContent yellow "\n判断VMess+WS是否可用"
+        if [[ ! -z `curl -s -L https://${host}${path}|grep -v grep|grep "Bad Request"` ]]
+        then
+            echoContent green " ---> 初步判断VMess+WS可用，需自己进一步判断是否真正可用"
+        else
+            echoContent red " ---> 初步判断VMess+WS不可用，需自己进一步判断是否真正可用"
+        fi
     ;;
     vmesstcp)
-        read -p "请输入想要自定义CDN IP或者域名:" setDomain
+        echoContent yellow "\n判断VMess+TCP是否可用"
+        curl -s -L https://${host} > /dev/null
+        if [[ ! -z `cat /etc/v2ray-agent/v2ray/v2ray_error.log|grep -w "firstLen = 89"` ]] && [[ ! -z `cat /etc/v2ray-agent/v2ray/v2ray_error.log|grep -w "invalid request version"` ]]
+        then
+            echoContent green " ---> 初步判断VMess+TCP可用，需自己进一步判断是否真正可用"
+        else
+            echoContent red " ---> 初步判断VMess+TCP不可用，需自己进一步判断是否真正可用"
+        fi
     ;;
     esac
 }
