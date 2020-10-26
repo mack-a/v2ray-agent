@@ -49,6 +49,7 @@
 - Cloudflare ---> A记录解析的云朵必须为灰色
 - wget: command not found [这里需要自己手动安装下wget]，如未使用过Linux，[点击查看](https://github.com/mack-a/v2ray-agent/tree/master/documents/install_tools.md)安装教程
 - 脚本安装路径[/etc/v2ray-agent]
+- 现在脚本进入相对稳定的时期，如果有功能不完善的地方，请提issues。 
 
 ## 安装脚本
 ```
