@@ -11,10 +11,10 @@ customPath=alone
 centosVersion=0
 totalProgress=1
 iplc=$1
-uuidws=
-uuidtcp=
-uuidVlessWS=
-uuidtcpdirect=
+uuid=
+uuidDirect=
+newUUID=
+newDirectUUID=
 customInstallType=
 
 # trap 'onCtrlC' INT
@@ -1002,14 +1002,44 @@ handleTrojanGo(){
 }
 # 初始化V2Ray 配置文件
 initV2RayConfig(){
-
-    uuidtcp=`/etc/v2ray-agent/v2ray/v2ctl uuid`
-    uuidws=`/etc/v2ray-agent/v2ray/v2ctl uuid`
-    uuidVmessTcp=`/etc/v2ray-agent/v2ray/v2ctl uuid`
-    uuidVlessWS=`/etc/v2ray-agent/v2ray/v2ctl uuid`
-    uuidtcpdirect=`/etc/v2ray-agent/v2ray/v2ctl uuid`
-
     echoContent skyBlue "\n进度 $2/${totalProgress} : 初始化V2Ray配置"
+
+    if [[ -d "/etc/v2ray-agent" && -d "/etc/v2ray-agent/v2ray" ]] && [[ -f "/etc/v2ray-agent/v2ray/config_full.json" || -f "/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json"  ]]
+    then
+        echo
+        read -p "读取到上次安装记录，是否使用上次安装时的UUID ？[y/n]:" historyUUIDStatus
+        if [[ "${historyUUIDStatus}" = "y" ]]
+        then
+            if [[ -f "/etc/v2ray-agent/v2ray/config_full.json" ]]
+            then
+                uuid=`cat /etc/v2ray-agent/v2ray/config_full.json|jq .inbounds[0].settings.clients[0].id|awk -F '["]' '{print $2}'`
+                uuidDirect=`cat /etc/v2ray-agent/v2ray/config_full.json|jq .inbounds[0].settings.clients[1].id|awk -F '["]' '{print $2}'`
+            elif [[ -f "/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json" ]]
+            then
+
+                uuid=`cat /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json|jq .inbounds[0].settings.clients[0].id|awk -F '["]' '{print $2}'`
+                uuidDirect=`cat /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json|jq .inbounds[0].settings.clients[1].id|awk -F '["]' '{print $2}'`
+            fi
+        fi
+    else
+        uuid=`/etc/v2ray-agent/v2ray/v2ctl uuid`
+        uuidDirect=`/etc/v2ray-agent/v2ray/v2ctl uuid`
+    fi
+    if [[ -z "${uuid}" ]] || [[ -z "${uuidDirect}" ]]
+    then
+        echoContent red "\n ---> uuid读取错误，重新生成"
+        uuid=`/etc/v2ray-agent/v2ray/v2ctl uuid`
+        uuidDirect=`/etc/v2ray-agent/v2ray/v2ctl uuid`
+    fi
+
+    if [[ "${uuid}" = "${uuidDirect}" ]]
+    then
+        echoContent red "\n ---> uuid重复，重新生成"
+        uuid=`/etc/v2ray-agent/v2ray/v2ctl uuid`
+        uuidDirect=`/etc/v2ray-agent/v2ray/v2ctl uuid`
+    fi
+    echoContent green "\n ---> 使用成功"
+
     rm -rf /etc/v2ray-agent/v2ray/conf/*
     rm -rf /etc/v2ray-agent/v2ray/config_full.json
     if [[ "$1" = "vlesstcpws" ]]
@@ -1028,13 +1058,13 @@ initV2RayConfig(){
       "settings": {
         "clients": [
           {
-            "id": "${uuidtcp}",
+            "id": "${uuid}",
             "add": "${add}",
             "flow":"xtls-rprx-origin",
             "email": "${domain}_VLESS_XTLS/TLS-origin_TCP"
           },
           {
-            "id": "${uuidtcpdirect}",
+            "id": "${uuidDirect}",
             "flow":"xtls-rprx-direct",
             "email": "${domain}_VLESS_XTLS/TLS-direct_TCP"
           }
@@ -1084,7 +1114,7 @@ initV2RayConfig(){
       "settings": {
         "clients": [
           {
-            "id": "${uuidws}",
+            "id": "${uuid}",
             "alterId": 1,
             "level": 0,
             "email": "${domain}_vmess_ws"
@@ -1107,7 +1137,7 @@ initV2RayConfig(){
       "settings": {
         "clients": [
           {
-            "id": "${uuidVmessTcp}",
+            "id": "${uuid}",
             "level": 0,
             "alterId": 1,
             "email": "${domain}_vmess_tcp"
@@ -1137,7 +1167,7 @@ initV2RayConfig(){
       "settings": {
         "clients": [
           {
-            "id": "${uuidVlessWS}",
+            "id": "${uuid}",
             "level": 0,
             "email": "${domain}_vless_ws"
           }
@@ -1237,7 +1267,7 @@ EOF
       "settings": {
         "clients": [
           {
-            "id": "${uuidVlessWS}",
+            "id": "${uuid}",
             "level": 0,
             "email": "${domain}_vless_ws"
           }
@@ -1272,7 +1302,7 @@ EOF
       "settings": {
         "clients": [
           {
-            "id": "${uuidVmessTcp}",
+            "id": "${uuid}",
             "level": 0,
             "alterId": 1,
             "email": "${domain}_vmess_tcp"
@@ -1313,7 +1343,7 @@ EOF
       "settings": {
         "clients": [
           {
-            "id": "${uuidws}",
+            "id": "${uuid}",
             "alterId": 1,
             "add": "${add}",
             "level": 0,
@@ -1345,13 +1375,13 @@ EOF
       "settings": {
         "clients": [
           {
-            "id": "${uuidtcp}",
+            "id": "${uuid}",
             "add": "${add}",
             "flow":"xtls-rprx-origin",
             "email": "${domain}_VLESS_XTLS/TLS-origin_TCP"
           },
           {
-            "id": "${uuidtcpdirect}",
+            "id": "${uuidDirect}",
             "flow":"xtls-rprx-direct",
             "email": "${domain}_VLESS_XTLS/TLS-direct_TCP"
           }
@@ -1384,7 +1414,7 @@ EOF
 }
 # 初始化Trojan-Go配置
 initTrojanGoConfig(){
-    uuidTrojanGo=`/etc/v2ray-agent/v2ray/v2ctl uuid`
+#    uuidTrojanGo=`/etc/v2ray-agent/v2ray/v2ctl uuid`
     echoContent skyBlue "\n进度 $1/${totalProgress} : 初始化Trojan配置"
     cat << EOF > /etc/v2ray-agent/trojan/config.json
 {
@@ -1396,7 +1426,7 @@ initTrojanGoConfig(){
     "log_level":0,
     "log_file":"/etc/v2ray-agent/trojan/trojan.log",
     "password": [
-        "${uuidTrojanGo}"
+        "${uuid}"
     ],
     "dns":[
         "74.82.42.42",
@@ -2017,37 +2047,64 @@ updateV2RayCDN(){
     fi
     menu
 }
+
 # 重置UUID
 resetUUID(){
     echoContent skyBlue "\n进度 $1/${totalProgress} : 重置UUID"
     local resetStatus=false
     if [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]] && [[ -f "/etc/v2ray-agent/v2ray/config_full.json" ]] && [[ -z "${customInstallType}" ]]
     then
-        cat /etc/v2ray-agent/v2ray/config_full.json|jq .inbounds|jq -c '.[].settings.clients'|jq -c '.[].id'|while read row
-        do
-            oldUUID=`echo ${row}|awk -F "[\"]" '{print $2}'`
-            newUUID=`/etc/v2ray-agent/v2ray/v2ctl uuid`
-            echoContent red "旧：${oldUUID}"
-            echoContent red "新UUID：${newUUID}"
-            sed -i "s/${oldUUID}/${newUUID}/g"  `grep "${oldUUID}" -rl /etc/v2ray-agent/v2ray/config_full.json`
-        done
+        newUUID=`/etc/v2ray-agent/v2ray/v2ctl uuid`
+        newDirectUUID=`/etc/v2ray-agent/v2ray/v2ctl uuid`
+
+        currentUUID=`cat /etc/v2ray-agent/v2ray/config_full.json|jq .inbounds[0].settings.clients[0].id|awk -F '["]' '{print $2}'`
+        currentDirectUUID=`cat /etc/v2ray-agent/v2ray/config_full.json|jq .inbounds[0].settings.clients[1].id|awk -F '["]' '{print $2}'`
+        if [[ ! -z "${currentUUID}" ]] && [[ ! -z "${currentDirectUUID}" ]]
+        then
+            sed -i "s/${currentUUID}/${newUUID}/g"  `grep "${currentUUID}" -rl /etc/v2ray-agent/v2ray/config_full.json`
+            sed -i "s/${currentDirectUUID}/${newDirectUUID}/g"  `grep "${currentDirectUUID}" -rl /etc/v2ray-agent/v2ray/config_full.json`
+        fi
+
         echoContent green " ---> V2Ray UUID重置完毕"
         handleV2Ray stop
         handleV2Ray start
         resetStatus=true
     elif [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]] && [[ -d "/etc/v2ray-agent/v2ray/conf" ]] && [[ ! -z "${customInstallType}" ]]
     then
+        newUUID=`/etc/v2ray-agent/v2ray/v2ctl uuid`
+        newDirectUUID=`/etc/v2ray-agent/v2ray/v2ctl uuid`
+
+        uuidCount=0
         ls /etc/v2ray-agent/v2ray/conf|grep inbounds|while read row
         do
             cat /etc/v2ray-agent/v2ray/conf/${row}|jq .inbounds|jq -c '.[].settings.clients'|jq -c '.[].id'|while read row2
             do
-                oldUUID=`echo ${row2}|awk -F "[\"]" '{print $2}'`
-                newUUID=`/etc/v2ray-agent/v2ray/v2ctl uuid`
-                echoContent red "旧：${oldUUID}"
-                echoContent red "新UUID：${newUUID}"
-                sed -i "s/${oldUUID}/${newUUID}/g"  `grep "${oldUUID}" -rl /etc/v2ray-agent/v2ray/conf/${row}`
+                if [[ "${row}" = "02_VLESS_TCP_inbounds.json" ]]
+                then
+                    if [[ "${uuidCount}" != "1" ]]
+                    then
+                        oldUUID=`echo ${row2}|awk -F "[\"]" '{print $2}'`
+                        sed -i "s/${oldUUID}/${newUUID}/g"  `grep "${oldUUID}" -rl /etc/v2ray-agent/v2ray/conf/${row}`
+                    fi
+                    if [[ "${row}" = "02_VLESS_TCP_inbounds.json" ]]
+                    then
+                        uuidCount=1
+                    fi
+                else
+                    oldUUID=`echo ${row2}|awk -F "[\"]" '{print $2}'`
+                    sed -i "s/${oldUUID}/${newUUID}/g"  `grep "${oldUUID}" -rl /etc/v2ray-agent/v2ray/conf/${row}`
+                fi
+
             done
         done
+
+        currentDirectUUID=`cat /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json|jq .inbounds|jq -c '.[].settings.clients[1].id'|awk -F "[\"]" '{print $2}'`
+        if [[ ! -z "${currentDirectUUID}" ]]
+        then
+            echoContent red currentDirectUUID:${currentDirectUUID}
+            sed -i "s/${currentDirectUUID}/${newDirectUUID}/g"  `grep "${currentDirectUUID}" -rl /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json`
+        fi
+
         echoContent green " ---> V2Ray UUID重置完毕"
         handleV2Ray stop
         handleV2Ray start
@@ -2063,9 +2120,6 @@ resetUUID(){
         cat /etc/v2ray-agent/trojan/config.json|jq .password|jq -c '.[]'|while read row
         do
             oldUUID=`echo ${row}|awk -F "[\"]" '{print $2}'`
-            newUUID=`/etc/v2ray-agent/v2ray/v2ctl uuid`
-            echoContent red "旧：${oldUUID}"
-            echoContent red "新UUID：${newUUID}"
             sed -i "s/${oldUUID}/${newUUID}/g"  `grep "${oldUUID}" -rl /etc/v2ray-agent/trojan/config.json`
         done
         echoContent green " ---> Trojan UUID重置完毕"
@@ -2173,7 +2227,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.1.3"
+    echoContent green "当前版本：v2.1.4"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
@@ -2351,8 +2405,8 @@ defaultInstall(){
     installTrojanGo 9
     installTrojanService 10
     customCDNIP 11
-    initTrojanGoConfig 12
-    initV2RayConfig vlesstcpws 13
+    initV2RayConfig vlesstcpws 12
+    initTrojanGoConfig 13
     installCronTLS 14
     nginxBlog 15
     handleV2Ray stop
