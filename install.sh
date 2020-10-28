@@ -1911,6 +1911,7 @@ checkFail(){
             fi
         fi
     fi
+    exit 0;
 }
 # 检查V2Ray具体服务是否正常
 checkV2RayServer(){
