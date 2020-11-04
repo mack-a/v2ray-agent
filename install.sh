@@ -565,8 +565,17 @@ installV2Ray(){
         version=`curl -s https://github.com/v2fly/v2ray-core/releases|grep /v2ray-core/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
         # version="v4.27.4"
         echoContent green " ---> v2ray-core版本:${version}"
-        wget -q -P /etc/v2ray-agent/v2ray/ https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip
+#        echoContent green " ---> 下载v2ray-core核心中"
+        if [[ ! -z `wget --help|grep show-progress` ]]
+        then
+            wget -c -q --show-progress -P /etc/v2ray-agent/v2ray/ https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip
+        else
+            wget -c -P /etc/v2ray-agent/v2ray/ https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip
+        fi
+
+#        echoContent green " ---> 下载完毕，解压中"
         unzip -o /etc/v2ray-agent/v2ray/v2ray-linux-64.zip -d /etc/v2ray-agent/v2ray > /dev/null
+#        echoContent green " ---> 解压完毕，删除压缩包"
         rm -rf /etc/v2ray-agent/v2ray/v2ray-linux-64.zip
     else
         # progressTools "green" "  v2ray-core版本:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`"
@@ -651,9 +660,18 @@ updateV2Ray(){
             version=`curl -s https://github.com/v2fly/v2ray-core/releases|grep /v2ray-core/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
         fi
         echoContent green " ---> v2ray-core版本:${version}"
-        wget -q -P /etc/v2ray-agent/v2ray/ https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip
-        unzip -o  /etc/v2ray-agent/v2ray/v2ray-linux-64.zip -d /etc/v2ray-agent/v2ray > /dev/null
+#        echoContent green " ---> 下载v2ray-core核心中"
 
+        if [[ ! -z `wget --help|grep show-progress` ]]
+        then
+            wget -c -q --show-progress -P /etc/v2ray-agent/v2ray/ https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip
+        else
+            wget -c -P /etc/v2ray-agent/v2ray/ https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip
+        fi
+
+#        echoContent green " ---> 下载完毕，解压中"
+        unzip -o  /etc/v2ray-agent/v2ray/v2ray-linux-64.zip -d /etc/v2ray-agent/v2ray > /dev/null
+#        echoContent green " ---> 解压完毕，删除压缩包"
         rm -rf /etc/v2ray-agent/v2ray/v2ray-linux-64.zip
         handleV2Ray stop
         handleV2Ray start
@@ -2228,7 +2246,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.1.4"
+    echoContent green "当前版本：v2.1.5"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
