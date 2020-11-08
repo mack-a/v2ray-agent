@@ -28,7 +28,7 @@
 - Trojan[Mux 多路复用]
 - Trojan-Go+WS[Mux 多路复用]
 
-# 线路推荐
+## 线路推荐
 - 1.gia
 - 2.上海CN2+HK
 - 3.上海联通+台湾TFN
