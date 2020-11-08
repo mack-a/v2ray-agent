@@ -33,10 +33,9 @@
 - 2.上海CN2+HK
 - 3.上海联通+台湾TFN
 - 4.上海联通+Vultr东京
-- 5.广移/珠移+HKIX
-- 6.广移/珠移+CMI
-- 7.苏日IPLC+日本/美国
-- 8.莞港IPLC+HK
+- 5.广移/珠移+HKIX/CMI
+- 6.苏日IPLC+日本/美国
+- 7.莞港IPLC+HK
 
 ## 组合推荐
 - 中专/gia ---> VLESS+TCP+TLS/XTL or Trojan
