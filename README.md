@@ -28,6 +28,15 @@
 - Trojan[Mux 多路复用]
 - Trojan-Go+WS[Mux 多路复用]
 
+# 线路推荐
+- 1.gia
+- 2.上海CN2+HK
+- 3.上海联通+台湾TFN
+- 4.上海联通+Vultr东京
+- 5.广移/珠移+HKIX
+- 6.广移/珠移+CMI
+- 7.苏日IPLC+日本/美国
+- 8.莞港IPLC+HK
 
 ## 组合推荐
 - 中专/gia ---> VLESS+TCP+TLS/XTL or Trojan
@@ -57,15 +66,6 @@ wget -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-a
 ```
 - 示例图
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/install.jpg" width=700>
-
-# 线路推荐
-- 1.gia
-- 2.上海CN2+HK
-- 3.上海联通+台湾TFN
-- 4.上海联通+Vultr东京
-- 5.广移/珠移+HKIX
-- 6.广移/珠移+CMI
-- 7.IPLC
 
 # 许可证
 [MIT](https://github.com/mack-a/v2ray-agent/blob/master/LICENSE)
