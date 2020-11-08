@@ -21,11 +21,11 @@
 ## 组合方式
 - VLESS+TCP+TLS
 - VLESS+TCP+xtls-rprx-origin
-- VLESS+TCP+xtls-rprx-direct
+- VLESS+TCP+xtls-rprx-direct【推荐】
 - VLESS+WS+TLS 
 - VMess+TCP+TLS
 - VMess+WS+TLS
-- Trojan[Mux 多路复用]
+- Trojan[Mux 多路复用]【推荐】
 - Trojan-Go+WS[Mux 多路复用]
 
 ## 线路推荐
