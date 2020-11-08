@@ -25,8 +25,8 @@
 - VLESS+WS+TLS 
 - VMess+TCP+TLS
 - VMess+WS+TLS
-- Trojan[Mux 多路复用]【推荐】
-- Trojan-Go+WS[Mux 多路复用]
+- Trojan【推荐】
+- Trojan-Go+WS
 
 ## 线路推荐
 - 1.GIA
@@ -40,7 +40,7 @@
 ## 组合推荐
 - 中专/gia ---> VLESS+TCP+TLS/XTLS or Trojan【推荐使用XTLS的xtls-rprx-direct】
 - 移动宽带  ---> VMESS+WS+TLS/Trojan-Go+WS + Cloudflare
-- Trojan建议开启Mux[多路复用]，仅需客户端开启，服务端自适应。
+- Trojan建议开启Mux【多路复用】，仅需客户端开启，服务端自适应。
 - VMess/VLESS也可开启Mux，效果需要自己尝试，XTLS不支持Mux。仅需客户端开启，服务端自适应。
 
 ## 特性
