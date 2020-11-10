@@ -592,12 +592,18 @@ installV2Ray(){
 # 安装Trojan-go
 installTrojanGo(){
     echoContent skyBlue "\n进度  $1/${totalProgress} : 安装Trojan-Go"
-    if [[ -z `ls -F /etc/v2ray-agent/trojan/|grep "trojan-go"` ]] || [[ -z `ls -F /etc/v2ray-agent/trojan/|grep "trojan-go"` ]]
+    if [[ -z `ls -F /etc/v2ray-agent/trojan/|grep -w "trojan-go"` ]]
     then
         version=`curl -s https://github.com/p4gefau1t/trojan-go/releases|grep /trojan-go/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
         # version="v4.27.4"
         echoContent green " ---> Trojan-Go版本:${version}"
-        wget -q -P /etc/v2ray-agent/trojan/ https://github.com/p4gefau1t/trojan-go/releases/download/${version}/trojan-go-linux-amd64.zip
+        if [[ ! -z `wget --help|grep show-progress` ]]
+        then
+            wget -c -q --show-progress -P /etc/v2ray-agent/trojan/ https://github.com/p4gefau1t/trojan-go/releases/download/${version}/trojan-go-linux-amd64.zip
+        else
+            wget -c -P /etc/v2ray-agent/trojan/ https://github.com/p4gefau1t/trojan-go/releases/download/${version}/trojan-go-linux-amd64.zip
+        fi
+        # wget -q -P /etc/v2ray-agent/trojan/ https://github.com/p4gefau1t/trojan-go/releases/download/${version}/trojan-go-linux-amd64.zip
         unzip -o /etc/v2ray-agent/trojan/trojan-go-linux-amd64.zip -d /etc/v2ray-agent/trojan > /dev/null
         rm -rf /etc/v2ray-agent/trojan/trojan-go-linux-amd64.zip
     else
@@ -606,7 +612,7 @@ installTrojanGo(){
         read -p "是否重新安装？[y/n]:" reInstalTrojanStatus
         if [[ "${reInstalV2RayStatus}" = "y" ]]
         then
-            rm -rf /etc/v2ray-agent/trojan/*
+            rm -rf /etc/v2ray-agent/trojan/trojan-go
             installTrojanGo $1
         fi
     fi
@@ -739,13 +745,14 @@ updateTrojanGo(){
     then
         version=`curl -s https://github.com/p4gefau1t/trojan-go/releases|grep /trojan-go/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
         echoContent green " ---> Trojan-Go版本:${version}"
-        wget -q -P /etc/v2ray-agent/trojan/ https://github.com/p4gefau1t/trojan-go/releases/download/${version}/trojan-go-linux-amd64.zip
-        unzip -o /etc/v2ray-agent/trojan/trojan-go-linux-amd64.zip -d /etc/v2ray-agent/trojan > /dev/null
-        if [[ "$2" = "backup" ]]
+        if [[ ! -z `wget --help|grep show-progress` ]]
         then
-            cp /tmp/trojan_config.json /etc/v2ray-agent/trojan/config.json
+            wget -c -q --show-progress -P /etc/v2ray-agent/trojan/ https://github.com/p4gefau1t/trojan-go/releases/download/${version}/trojan-go-linux-amd64.zip
+        else
+            wget -c -P /etc/v2ray-agent/trojan/ https://github.com/p4gefau1t/trojan-go/releases/download/${version}/trojan-go-linux-amd64.zip
         fi
-
+        # wget -q -P /etc/v2ray-agent/trojan/ https://github.com/p4gefau1t/trojan-go/releases/download/${version}/trojan-go-linux-amd64.zip
+        unzip -o /etc/v2ray-agent/trojan/trojan-go-linux-amd64.zip -d /etc/v2ray-agent/trojan > /dev/null
         rm -rf /etc/v2ray-agent/trojan/trojan-go-linux-amd64.zip
         handleTrojanGo stop
         handleTrojanGo start
@@ -763,8 +770,8 @@ updateTrojanGo(){
                 then
                     handleTrojanGo stop
                     cp /etc/v2ray-agent/trojan/config.json /tmp/trojan_config.json
-                    rm -rf /etc/v2ray-agent/trojan/*
-                    updateTrojanGo $1 backup
+                    rm -rf /etc/v2ray-agent/trojan/trojan-go
+                    updateTrojanGo 1
                 else
                     echoContent green " ---> 放弃重新安装"
                 fi
@@ -772,9 +779,8 @@ updateTrojanGo(){
                 read -p "最新版本为：${version}，是否更新？[y/n]：" installTrojanGoStatus
                 if [[ "${installTrojanGoStatus}" = "y" ]]
                 then
-                    cp /etc/v2ray-agent/trojan/config.json /tmp/trojan_config.json
-                    rm -rf /etc/v2ray-agent/trojan/*
-                    updateTrojanGo $1 backup
+                    rm -rf /etc/v2ray-agent/trojan/trojan-go
+                    updateTrojanGo 1
                 else
                     echoContent green " ---> 放弃更新"
                 fi
@@ -917,7 +923,7 @@ Type=simple
 User=root
 CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_RAW
 NoNewPrivileges=yes
-ExecStart=/etc/v2ray-agent/trojan/trojan-go -config /etc/v2ray-agent/trojan/config.json
+ExecStart=/etc/v2ray-agent/trojan/trojan-go -config /etc/v2ray-agent/trojan/config_full.json
 Restart=on-failure
 RestartPreventExitStatus=23
 
@@ -1434,7 +1440,7 @@ EOF
 initTrojanGoConfig(){
 #    uuidTrojanGo=`/etc/v2ray-agent/v2ray/v2ctl uuid`
     echoContent skyBlue "\n进度 $1/${totalProgress} : 初始化Trojan配置"
-    cat << EOF > /etc/v2ray-agent/trojan/config.json
+    cat << EOF > /etc/v2ray-agent/trojan/config_full.json
 {
     "run_type": "server",
     "local_addr": "127.0.0.1",
@@ -1745,12 +1751,12 @@ showAccounts(){
         fi
     fi
 
-    if [[ -d "/etc/v2ray-agent/" ]] && [[ -d "/etc/v2ray-agent/trojan/" ]] && [[ -f "/etc/v2ray-agent/trojan/config.json" ]]
+    if [[ -d "/etc/v2ray-agent/" ]] && [[ -d "/etc/v2ray-agent/trojan/" ]] && [[ -f "/etc/v2ray-agent/trojan/config_full.json" ]]
     then
         showStatus=true
-        local trojanUUID=`cat /etc/v2ray-agent/trojan/config.json |jq .password[0]|awk -F '["]' '{print $2}'`
-        local trojanGoPath=`cat /etc/v2ray-agent/trojan/config.json|jq .websocket.path|awk -F '["]' '{print $2}'`
-        local trojanGoAdd=`cat /etc/v2ray-agent/trojan/config.json|jq .websocket.add|awk -F '["]' '{print $2}'`
+        local trojanUUID=`cat /etc/v2ray-agent/trojan/config_full.json |jq .password[0]|awk -F '["]' '{print $2}'`
+        local trojanGoPath=`cat /etc/v2ray-agent/trojan/config_full.json|jq .websocket.path|awk -F '["]' '{print $2}'`
+        local trojanGoAdd=`cat /etc/v2ray-agent/trojan/config_full.json|jq .websocket.add|awk -F '["]' '{print $2}'`
         echoContent skyBlue "\n==================================  Trojan TLS  =================================="
         defaultBase64Code trojan trojan ${trojanUUID} ${host}
 
