@@ -1495,15 +1495,27 @@ defaultBase64Code(){
     local type=$1
     local ps=$2
     local id=$3
-    local host=$4
+    local hostPort=$4
+    local host=
+    local port=
+    if [[ ! -z `echo ${hostPort}|grep ":"` ]]
+    then
+        host=`echo ${hostPort}|awk -F "[:]" '{print $1}'`
+        port=`echo ${hostPort}|awk -F "[:]" '{print $2}'`
+    else
+        host=${hostPort}
+        port=443
+    fi
+
     local path=$5
     local add=$6
     if [[ ${type} = "tcp" ]]
     then
-        qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","net":"tcp","add":"'${host}'","allowInsecure":0,"method":"none","peer":""}'|sed 's#/#\\\/#g'|base64`
+
+        qrCodeBase64Default=`echo -n '{"port":"'${port}'","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","net":"tcp","add":"'${host}'","allowInsecure":0,"method":"none","peer":""}'|sed 's#/#\\\/#g'|base64`
         qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
         echoContent yellow " ---> 通用json(tcp+tls)"
-        echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","net":"tcp","add":"'${host}'","allowInsecure":0,"method":"none","peer":""}\n'
+        echoContent green '    {"port":"'${port}'","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","net":"tcp","add":"'${host}'","allowInsecure":0,"method":"none","peer":""}\n'
         # 通用Vmess
         echoContent yellow " ---> 通用vmess(tcp+tls)链接"
         echoContent green "    vmess://${qrCodeBase64Default}\n"
@@ -1511,36 +1523,36 @@ defaultBase64Code(){
         echo "   vmess://${qrCodeBase64Default}" >> /etc/v2ray-agent/v2ray/usersv2ray.conf
     elif [[ ${type} = "wss" ]]
     then
-        qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
+        qrCodeBase64Default=`echo -n '{"port":"'${port}'","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
         qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
         echoContent yellow " ---> 通用json(ws+tls)"
-        echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}\n'
+        echoContent green '    {"port":"'${port}'","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}\n'
         echoContent yellow " ---> 通用vmess(ws+tls)链接"
         echoContent green "    vmess://${qrCodeBase64Default}\n"
         echo "通用vmess(ws+tls)链接: " > /etc/v2ray-agent/v2ray/usersv2ray.conf
         echo "   vmess://${qrCodeBase64Default}" >> /etc/v2ray-agent/v2ray/usersv2ray.conf
     elif [[ "${type}" = "h2" ]]
     then
-        qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"h2","add":"'${add}'","allowInsecure":0,"method":"none","peer":""}'|sed 's#/#\\\/#g'|base64`
+        qrCodeBase64Default=`echo -n '{"port":"'${port}'","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"h2","add":"'${add}'","allowInsecure":0,"method":"none","peer":""}'|sed 's#/#\\\/#g'|base64`
         qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
         echoContent red "通用json--->"
-        echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"h2","add":"'${add}'","allowInsecure":0,"method":"none","peer":""}\n'
+        echoContent green '    {"port":"'${port}'","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"h2","add":"'${add}'","allowInsecure":0,"method":"none","peer":""}\n'
     elif [[ "${type}" = "vlesstcp" ]]
     then
-        qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"tcp","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
+        qrCodeBase64Default=`echo -n '{"port":"'${port}'","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"tcp","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
         qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
         echo "通用vmess(VLESS+TCP+TLS)链接: " > /etc/v2ray-agent/v2ray/usersv2ray.conf
         echo "   vmess://${qrCodeBase64Default}" >> /etc/v2ray-agent/v2ray/usersv2ray.conf
         echoContent yellow " ---> 通用json(VLESS+TCP+TLS)"
-        echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"host":"'${host}'","type":"none","net":"tcp","add":"'${host}'","allowInsecure":0,"method":"none","peer":""}\n'
+        echoContent green '    {"port":"'${port}'","ps":"'${ps}'","tls":"tls","id":'"${id}"',"host":"'${host}'","type":"none","net":"tcp","add":"'${host}'","allowInsecure":0,"method":"none","peer":""}\n'
         echoContent green '    V2Ray v4.27.4+ 目前无通用订阅，需要手动配置，VLESS TCP、XTLS和TCP大部分一样，其余内容不变，请注意手动输入的流控flow类型\n'
 
     elif [[ "${type}" = "vmessws" ]]
     then
-        qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"1","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
+        qrCodeBase64Default=`echo -n '{"port":"'${port}'","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"1","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
         qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
         echoContent yellow " ---> 通用json(VMess+WS+TLS)"
-        echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"1","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}\n'
+        echoContent green '    {"port":"'${port}'","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"1","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}\n'
         echoContent yellow " ---> 通用vmess(VMess+WS+TLS)链接"
         echoContent green "    vmess://${qrCodeBase64Default}\n"
         echoContent yellow " ---> 二维码 vmess(VMess+WS+TLS)"
@@ -1548,39 +1560,39 @@ defaultBase64Code(){
 
     elif [[ "${type}" = "vmesstcp" ]]
     then
-        qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"1","v":"2","host":"'${host}'","type":"http","path":'${path}',"net":"tcp","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'","obfs":"http","obfsParam":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
+        qrCodeBase64Default=`echo -n '{"port":"'${port}'","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"1","v":"2","host":"'${host}'","type":"http","path":'${path}',"net":"tcp","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'","obfs":"http","obfsParam":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
         qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
         echoContent yellow " ---> 通用json(VMess+TCP+TLS)"
-        echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"1","v":"2","host":"'${host}'","type":"http","path":'${path}',"net":"tcp","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'","obfs":"http","obfsParam":"'${host}'"}\n'
+        echoContent green '    {"port":"'${port}'","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"1","v":"2","host":"'${host}'","type":"http","path":'${path}',"net":"tcp","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'","obfs":"http","obfsParam":"'${host}'"}\n'
         echoContent yellow " ---> 通用vmess(VMess+TCP+TLS)链接"
         echoContent green "    vmess://${qrCodeBase64Default}\n"
         echoContent yellow " ---> 二维码 vmess(VMess+TCP+TLS)"
         echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vmess://${qrCodeBase64Default}\n"
     elif [[ "${type}" = "vlessws" ]]
     then
-        qrCodeBase64Default=`echo -n '{"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
+        qrCodeBase64Default=`echo -n '{"port":"'${port}'","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
         qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
         echoContent yellow " ---> 通用json(VLESS+WS+TLS)"
-        echoContent green '    {"port":"443","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}\n'
+        echoContent green '    {"port":"'${port}'","ps":"'${ps}'","tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":'${path}',"net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}\n'
     elif [[ "${type}" = "trojan" ]]
     then
         # URLEncode
         echoContent yellow " ---> Trojan(TLS)"
-        echoContent green "    trojan://${id}@${host}:443?peer=${host}&sni=${host}\n"
+        echoContent green "    trojan://${id}@${host}:${port}?peer=${host}&sni=${host}\n"
         echoContent yellow " ---> 二维码 Trojan(TLS)"
-        echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${host}%3a443%3fpeer%3d${host}%26sni%3d${host}%23${host}_trojan\n"
+        echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${host}%3a${port}%3fpeer%3d${host}%26sni%3d${host}%23${host}_trojan\n"
 
     elif [[ "${type}" = "trojangows" ]]
     then
         # URLEncode
         echoContent yellow " ---> Trojan-Go(WS+TLS) Shadowrocket"
-        echoContent green "    trojan://${id}@${add}:443?allowInsecure=0&&peer=${host}&sni=${host}&plugin=obfs-local;obfs=websocket;obfs-host=${host};obfs-uri=${path}#${host}_trojan_ws\n"
+        echoContent green "    trojan://${id}@${add}:${port}?allowInsecure=0&&peer=${host}&sni=${host}&plugin=obfs-local;obfs=websocket;obfs-host=${host};obfs-uri=${path}#${host}_trojan_ws\n"
         echoContent yellow " ---> 二维码 Trojan-Go(WS+TLS) Shadowrocket"
-        echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${add}%3a443%3fallowInsecure%3d0%26peer%3d${host}%26plugin%3dobfs-local%3bobfs%3dwebsocket%3bobfs-host%3d${host}%3bobfs-uri%3d${path}%23${host}_trojan_ws\n"
+        echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${add}%3a${port}%3fallowInsecure%3d0%26peer%3d${host}%26plugin%3dobfs-local%3bobfs%3dwebsocket%3bobfs-host%3d${host}%3bobfs-uri%3d${path}%23${host}_trojan_ws\n"
 
         path=`echo ${path}|awk -F "[/]" '{print $2}'`
         echoContent yellow " ---> Trojan-Go(WS+TLS) QV2ray"
-        echoContent green "    trojan-go://${id}@${add}:443?sni=${host}&type=ws&host=${host}&path=%2F${path}#${host}_trojan_ws\n"
+        echoContent green "    trojan-go://${id}@${add}:${port}?sni=${host}&type=ws&host=${host}&path=%2F${path}#${host}_trojan_ws\n"
     fi
 }
 # 进度条工具 废弃
@@ -1651,6 +1663,7 @@ showAccounts(){
         showStatus=true
         # VLESS tcp
         local tcp=`cat /etc/v2ray-agent/v2ray/config_full.json|jq .inbounds[0]`
+        local port=`echo ${tcp}|jq .port`
         local tcpID=`echo ${tcp}|jq .settings.clients[0].id`
         local tcpEmail="`echo ${tcp}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
         local CDNADD=`echo ${tcp}|jq .settings.clients[0].add|awk -F '["]' '{print $2}'`
@@ -1679,18 +1692,19 @@ showAccounts(){
 
 
         echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-origin ==========================="
-        defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${host}" ${add}
+        defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${host}:${port}" ${add}
 
         echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-direct ==========================="
-        defaultBase64Code vlesstcp ${tcpDirectEmail} "${tcpIDirect}" "${host}" ${add}
+        defaultBase64Code vlesstcp ${tcpDirectEmail} "${tcpIDirect}" "${host}:${port}" ${add}
+
         echoContent skyBlue "\n================================ VLESS WS TLS CDN ================================"
-        defaultBase64Code vlessws ${vlessWSEmail} "${vlessWSID}" "${host}" "${vlessWSPath}" ${CDNADD}
+        defaultBase64Code vlessws ${vlessWSEmail} "${vlessWSID}" "${host}:${port}" "${vlessWSPath}" ${CDNADD}
 
         echoContent skyBlue "\n================================ VMess WS TLS CDN ================================"
-        defaultBase64Code vmessws ${wsEmail} "${wsID}" "${host}" "${wsPath}" ${CDNADD}
+        defaultBase64Code vmessws ${wsEmail} "${wsID}" "${host}:${port}" "${wsPath}" ${CDNADD}
 
         echoContent skyBlue "\n================================= VMess TCP TLS  ================================="
-        defaultBase64Code vmesstcp ${vmessTCPEmail} "${vmessTCPID}" "${host}" "${vmessTCPath}" "${host}"
+        defaultBase64Code vmesstcp ${vmessTCPEmail} "${vmessTCPID}" "${host}:${port}" "${vmessTCPath}" "${host}"
 
     elif [[ -d "/etc/v2ray-agent/" ]] && [[ -d "/etc/v2ray-agent/v2ray/" ]] && [[ -d "/etc/v2ray-agent/v2ray/conf" ]] && [[ ! -z "${customInstallType}" ]]
     then
@@ -1698,6 +1712,7 @@ showAccounts(){
 
         # VLESS tcp
         local tcp=`cat /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json|jq .inbounds[0]`
+        local port=`echo ${tcp}|jq .port`
         local tcpID=`echo ${tcp}|jq .settings.clients[0].id`
         local tcpEmail="`echo ${tcp}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
 
@@ -1706,11 +1721,12 @@ showAccounts(){
         local tcpIDirect=`echo ${tcp}|jq .settings.clients[1].id`
         local tcpDirectEmail="`echo ${tcp}|jq .settings.clients[1].email|awk -F '["]' '{print $2}'`"
         host=`echo ${tcp}|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+
         echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-origin ==========================="
-        defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${host}" ${add}
+        defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${host}:${port}" ${add}
 
         echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-direct ==========================="
-        defaultBase64Code vlesstcp ${tcpDirectEmail} "${tcpIDirect}" "${host}" ${add}
+        defaultBase64Code vlesstcp ${tcpDirectEmail} "${tcpIDirect}" "${host}:${port}" ${add}
 
         if [[ ! -z "${customInstallType}" ]]
         then
@@ -1724,7 +1740,7 @@ showAccounts(){
                 local vlessWSPath=`echo ${vlessWS}|jq .streamSettings.wsSettings.path`
 
                 echoContent skyBlue "\n================================ VLESS WS TLS CDN ================================"
-                defaultBase64Code vlessws ${vlessWSEmail} "${vlessWSID}" "${host}" "${vlessWSPath}" ${CDNADD}
+                defaultBase64Code vlessws ${vlessWSEmail} "${vlessWSID}" "${host}:${port}" "${vlessWSPath}" ${CDNADD}
             fi
             if [[ ! -z `echo ${customInstallType}|grep 2` ]]
             then
@@ -1735,7 +1751,7 @@ showAccounts(){
                 local vmessTCPath=`echo ${vmessTCP}|jq .streamSettings.tcpSettings.header.request.path[0]`
 
                 echoContent skyBlue "\n================================= VMess TCP TLS  ================================="
-                defaultBase64Code vmesstcp ${vmessTCPEmail} "${vmessTCPID}" "${host}" "${vmessTCPath}" "${host}"
+                defaultBase64Code vmesstcp ${vmessTCPEmail} "${vmessTCPID}" "${host}:${port}" "${vmessTCPath}" "${host}"
             fi
             if [[ ! -z `echo ${customInstallType}|grep 3` ]]
             then
@@ -1746,7 +1762,7 @@ showAccounts(){
                 local wsPath=`echo ${ws}|jq .streamSettings.wsSettings.path`
 
                 echoContent skyBlue "\n================================ VMess WS TLS CDN ================================"
-                defaultBase64Code vmessws ${wsEmail} "${wsID}" "${host}" "${wsPath}" ${CDNADD}
+                defaultBase64Code vmessws ${wsEmail} "${wsID}" "${host}:${port}" "${wsPath}" ${CDNADD}
             fi
         fi
     fi
@@ -2252,7 +2268,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.1.6"
+    echoContent green "当前版本：v2.1.7"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
