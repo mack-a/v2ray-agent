@@ -9,7 +9,7 @@
 - 2.必须保证在不用流量转发服务的情况可以使用XTLS/TLS+VLESS、Trojan，这里的Trojan、XTLS/TLS+VLESS、websocket+tls 设置方法相同，下面是用VLESS+TCP/XTLS示例。
 
 ## 2.购买流量转发服务
-- 1.注册-->[idc.wiki，无aff](https://idc.wiki)
+- 1.注册-->[idc.wiki](https://idc.wiki)
 - 2.注册完成后，[点击购买](https://idc.wiki/exnetwork.php)，无aff。
 
 # 2.配置流量转发服务
@@ -51,7 +51,7 @@ ip:port
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/wikihost/wikihost_V2RayNG.png" width=400>
 
 ## 2.TCP[IPLC专属]
-- [wikihost添加步骤与TCP+TLS相同](添加普通转发协议tcp)
+- [wikihost添加步骤与TCP+TLS相同](#1vlesstcptls)
 
 ### 1.配置客户端
 - 修改 地址+端口 为wikihost分配的 ip/域名+端口 即可
@@ -60,7 +60,7 @@ ip:port
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/Quantumult_Setting_vmess.png" width=400>
 
 ## 3.Trojan[推荐]
-- 设置方法与[VLESS+TCP+TLS](1vlesstcptls)
+- 设置方法与[VLESS+TCP+TLS](#1vlesstcptls)
 
 # 3.线路建议
 - 1.广东移动+hk vps
@@ -95,7 +95,7 @@ ip:port
 - 以下为入门账户举例，不同的账户等级对应的流量计费有的线路是不一样的。
 
 线路|流量费|端口占用费
--|-|-|-
+-|-|-
 深港高速内网（深圳移动/香港HE）|0.35RMB/GB|0.000999/h
 珠海移动|0.05RMB/GB|0.000999/h
 上海联通|0.05RMB/GB|0.000999/h
