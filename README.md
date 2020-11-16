@@ -38,7 +38,7 @@
 - 7.莞港IPLC+HK
 
 ## 组合推荐
-- 中专/gia ---> VLESS+TCP+TLS/XTLS or Trojan【推荐使用XTLS的xtls-rprx-direct】
+- 中专/gia ---> VLESS+TCP+TLS/XTLS、Trojan【推荐使用XTLS的xtls-rprx-direct】
 - 移动宽带  ---> VMESS+WS+TLS/Trojan-Go+WS + Cloudflare
 - Trojan建议开启Mux【多路复用】，仅需客户端开启，服务端自适应。
 - VMess/VLESS也可开启Mux，效果需要自己尝试，XTLS不支持Mux。仅需客户端开启，服务端自适应。

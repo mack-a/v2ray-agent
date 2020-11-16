@@ -1212,7 +1212,7 @@ initV2RayConfig(){
     {
       "protocol": "freedom",
       "settings": {
-        "domainStrategy": "UseIP"
+        "domainStrategy": "UseIPv4"
       }
     }
   ],
@@ -1246,7 +1246,7 @@ EOF
         {
           "protocol": "freedom",
           "settings": {
-            "domainStrategy": "UseIP"
+            "domainStrategy": "UseIPv4"
           }
         }
     ]
@@ -1471,6 +1471,9 @@ initTrojanGoConfig(){
     },
     "router": {
         "enabled": false
+    },
+    "tcp":{
+        "prefer_ipv4":true
     }
 }
 EOF
@@ -2268,7 +2271,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.1.7"
+    echoContent green "当前版本：v2.1.8"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
