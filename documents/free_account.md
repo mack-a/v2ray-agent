@@ -4,6 +4,7 @@
 - [TG群](https://t.me/technologyshare)
 
 ## 1.通用
+>已撸爆，等待后续更新。
 - URL
 ```
 https://subscribe.v2ray-agent.com/sub/subscribe?user=VUX4VQDA5D&type=1
