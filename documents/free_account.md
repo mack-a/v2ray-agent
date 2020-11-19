@@ -1,1 +1,1 @@
-- 为规范使用[请加入TG群回复[白嫖]或[查看群置顶链接]](https://t.me/technologyshare)获取
+- 为规范使用[请加入TG群回复[白嫖]](https://t.me/technologyshare)获取
