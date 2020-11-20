@@ -49,6 +49,7 @@
 - 支持个性化安装，VLESS+TCP为必选，其余为可选项。
 - 脚本自动检查升级
 - 自动更新TLS证书
+- 不支持ipv6
 - 支持快捷方式启动，安装完毕后，shell输入[vasma]即可打开脚本，脚本执行路径[/etc/v2ray-agent/install.sh]
 
 
@@ -60,7 +61,23 @@
 - 不支持非root账户
 - 现在脚本进入相对稳定的时期，如果有功能不完善的地方，请提issues。
  
+## 关于v2ray-core即将移除XTLS，未来的脚本修改说明 
+- 具体请[点击查看](https://github.com/mack-a/v2ray-agent/issues/32)
+
 ## 安装脚本
+- Xray
+```
+# todo
+```
+- V2Ray
+```
+# todo
+```
+- 最后一个支持XTLS的V2Ray[]
+```
+# todo
+```
+- 目前版本
 ```
 wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh" && chmod 700 /root/install.sh && /root/install.sh
 ```
