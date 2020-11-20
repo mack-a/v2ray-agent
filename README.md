@@ -14,6 +14,7 @@
   * [注意事项](#注意事项)
   * [安装脚本](#安装脚本)
 * * *
+>使用必读此[issue](https://github.com/mack-a/v2ray-agent/issues/32)
 
 # 1.七合一共存脚本+伪装博客
 - 如果没有使用过Cloudflare[点击这里](https://github.com/mack-a/v2ray-agent/blob/master/documents/cloudflare_init.md)查看入门教程
@@ -49,9 +50,9 @@
 - 支持个性化安装，VLESS+TCP为必选，其余为可选项。
 - 脚本自动检查升级
 - 自动更新TLS证书
-- 不支持ipv6
 - 支持快捷方式启动，安装完毕后，shell输入[vasma]即可打开脚本，脚本执行路径[/etc/v2ray-agent/install.sh]
-
+- 未来会支持Xray-core
+- 未来会支持ipv6
 
 ## 注意事项
 - 修改Cloudflare->SSL/TLS->Overview->Full
@@ -65,17 +66,8 @@
 - 具体请[点击查看](https://github.com/mack-a/v2ray-agent/issues/32)
 
 ## 安装脚本
-- Xray
-```
-# todo
-```
-- V2Ray
 ```
 wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/v2ray/install.sh" && chmod 700 /root/install.sh && /root/install.sh
-```
-- 最后一个支持XTLS的V2Ray[]
-```
-wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/xtls_v2ray_last/install.sh" && chmod 700 /root/install.sh && /root/install.sh
 ```
 
 - 示例图
