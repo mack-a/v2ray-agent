@@ -52,7 +52,7 @@
 - 自动更新TLS证书
 - 支持快捷方式启动，安装完毕后，shell输入[vasma]即可打开脚本，脚本执行路径[/etc/v2ray-agent/install.sh]
 - 未来会支持Xray-core
-- 未来会支持ipv6
+- 未来会支持ipv6【手头暂时没有ipv6的机器，如有闲置的ipv6机器可以赞助给我】
 
 ## 注意事项
 - 修改Cloudflare->SSL/TLS->Overview->Full
