@@ -555,7 +555,7 @@ installV2Ray(){
     #    mkdir -p /usr/bin/v2ray/
     #    mkdir -p /etc/v2ray-agent/v2ray/
     echoContent skyBlue "\n进度  $1/${totalProgress} : 安装V2Ray"
-    echoContent red ${coreType},${v2rayCoreVersion}
+#    echoContent red ${coreType},${v2rayCoreVersion}
     # 首先要卸载掉其余途径安装的V2Ray
     if [[ ! -z `ps -ef|grep -v grep|grep v2ray` ]] && [[ -z `ps -ef|grep -v grep|grep v2ray|grep v2ray-agent` ]]
     then
@@ -587,7 +587,7 @@ installV2Ray(){
         rm -rf /etc/v2ray-agent/v2ray/v2ray-linux-64.zip
     else
 
-        if [[ ! -z "${v2rayCoreVersion}" ]]
+        if [[ ! -z "${v2rayCoreVersion}" ]] && [[ "${coreType}" = "3" ]]
         then
             echoContent green " ---> 锁定v2ray-core版本为v4.32.1"
             rm -f /etc/v2ray-agent/v2ray/v2ray
@@ -1143,8 +1143,8 @@ initV2RayConfig(){
       },
       "streamSettings": {
         "network": "tcp",
-        "security": "xtls",
-        "xtlsSettings": {
+        "security": "tls",
+        "tlsSettings": {
           "alpn": [
             "http/1.1"
           ],
@@ -1903,10 +1903,11 @@ showAccounts(){
         local tcpID=`echo ${tcp}|jq .settings.clients[0].id`
         local tcpEmail="`echo ${tcp}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
         local CDNADD=`echo ${tcp}|jq .settings.clients[0].add|awk -F '["]' '{print $2}'`
+
         # XTLS Direct
         local tcpIDirect=`echo ${tcp}|jq .settings.clients[1].id`
         local tcpDirectEmail="`echo ${tcp}|jq .settings.clients[1].email|awk -F '["]' '{print $2}'`"
-        host=`echo ${tcp}|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+
 
          # VLESS ws
         local vlessWS=`cat /etc/v2ray-agent/v2ray/config_full.json|jq .inbounds[3]`
@@ -1926,12 +1927,21 @@ showAccounts(){
         local vmessTCPEmail="`echo ${vmessTCP}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
         local vmessTCPath=`echo ${vmessTCP}|jq .streamSettings.tcpSettings.header.request.path[0]`
 
+        if [[ "${coreType}" = "3" ]]
+        then
+            host=`echo ${tcp}|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+            echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-origin ==========================="
+            defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${host}:${port}" ${add}
 
-        echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-origin ==========================="
-        defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${host}:${port}" ${add}
+            echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-direct ==========================="
+            defaultBase64Code vlesstcp ${tcpDirectEmail} "${tcpIDirect}" "${host}:${port}" ${add}
 
-        echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-direct ==========================="
-        defaultBase64Code vlesstcp ${tcpDirectEmail} "${tcpIDirect}" "${host}:${port}" ${add}
+        elif [[ "${coreType}" = "2" ]]
+        then
+            host=`echo ${tcp}|jq .streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+            echoContent skyBlue "\n============================ VLESS TCP TLS ======================================="
+            defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${host}:${port}" ${add}
+        fi
 
         echoContent skyBlue "\n================================ VLESS WS TLS CDN ================================"
         defaultBase64Code vlessws ${vlessWSEmail} "${vlessWSID}" "${host}:${port}" "${vlessWSPath}" ${CDNADD}
@@ -1958,11 +1968,19 @@ showAccounts(){
         local tcpDirectEmail="`echo ${tcp}|jq .settings.clients[1].email|awk -F '["]' '{print $2}'`"
         host=`echo ${tcp}|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
 
-        echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-origin ==========================="
-        defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${host}:${port}" ${add}
+        if [[ "${coreType}" = "3" ]]
+        then
+            echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-origin ==========================="
+            defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${host}:${port}" ${add}
 
-        echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-direct ==========================="
-        defaultBase64Code vlesstcp ${tcpDirectEmail} "${tcpIDirect}" "${host}:${port}" ${add}
+            echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-direct ==========================="
+            defaultBase64Code vlesstcp ${tcpDirectEmail} "${tcpIDirect}" "${host}:${port}" ${add}
+
+        elif [[ "${coreType}" = "2" ]]
+        then
+            echoContent skyBlue "\n============================ VLESS TCP TLS ======================================="
+            defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${host}:${port}" ${add}
+        fi
 
         if [[ ! -z "${customInstallType}" ]]
         then
@@ -2594,7 +2612,7 @@ judgeCoreType(){
     then
          coreType=0
     fi
-    echoContent red "${coreType}"
+#    echoContent red "${coreType}"
 }
 # v2ray-core 安装
 v2rayCoreInstall(){
