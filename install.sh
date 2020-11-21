@@ -2435,12 +2435,12 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.1.8"
+    echoContent green "当前版本：v2.1.9"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
     echoContent yellow "1.安装"
-    echoContent yellow "2.任意组合安装"
+    echoContent yellow "2.任意组合安装[临时屏蔽]"
     echoContent skyBlue "-------------------------工具管理-----------------------------"
     echoContent yellow "3.查看账号"
     echoContent yellow "4.自动排错 [仅V2Ray]"
@@ -2467,7 +2467,9 @@ menu(){
             selectCoreInstall
         ;;
         2)
-            customInstall
+            echoContent red " ---> 临时屏蔽，请等待更新"
+            exit 0;
+#            customInstall
         ;;
         3)
             showAccounts 1
