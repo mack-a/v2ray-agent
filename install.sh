@@ -10,7 +10,7 @@ coreType=
 domain=
 add=
 globalType=
-customPath=alone
+customPath=
 centosVersion=0
 totalProgress=1
 iplc=$1
@@ -66,7 +66,7 @@ mkdirTools(){
     mkdir -p /etc/v2ray-agent/trojan
     mkdir -p /etc/systemd/system/
     mkdir -p /tmp/v2ray-agent-tls/
-    echoContent red ${coreType}
+#    echoContent red ${coreType}
 }
 # 创建基础的文件目录
 mkdirBaseDIR(){
@@ -346,12 +346,62 @@ EOF
 # 自定义/随机路径
 randomPathFunction(){
     echoContent skyBlue "\n进度  $1/${totalProgress} : 生成随机路径"
-    echoContent yellow "请输入自定义路径[例: alone]，不需要斜杠，[回车]随机路径"
-    read -p '路径:' customPath
-
-    if [[ -z "${customPath}" ]]
+    filePath=
+    if [[ ! -z "${customInstallType}" ]]
     then
-        customPath=`head -n 50 /dev/urandom|sed 's/[^a-z]//g'|strings -n 4|tr 'A-Z' 'a-z'|head -1`
+        filePath=/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json
+    elif [[ -f "/etc/v2ray-agent/v2ray/config_full.json" ]]
+    then
+        filePath=/etc/v2ray-agent/v2ray/config_full.json
+    fi
+    customPath=
+    if [[ ! -z "${filePath}" ]]
+    then
+        cat ${filePath}|jq .inbounds[0].settings.fallbacks|jq -c '.[]'|while read row
+        do
+            if [[ ! -z `echo ${row}|grep 31299` ]]
+            then
+                # vmess ws
+                path=`echo ${row}|awk -F '["]' '{print $4}'`
+                customPath=${path:1:4}
+                echo ${customPath} > /tmp/v2rayagentcustomPath
+            fi
+
+            if [[ ! -z `echo ${row}|grep 31298` ]]
+            then
+                path=`echo ${row}|awk -F '["]' '{print $4}'`
+                customPath=${path:1:4}
+                echo ${customPath} > /tmp/v2rayagentcustomPath
+            fi
+
+            if [[ ! -z `echo ${row}|grep 31297` ]]
+            then
+                # vless ws
+                path=`echo ${row}|awk -F '["]' '{print $4}'`
+                customPath=${path:1:4}
+                echo ${customPath} > /tmp/v2rayagentcustomPath
+            fi
+        done
+        customPath=`cat /tmp/v2rayagentcustomPath`
+        rm -f /tmp/v2rayagentcustomPath
+    fi
+    if [[ ! -z "${customPath}" ]]
+    then
+        echo
+        read -p "读取到上次安装记录，是否使用上次安装时的path路径 ？[y/n]:" historyPathStatus
+        echo
+    fi
+    if [[ "${historyPathStatus}" = "y" ]]
+    then
+        echoContent green " ---> 使用成功\n"
+    else
+        echoContent yellow "请输入自定义路径[例: alone]，不需要斜杠，[回车]随机路径"
+        read -p '路径:' customPath
+
+        if [[ -z "${customPath}" ]]
+        then
+            customPath=`head -n 50 /dev/urandom|sed 's/[^a-z]//g'|strings -n 4|tr 'A-Z' 'a-z'|head -1`
+        fi
     fi
     echoContent yellow "path：${customPath}"
 }
@@ -1600,8 +1650,8 @@ EOF
       },
       "streamSettings": {
         "network": "tcp",
-        "security": "xtls",
-        "xtlsSettings": {
+        "security": "tls",
+        "tlsSettings": {
           "alpn": [
             "http/1.1"
           ],
@@ -1781,7 +1831,7 @@ defaultBase64Code(){
         echo "   vmess://${qrCodeBase64Default}" >> /etc/v2ray-agent/v2ray/usersv2ray.conf
         echoContent yellow " ---> 通用json(VLESS+TCP+TLS)"
         echoContent green '    {"port":"'${port}'","ps":"'${ps}'","tls":"tls","id":'"${id}"',"host":"'${host}'","type":"none","net":"tcp","add":"'${host}'","allowInsecure":0,"method":"none","peer":""}\n'
-        echoContent green '    V2Ray v4.27.4+ 目前无通用订阅，需要手动配置，VLESS TCP、XTLS和TCP大部分一样，其余内容不变，请注意手动输入的流控flow类型\n'
+        echoContent green '    V2Ray v4.27.4+ 目前无通用订阅，需要手动配置，VLESS TCP、XTLS和TCP大部分一样，其余内容不变，请注意手动输入的流控flow类型，v4.32.1之后不支持XTLS\n'
 
     elif [[ "${type}" = "vmessws" ]]
     then
@@ -1966,10 +2016,10 @@ showAccounts(){
         # XTLS Direct
         local tcpIDirect=`echo ${tcp}|jq .settings.clients[1].id`
         local tcpDirectEmail="`echo ${tcp}|jq .settings.clients[1].email|awk -F '["]' '{print $2}'`"
-        host=`echo ${tcp}|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
 
         if [[ "${coreType}" = "3" ]]
         then
+            host=`echo ${tcp}|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
             echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-origin ==========================="
             defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${host}:${port}" ${add}
 
@@ -1978,6 +2028,7 @@ showAccounts(){
 
         elif [[ "${coreType}" = "2" ]]
         then
+            host=`echo ${tcp}|jq .streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
             echoContent skyBlue "\n============================ VLESS TCP TLS ======================================="
             defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${host}:${port}" ${add}
         fi
@@ -2435,12 +2486,12 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.1.9"
+    echoContent green "当前版本：v2.1.10"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
     echoContent yellow "1.安装"
-    echoContent yellow "2.任意组合安装[临时屏蔽]"
+    echoContent yellow "2.任意组合安装"
     echoContent skyBlue "-------------------------工具管理-----------------------------"
     echoContent yellow "3.查看账号"
     echoContent yellow "4.自动排错 [仅V2Ray]"
@@ -2465,11 +2516,11 @@ menu(){
      case ${selectInstallType} in
         1)
             selectCoreInstall
+            v2rayCoreInstall
         ;;
         2)
-            echoContent red " ---> 临时屏蔽，请等待更新"
-            exit 0;
-#            customInstall
+            selectCoreInstall
+            customInstall
         ;;
         3)
             showAccounts 1
@@ -2597,24 +2648,36 @@ aliasInstall(){
         echoContent green "快捷方式创建成功，可执行[vasma]重新打开脚本"
     fi
 }
-# 如果v2ray-core核心低于4.33则不允许升级v2ray-core
+# 判断配置文件是否支持XTLS，不支持XTLS则允许升级v2ray-core
 judgeCoreType(){
     if [[ -d '/etc/v2ray-agent' ]] && [[ -d '/etc/v2ray-agent/v2ray' ]] && [[ -f '/etc/v2ray-agent/v2ray/v2ray' ]] && [[ -f '/etc/v2ray-agent/v2ray/v2ctl' ]]
     then
         # 所属v2ray-core
         local version=`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|awk -F "[.]" '{print $2}'|head -1`
-        if [[ ${version}  -lt 33 ]]
+        if [[ -f "/etc/v2ray-agent/v2ray/config_full.json" ]]
         then
-            coreType=3;
-            v2rayCoreVersion=v4.32.1
-        else
-            coreType=2;
+            if [[ ! -z `cat /etc/v2ray-agent/v2ray/config_full.json|grep xtls` ]]
+            then
+                coreType=3;
+                v2rayCoreVersion=v4.32.1
+            else
+                coreType=2;
+            fi
+        elif [[ -d "/etc/v2ray-agent/v2ray/conf" ]] && [[ -f "/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json" ]]
+        then
+            if [[ ! -z `cat /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json|grep xtls` ]]
+            then
+                coreType=3;
+                v2rayCoreVersion=v4.32.1
+            else
+                coreType=2;
+            fi
         fi
     elif [[ -d '/etc/v2ray-agent' ]] && [[ -d '/etc/v2ray-agent/xray' ]] && [[ -f '/etc/v2ray-agent/xray/xray' ]]
     then
          coreType=0
     fi
-#    echoContent red "${coreType}"
+    echoContent red "debug log:${coreType}--${v2rayCoreVersion}"
 }
 # v2ray-core 安装
 v2rayCoreInstall(){
@@ -2650,40 +2713,6 @@ v2rayCoreInstall(){
     showAccounts 17
 }
 
-# 最后一次支持XTLS的v2ray-core
-xtlsV2rayCoreInstall(){
-    v2rayCoreVersion=v4.32.1
-    customInstallType=
-    totalProgress=17
-    mkdirTools 1
-    installTools 2
-    # 申请tls
-    initTLSNginxConfig 3
-    installTLS 4
-    handleNginx stop
-    initNginxConfig 5
-    randomPathFunction 6
-    # 安装V2Ray
-    installV2Ray 7
-    installV2RayService 8
-    installTrojanGo 9
-    installTrojanService 10
-    customCDNIP 11
-    initV2RayConfig all 12
-    initTrojanGoConfig 13
-    installCronTLS 14
-    nginxBlog 15
-    handleV2Ray stop
-    sleep 2
-    handleV2Ray start
-    handleNginx start
-    handleTrojanGo stop
-    sleep 1
-    handleTrojanGo start
-    # 生成账号
-    checkGFWStatue 16
-    showAccounts 17
-}
 # xray-core 安装
 xrayCoreInstall(){
     customInstallType=
@@ -2822,17 +2851,16 @@ selectCoreInstall(){
             exit 0
         ;;
         2)
-            v2rayCoreInstall
+            v2rayCoreVersion=
         ;;
         3)
-            xtlsV2rayCoreInstall
+            v2rayCoreVersion=v4.32.1
         ;;
         *)
             echoContent red ' ---> 选择错误，重新选择'
             selectCoreInstall
         ;;
     esac
-
 }
 # 杀死sleep
 # killSleep(){
