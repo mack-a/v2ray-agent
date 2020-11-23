@@ -2677,7 +2677,7 @@ judgeCoreType(){
     then
          coreType=0
     fi
-    echoContent red "debug log:${coreType}--${v2rayCoreVersion}"
+#    echoContent red "debug log:${coreType}--${v2rayCoreVersion}"
 }
 # v2ray-core 安装
 v2rayCoreInstall(){
