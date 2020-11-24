@@ -319,6 +319,7 @@ installTLS(){
         installTLS $1
     else
         echoContent green " ---> 检测到证书"
+        checkTLStatus
         echoContent yellow " ---> 如未过期请选择[n]"
         read -p "是否重新生成？[y/n]:" reInstalTLStatus
         if [[ "${reInstalTLStatus}" = "y" ]]
@@ -347,7 +348,7 @@ EOF
 randomPathFunction(){
     echoContent skyBlue "\n进度  $1/${totalProgress} : 生成随机路径"
     filePath=
-    if [[ ! -z "${customInstallType}" ]]
+    if [[ -f "/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json" ]]
     then
         filePath=/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json
     elif [[ -f "/etc/v2ray-agent/v2ray/config_full.json" ]]
@@ -545,13 +546,20 @@ renewalTLS(){
     then
         if [[ ! -z "${customInstallType}" ]] || [[ -f "/etc/v2ray-agent/v2ray/config_full.json" ]]
         then
-            tcp=`cat /etc/v2ray-agent/v2ray/config_full.json|jq .inbounds[0]`
             if [[ -d "/etc/v2ray-agent/v2ray/conf" ]] && [[ -f "/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json" ]]
             then
                 tcp=`cat /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json|jq .inbounds[0]`
+            elif [[ -f "/etc/v2ray-agent/v2ray/config_full.json" ]]
+            then
+                tcp=`cat /etc/v2ray-agent/v2ray/config_full.json|jq .inbounds[0]`
             fi
 
-            host=`echo ${tcp}|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+            host=`echo ${tcp}|jq .streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+            if [[ -z "${host}" ]]
+            then
+                host=`echo ${tcp}|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+            fi
+
             if [[ -d "/root/.acme.sh/${host}_ecc" ]] && [[ -f "/root/.acme.sh/${host}_ecc/${host}.key" ]] && [[ -f "/root/.acme.sh/${host}_ecc/${host}.cer" ]]
             then
                 modifyTime=`stat /root/.acme.sh/${host}_ecc/${host}.key|sed -n '6,6p'|awk '{print $2" "$3" "$4" "$5}'`
@@ -599,6 +607,48 @@ renewalTLS(){
         echoContent red " ---> 无法找到相应路径，请使用脚本重新安装"
     fi
 }
+# 查看TLS证书的状态
+checkTLStatus(){
+    if [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]] && [[ -d "/etc/v2ray-agent/tls" ]] && [[ -d "/root/.acme.sh" ]]
+    then
+        if [[ -d "/etc/v2ray-agent/v2ray/conf" && -f "/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json" ]] || [[ -f "/etc/v2ray-agent/v2ray/config_full.json" ]]
+        then
+
+            if [[ -d "/etc/v2ray-agent/v2ray/conf" ]] && [[ -f "/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json" ]]
+            then
+                tcp=`cat /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json|jq .inbounds[0]`
+            elif [[ -f "/etc/v2ray-agent/v2ray/config_full.json" ]]
+            then
+                tcp=`cat /etc/v2ray-agent/v2ray/config_full.json|jq .inbounds[0]`
+            fi
+
+            host=`echo ${tcp}|jq .streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+            if [[ -z "${host}" ]]
+            then
+                host=`echo ${tcp}|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+            fi
+            if [[ -d "/root/.acme.sh/${host}_ecc" ]] && [[ -f "/root/.acme.sh/${host}_ecc/${host}.key" ]] && [[ -f "/root/.acme.sh/${host}_ecc/${host}.cer" ]]
+            then
+                modifyTime=`stat /root/.acme.sh/${host}_ecc/${host}.key|sed -n '6,6p'|awk '{print $2" "$3" "$4" "$5}'`
+
+                modifyTime=`date +%s -d "${modifyTime}"`
+                currentTime=`date +%s`
+                stampDiff=`expr ${currentTime} - ${modifyTime}`
+                days=`expr ${stampDiff} / 86400`
+                remainingDays=`expr 90 - ${days}`
+                tlsStatus=${remainingDays}
+                if [[ ${remainingDays} -le 0 ]]
+                then
+                    tlsStatus="已过期"
+                fi
+                echoContent skyBlue " ---> 证书生成日期:"`date -d @${modifyTime} +"%F %H:%M:%S"`
+                echoContent skyBlue " ---> 证书生成天数:"${days}
+                echoContent skyBlue " ---> 证书剩余天数:"${tlsStatus}
+            fi
+        fi
+    fi
+}
+
 # 安装V2Ray、指定版本
 installV2Ray(){
     # ls -F /usr/bin/v2ray/|grep "v2ray"
@@ -2402,15 +2452,37 @@ resetUUID(){
     then
         newUUID=`/etc/v2ray-agent/v2ray/v2ctl uuid`
         newDirectUUID=`/etc/v2ray-agent/v2ray/v2ctl uuid`
-
         currentUUID=`cat /etc/v2ray-agent/v2ray/config_full.json|jq .inbounds[0].settings.clients[0].id|awk -F '["]' '{print $2}'`
         currentDirectUUID=`cat /etc/v2ray-agent/v2ray/config_full.json|jq .inbounds[0].settings.clients[1].id|awk -F '["]' '{print $2}'`
-        if [[ ! -z "${currentUUID}" ]] && [[ ! -z "${currentDirectUUID}" ]]
+        if [[ ! -z "${currentUUID}" ]]
         then
+            read -p "是否自定义uuid？[y/n]:" customUUIDStatus
+            if [[ "${customUUIDStatus}" = "y" ]]
+            then
+                echo
+                read -p "请输入合法的uuid:" newUUID
+                echo
+            fi
             sed -i "s/${currentUUID}/${newUUID}/g"  `grep "${currentUUID}" -rl /etc/v2ray-agent/v2ray/config_full.json`
+
+        elif [[  ! -z "${currentDirectUUID}"  ]]
+        then
+            echoContent skyBlue "-------------------------------------------------------------"
+            read -p "是否自定义 XTLS-direct-uuid？[y/n]:" customUUIDStatus
+            if [[ "${customUUIDStatus}" = "y" ]]
+            then
+                echo
+                read -p "请输入合法的uuid:" newDirectUUID
+                echo
+                if [[ "${newUUID}" = "${newDirectUUID}" ]]
+                then
+                    echoContent red " ---> 两个uuid不可重复"
+                    resetUUID 1
+                    exit 0;
+                fi
+            fi
             sed -i "s/${currentDirectUUID}/${newDirectUUID}/g"  `grep "${currentDirectUUID}" -rl /etc/v2ray-agent/v2ray/config_full.json`
         fi
-
         echoContent green " ---> V2Ray UUID重置完毕"
         handleV2Ray stop
         handleV2Ray start
@@ -2419,6 +2491,13 @@ resetUUID(){
     then
         newUUID=`/etc/v2ray-agent/v2ray/v2ctl uuid`
         newDirectUUID=`/etc/v2ray-agent/v2ray/v2ctl uuid`
+        read -p "是否自定义uuid？[y/n]:" customUUIDStatus
+        if [[ "${customUUIDStatus}" = "y" ]]
+        then
+            echo
+            read -p "请输入合法的uuid:" newUUID
+            echo
+        fi
 
         uuidCount=0
         ls /etc/v2ray-agent/v2ray/conf|grep inbounds|while read row
@@ -2447,7 +2526,20 @@ resetUUID(){
         currentDirectUUID=`cat /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json|jq .inbounds|jq -c '.[].settings.clients[1].id'|awk -F "[\"]" '{print $2}'`
         if [[ ! -z "${currentDirectUUID}" ]]
         then
-            echoContent red currentDirectUUID:${currentDirectUUID}
+            echoContent skyBlue "-------------------------------------------------------------"
+            read -p "是否自定义xtls-direct-uuid？[y/n]:" customUUIDStatus
+            if [[ "${customUUIDStatus}" = "y" ]]
+            then
+                echo
+                read -p "请输入合法的uuid:" newDirectUUID
+                echo
+                if [[ "${newUUID}" = "${newDirectUUID}" ]]
+                then
+                    echoContent red " ---> 两个uuid不可重复"
+                    resetUUID 1
+                    exit 0;
+                fi
+            fi
             sed -i "s/${currentDirectUUID}/${newDirectUUID}/g"  `grep "${currentDirectUUID}" -rl /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json`
         fi
 
@@ -2461,12 +2553,12 @@ resetUUID(){
         exit 0;
     fi
 
-    if [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/trojan" ]] && [[ -f "/etc/v2ray-agent/trojan/config.json" ]]
+    if [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/trojan" ]] && [[ -f "/etc/v2ray-agent/trojan/config_full.json" ]]
     then
-        cat /etc/v2ray-agent/trojan/config.json|jq .password|jq -c '.[]'|while read row
+        cat /etc/v2ray-agent/trojan/config_full.json|jq .password|jq -c '.[]'|while read row
         do
             oldUUID=`echo ${row}|awk -F "[\"]" '{print $2}'`
-            sed -i "s/${oldUUID}/${newUUID}/g"  `grep "${oldUUID}" -rl /etc/v2ray-agent/trojan/config.json`
+            sed -i "s/${oldUUID}/${newUUID}/g"  `grep "${oldUUID}" -rl /etc/v2ray-agent/trojan/config_full.json`
         done
         echoContent green " ---> Trojan UUID重置完毕"
         handleTrojanGo stop
@@ -2486,7 +2578,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.1.10"
+    echoContent green "当前版本：v2.1.11"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
