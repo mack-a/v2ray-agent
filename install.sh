@@ -1,32 +1,134 @@
 #!/usr/bin/env bash
+# 检查系统
+checkSystem(){
+	if [[ ! -z `find /etc -name "redhat-release"` ]] || [[ ! -z `cat /proc/version | grep -i "centos" | grep -v grep ` ]]
+	then
+	    centosVersion=`rpm -q centos-release|awk -F "[-]" '{print $3}'|awk -F "[.]" '{print $1}'`
+		release="centos"
+		installType='yum -y install'
+		removeType='yum -y remove'
+		upgrade="yum update -y --skip-broken"
+	elif [[ ! -z `cat /etc/issue | grep -i "debian" | grep -v grep` ]] || [[ ! -z `cat /proc/version | grep -i "debian" | grep -v grep` ]]
+    then
+		release="debian"
+		installType='apt -y install'
+		upgrade="apt update -y"
+		removeType='apt -y autoremove'
+	elif [[ ! -z `cat /etc/issue | grep -i "ubuntu" | grep -v grep` ]] || [[ ! -z `cat /proc/version | grep -i "ubuntu" | grep -v grep` ]]
+	then
+		release="ubuntu"
+		installType='apt -y install'
+		upgrade="apt update -y"
+		removeType='apt --purge remove'
+    fi
+    if [[ -z ${release} ]]
+    then
+        echoContent red "本脚本不支持此系统，请将下方日志反馈给开发者"
+        cat /etc/issue
+        cat /proc/version
+        exit 0;
+    fi
+}
 
-installType='yum -y install'
-removeType='yum -y remove'
-upgrade="yum -y update"
-echoType='echo -e'
-branch=master
-v2rayCoreVersion=
-coreType=
-domain=
-add=
-globalType=
-customPath=
-centosVersion=0
-totalProgress=1
-iplc=$1
-uuid=
-uuidDirect=
-newUUID=
-newDirectUUID=
-customInstallType=
+# 初始化全局变量
+initVar(){
+    installType='yum -y install'
+    removeType='yum -y remove'
+    upgrade="yum -y update"
+    echoType='echo -e'
+    branch=master
+    v2rayCoreVersion=
+    coreType=
+    domain=
+    add=
+    globalType=
+    customPath=
+    centosVersion=0
+    totalProgress=1
+    iplc=$1
+    uuid=
+    uuidDirect=
+    newUUID=
+    newDirectUUID=
+    customInstallType=
 
-# trap 'onCtrlC' INT
-# function onCtrlC () {
-#     echo
-#     killSleep > /dev/null 2>&1
-#     exit;
-# }
-# echo颜色方法
+    # 1.xray-core安装
+    # 2.v2ray-core 安装
+    # 3.v2ray-core[xtls] 安装
+    v2rayCoreInstallType=
+
+    # 1.全部安装
+    # 2.个性化安装
+    installType=
+
+    # 当前的个性化安装方式
+    currentCustomInstallType=
+}
+
+# 检测安装方式
+checkInstallType(){
+    # 1.检测安装目录
+    if [[ -d "/etc/v2ray-agent" && -d "/etc/v2ray-agent/v2ray" ]]
+    then
+        # 检测安装方式 v2ray-core
+        if [[ -f "/etc/v2ray-agent/v2ray/v2ray" && -f "/etc/v2ray-agent/v2ray/v2ctl" ]]
+        then
+            if [[ -f "/etc/v2ray-agent/v2ray/v2ray_full.json" ]]
+            then
+                installType=1
+                if [[ ! -z `cat /etc/v2ray-agent/v2ray/v2ray_full.json|grep xtls` ]]
+                then
+                    v2rayCoreInstallType=3
+                elif [[ -z `cat /etc/v2ray-agent/v2ray/v2ray_full.json|grep xtls` ]]
+                then
+                    v2rayCoreInstallType=2
+                fi
+
+            elif [[ -d "/etc/v2ray-agent/v2ray/conf" && -f "/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json" ]]
+            then
+                installType=2
+                if [[ ! -z `cat /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json|grep xtls` ]]
+                then
+                    v2rayCoreInstallType=3
+                elif [[ -z `cat /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json|grep xtls` ]]
+                then
+                    v2rayCoreInstallType=2
+                fi
+            fi
+        else
+            # 这里检测xray-core
+            echo
+        fi
+    fi
+}
+
+# 检测个性化安装的方式
+checkCustomInstallType(){
+    if [[ "${installType}" = "2" ]]
+    then
+        # currentCustomInstallType
+        while read row
+        do
+             if [[ ! -z `echo ${row}|grep VLESS_TCP_inbounds` ]]
+            then
+                currentCustomInstallType=${currentCustomInstallType}'0'
+            fi
+            if [[ ! -z `echo ${row}|grep VLESS_WS_inbounds` ]]
+            then
+                currentCustomInstallType=${currentCustomInstallType}'1'
+            fi
+            if [[ ! -z `echo ${row}|grep VMess_TCP_inbounds` ]]
+            then
+                currentCustomInstallType=${currentCustomInstallType}'2'
+            fi
+            if  [[ ! -z `echo ${row}|grep VMess_WS_inbounds` ]]
+            then
+                currentCustomInstallType=${currentCustomInstallType}'3'
+            fi
+        done < <(echo `ls /etc/v2ray-agent/v2ray/conf|grep -v grep|grep inbounds.json|awk -F "[.]" '{print $1}'`)
+    fi
+}
+
 echoContent(){
     case $1 in
         # 红色
@@ -66,8 +168,8 @@ mkdirTools(){
     mkdir -p /etc/v2ray-agent/trojan
     mkdir -p /etc/systemd/system/
     mkdir -p /tmp/v2ray-agent-tls/
-#    echoContent red ${coreType}
 }
+
 # 创建基础的文件目录
 mkdirBaseDIR(){
     mkdir -p /etc/v2ray-agent
@@ -2901,6 +3003,7 @@ customInstall(){
         customInstall
     fi
 }
+
 # 初始化个性化安装类型
 initCustomInstallType(){
     if [[ -d "/etc/v2ray-agent/" ]] && [[ -d "/etc/v2ray-agent/v2ray/" ]] && [[ -d "/etc/v2ray-agent/v2ray/conf" ]]
@@ -2954,45 +3057,4 @@ selectCoreInstall(){
         ;;
     esac
 }
-# 杀死sleep
-# killSleep(){
-#    if [[ ! -z `ps -ef|grep -v grep|grep sleep` ]]
-#    then
-#        ps -ef|grep -v grep|grep sleep|awk '{print $3}'|xargs kill -9 > /dev/null 2>&1
-#        killSleep > /dev/null 2>&1
-#    fi
-# }
-
-# 检查系统
-checkSystem(){
-	if [[ ! -z `find /etc -name "redhat-release"` ]] || [[ ! -z `cat /proc/version | grep -i "centos" | grep -v grep ` ]]
-	then
-	    centosVersion=`rpm -q centos-release|awk -F "[-]" '{print $3}'|awk -F "[.]" '{print $1}'`
-		release="centos"
-		installType='yum -y install'
-		removeType='yum -y remove'
-		upgrade="yum update -y --skip-broken"
-	elif [[ ! -z `cat /etc/issue | grep -i "debian" | grep -v grep` ]] || [[ ! -z `cat /proc/version | grep -i "debian" | grep -v grep` ]]
-    then
-		release="debian"
-		installType='apt -y install'
-		upgrade="apt update -y"
-		removeType='apt -y autoremove'
-	elif [[ ! -z `cat /etc/issue | grep -i "ubuntu" | grep -v grep` ]] || [[ ! -z `cat /proc/version | grep -i "ubuntu" | grep -v grep` ]]
-	then
-		release="ubuntu"
-		installType='apt -y install'
-		upgrade="apt update -y"
-		removeType='apt --purge remove'
-    fi
-    if [[ -z ${release} ]]
-    then
-        echoContent red "本脚本不支持此系统，请将下方日志反馈给开发者"
-        cat /etc/issue
-        cat /proc/version
-        exit 0;
-    fi
-}
-
-checkSystem
 menu
