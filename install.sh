@@ -37,7 +37,7 @@ initVar(){
     upgrade="yum -y update"
     echoType='echo -e'
     branch=master
-    v2rayCoreVersion=
+
     coreType=
     domain=
     add=
@@ -50,7 +50,7 @@ initVar(){
     uuidDirect=
     newUUID=
     newDirectUUID=
-    customInstallType=
+
 
     # 1.xray-core安装
     # 2.v2ray-core 安装
@@ -63,18 +63,41 @@ initVar(){
 
     # 当前的个性化安装方式
     currentCustomInstallType=
+
+    # 选择的个性化安装方式
+    selectCustomInstallType=
+
+    # 配置文件的路径
+    v2rayConfigFilePath=
+
+    # 配置文件的path
+    currentPath=
+
+    # 配置文件的host
+    currentHost=
+
+    # 安装时选择的core类型
+    selectCoreType=
+
+    # coreInstallStatus
+    coreInstallStatus=
+
+    # 默认core版本
+    v2rayCoreVersion=
 }
 
 # 检测安装方式
-checkInstallType(){
+initInstallType(){
     # 1.检测安装目录
     if [[ -d "/etc/v2ray-agent" && -d "/etc/v2ray-agent/v2ray" ]]
     then
         # 检测安装方式 v2ray-core
         if [[ -f "/etc/v2ray-agent/v2ray/v2ray" && -f "/etc/v2ray-agent/v2ray/v2ctl" ]]
         then
+            coreInstallStatus=true
             if [[ -f "/etc/v2ray-agent/v2ray/v2ray_full.json" ]]
             then
+
                 installType=1
                 if [[ ! -z `cat /etc/v2ray-agent/v2ray/v2ray_full.json|grep xtls` ]]
                 then
@@ -103,7 +126,7 @@ checkInstallType(){
 }
 
 # 检测个性化安装的方式
-checkCustomInstallType(){
+initCustomInstallType(){
     if [[ "${installType}" = "2" ]]
     then
         # currentCustomInstallType
@@ -127,6 +150,46 @@ checkCustomInstallType(){
             fi
         done < <(echo `ls /etc/v2ray-agent/v2ray/conf|grep -v grep|grep inbounds.json|awk -F "[.]" '{print $1}'`)
     fi
+}
+
+# 检查文件目录以及path路径
+initConfigHostPath(){
+    # config path
+    if [[ "${installType}" = "1" ]]
+    then
+        v2rayConfigFilePath=/etc/v2ray-agent/v2ray/v2ray_full.json
+    elif [[ "${installType}" = "2" ]]
+    then
+        v2rayConfigFilePath=/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json
+    fi
+    # path
+    if [[ ! -z "${v2rayConfigFilePath}" ]]
+    then
+        local path=`cat ${v2rayConfigFilePath}|jq .inbounds[0].settings.fallbacks|jq -c '.[].path'|awk -F "[\"][/]" '{print $2}'|awk -F "[\"]" '{print $1}'|tail -n +2|head -n 1`
+        if [[ ! -z "${currentPath}" ]]
+        then
+            currentPath=${path:0:4}
+        fi
+    fi
+
+    # host
+    if [[ "${v2rayCoreInstallType}" = "2" ]]
+    then
+        currentHost=`cat ${v2rayConfigFilePath}|jq .inbounds[0].streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+
+    elif [[ "${v2rayCoreInstallType}" = "3" ]]
+    then
+        currentHost=`cat ${v2rayConfigFilePath}|jq .inbounds[0].streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+    fi
+
+}
+
+# 检查core安装状态
+checkCoreStatus(){
+     if [[ -d "/etc/v2ray-agent" && -d "/etc/v2ray-agent/v2ray" ]] && [[ -f "/etc/v2ray-agent/v2ray/v2ray" && -f "/etc/v2ray-agent/v2ray/v2ctl" ]]
+     then
+        coreInstallStatus=true
+     fi
 }
 
 echoContent(){
@@ -159,9 +222,9 @@ echoContent(){
         ;;
     esac
 }
-# 新建目录
+
+# 初始化安装目录
 mkdirTools(){
-    echoContent skyBlue "\n进度  $1/${totalProgress} : 创建文件夹"
     mkdir -p /etc/v2ray-agent/tls
     mkdir -p /etc/v2ray-agent/v2ray/conf
     mkdir -p /etc/v2ray-agent/xray
@@ -170,10 +233,6 @@ mkdirTools(){
     mkdir -p /tmp/v2ray-agent-tls/
 }
 
-# 创建基础的文件目录
-mkdirBaseDIR(){
-    mkdir -p /etc/v2ray-agent
-}
 # 安装工具包
 installTools(){
     echoContent skyBlue "\n进度  $1/${totalProgress} : 安装工具"
@@ -231,10 +290,7 @@ installTools(){
     fi
 
     echoContent green " ---> 检查、安装更新【新机器会很慢，耐心等待】"
-    # if [[ "${release}" = "centos" ]]
-    # then
-    #    yum-complete-transaction --cleanup-only
-    # fi
+
     ${upgrade} > /dev/null
     if [[ "${release}" = "centos" ]]
     then
@@ -305,9 +361,6 @@ installTools(){
     fi
     # todo 关闭防火墙
 
-    # 新建所需目录
-    # mkdirTools
-
     if [[ ! -d "/root/.acme.sh" ]]
     then
         echoContent green " ---> 安装acme.sh"
@@ -337,6 +390,7 @@ installTools(){
         fi
     fi
 }
+
 # 初始化Nginx申请证书配置
 initTLSNginxConfig(){
     handleNginx stop
@@ -369,6 +423,7 @@ initTLSNginxConfig(){
         fi
     fi
 }
+
 # 检查ip
 checkIP(){
     pingIP=`ping -c 1 -W 1000 ${domain}|sed '1{s/[^(]*(//;s/).*//;q;}'`
@@ -396,7 +451,7 @@ checkIP(){
 # 安装TLS
 installTLS(){
     echoContent skyBlue "\n进度  $1/${totalProgress} : 申请TLS证书"
-    if [[ -z `find /etc/v2ray-agent/tls/ -name "${domain}*"` ]]
+    if [[ ! -z `ls /etc/v2ray-agent/tls|grep ${domain}.crt` ]] && [[ ! -z `ls /etc/v2ray-agent/tls|grep ${domain}.key` ]]
     then
         echoContent green " ---> 安装TLS证书"
 
@@ -412,8 +467,7 @@ installTLS(){
             exit 0
         fi
         echoContent green " ---> TLS生成成功"
-        # 记录证书生成的时间
-        # echo ${domain} `date +%s` > /etc/v2ray-agent/tls/config
+
     elif  [[ -z `cat /etc/v2ray-agent/tls/${domain}.crt` ]] || [[ -z `cat /etc/v2ray-agent/tls/${domain}.key` ]]
     then
         echoContent yellow " ---> 检测到错误证书，需重新生成，重新生成中"
@@ -423,8 +477,8 @@ installTLS(){
         echoContent green " ---> 检测到证书"
         checkTLStatus
         echoContent yellow " ---> 如未过期请选择[n]"
-        read -p "是否重新生成？[y/n]:" reInstalTLStatus
-        if [[ "${reInstalTLStatus}" = "y" ]]
+        read -p "是否重新生成？[y/n]:" reInstallStatus
+        if [[ "${reInstallStatus}" = "y" ]]
         then
             rm -rf /etc/v2ray-agent/tls/*
             installTLS $1
@@ -434,7 +488,6 @@ installTLS(){
 # 配置伪装博客
 initNginxConfig(){
     echoContent skyBlue "\n进度  $1/${totalProgress} : 配置Nginx"
-    installType=$1
 
         cat << EOF > /etc/nginx/conf.d/alone.conf
 server {
@@ -446,54 +499,27 @@ server {
 }
 EOF
 }
+
 # 自定义/随机路径
 randomPathFunction(){
     echoContent skyBlue "\n进度  $1/${totalProgress} : 生成随机路径"
-    filePath=
-    if [[ -f "/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json" ]]
-    then
-        filePath=/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json
-    elif [[ -f "/etc/v2ray-agent/v2ray/config_full.json" ]]
-    then
-        filePath=/etc/v2ray-agent/v2ray/config_full.json
-    fi
+
     customPath=
-    if [[ ! -z "${filePath}" ]]
+    if [[ ! -z "${v2rayConfigFilePath}" ]]
     then
-        cat ${filePath}|jq .inbounds[0].settings.fallbacks|jq -c '.[]'|while read row
-        do
-            if [[ ! -z `echo ${row}|grep 31299` ]]
-            then
-                # vmess ws
-                path=`echo ${row}|awk -F '["]' '{print $4}'`
-                customPath=${path:1:4}
-                echo ${customPath} > /tmp/v2rayagentcustomPath
-            fi
 
-            if [[ ! -z `echo ${row}|grep 31298` ]]
-            then
-                path=`echo ${row}|awk -F '["]' '{print $4}'`
-                customPath=${path:1:4}
-                echo ${customPath} > /tmp/v2rayagentcustomPath
-            fi
-
-            if [[ ! -z `echo ${row}|grep 31297` ]]
-            then
-                # vless ws
-                path=`echo ${row}|awk -F '["]' '{print $4}'`
-                customPath=${path:1:4}
-                echo ${customPath} > /tmp/v2rayagentcustomPath
-            fi
-        done
-        customPath=`cat /tmp/v2rayagentcustomPath`
-        rm -f /tmp/v2rayagentcustomPath
+        v2rayConfigFilePath=/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json
+        path=`cat ${v2rayConfigFilePath}|jq .inbounds[0].settings.fallbacks|jq -c '.[].path'|awk -F "[\"][/]" '{print $2}'|awk -F "[\"]" '{print $1}'|tail -n +2|head -n 1`
+        customPath=${path:0:4}
     fi
+
     if [[ ! -z "${customPath}" ]]
     then
         echo
         read -p "读取到上次安装记录，是否使用上次安装时的path路径 ？[y/n]:" historyPathStatus
         echo
     fi
+
     if [[ "${historyPathStatus}" = "y" ]]
     then
         echoContent green " ---> 使用成功\n"
@@ -538,6 +564,7 @@ handleNginx(){
         fi
     fi
 }
+
 # 定时任务更新tls证书
 installCronTLS(){
     echoContent skyBlue "\n进度  $1/${totalProgress} : 添加定时维护证书"
@@ -636,170 +663,117 @@ EOF
         echoContent green " ---> 添加定时维护证书成功"
     else
         crontab -l >> /etc/v2ray-agent/backup_crontab.cron
+
         # 定时任务
         crontab /etc/v2ray-agent/backup_crontab.cron
         echoContent green " ---> 添加定时维护证书成功"
     fi
 }
+
 # 更新证书
 renewalTLS(){
     echoContent skyBlue "\n进度  1/1 : 更新证书"
-    if [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]] && [[ -d "/etc/v2ray-agent/tls" ]] && [[ -d "/root/.acme.sh" ]]
+    if [[ -d "/root/.acme.sh" ]]
     then
-        if [[ ! -z "${customInstallType}" ]] || [[ -f "/etc/v2ray-agent/v2ray/config_full.json" ]]
+        if [[ -d "/root/.acme.sh/${currentHost}_ecc" ]] && [[ -f "/root/.acme.sh/${currentHost}_ecc/${currentHost}.key" ]] && [[ -f "/root/.acme.sh/${currentHost}_ecc/${currentHost}.cer" ]]
         then
-            if [[ -d "/etc/v2ray-agent/v2ray/conf" ]] && [[ -f "/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json" ]]
+            modifyTime=`stat /root/.acme.sh/${currentHost}_ecc/${currentHost}.key|sed -n '6,6p'|awk '{print $2" "$3" "$4" "$5}'`
+
+            modifyTime=`date +%s -d "${modifyTime}"`
+            currentTime=`date +%s`
+            stampDiff=`expr ${currentTime} - ${modifyTime}`
+            days=`expr ${stampDiff} / 86400`
+            remainingDays=`expr 90 - ${days}`
+            tlsStatus=${remainingDays}
+            if [[ ${remainingDays} -le 0 ]]
             then
-                tcp=`cat /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json|jq .inbounds[0]`
-            elif [[ -f "/etc/v2ray-agent/v2ray/config_full.json" ]]
-            then
-                tcp=`cat /etc/v2ray-agent/v2ray/config_full.json|jq .inbounds[0]`
+                tlsStatus="已过期"
             fi
-
-            host=`echo ${tcp}|jq .streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
-            if [[ -z "${host}" ]]
+            echoContent skyBlue " ---> 证书生成日期:"`date -d @${modifyTime} +"%F %H:%M:%S"`
+            echoContent skyBlue " ---> 证书生成天数:"${days}
+            echoContent skyBlue " ---> 证书剩余天数:"${tlsStatus}
+            if [[ ${remainingDays} -le 1 ]]
             then
-                host=`echo ${tcp}|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
-            fi
-
-            if [[ -d "/root/.acme.sh/${host}_ecc" ]] && [[ -f "/root/.acme.sh/${host}_ecc/${host}.key" ]] && [[ -f "/root/.acme.sh/${host}_ecc/${host}.cer" ]]
-            then
-                modifyTime=`stat /root/.acme.sh/${host}_ecc/${host}.key|sed -n '6,6p'|awk '{print $2" "$3" "$4" "$5}'`
-
-                modifyTime=`date +%s -d "${modifyTime}"`
-                currentTime=`date +%s`
-        #        currentTime=`date +%s -d "2021-09-04 02:15:56.438105732 +0000"`
-        #        currentTIme=1609459200
-                stampDiff=`expr ${currentTime} - ${modifyTime}`
-                days=`expr ${stampDiff} / 86400`
-                remainingDays=`expr 90 - ${days}`
-                tlsStatus=${remainingDays}
-                if [[ ${remainingDays} -le 0 ]]
-                then
-                    tlsStatus="已过期"
-                fi
-                echoContent skyBlue " ---> 证书生成日期:"`date -d @${modifyTime} +"%F %H:%M:%S"`
-                echoContent skyBlue " ---> 证书生成天数:"${days}
-                echoContent skyBlue " ---> 证书剩余天数:"${tlsStatus}
-                if [[ ${remainingDays} -le 1 ]]
-                then
-                    echoContent yellow " ---> 重新生成证书"
-                    if [[ `ps -ef|grep -v grep|grep nginx` ]]
-                    then
-                        nginx -s stop
-                    fi
-                    sudo ~/.acme.sh/acme.sh --installcert -d ${host} --fullchainpath /etc/v2ray-agent/tls/${host}.crt --keypath /etc/v2ray-agent/tls/${host}.key --ecc >> /etc/v2ray-agent/tls/acme.log
-                    nginx
-                    if [[ `ps -ef|grep -v grep|grep nginx` ]]
-                    then
-                        echoContent green " ---> nginx启动成功"
-                    else
-                        echoContent red " ---> nginx启动失败，请检查[/etc/v2ray-agent/tls/acme.log]"
-                    fi
-                else
-                    echoContent green " ---> 证书有效"
-                fi
+                echoContent yellow " ---> 重新生成证书"
+                handleNginx stop
+                sudo ~/.acme.sh/acme.sh --installcert -d ${currentHost} --fullchainpath /etc/v2ray-agent/tls/${currentHost}.crt --keypath /etc/v2ray-agent/tls/${currentHost}.key --ecc >> /etc/v2ray-agent/tls/acme.log
+                handleNginx start
             else
-                echoContent red " ---> 无法找到相应证书路径，请使用脚本重新安装"
+                echoContent green " ---> 证书有效"
             fi
         else
-            echoContent red " ---> 无法找到相应路径，请使用脚本重新安装"
+            echoContent red " ---> 未安装"
         fi
     else
-        echoContent red " ---> 无法找到相应路径，请使用脚本重新安装"
+        echoContent red " ---> 未安装"
     fi
 }
 # 查看TLS证书的状态
 checkTLStatus(){
-    if [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]] && [[ -d "/etc/v2ray-agent/tls" ]] && [[ -d "/root/.acme.sh" ]]
+    if [[ ! -z "${currentHost}" ]]
     then
-        if [[ -d "/etc/v2ray-agent/v2ray/conf" && -f "/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json" ]] || [[ -f "/etc/v2ray-agent/v2ray/config_full.json" ]]
+        if [[ -d "/root/.acme.sh/${currentHost}_ecc" ]] && [[ -f "/root/.acme.sh/${currentHost}_ecc/${currentHost}.key" ]] && [[ -f "/root/.acme.sh/${currentHost}_ecc/${currentHost}.cer" ]]
         then
+            modifyTime=`stat /root/.acme.sh/${currentHost}_ecc/${currentHost}.key|sed -n '6,6p'|awk '{print $2" "$3" "$4" "$5}'`
 
-            if [[ -d "/etc/v2ray-agent/v2ray/conf" ]] && [[ -f "/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json" ]]
+            modifyTime=`date +%s -d "${modifyTime}"`
+            currentTime=`date +%s`
+            stampDiff=`expr ${currentTime} - ${modifyTime}`
+            days=`expr ${stampDiff} / 86400`
+            remainingDays=`expr 90 - ${days}`
+            tlsStatus=${remainingDays}
+            if [[ ${remainingDays} -le 0 ]]
             then
-                tcp=`cat /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json|jq .inbounds[0]`
-            elif [[ -f "/etc/v2ray-agent/v2ray/config_full.json" ]]
-            then
-                tcp=`cat /etc/v2ray-agent/v2ray/config_full.json|jq .inbounds[0]`
+                tlsStatus="已过期"
             fi
-
-            host=`echo ${tcp}|jq .streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
-            if [[ -z "${host}" ]]
-            then
-                host=`echo ${tcp}|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
-            fi
-            if [[ -d "/root/.acme.sh/${host}_ecc" ]] && [[ -f "/root/.acme.sh/${host}_ecc/${host}.key" ]] && [[ -f "/root/.acme.sh/${host}_ecc/${host}.cer" ]]
-            then
-                modifyTime=`stat /root/.acme.sh/${host}_ecc/${host}.key|sed -n '6,6p'|awk '{print $2" "$3" "$4" "$5}'`
-
-                modifyTime=`date +%s -d "${modifyTime}"`
-                currentTime=`date +%s`
-                stampDiff=`expr ${currentTime} - ${modifyTime}`
-                days=`expr ${stampDiff} / 86400`
-                remainingDays=`expr 90 - ${days}`
-                tlsStatus=${remainingDays}
-                if [[ ${remainingDays} -le 0 ]]
-                then
-                    tlsStatus="已过期"
-                fi
-                echoContent skyBlue " ---> 证书生成日期:"`date -d @${modifyTime} +"%F %H:%M:%S"`
-                echoContent skyBlue " ---> 证书生成天数:"${days}
-                echoContent skyBlue " ---> 证书剩余天数:"${tlsStatus}
-            fi
+            echoContent skyBlue " ---> 证书生成日期:"`date -d @${modifyTime} +"%F %H:%M:%S"`
+            echoContent skyBlue " ---> 证书生成天数:"${days}
+            echoContent skyBlue " ---> 证书剩余天数:"${tlsStatus}
         fi
     fi
 }
 
 # 安装V2Ray、指定版本
 installV2Ray(){
-    # ls -F /usr/bin/v2ray/|grep "v2ray"
-    #    mkdir -p /usr/bin/v2ray/
-    #    mkdir -p /etc/v2ray-agent/v2ray/
+    checkCoreStatus
     echoContent skyBlue "\n进度  $1/${totalProgress} : 安装V2Ray"
-#    echoContent red ${coreType},${v2rayCoreVersion}
     # 首先要卸载掉其余途径安装的V2Ray
     if [[ ! -z `ps -ef|grep -v grep|grep v2ray` ]] && [[ -z `ps -ef|grep -v grep|grep v2ray|grep v2ray-agent` ]]
     then
         ps -ef|grep -v grep|grep v2ray|awk '{print $8}'|xargs rm -f
         ps -ef|grep -v grep|grep v2ray|awk '{print $2}'|xargs kill -9 > /dev/null 2>&1
     fi
-    if [[ -z `ls -F /etc/v2ray-agent/v2ray/|grep -w "v2ray"` ]] || [[ -z `ls -F /etc/v2ray-agent/v2ray/|grep -w "v2ctl"` ]]
+
+    if [[ -z "${coreInstallStatus}" ]]
     then
-        if [[ "${coreType}" = "2" ]]
+        if [[ "${selectCoreType}" = "2" ]]
         then
             version=`curl -s https://github.com/v2fly/v2ray-core/releases|grep /v2ray-core/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
         else
             version=${v2rayCoreVersion}
         fi
 
-        # version="v4.27.4"
         echoContent green " ---> v2ray-core版本:${version}"
-#        echoContent green " ---> 下载v2ray-core核心中"
         if [[ ! -z `wget --help|grep show-progress` ]]
         then
             wget -c -q --show-progress -P /etc/v2ray-agent/v2ray/ https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip
         else
-            wget -c -P /etc/v2ray-agent/v2ray/ https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip
+            wget -c -P /etc/v2ray-agent/v2ray/ https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip > /dev/null 2>&1
         fi
 
-        # echoContent green " ---> 下载完毕，解压中"
         unzip -o /etc/v2ray-agent/v2ray/v2ray-linux-64.zip -d /etc/v2ray-agent/v2ray > /dev/null
-        # echoContent green " ---> 解压完毕，删除压缩包"
         rm -rf /etc/v2ray-agent/v2ray/v2ray-linux-64.zip
     else
-
-        if [[ ! -z "${v2rayCoreVersion}" ]] && [[ "${coreType}" = "3" ]]
+        if [[ "${coreType}" = "3" ]]
         then
             echoContent green " ---> 锁定v2ray-core版本为v4.32.1"
             rm -f /etc/v2ray-agent/v2ray/v2ray
             rm -f /etc/v2ray-agent/v2ray/v2ctl
             installV2Ray $1
         else
-            # progressTools "green" "  v2ray-core版本:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`"
             echoContent green " ---> v2ray-core版本:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`"
-            read -p "是否更新、升级？[y/n]:" reInstalV2RayStatus
-            if [[ "${reInstalV2RayStatus}" = "y" ]]
+            read -p "是否更新、升级？[y/n]:" reInstallV2RayStatus
+            if [[ "${reInstallV2RayStatus}" = "y" ]]
             then
                 rm -f /etc/v2ray-agent/v2ray/v2ray
                 rm -f /etc/v2ray-agent/v2ray/v2ctl
@@ -808,6 +782,7 @@ installV2Ray(){
         fi
     fi
 }
+
 # 安装Trojan-go
 installTrojanGo(){
     echoContent skyBlue "\n进度  $1/${totalProgress} : 安装Trojan-Go"
@@ -819,14 +794,13 @@ installTrojanGo(){
         then
             wget -c -q --show-progress -P /etc/v2ray-agent/trojan/ https://github.com/p4gefau1t/trojan-go/releases/download/${version}/trojan-go-linux-amd64.zip
         else
-            wget -c -P /etc/v2ray-agent/trojan/ https://github.com/p4gefau1t/trojan-go/releases/download/${version}/trojan-go-linux-amd64.zip
+            wget -c -P /etc/v2ray-agent/trojan/ https://github.com/p4gefau1t/trojan-go/releases/download/${version}/trojan-go-linux-amd64.zip > /dev/null 2>&1
         fi
-        # wget -q -P /etc/v2ray-agent/trojan/ https://github.com/p4gefau1t/trojan-go/releases/download/${version}/trojan-go-linux-amd64.zip
         unzip -o /etc/v2ray-agent/trojan/trojan-go-linux-amd64.zip -d /etc/v2ray-agent/trojan > /dev/null
         rm -rf /etc/v2ray-agent/trojan/trojan-go-linux-amd64.zip
     else
-        # progressTools "green" "  v2ray-core版本:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`"
         echoContent green " ---> Trojan-Go版本:`/etc/v2ray-agent/trojan/trojan-go --version|awk '{print $2}'|head -1`"
+
         read -p "是否重新安装？[y/n]:" reInstalTrojanStatus
         if [[ "${reInstalV2RayStatus}" = "y" ]]
         then
@@ -835,6 +809,7 @@ installTrojanGo(){
         fi
     fi
 }
+
 # V2Ray版本管理
 v2rayVersionManageMenu(){
     echoContent skyBlue "\n进度  $1/${totalProgress} : V2Ray版本管理"
@@ -872,10 +847,11 @@ v2rayVersionManageMenu(){
     fi
 
 }
+
 # 更新V2Ray
 updateV2Ray(){
-
-    if [[ -z `ls -F /etc/v2ray-agent/v2ray/|grep "v2ray"` ]] || [[ -z `ls -F /etc/v2ray-agent/v2ray/|grep "v2ctl"` ]]
+    checkCoreStatus
+    if [[ -z "${coreInstallStatus}" ]]
     then
         if [[ ! -z "$1" ]]
         then
@@ -883,6 +859,7 @@ updateV2Ray(){
         else
             version=`curl -s https://github.com/v2fly/v2ray-core/releases|grep /v2ray-core/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
         fi
+        # 使用锁定的版本
         if [[ ! -z "${v2rayCoreVersion}" ]]
         then
             version=${v2rayCoreVersion}
@@ -893,7 +870,7 @@ updateV2Ray(){
         then
             wget -c -q --show-progress -P /etc/v2ray-agent/v2ray/ https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip
         else
-            wget -c -P /etc/v2ray-agent/v2ray/ https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip
+            wget -c -P /etc/v2ray-agent/v2ray/ https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip > /dev/null 2>&1
         fi
 
         unzip -o  /etc/v2ray-agent/v2ray/v2ray-linux-64.zip -d /etc/v2ray-agent/v2ray > /dev/null
@@ -902,55 +879,53 @@ updateV2Ray(){
         handleV2Ray start
     else
         echoContent green " ---> 当前v2ray-core版本:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`"
-        if [[ ! -z `/etc/v2ray-agent/v2ray/v2ray --version` ]]
+
+        if [[ ! -z "$1" ]]
         then
-            if [[ ! -z "$1" ]]
+            version=$1
+        else
+            version=`curl -s https://github.com/v2fly/v2ray-core/releases|grep /v2ray-core/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
+        fi
+
+        if [[ ! -z "${v2rayCoreVersion}" ]]
+        then
+            version=${v2rayCoreVersion}
+        fi
+        if [[ ! -z "$1" ]]
+        then
+            read -p "回退版本为${version}，是否继续？[y/n]:" rollbackV2RayStatus
+            if [[ "${rollbackV2RayStatus}" = "y" ]]
             then
-                version=$1
+                handleV2Ray stop
+                rm -f /etc/v2ray-agent/v2ray/v2ray
+                rm -f /etc/v2ray-agent/v2ray/v2ctl
+                updateV2Ray ${version}
             else
-                version=`curl -s https://github.com/v2fly/v2ray-core/releases|grep /v2ray-core/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
+                echoContent green " ---> 放弃回退版本"
+            fi
+        elif [[ "${version}" = "v`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`" ]]
+        then
+            read -p "当前版本与最新版相同，是否重新安装？[y/n]:" reInstallV2RayStatus
+            if [[ "${reInstallV2RayStatus}" = "y" ]]
+            then
+                handleV2Ray stop
+                rm -f /etc/v2ray-agent/v2ray/v2ray
+                rm -f /etc/v2ray-agent/v2ray/v2ctl
+                updateV2Ray
+            else
+                echoContent green " ---> 放弃重新安装"
+            fi
+        else
+            read -p "最新版本为：${version}，是否更新？[y/n]：" installV2RayStatus
+            if [[ "${installV2RayStatus}" = "y" ]]
+            then
+                rm -f /etc/v2ray-agent/v2ray/v2ray
+                rm -f /etc/v2ray-agent/v2ray/v2ctl
+                updateV2Ray
+            else
+                echoContent green " ---> 放弃更新"
             fi
 
-            if [[ ! -z "${v2rayCoreVersion}" ]]
-            then
-                version=${v2rayCoreVersion}
-            fi
-            if [[ ! -z "$1" ]]
-            then
-                read -p "回退版本为${version}，是否继续？[y/n]:" rollbackV2RayStatus
-                if [[ "${rollbackV2RayStatus}" = "y" ]]
-                then
-                    handleV2Ray stop
-                    rm -f /etc/v2ray-agent/v2ray/v2ray
-                    rm -f /etc/v2ray-agent/v2ray/v2ctl
-                    updateV2Ray ${version}
-                else
-                    echoContent green " ---> 放弃回退版本"
-                fi
-            elif [[ "${version}" = "v`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`" ]]
-            then
-                read -p "当前版本与最新版相同，是否重新安装？[y/n]:" reInstalV2RayStatus
-                if [[ "${reInstalV2RayStatus}" = "y" ]]
-                then
-                    handleV2Ray stop
-                    rm -f /etc/v2ray-agent/v2ray/v2ray
-                    rm -f /etc/v2ray-agent/v2ray/v2ctl
-                    updateV2Ray
-                else
-                    echoContent green " ---> 放弃重新安装"
-                fi
-            else
-                read -p "最新版本为：${version}，是否更新？[y/n]：" installV2RayStatus
-                if [[ "${installV2RayStatus}" = "y" ]]
-                then
-                    rm -f /etc/v2ray-agent/v2ray/v2ray
-                    rm -f /etc/v2ray-agent/v2ray/v2ctl
-                    updateV2Ray
-                else
-                    echoContent green " ---> 放弃更新"
-                fi
-
-            fi
         fi
     fi
 }
@@ -972,9 +947,8 @@ updateTrojanGo(){
         then
             wget -c -q --show-progress -P /etc/v2ray-agent/trojan/ https://github.com/p4gefau1t/trojan-go/releases/download/${version}/trojan-go-linux-amd64.zip
         else
-            wget -c -P /etc/v2ray-agent/trojan/ https://github.com/p4gefau1t/trojan-go/releases/download/${version}/trojan-go-linux-amd64.zip
+            wget -c -P /etc/v2ray-agent/trojan/ https://github.com/p4gefau1t/trojan-go/releases/download/${version}/trojan-go-linux-amd64.zip > /dev/null 2>&1
         fi
-        # wget -q -P /etc/v2ray-agent/trojan/ https://github.com/p4gefau1t/trojan-go/releases/download/${version}/trojan-go-linux-amd64.zip
         unzip -o /etc/v2ray-agent/trojan/trojan-go-linux-amd64.zip -d /etc/v2ray-agent/trojan > /dev/null
         rm -rf /etc/v2ray-agent/trojan/trojan-go-linux-amd64.zip
         handleTrojanGo stop
@@ -984,15 +958,12 @@ updateTrojanGo(){
         if [[ ! -z `/etc/v2ray-agent/trojan/trojan-go --version` ]]
         then
             version=`curl -s https://github.com/p4gefau1t/trojan-go/releases|grep /trojan-go/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
-#             echo version:${version}
-#             echo version2:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`
             if [[ "${version}" = "`/etc/v2ray-agent/trojan/trojan-go --version|awk '{print $2}'|head -1`" ]]
             then
                 read -p "当前版本与最新版相同，是否重新安装？[y/n]:" reInstalTrojanGoStatus
                 if [[ "${reInstalTrojanGoStatus}" = "y" ]]
                 then
                     handleTrojanGo stop
-                    cp /etc/v2ray-agent/trojan/config.json /tmp/trojan_config.json
                     rm -rf /etc/v2ray-agent/trojan/trojan-go
                     updateTrojanGo 1
                 else
@@ -1011,81 +982,19 @@ updateTrojanGo(){
         fi
     fi
 }
-# 自动升级
-automaticUpgrade(){
-    if [[ -f "/root/install.sh" ]] && [[ ! -z `cat ~/install.sh|grep -v grep|grep mack-a` ]] && [[ -d "/etc/v2ray-agent" ]]
-    then
-        local currentTime=`date +%s`
-        local version=0
-        local currentVersion=0
-        # 首次安装完毕后再次使用时出发
-        if [[ ! -f "/etc/v2ray-agent/upgradeStatus" ]]
-        then
-            echo "firstUpgrade|${currentTime}" > /etc/v2ray-agent/upgradeStatus
-        fi
 
-        if [[  -z `cat /etc/v2ray-agent/upgradeStatus` ]]
-        then
-            echo "firstUpgrade|${currentTime}" > /etc/v2ray-agent/upgradeStatus
-        fi
-
-        # 第一次升级不计算时间
-        if [[ "`cat /etc/v2ray-agent/upgradeStatus|awk -F '[|]' '{print $1}'`" = "firstUpgrade" ]]
-        then
-            version=`curl -s https://github.com/mack-a/v2ray-agent/releases|grep -v grep|grep /mack-a/v2ray-agent/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
-            currentVersion=`cat /root/install.sh|grep -v grep|grep "当前版本："|awk '{print $3}'|awk -F "[\"]" '{print $2}'|awk -F "[v]" '{print $2}'`
-            echo "upgrade|${currentTime}" > /etc/v2ray-agent/upgradeStatus
-        elif [[ "`cat /etc/v2ray-agent/upgradeStatus|awk -F '[|]' '{print $1}'`" = "upgrade" ]] && [[ ! -z `cat /etc/v2ray-agent/upgradeStatus|awk -F '[|]' '{print $2}'` ]]
-        then
-            # 第二次计算时间 三天
-            local lastTime=`cat /etc/v2ray-agent/upgradeStatus|awk -F '[|]' '{print $2}'`
-            local stampDiff=`expr ${currentTime} - ${lastTime}`
-            dayDiff=`expr ${stampDiff} / 86400`
-            if [[ ${dayDiff} -gt 3 ]]
-            then
-                version=`curl -s https://github.com/mack-a/v2ray-agent/releases|grep -v grep|grep /mack-a/v2ray-agent/releases/tag/|head -1|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'`
-                currentVersion=`cat /root/install.sh|grep -v grep|grep "当前版本："|awk '{print $3}'|awk -F "[\"]" '{print $2}'|awk -F "[v]" '{print $2}'`
-                echo "upgrade|${currentTime}" > /etc/v2ray-agent/upgradeStatus
-            fi
-        fi
-        if [[ "v${currentVersion}" != "${version}" ]] && [[ "${version}" != "0" ]] && [[ "${currentVersion}" != "0" ]]
-        then
-            echoContent yellow " ---> 当前版本：`echo ${version}|grep -v grep|awk -F '[v]' '{print $2}'`"
-            echoContent green " ---> 新 版 本：${currentVersion}"
-            read -p "发现新版本，是否更新[y/n]？：" upgradeStatus
-            if [[ "${upgradeStatus}" = "y" ]]
-            then
-                updateV2RayAgent 1
-                menu
-            else
-                echo "notUpgrade|${currentTime}" > /etc/v2ray-agent/upgradeStatus
-                menu
-                exit;
-            fi
-        fi
-    fi
-}
-updateV2RayAgent(){
-    local currentTime=`date +%s`
-    echo "upgrade|${currentTime}" > /etc/v2ray-agent/upgradeStatus
-    echoContent skyBlue "\n进度  $1/${totalProgress} : 更新v2ray-agent脚本"
-    mkdir -p /etc/v2ray-agent
-    wget -P /etc/v2ray-agent/ -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/${branch}/install.sh" && chmod 700 /etc/v2ray-agent/install.sh && vasma
-
-}
 # 验证整个服务是否可用
 checkGFWStatue(){
-    # 验证整个服务是否可用
-#    progressTools "yellow" "验证服务是否可用--->"
-    echoContent skyBlue "\n进度 $1/${totalProgress} : 验证服务是否可用"
+    echoContent skyBlue "\n进度 $1/${totalProgress} : 验证服务启动状态"
     if [[ ! -z `ps -ef|grep -v grep|grep v2ray` ]]
     then
         echoContent green " ---> 服务启动成功"
     else
-        echoContent red " ---> 服务不可用，请检查终端是否有日志打印"
+        echoContent red " ---> 服务启动失败，请检查终端是否有日志打印"
         exit 0
     fi
 }
+
 # V2Ray开机自启
 installV2RayService(){
     echoContent skyBlue "\n进度  $1/${totalProgress} : 配置V2Ray开机自启"
@@ -1248,41 +1157,33 @@ handleTrojanGo(){
 initV2RayConfig(){
     echoContent skyBlue "\n进度 $2/${totalProgress} : 初始化V2Ray配置"
 
-    if [[ -d "/etc/v2ray-agent" && -d "/etc/v2ray-agent/v2ray" ]] && [[ -f "/etc/v2ray-agent/v2ray/config_full.json" || -f "/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json"  ]]
+    if [[ ! -z "${v2rayConfigFilePath}" ]]
     then
         echo
         read -p "读取到上次安装记录，是否使用上次安装时的UUID ？[y/n]:" historyUUIDStatus
         if [[ "${historyUUIDStatus}" = "y" ]]
         then
-            if [[ -f "/etc/v2ray-agent/v2ray/config_full.json" ]]
+            if [[ "${installType}" = "2" ]]
             then
-                if [[ "${coreType}" = "3" ]]
-                then
-                    uuid=`cat /etc/v2ray-agent/v2ray/config_full.json|jq .inbounds[0].settings.clients[0].id|awk -F '["]' '{print $2}'`
-                    uuidDirect=`cat /etc/v2ray-agent/v2ray/config_full.json|jq .inbounds[0].settings.clients[1].id|awk -F '["]' '{print $2}'`
-                elif [[ "${coreType}" = "2" ]]
-                then
-                    uuid=`cat /etc/v2ray-agent/v2ray/config_full.json|jq .inbounds[0].settings.clients[0].id|awk -F '["]' '{print $2}'`
-                fi
-
-            elif [[ -f "/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json" ]]
+                uuid=`cat ${v2rayConfigFilePath}|jq .inbounds[0].settings.clients[0].id|awk -F '["]' '{print $2}'`
+            elif [[ "${installType}" = "3" ]]
             then
-
-                uuid=`cat /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json|jq .inbounds[0].settings.clients[0].id|awk -F '["]' '{print $2}'`
-                uuidDirect=`cat /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json|jq .inbounds[0].settings.clients[1].id|awk -F '["]' '{print $2}'`
+                uuidDirect=`cat ${v2rayConfigFilePath}|jq .inbounds[0].settings.clients[1].id|awk -F '["]' '{print $2}'`
             fi
+
         fi
     else
         uuid=`/etc/v2ray-agent/v2ray/v2ctl uuid`
         uuidDirect=`/etc/v2ray-agent/v2ray/v2ctl uuid`
     fi
+
     if [[ -z "${uuid}" ]]
     then
         echoContent red "\n ---> uuid读取错误，重新生成"
         uuid=`/etc/v2ray-agent/v2ray/v2ctl uuid`
     fi
 
-    if [[ -z "${uuidDirect}" ]] && [[ "${coreType}" = "3" ]]
+    if [[ -z "${uuidDirect}" ]] && [[ "${selectCoreType}" = "3" ]]
     then
         echoContent red "\n ---> uuid XTLS-direct读取错误，重新生成"
         uuidDirect=`/etc/v2ray-agent/v2ray/v2ctl uuid`
@@ -1298,7 +1199,7 @@ initV2RayConfig(){
 
     rm -rf /etc/v2ray-agent/v2ray/conf/*
     rm -rf /etc/v2ray-agent/v2ray/config_full.json
-    if [[ "$1" = "all" ]] && [[ "${coreType}" = "2" ]]
+    if [[ "$1" = "all" ]] && [[ "${selectCoreType}" = "2" ]]
     then
         # default v2ray-core
         cat << EOF > /etc/v2ray-agent/v2ray/config_full.json
@@ -1454,7 +1355,7 @@ initV2RayConfig(){
   }
 }
 EOF
-    elif [[ "$1" = "all" ]] && [[ "${coreType}" = "3" ]]
+    elif [[ "$1" = "all" ]] && [[ "${selectCoreType}" = "3" ]]
     then
         # 需锁定4.32.1
         cat << EOF > /etc/v2ray-agent/v2ray/config_full.json
@@ -1664,8 +1565,6 @@ EOF
             fallbacksList='{"dest":80,"xver":0}'
         fi
 
-        # {"dest":31296,"xver":0},{"path":"/${customPath}","dest":31299,"xver":1},{"path":"/${customPath}tcp","dest":31298,"xver":1},{"path":"/${customPath}ws","dest":31297,"xver":1}
-
         # VLESS_WS_TLS
         if [[ ! -z `echo ${customInstallType}|grep 1` ]]
         then
@@ -1873,7 +1772,7 @@ EOF
 }
 # 初始化Trojan-Go配置
 initTrojanGoConfig(){
-#    uuidTrojanGo=`/etc/v2ray-agent/v2ray/v2ctl uuid`
+
     echoContent skyBlue "\n进度 $1/${totalProgress} : 初始化Trojan配置"
     cat << EOF > /etc/v2ray-agent/trojan/config_full.json
 {
@@ -1913,16 +1812,19 @@ initTrojanGoConfig(){
 }
 EOF
 }
+
 # 自定义CDN IP
 customCDNIP(){
     echoContent skyBlue "\n进度 $1/${totalProgress} : 添加DNS智能解析"
     echoContent yellow " 移动:104.19.41.56"
     echoContent yellow " 联通:104.16.160.136"
     echoContent yellow " 电信:104.17.78.198"
+    echoContent skyBlue "-------------------------------------------------------------"
     read -p '是否使用？[y/n]:' dnsProxy
     if [[ "${dnsProxy}" = "y" ]]
     then
         add="domain08.qiu4.ml"
+        echoContent green "\n ---> 使用成功"
     else
         add="${domain}"
     fi
@@ -2033,70 +1935,13 @@ defaultBase64Code(){
         echoContent green "    trojan-go://${id}@${add}:${port}?sni=${host}&type=ws&host=${host}&path=%2F${path}#${host}_trojan_ws\n"
     fi
 }
-# 进度条工具 废弃
-progressTool(){
-    #
-    i=0
-    toolName=$1
-    sp='/-\|'
-    n=${#sp}
-    printf ' '
-    if [[ "${toolName}" = "crontabs" ]]
-    then
-        toolName="crontab"
-    fi
-    while true; do
-        status=
-        if [[ -z `find /usr/bin/ -name ${toolName}` ]] && [[ -z `find /usr/sbin/ -name ${toolName}` ]]
-        then
-            printf '\b%s' "${sp:i++%n:1}" > /dev/null
-        else
-            break;
-        fi
-        sleep 0.1
-    done
-    echoContent green "  $1已安装--->"
-}
-progressTools(){
-    color=$1
-    content=$2
-    installProgress=$3
-#    echo ${color},${content},${installProgress}
-    echoContent ${color} "${content}"
-    if [[ ! -z "${installProgress}" ]]
-    then
-        installProgressFunction ${installProgress} ${totalProgress} &
-    fi
-
-    sleep 0.5
-}
-installProgressFunction(){
-    installProgress=$1
-    totalProgress=$2
-    currentProgress=0
-    i=0
-    sp='/-\|'
-    n=${#sp}
-
-    progressNum=`awk 'BEGIN{printf "%.0f\n",('${installProgress}'/'${totalProgress}')*100}'`
-    printf '\b%s' "[${progressNum}%]   "
-    while true; do
-        if [[ ${installProgress} -gt ${currentProgress} ]] && [[ ${installProgress} -lt ${totalProgress} ]]
-        then
-            printf '\b%s' "${sp:i++%n:1}"
-        else
-            break
-        fi
-        sleep 0.1
-    done
-}
 
 # 账号
 showAccounts(){
     showStatus=
     local host=
     echoContent skyBlue "\n进度 $1/${totalProgress} : 账号"
-    if [[ -d "/etc/v2ray-agent/" ]] && [[ -d "/etc/v2ray-agent/v2ray/" ]] && [[ -f "/etc/v2ray-agent/v2ray/config_full.json" ]] && [[ -z "${customInstallType}" ]]
+    if [[ "${installType}" = "2" ]]
     then
         showStatus=true
         # VLESS tcp
@@ -2129,7 +1974,7 @@ showAccounts(){
         local vmessTCPEmail="`echo ${vmessTCP}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
         local vmessTCPath=`echo ${vmessTCP}|jq .streamSettings.tcpSettings.header.request.path[0]`
 
-        if [[ "${coreType}" = "3" ]]
+        if [[ "${selectCoreType}" = "3" ]]
         then
             host=`echo ${tcp}|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
             echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-origin ==========================="
@@ -2138,7 +1983,7 @@ showAccounts(){
             echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-direct ==========================="
             defaultBase64Code vlesstcp ${tcpDirectEmail} "${tcpIDirect}" "${host}:${port}" ${add}
 
-        elif [[ "${coreType}" = "2" ]]
+        elif [[ "${selectCoreType}" = "2" ]]
         then
             host=`echo ${tcp}|jq .streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
             echoContent skyBlue "\n============================ VLESS TCP TLS ======================================="
@@ -2154,7 +1999,7 @@ showAccounts(){
         echoContent skyBlue "\n================================= VMess TCP TLS  ================================="
         defaultBase64Code vmesstcp ${vmessTCPEmail} "${vmessTCPID}" "${host}:${port}" "${vmessTCPath}" "${host}"
 
-    elif [[ -d "/etc/v2ray-agent/" ]] && [[ -d "/etc/v2ray-agent/v2ray/" ]] && [[ -d "/etc/v2ray-agent/v2ray/conf" ]] && [[ ! -z "${customInstallType}" ]]
+    elif [[ ! -z "${selectCustomInstallType}" ]]
     then
         showStatus=true
 
@@ -2169,7 +2014,7 @@ showAccounts(){
         local tcpIDirect=`echo ${tcp}|jq .settings.clients[1].id`
         local tcpDirectEmail="`echo ${tcp}|jq .settings.clients[1].email|awk -F '["]' '{print $2}'`"
 
-        if [[ "${coreType}" = "3" ]]
+        if [[ "${selectCoreType}" = "3" ]]
         then
             host=`echo ${tcp}|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
             echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-origin ==========================="
@@ -2178,16 +2023,16 @@ showAccounts(){
             echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-direct ==========================="
             defaultBase64Code vlesstcp ${tcpDirectEmail} "${tcpIDirect}" "${host}:${port}" ${add}
 
-        elif [[ "${coreType}" = "2" ]]
+        elif [[ "${selectCoreType}" = "2" ]]
         then
             host=`echo ${tcp}|jq .streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
             echoContent skyBlue "\n============================ VLESS TCP TLS ======================================="
             defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${host}:${port}" ${add}
         fi
 
-        if [[ ! -z "${customInstallType}" ]]
+        if [[ ! -z "${selectCustomInstallType}" ]]
         then
-            if [[ ! -z `echo ${customInstallType}|grep 1` ]]
+            if [[ ! -z `echo ${selectCustomInstallType}|grep 1` ]]
             then
                 # VLESS ws
                 local vlessWS=`cat /etc/v2ray-agent/v2ray/conf/03_VLESS_WS_inbounds.json|jq .inbounds[0]`
@@ -2199,7 +2044,7 @@ showAccounts(){
                 echoContent skyBlue "\n================================ VLESS WS TLS CDN ================================"
                 defaultBase64Code vlessws ${vlessWSEmail} "${vlessWSID}" "${host}:${port}" "${vlessWSPath}" ${CDNADD}
             fi
-            if [[ ! -z `echo ${customInstallType}|grep 2` ]]
+            if [[ ! -z `echo ${selectCustomInstallType}|grep 2` ]]
             then
 
                 local vmessTCP=`cat /etc/v2ray-agent/v2ray/conf/04_VMess_TCP_inbounds.json|jq .inbounds[0]`
@@ -2210,7 +2055,7 @@ showAccounts(){
                 echoContent skyBlue "\n================================= VMess TCP TLS  ================================="
                 defaultBase64Code vmesstcp ${vmessTCPEmail} "${vmessTCPID}" "${host}:${port}" "${vmessTCPath}" "${host}"
             fi
-            if [[ ! -z `echo ${customInstallType}|grep 3` ]]
+            if [[ ! -z `echo ${selectCustomInstallType}|grep 3` ]]
             then
 
                 local ws=`cat /etc/v2ray-agent/v2ray/conf/05_VMess_WS_inbounds.json|jq .inbounds[0]`
@@ -2245,6 +2090,7 @@ showAccounts(){
         echoContent red " ---> 未安装"
     fi
 }
+
 # 卸载脚本
 unInstall(){
     read -p "是否确认卸载安装内容？[y/n]:" unInstallStatus
@@ -2284,198 +2130,14 @@ unInstall(){
     echoContent green " ---> 卸载快捷方式完成"
     echoContent green " ---> 卸载v2ray-agent完成"
 }
-# 检查错误
-checkFail(){
-    echoContent skyBlue "\n进度 $1/${totalProgress} : 检查错误"
-    if [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]]
-    then
-        V2RayProcessStatus=
-        # V2Ray
-        if [[ ! -z `ls /etc/v2ray-agent/v2ray/|grep -w v2ray` ]] && [[ ! -z `ls /etc/v2ray-agent/v2ray/|grep -w v2ctl` ]] && [[ ! -z `ps -ef|grep -v grep|grep v2ray-agent/v2ray` ]]
-        then
-            V2RayProcessStatus=true
-            echoContent green " ---> V2Ray 运行正常"
-        else
-            echoContent yellow "检查V2Ray是否安装"
-            if [[ -z `ls /etc/v2ray-agent/v2ray/|grep -w v2ray` ]] || [[ -z `ls /etc/v2ray-agent/v2ray/|grep -w v2ctl` ]]
-            then
-                echoContent red " ---> V2Ray 未安装"
-            else
-                echoContent green " ---> V2Ray 已安装"
-            fi
-            echoContent yellow "\n检查V2Ray开机自启文件是否存在"
-            if [[ -f "/etc/systemd/system/v2ray.service" ]]
-            then
-                if [[ ! -z `cat /etc/systemd/system/v2ray.service|grep v2ray-agent` ]]
-                then
-                    echoContent green " ---> V2Ray 开机自启文件存在"
-                else
-                    echoContent red " ---> V2Ray 开机自启文件出现异常，请重新使用此脚本安装"
-                fi
-            else
-                echoContent grep " ---> V2Ray 开机自启不存在"
-            fi
-            echoContent yellow "\n检查V2Ray配置文件是否存在"
-            if [[ ! -z `ls /etc/v2ray-agent/v2ray/|grep -w config_full.json` ]] || [[ ! -z "${customInstallType}" ]]
-            then
-                echoContent green " ---> V2Ray配置文件存在"
-                echoContent yellow "\n验证配置文件是否正常"
-                if [[ -f "/etc/v2ray-agent/v2ray/config_full.json" ]]
-                then
-                    # [安装]方式
-                    if [[ ! -z `/etc/v2ray-agent/v2ray/v2ray -test -c /etc/v2ray-agent/v2ray/config_full.json|grep "failed"` ]]
-                    then
-                        echoContent red " ---> V2Ray配置文件验证失败，错误日志如下，如没有手动更改配置请提issues"
-                        /etc/v2ray-agent/v2ray/v2ray -test -c /etc/v2ray-agent/v2ray/config_full.json
-                    else
-                        V2RayProcessStatus=true
-                        echoContent green " ---> V2Ray配置文件验证成功"
-                    fi
-                elif [[ ! -z "${customInstallType}" ]]
-                then
-                    # [个性化]安装方式
-                    /etc/v2ray-agent/v2ray/v2ray -test -confdir /etc/v2ray-agent/v2ray/conf > /tmp/customV2rayAgentLog 2>&1
-                    if [[ ! -z `cat /tmp/customV2rayAgentLog|grep fail` ]]
-                    then
-                        echoContent red " ---> V2Ray配置文件验证失败，错误日志如下，如没有手动更改配置请提issues"
-                        /etc/v2ray-agent/v2ray/v2ray -test -confdir /etc/v2ray-agent/v2ray/conf
-                    else
-                        V2RayProcessStatus=true
-                        echoContent green " ---> V2Ray配置文件验证成功"
-                    fi
-                    rm -f /tmp/customV2rayAgentLog
-                fi
-                if [[ "${V2RayProcessStatus}" = "true" ]] && [[ -z `ps -ef|grep -v grep|grep v2ray-agent/v2ray` ]]
-                then
-                    echoContent yellow "\n尝试重新启动"
-                    handleV2Ray start
-                fi
-            else
-                echoContent red " ---> V2Ray配置文件不存在，请重新使用此脚本安装"
-            fi
-        fi
-        # 运行正常的情况需要判定几个连接是否正常 出现400 invalid request
 
-        ########
-    else
-        echoContent red " ---> 未使用脚本安装"
-    fi
-
-    # 检查服务是否可用
-    if [[ "${V2RayProcessStatus}" = "true" ]]
-    then
-        echo
-        read -p "是否检查服务是否可用，执行此操作会清空[error]日志，是否执行[y/n]？" checkServerStatus
-        if [[ "${checkServerStatus}" = "y" ]]
-        then
-            filePath=
-            host=
-            if [[ -f "/etc/v2ray-agent/v2ray/config_full.json" ]] && [[ -z "${customInstallType}" ]]
-            then
-                filePath="/etc/v2ray-agent/v2ray/config_full.json"
-                host=`cat /etc/v2ray-agent/v2ray/config_full.json|jq .inbounds[0]|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
-            elif [[ ! -z "${customInstallType}" ]]
-            then
-                filePath="/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json"
-                host=`cat /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json|jq .inbounds[0]|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
-            fi
-
-            if [[ ! -z "${host}" ]]
-            then
-                checkV2RayServer vlesstcp ${host}
-                cat ${filePath}|jq .inbounds[0].settings.fallbacks|jq -c '.[]'|while read row
-                do
-                    if [[ ! -z `echo ${row}|grep 31299` ]]
-                    then
-                        # vmess ws
-                        path=`echo ${row}|awk -F '["]' '{print $4}'`
-                        checkV2RayServer vmessws ${host} ${path}
-                    fi
-
-                    if [[ ! -z `echo ${row}|grep 31298` ]]
-                    then
-                        path=`echo ${row}|awk -F '["]' '{print $4}'`
-                        checkV2RayServer vmesstcp ${host} ${path}
-                    fi
-
-                    if [[ ! -z `echo ${row}|grep 31297` ]]
-                    then
-                        # vless ws
-                        path=`echo ${row}|awk -F '["]' '{print $4}'`
-                        checkV2RayServer vlessws ${host} ${path}
-                    fi
-                done
-            fi
-        fi
-    fi
-    exit 0;
-}
-# 检查V2Ray具体服务是否正常
-checkV2RayServer(){
-    local type=$1
-    local host=$2
-    local path=$3
-
-    echo '' > /etc/v2ray-agent/v2ray_error.log
-
-    case ${type} in
-    vlesstcp)
-        echoContent yellow "\n判断VLESS+TCP是否可用"
-        curl -s -L https://${host} > /dev/null
-        if [[ ! -z `cat /etc/v2ray-agent/v2ray/v2ray_error.log|grep -w "firstLen = 83"` ]] && [[ ! -z `cat /etc/v2ray-agent/v2ray/v2ray_error.log|grep -w "invalid request version"` ]] && [[ ! -z `cat /etc/v2ray-agent/v2ray/v2ray_error.log|grep -w "realPath = /"` ]]
-        then
-            echoContent green " ---> 初步判断VLESS+TCP可用，需自己进一步判断是否真正可用"
-        else
-            echoContent red " ---> 初步判断VLESS+TCP不可用，需自己进一步判断是否真正可用"
-        fi
-    ;;
-    vlessws)
-        echoContent yellow "\n判断VLESS+WS是否可用"
-        if [[ ! -z `curl -s -L https://${host}${path}|grep -v grep|grep "Bad Request"` ]]
-        then
-            echoContent green " ---> 初步判断VLESS+WS可用，需自己进一步判断是否真正可用"
-        else
-            echoContent red " ---> 初步判断VLESS+WS不可用，需自己进一步判断是否真正可用"
-        fi
-    ;;
-    vmessws)
-        echoContent yellow "\n判断VMess+WS是否可用"
-        if [[ ! -z `curl -s -L https://${host}${path}|grep -v grep|grep "Bad Request"` ]]
-        then
-            echoContent green " ---> 初步判断VMess+WS可用，需自己进一步判断是否真正可用"
-        else
-            echoContent red " ---> 初步判断VMess+WS不可用，需自己进一步判断是否真正可用"
-        fi
-    ;;
-    vmesstcp)
-        echoContent yellow "\n判断VMess+TCP是否可用"
-        curl -s -L https://${host} > /dev/null
-        if [[ ! -z `cat /etc/v2ray-agent/v2ray/v2ray_error.log|grep -w "firstLen = 89"` ]] && [[ ! -z `cat /etc/v2ray-agent/v2ray/v2ray_error.log|grep -w "invalid request version"` ]]
-        then
-            echoContent green " ---> 初步判断VMess+TCP可用，需自己进一步判断是否真正可用"
-        else
-            echoContent red " ---> 初步判断VMess+TCP不可用，需自己进一步判断是否真正可用"
-        fi
-    ;;
-    esac
-}
 # 修改V2Ray CDN节点
 updateV2RayCDN(){
     echoContent skyBlue "\n进度 $1/${totalProgress} : 修改CDN节点"
-    if [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]]
+    if [[ ! -z "${installType}" ]]
     then
-        local configPath=
-        if [[ -f "/etc/v2ray-agent/v2ray/config_full.json" ]]
-        then
-            configPath="/etc/v2ray-agent/v2ray/config_full.json"
-        elif [[ -d "/etc/v2ray-agent/v2ray/conf" ]] && [[ -f "/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json" ]]
-        then
-            configPath="/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json"
-        else
-            echoContent red " ---> 未安装"
-            exit 0;
-        fi
-        local add=`cat ${configPath}|grep -v grep|grep add`
+
+        local add=`cat ${v2rayConfigFilePath}|grep -v grep|grep add`
         if [[ ! -z ${add} ]]
         then
             echoContent red "=============================================================="
@@ -2507,8 +2169,8 @@ updateV2RayCDN(){
                 then
                     sed -i "s/${add}/${setDomain}/g"  `grep "${add}" -rl ${configPath}`
                 fi
-                # sed -i "s/domain08.qiu4.ml1/domain08.qiu4.ml/g"  `grep "domain08.qiu4.ml1" -rl ${configPath}`
-                if [[ `cat ${configPath}|grep -v grep|grep add|awk -F '["]' '{print $4}'` = ${setDomain} ]]
+
+                if [[ `cat ${v2rayConfigFilePath}|grep -v grep|grep add|awk -F '["]' '{print $4}'` = ${setDomain} ]]
                 then
                     echoContent green " ---> V2Ray CDN修改成功"
                     handleV2Ray stop
@@ -2550,7 +2212,7 @@ updateV2RayCDN(){
 resetUUID(){
     echoContent skyBlue "\n进度 $1/${totalProgress} : 重置UUID"
     local resetStatus=false
-    if [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]] && [[ -f "/etc/v2ray-agent/v2ray/config_full.json" ]] && [[ -z "${customInstallType}" ]]
+    if [[ ! -z "${installType}" ]] && [[ -z "${currentCustomInstallType}" ]]
     then
         newUUID=`/etc/v2ray-agent/v2ray/v2ctl uuid`
         newDirectUUID=`/etc/v2ray-agent/v2ray/v2ctl uuid`
@@ -2589,7 +2251,7 @@ resetUUID(){
         handleV2Ray stop
         handleV2Ray start
         resetStatus=true
-    elif [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]] && [[ -d "/etc/v2ray-agent/v2ray/conf" ]] && [[ ! -z "${customInstallType}" ]]
+    elif [[ ! -z "${installType}" ]] && [[ ! -z "${currentCustomInstallType}" ]]
     then
         newUUID=`/etc/v2ray-agent/v2ray/v2ctl uuid`
         newDirectUUID=`/etc/v2ray-agent/v2ray/v2ctl uuid`
@@ -2675,82 +2337,14 @@ resetUUID(){
     fi
 }
 
-# 主菜单
-menu(){
-    cd
-    echoContent red "\n=============================================================="
-    echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.1.11"
-    echoContent green "Github：https://github.com/mack-a/v2ray-agent"
-    echoContent green "描述：七合一共存脚本"
-    echoContent red "=============================================================="
-    echoContent yellow "1.安装"
-    echoContent yellow "2.任意组合安装"
-    echoContent skyBlue "-------------------------工具管理-----------------------------"
-    echoContent yellow "3.查看账号"
-    echoContent yellow "4.自动排错 [仅V2Ray]"
-    echoContent yellow "5.更新证书"
-    echoContent yellow "6.更换CDN节点"
-    echoContent yellow "7.重置uuid"
-    echoContent skyBlue "-------------------------版本管理-----------------------------"
-    echoContent yellow "8.V2Ray版本管理"
-    echoContent yellow "9.升级Trojan-Go"
-    echoContent yellow "10.升级脚本"
-    echoContent yellow "11.安装BBR"
-    echoContent skyBlue "-------------------------脚本管理-----------------------------"
-    echoContent yellow "12.查看日志"
-    echoContent yellow "13.卸载脚本"
-    echoContent red "=============================================================="
-    # automaticUpgrade
-    initCustomInstallType
-    mkdirBaseDIR
-    aliasInstall
-    judgeCoreType
-    read -p "请选择:" selectInstallType
-     case ${selectInstallType} in
-        1)
-            selectCoreInstall
-            v2rayCoreInstall
-        ;;
-        2)
-            selectCoreInstall
-            customInstall
-        ;;
-        3)
-            showAccounts 1
-        ;;
-        4)
-            checkFail 1
-        ;;
-        5)
-            renewalTLS 1
-        ;;
-        6)
-            updateV2RayCDN 1
-        ;;
-        7)
-            resetUUID 1
-        ;;
-        8)
-            v2rayVersionManageMenu 1
-        ;;
-        9)
-            updateTrojanGo 1
-        ;;
-        10)
-            updateV2RayAgent 1
-        ;;
-        11)
-            bbrInstall
-        ;;
-        12)
-            checkLog 1
-        ;;
-        13)
-            unInstall 1
-        ;;
-    esac
+# 更新脚本
+updateV2RayAgent(){
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 更新v2ray-agent脚本"
+    wget -P /etc/v2ray-agent/ -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh" && chmod 700 /etc/v2ray-agent/install.sh && vasma
 }
+
+
+
 # 安装BBR
 bbrInstall(){
     echoContent red "\n=============================================================="
@@ -2766,15 +2360,16 @@ bbrInstall(){
         menu
     fi
 }
+
 # 查看、检查日志
 checkLog(){
     echoContent skyBlue "\n功能 $1/${totalProgress} : 查看日志"
     echoContent red "\n=============================================================="
     echoContent skyBlue "-------------------------V2Ray--------------------------------"
-    echoContent yellow "1.查看V2Ray Info日志"
-    echoContent yellow "2.监听V2Ray Info日志"
-    echoContent yellow "3.查看V2Ray Error日志"
-    echoContent yellow "4.监听V2Ray Error日志"
+    echoContent yellow "1.查看info日志"
+    echoContent yellow "2.监听info日志"
+    echoContent yellow "3.查看error日志"
+    echoContent yellow "4.监听error日志"
     echoContent yellow "5.清空V2Ray日志"
     echoContent skyBlue "-----------------------Trojan-Go------------------------------"
     echoContent yellow "6.查看Trojan-Go日志"
@@ -2820,7 +2415,7 @@ checkLog(){
             echo '' > /var/log/nginx/access.log
         ;;
     esac
-    sleep 2
+    sleep 1
     menu
 }
 # 脚本快捷方式
@@ -2842,42 +2437,101 @@ aliasInstall(){
         echoContent green "快捷方式创建成功，可执行[vasma]重新打开脚本"
     fi
 }
-# 判断配置文件是否支持XTLS，不支持XTLS则允许升级v2ray-core
-judgeCoreType(){
-    if [[ -d '/etc/v2ray-agent' ]] && [[ -d '/etc/v2ray-agent/v2ray' ]] && [[ -f '/etc/v2ray-agent/v2ray/v2ray' ]] && [[ -f '/etc/v2ray-agent/v2ray/v2ctl' ]]
+
+# 个性化安装
+customInstall(){
+    echoContent skyBlue "\n========================个性化安装============================"
+    echoContent yellow "VLESS前置，默认安装0，如果只需要安装0，则只选择0即可"
+    echoContent yellow "0.VLESS+TLS/XTLS+TCP"
+    echoContent yellow "1.VLESS+TLS+WS[CDN]"
+    echoContent yellow "2.VMess+TLS+TCP"
+    echoContent yellow "3.VMess+TLS+WS[CDN]"
+    echoContent yellow "4.Trojan、Trojan+WS[CDN]"
+    read -p "请选择[多选]，[例如:123]:" customInstallType
+    echoContent skyBlue "--------------------------------------------------------------"
+    if [[ -z ${customInstallType} ]]
     then
-        # 所属v2ray-core
-        local version=`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|awk -F "[.]" '{print $2}'|head -1`
-        if [[ -f "/etc/v2ray-agent/v2ray/config_full.json" ]]
+        echoContent red " ---> 不可为空"
+        customInstall
+    elif [[ "${customInstallType}" =~ ^[0-4]+$ ]]
+    then
+        totalProgress=17
+        installTools 1
+        # 申请tls
+        initTLSNginxConfig 2
+        installTLS 3
+        handleNginx stop
+        initNginxConfig 4
+        # 随机path
+        if [[ ! -z `echo ${customInstallType}|grep 1` ]] || [[ ! -z `echo ${customInstallType}|grep 3` ]] || [[ ! -z `echo ${customInstallType}|grep 4` ]]
         then
-            if [[ ! -z `cat /etc/v2ray-agent/v2ray/config_full.json|grep xtls` ]]
-            then
-                coreType=3;
-                v2rayCoreVersion=v4.32.1
-            else
-                coreType=2;
-            fi
-        elif [[ -d "/etc/v2ray-agent/v2ray/conf" ]] && [[ -f "/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json" ]]
-        then
-            if [[ ! -z `cat /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json|grep xtls` ]]
-            then
-                coreType=3;
-                v2rayCoreVersion=v4.32.1
-            else
-                coreType=2;
-            fi
+            randomPathFunction 5
+            customCDNIP 6
         fi
-    elif [[ -d '/etc/v2ray-agent' ]] && [[ -d '/etc/v2ray-agent/xray' ]] && [[ -f '/etc/v2ray-agent/xray/xray' ]]
-    then
-         coreType=0
+        nginxBlog 7
+        handleNginx start
+
+        # 安装V2Ray
+        installV2Ray 8
+        installV2RayService 9
+        initV2RayConfig custom 10
+        if [[ ! -z `echo ${customInstallType}|grep 4` ]]
+        then
+            installTrojanGo 11
+            installTrojanService 12
+            initTrojanGoConfig 13
+            handleTrojanGo stop
+            handleTrojanGo start
+        else
+            # 这里需要删除trojan的服务
+            handleTrojanGo stop
+            rm -rf /etc/v2ray-agent/trojan/*
+            rm -rf /etc/systemd/system/trojan-go.service
+        fi
+        installCronTLS 14
+        handleV2Ray stop
+        handleV2Ray start
+        # 生成账号
+        checkGFWStatue 15
+        showAccounts 16
+    else
+        echoContent red " ---> 输入不合法"
+        customInstall
     fi
-#    echoContent red "debug log:${coreType}--${v2rayCoreVersion}"
 }
+
+# 选择核心安装---v2ray-core、xray-core、锁定版本的v2ray-core[xtls]
+selectCoreInstall(){
+    echoContent skyBlue "\n功能 1/${totalProgress} : 选择核心安装"
+    echoContent red "\n=============================================================="
+    echoContent yellow "1.xray-core"
+    echoContent yellow "2.v2ray-core"
+    echoContent yellow "3.v2ray-core[XTLS]"
+    echoContent red "=============================================================="
+    read -p "请选择：" coreType
+    case ${coreType} in
+        1)
+            echoContent red ' ---> 暂无'
+            exit 0
+        ;;
+        2)
+            v2rayCoreVersion=
+        ;;
+        3)
+            v2rayCoreVersion=v4.32.1
+        ;;
+        *)
+            echoContent red ' ---> 选择错误，重新选择'
+            selectCoreInstall
+        ;;
+    esac
+}
+
+
 # v2ray-core 安装
 v2rayCoreInstall(){
     customInstallType=
     totalProgress=17
-    mkdirTools 1
     installTools 2
     # 申请tls
     initTLSNginxConfig 3
@@ -2941,119 +2595,74 @@ xrayCoreInstall(){
     checkGFWStatue 16
     showAccounts 17
 }
-# 个性化安装
-customInstall(){
-    echoContent skyBlue "\n========================个性化安装============================"
-    echoContent yellow "VLESS前置，默认安装0，如果只需要安装0，则只选择0即可"
-    echoContent yellow "0.VLESS+TLS/XTLS+TCP"
-    echoContent yellow "1.VLESS+TLS+WS[CDN]"
-    echoContent yellow "2.VMess+TLS+TCP"
-    echoContent yellow "3.VMess+TLS+WS[CDN]"
-    echoContent yellow "4.Trojan、Trojan+WS[CDN]"
-    read -p "请选择[多选]，[例如:123]:" customInstallType
-    echoContent skyBlue "--------------------------------------------------------------"
-    if [[ -z ${customInstallType} ]]
-    then
-        echoContent red " ---> 不可为空"
-        customInstall
-    elif [[ "${customInstallType}" =~ ^[0-4]+$ ]]
-    then
-        totalProgress=17
-        mkdirTools 1
-        installTools 2
-        # 申请tls
-        initTLSNginxConfig 3
-        installTLS 4
-        handleNginx stop
-        initNginxConfig 5
-        # 随机path
-        if [[ ! -z `echo ${customInstallType}|grep 1` ]] || [[ ! -z `echo ${customInstallType}|grep 3` ]] || [[ ! -z `echo ${customInstallType}|grep 4` ]]
-        then
-            randomPathFunction 6
-            customCDNIP 7
-        fi
-        nginxBlog 8
-        handleNginx start
-
-        # 安装V2Ray
-        installV2Ray 9
-        installV2RayService 10
-        initV2RayConfig custom 11
-        if [[ ! -z `echo ${customInstallType}|grep 4` ]]
-        then
-            installTrojanGo 12
-            installTrojanService 13
-            initTrojanGoConfig 14
-            handleTrojanGo stop
-            handleTrojanGo start
-        else
-            # 这里需要删除trojan的服务
-            handleTrojanGo stop
-            rm -rf /etc/v2ray-agent/trojan/*
-            rm -rf /etc/systemd/system/trojan-go.service
-        fi
-        installCronTLS 15
-        handleV2Ray stop
-        handleV2Ray start
-        # 生成账号
-        checkGFWStatue 16
-        showAccounts 17
-    else
-        echoContent red " ---> 输入不合法"
-        customInstall
-    fi
-}
-
-# 初始化个性化安装类型
-initCustomInstallType(){
-    if [[ -d "/etc/v2ray-agent/" ]] && [[ -d "/etc/v2ray-agent/v2ray/" ]] && [[ -d "/etc/v2ray-agent/v2ray/conf" ]]
-    then
-        while read row
-        do
-             if [[ ! -z `echo ${row}|grep VLESS_TCP_inbounds` ]]
-            then
-                customInstallType=${customInstallType}'0'
-            fi
-            if [[ ! -z `echo ${row}|grep VLESS_WS_inbounds` ]]
-            then
-                customInstallType=${customInstallType}'1'
-            fi
-            if [[ ! -z `echo ${row}|grep VMess_TCP_inbounds` ]]
-            then
-                customInstallType=${customInstallType}'2'
-            fi
-            if  [[ ! -z `echo ${row}|grep VMess_WS_inbounds` ]]
-            then
-                customInstallType=${customInstallType}'3'
-            fi
-        done < <(echo `ls /etc/v2ray-agent/v2ray/conf|grep -v grep|grep inbounds.json|awk -F "[.]" '{print $1}'`)
-    fi
-}
-
-# 选择核心安装
-# v2ray-core、xray-core、锁定版本的v2ray-core[xtls]
-selectCoreInstall(){
-    echoContent skyBlue "\n功能 1/${totalProgress} : 选择核心安装"
+# 主菜单
+menu(){
+    cd
     echoContent red "\n=============================================================="
-    echoContent yellow "1.xray-core"
-    echoContent yellow "2.v2ray-core"
-    echoContent yellow "3.v2ray-core[XTLS]"
+    echoContent green "作者：mack-a"
+    echoContent green "当前版本：v2.1.12"
+    echoContent green "Github：https://github.com/mack-a/v2ray-agent"
+    echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
-    read -p "请选择：" coreType
-    case ${coreType} in
+    echoContent yellow "1.安装"
+    echoContent yellow "2.任意组合安装"
+    echoContent skyBlue "-------------------------工具管理-----------------------------"
+    echoContent yellow "3.查看账号"
+    echoContent yellow "4.自动排错 [已废弃]"
+    echoContent yellow "5.更新证书"
+    echoContent yellow "6.更换CDN节点"
+    echoContent yellow "7.重置uuid"
+    echoContent skyBlue "-------------------------版本管理-----------------------------"
+    echoContent yellow "8.V2Ray版本管理"
+    echoContent yellow "9.升级Trojan-Go"
+    echoContent yellow "10.升级脚本"
+    echoContent yellow "11.安装BBR"
+    echoContent skyBlue "-------------------------脚本管理-----------------------------"
+    echoContent yellow "12.查看日志"
+    echoContent yellow "13.卸载脚本"
+    echoContent red "=============================================================="
+    mkdirTools
+    aliasInstall
+    judgeCoreType
+    read -p "请选择:" selectInstallType
+     case ${selectInstallType} in
         1)
-            echoContent red ' ---> 暂无'
-            exit 0
+            selectCoreInstall
+            v2rayCoreInstall
         ;;
         2)
-            v2rayCoreVersion=
+            selectCoreInstall
+            customInstall
         ;;
         3)
-            v2rayCoreVersion=v4.32.1
+            showAccounts 1
         ;;
-        *)
-            echoContent red ' ---> 选择错误，重新选择'
-            selectCoreInstall
+        5)
+            renewalTLS 1
+        ;;
+        6)
+            updateV2RayCDN 1
+        ;;
+        7)
+            resetUUID 1
+        ;;
+        8)
+            v2rayVersionManageMenu 1
+        ;;
+        9)
+            updateTrojanGo 1
+        ;;
+        10)
+            updateV2RayAgent 1
+        ;;
+        11)
+            bbrInstall
+        ;;
+        12)
+            checkLog 1
+        ;;
+        13)
+            unInstall 1
         ;;
     esac
 }
