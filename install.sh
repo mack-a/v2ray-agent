@@ -57,7 +57,7 @@ initVar(){
     # 1.xray-core安装
     # 2.v2ray-core 安装
     # 3.v2ray-core[xtls] 安装
-    v2rayCoreInstallType=
+    coreInstallType=
 
     # 1.全部安装
     # 2.个性化安装
@@ -70,7 +70,7 @@ initVar(){
     selectCustomInstallType=
 
     # 配置文件的路径
-    v2rayConfigFilePath=
+    configFilePath=
 
     # 配置文件的path
     currentPath=
@@ -81,9 +81,11 @@ initVar(){
     # 安装时选择的core类型
     selectCoreType=
 
-    # coreInstallStatus
-    coreInstallStatus=
+    # v2rayCoreInstallStatus
+    v2rayCoreInstallStatus=
 
+    # xrayCoreInstallStatus
+    xrayCoreInstallStatus=
     # 默认core版本
     v2rayCoreVersion=
 
@@ -97,37 +99,56 @@ initVar(){
 # 检测安装方式
 initInstallType(){
     # 1.检测安装目录
-    if [[ -d "/etc/v2ray-agent" && -d "/etc/v2ray-agent/v2ray" ]]
+    if [[ -d "/etc/v2ray-agent"  ]]
     then
         # 检测安装方式 v2ray-core
-        if [[ -f "/etc/v2ray-agent/v2ray/v2ray" && -f "/etc/v2ray-agent/v2ray/v2ctl" ]]
+        if [[ -d "/etc/v2ray-agent/v2ray" && -f "/etc/v2ray-agent/v2ray/v2ray" && -f "/etc/v2ray-agent/v2ray/v2ctl" ]]
         then
-            coreInstallStatus=true
             if [[ -f "/etc/v2ray-agent/v2ray/config_full.json" ]]
             then
                 v2rayAgentInstallType=1
+                configFilePath=/etc/v2ray-agent/v2ray/config_full.json
                 if [[ ! -z `cat /etc/v2ray-agent/v2ray/config_full.json|grep xtls` ]]
                 then
-                    v2rayCoreInstallType=3
+                    coreInstallType=3
                 elif [[ -z `cat /etc/v2ray-agent/v2ray/config_full.json|grep xtls` ]]
                 then
-                    v2rayCoreInstallType=2
+                    coreInstallType=2
                 fi
 
             elif [[ -d "/etc/v2ray-agent/v2ray/conf" && -f "/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json" ]]
             then
                 v2rayAgentInstallType=2
+                configFilePath=/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json
                 if [[ ! -z `cat /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json|grep xtls` ]]
                 then
-                    v2rayCoreInstallType=3
+                    coreInstallType=3
                 elif [[ -z `cat /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json|grep xtls` ]]
                 then
-                    v2rayCoreInstallType=2
+                    coreInstallType=2
                 fi
             fi
-        else
+        elif [[ -d "/etc/v2ray-agent/xray" && -f "/etc/v2ray-agent/xray/xray" ]]
+        then
             # 这里检测xray-core
-            echo
+            if [[ -f "/etc/v2ray-agent/xray/config_full.json" ]]
+            then
+                configFilePath=/etc/v2ray-agent/xray/config_full.json
+                v2rayAgentInstallType=1
+                if [[ ! -z `cat /etc/v2ray-agent/xray/config_full.json` ]]
+                then
+                    coreInstallType=1
+                fi
+
+            elif [[ -d "/etc/v2ray-agent/v2ray/conf" && -f "/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json" ]]
+            then
+                configFilePath=/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.jso
+                v2rayAgentInstallType=2
+                if [[ ! -z `cat /etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json` ]]
+                then
+                    coreInstallType=1
+                fi
+            fi
         fi
     fi
 }
@@ -161,20 +182,11 @@ initCustomInstallType(){
 
 # 检查文件目录以及path路径
 initConfigHostPath(){
-    # config path
-    if [[ "${v2rayAgentInstallType}" = "1" ]]
-    then
-        v2rayConfigFilePath=/etc/v2ray-agent/v2ray/config_full.json
-
-    elif [[ "${v2rayAgentInstallType}" = "2" ]]
-    then
-        v2rayConfigFilePath=/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json
-    fi
 
     # path
-    if [[ ! -z "${v2rayConfigFilePath}" ]]
+    if [[ ! -z "${configFilePath}" ]]
     then
-        local path=`cat ${v2rayConfigFilePath}|jq .inbounds[0].settings.fallbacks|jq -c '.[].path'|awk -F "[\"][/]" '{print $2}'|awk -F "[\"]" '{print $1}'|tail -n +2|head -n 1`
+        local path=`cat ${configFilePath}|jq .inbounds[0].settings.fallbacks|jq -c '.[].path'|awk -F "[\"][/]" '{print $2}'|awk -F "[\"]" '{print $1}'|tail -n +2|head -n 1`
         if [[ ! -z "${path}" ]]
         then
             currentPath=${path:0:4}
@@ -182,13 +194,13 @@ initConfigHostPath(){
     fi
 
     # host
-    if [[ "${v2rayCoreInstallType}" = "2" ]]
+    if [[ "${coreInstallType}" = "2" ]]
     then
-        currentHost=`cat ${v2rayConfigFilePath}|jq .inbounds[0].streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+        currentHost=`cat ${configFilePath}|jq .inbounds[0].streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
 
-    elif [[ "${v2rayCoreInstallType}" = "3" ]]
+    elif [[ "${coreInstallType}" = "3" ]]
     then
-        currentHost=`cat ${v2rayConfigFilePath}|jq .inbounds[0].streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+        currentHost=`cat ${configFilePath}|jq .inbounds[0].streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
     fi
 
 }
@@ -197,11 +209,15 @@ initConfigHostPath(){
 checkCoreStatus(){
      if [[ -d "/etc/v2ray-agent" && -d "/etc/v2ray-agent/v2ray" ]] && [[ -f "/etc/v2ray-agent/v2ray/v2ray" && -f "/etc/v2ray-agent/v2ray/v2ctl" ]]
      then
-        coreInstallStatus=true
+        v2rayCoreInstallStatus=true
+     elif [[ -d "/etc/v2ray-agent" && -d "/etc/v2ray-agent/xray" ]] && [[ -f "/etc/v2ray-agent/xray/xray" ]]
+     then
+        v2rayCoreInstallStatus=true
      else
-        coreInstallStatus=
+        v2rayCoreInstallStatus=
      fi
 }
+
 initVar
 echo initVar
 checkSystem
@@ -250,7 +266,7 @@ echoContent(){
     esac
 }
 
-echoContent red v2rayCoreInstallType:${v2rayCoreInstallType}
+echoContent red coreInstallType:${coreInstallType}
 
 echoContent red v2rayAgentInstallType:${v2rayAgentInstallType}
 
@@ -261,7 +277,7 @@ echoContent red currentCustomInstallType:${currentCustomInstallType}
 echoContent red selectCustomInstallType:${selectCustomInstallType}
 
     # 配置文件的路径
-echoContent red v2rayConfigFilePath:${v2rayConfigFilePath}
+echoContent red configFilePath:${configFilePath}
 
     # 配置文件的path
 echoContent red currentPath:${currentPath}
@@ -273,7 +289,7 @@ echoContent red currentHost:${currentHost}
 echoContent red selectCoreType:${selectCoreType}
 
 
-echoContent red ${coreInstallStatus}
+echoContent red ${v2rayCoreInstallStatus}
 
 
 echoContent red ${v2rayCoreVersion}
@@ -287,7 +303,7 @@ echoContent red ${centosVersion}
 mkdirTools(){
     mkdir -p /etc/v2ray-agent/tls
     mkdir -p /etc/v2ray-agent/v2ray/conf
-    mkdir -p /etc/v2ray-agent/xray
+    mkdir -p /etc/v2ray-agent/xray/conf
     mkdir -p /etc/v2ray-agent/trojan
     mkdir -p /etc/systemd/system/
     mkdir -p /tmp/v2ray-agent-tls/
@@ -565,9 +581,9 @@ randomPathFunction(){
     echoContent skyBlue "\n进度  $1/${totalProgress} : 生成随机路径"
 
     customPath=
-    if [[ ! -z "${v2rayConfigFilePath}" ]]
+    if [[ ! -z "${configFilePath}" ]]
     then
-        path=`cat ${v2rayConfigFilePath}|jq .inbounds[0].settings.fallbacks|jq -c '.[].path'|awk -F "[\"][/]" '{print $2}'|awk -F "[\"]" '{print $1}'|tail -n +2|head -n 1`
+        path=`cat ${configFilePath}|jq .inbounds[0].settings.fallbacks|jq -c '.[].path'|awk -F "[\"][/]" '{print $2}'|awk -F "[\"]" '{print $1}'|tail -n +2|head -n 1`
         customPath=${path:0:4}
     fi
 
@@ -795,7 +811,7 @@ checkTLStatus(){
 # 安装V2Ray、指定版本
 installV2Ray(){
     checkCoreStatus
-    echoContent red coreInstallStatus:${coreInstallStatus}
+    echoContent red v2rayCoreInstallStatus:${v2rayCoreInstallStatus}
     echoContent skyBlue "\n进度  $1/${totalProgress} : 安装V2Ray"
     # 首先要卸载掉其余途径安装的V2Ray
     if [[ ! -z `ps -ef|grep -v grep|grep v2ray` ]] && [[ -z `ps -ef|grep -v grep|grep v2ray|grep v2ray-agent` ]]
@@ -804,7 +820,7 @@ installV2Ray(){
         ps -ef|grep -v grep|grep v2ray|awk '{print $2}'|xargs kill -9 > /dev/null 2>&1
     fi
 
-    if [[ -z "${coreInstallStatus}" ]]
+    if [[ -z "${v2rayCoreInstallStatus}" ]]
     then
         if [[ "${selectCoreType}" = "2" ]]
         then
@@ -839,6 +855,44 @@ installV2Ray(){
                 rm -f /etc/v2ray-agent/v2ray/v2ctl
                 installV2Ray $1
             fi
+        fi
+    fi
+}
+
+# 安装xray
+installXray(){
+    checkCoreStatus
+    echoContent red v2rayCoreInstallStatus:${v2rayCoreInstallStatus}
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 安装Xray"
+    # 首先要卸载掉其余途径安装的Xray
+    if [[ ! -z `ps -ef|grep -v grep|grep xray` ]] && [[ -z `ps -ef|grep -v grep|grep v2ray|grep v2ray-agent` ]]
+    then
+        ps -ef|grep -v grep|grep xray|awk '{print $8}'|xargs rm -f
+        ps -ef|grep -v grep|grep xray|awk '{print $2}'|xargs kill -9 > /dev/null 2>&1
+    fi
+
+    if [[ "${coreInstallType}" != "1" ]]
+    then
+        version=`curl -s https://github.com/XTLS/Xray-core/releases|grep /XTLS/Xray-core/releases/tag/|head -1|awk '{print $3}'|awk -F "[<]" '{print $1}'`
+
+        echoContent green " ---> Xray-core版本:${version}"
+        if [[ ! -z `wget --help|grep show-progress` ]]
+        then
+            wget -c -q --show-progress -P /etc/v2ray-agent/xray/ https://github.com/XTLS/Xray-core/releases/download/${version}/Xray-linux-64.zip
+        else
+            wget -c -P /etc/v2ray-agent/xray/ https://github.com/XTLS/Xray-core/releases/download/${version}/Xray-linux-64.zip > /dev/null 2>&1
+        fi
+
+        unzip -o /etc/v2ray-agent/xray/Xray-linux-64.zip -d /etc/v2ray-agent/xray > /dev/null
+        rm -rf /etc/v2ray-agent/xray/Xray-linux-64.zip
+        chmod 655 /etc/v2ray-agent/xray/xray
+    else
+        echoContent green " ---> Xray-core版本:`/etc/v2ray-agent/xray/xray --version|awk '{print $2}'|head -1`"
+        read -p "是否更新、升级？[y/n]:" reInstallXrayStatus
+        if [[ "${reInstallXrayStatus}" = "y" ]]
+        then
+            rm -f /etc/v2ray-agent/xray/xray
+            installV2Ray $1
         fi
     fi
 }
@@ -911,7 +965,7 @@ v2rayVersionManageMenu(){
 # 更新V2Ray
 updateV2Ray(){
     checkCoreStatus
-    if [[ -z "${coreInstallStatus}" ]]
+    if [[ -z "${v2rayCoreInstallStatus}" ]]
     then
         if [[ ! -z "$1" ]]
         then
@@ -1092,6 +1146,44 @@ EOF
         echoContent green " ---> 配置V2Ray开机自启成功"
     fi
 }
+
+# Xray开机自启
+installXrayService(){
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 配置Xray开机自启"
+    if [[ ! -z `find /bin /usr/bin -name "systemctl"` ]]
+    then
+        rm -rf /etc/systemd/system/xray.service
+        touch /etc/systemd/system/xray.service
+        execStart='/etc/v2ray-agent/xray/xray -config /etc/v2ray-agent/xray/config_full.json'
+        if [[ ! -z ${customInstallType} ]]
+        then
+            execStart='/etc/v2ray-agent/xray/xray -confdir /etc/v2ray-agent/xray/conf'
+        fi
+    cat << EOF > /etc/systemd/system/xray.service
+[Unit]
+Description=Xray - A unified platform for anti-censorship
+# Documentation=https://v2ray.com https://guide.v2fly.org
+After=network.target nss-lookup.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_RAW
+NoNewPrivileges=yes
+ExecStart=${execStart}
+Restart=on-failure
+RestartPreventExitStatus=23
+
+
+[Install]
+WantedBy=multi-user.target
+EOF
+        systemctl daemon-reload
+        systemctl enable xray.service
+        echoContent green " ---> 配置Xray开机自启成功"
+    fi
+}
 # Trojan开机自启
 installTrojanService(){
     echoContent skyBlue "\n进度  $1/${totalProgress} : 配置Trojan开机自启"
@@ -1169,6 +1261,50 @@ handleV2Ray(){
         fi
     fi
 }
+# 操作xray
+handleXray(){
+    if [[ ! -z `find /bin /usr/bin -name "systemctl"` ]] && [[ ! -z `ls /etc/systemd/system/|grep -v grep|grep xray.service` ]]
+    then
+        if [[ -z `ps -ef|grep -v grep|grep "xray/xray"` ]] && [[ "$1" = "start" ]]
+        then
+            systemctl start xray.service
+        elif [[ ! -z `ps -ef|grep -v grep|grep "xray/xray"` ]] && [[ "$1" = "stop" ]]
+        then
+            systemctl stop xray.service
+        fi
+    elif [[ -z `find /bin /usr/bin -name "systemctl"` ]]
+    then
+        if [[ -z `ps -ef|grep -v grep|grep xray` ]] && [[ "$1" = "start" ]]
+        then
+            /usr/bin/xray/xray -config /etc/v2ray-agent/xray/config_full.json & > /dev/null 2>&1
+        elif [[ ! -z `ps -ef|grep -v grep|grep xray` ]] && [[ "$1" = "stop" ]]
+        then
+            ps -ef|grep -v grep|grep xray|awk '{print $2}'|xargs kill -9
+        fi
+    fi
+    sleep 0.5
+    if [[ "$1" = "start" ]]
+    then
+        if [[ ! -z `ps -ef|grep -v grep|grep "xray/xray"` ]]
+        then
+            echoContent green " ---> Xray启动成功"
+        else
+            echoContent red "xray启动失败"
+            echoContent red "执行 [ps -ef|grep xray] 查看日志"
+            exit 0;
+        fi
+    elif [[ "$1" = "stop" ]]
+    then
+        if [[ -z `ps -ef|grep -v grep|grep "xray/xray"` ]]
+        then
+            echoContent green " ---> Xray关闭成功"
+        else
+            echoContent red "xray关闭失败"
+            echoContent red "请手动执行【ps -ef|grep -v grep|grep xray|awk '{print \$2}'|xargs kill -9】"
+            exit 0;
+        fi
+    fi
+}
 # 操作Trojan-Go
 handleTrojanGo(){
     if [[ ! -z `find /bin /usr/bin -name "systemctl"` ]] && [[ ! -z `ls /etc/systemd/system/|grep -v grep|grep trojan-go.service` ]]
@@ -1216,7 +1352,7 @@ handleTrojanGo(){
 # 初始化V2Ray 配置文件
 initV2RayConfig(){
     echoContent skyBlue "\n进度 $2/${totalProgress} : 初始化V2Ray配置"
-    if [[ ! -z "${v2rayConfigFilePath}" ]]
+    if [[ ! -z "${configFilePath}" ]]
     then
         echo
         read -p "读取到上次安装记录，是否使用上次安装时的UUID ？[y/n]:" historyUUIDStatus
@@ -1224,11 +1360,11 @@ initV2RayConfig(){
         then
             if [[ "${v2rayAgentInstallType}" = "1" ]]
             then
-                uuid=`cat ${v2rayConfigFilePath}|jq .inbounds[0].settings.clients[0].id|awk -F '["]' '{print $2}'`
+                uuid=`cat ${configFilePath}|jq .inbounds[0].settings.clients[0].id|awk -F '["]' '{print $2}'`
             elif [[ "${v2rayAgentInstallType}" = "2" ]]
             then
-                uuid=`cat ${v2rayConfigFilePath}|jq .inbounds[0].settings.clients[0].id|awk -F '["]' '{print $2}'`
-                uuidDirect=`cat ${v2rayConfigFilePath}|jq .inbounds[0].settings.clients[1].id|awk -F '["]' '{print $2}'`
+                uuid=`cat ${configFilePath}|jq .inbounds[0].settings.clients[0].id|awk -F '["]' '{print $2}'`
+                uuidDirect=`cat ${configFilePath}|jq .inbounds[0].settings.clients[1].id|awk -F '["]' '{print $2}'`
             fi
         else
             uuid=`/etc/v2ray-agent/v2ray/v2ctl uuid`
@@ -1833,6 +1969,469 @@ EOF
 
     fi
 }
+
+
+# 初始化Xray 配置文件
+initXrayConfig(){
+    echoContent skyBlue "\n进度 $2/${totalProgress} : 初始化Xray配置"
+    if [[ ! -z "${configFilePath}" ]]
+    then
+        echo
+        read -p "读取到上次安装记录，是否使用上次安装时的UUID ？[y/n]:" historyUUIDStatus
+        if [[ "${historyUUIDStatus}" = "y" ]]
+        then
+            if [[ "${v2rayAgentInstallType}" = "1" ]]
+            then
+                uuid=`cat ${configFilePath}|jq .inbounds[0].settings.clients[0].id|awk -F '["]' '{print $2}'`
+            elif [[ "${v2rayAgentInstallType}" = "2" ]]
+            then
+                uuid=`cat ${configFilePath}|jq .inbounds[0].settings.clients[0].id|awk -F '["]' '{print $2}'`
+                uuidDirect=`cat ${configFilePath}|jq .inbounds[0].settings.clients[1].id|awk -F '["]' '{print $2}'`
+            fi
+        else
+            uuid=`/etc/v2ray-agent/xray/xray uuid`
+            uuidDirect=`/etc/v2ray-agent/xray/xray uuid`
+        fi
+    else
+        uuid=`/etc/v2ray-agent/xray/xray uuid`
+        uuidDirect=`/etc/v2ray-agent/xray/xray uuid`
+    fi
+    echoContent red uuid:${uuid}
+    echoContent red uuidDirect:${uuidDirect}
+    if [[ -z "${uuid}" ]]
+    then
+        echoContent red "\n ---> uuid读取错误，重新生成"
+        uuid=`/etc/v2ray-agent/xray/xray uuid`
+    fi
+
+    if [[ -z "${uuidDirect}" ]] && [[ "${selectCoreType}" = "3" ]]
+    then
+        echoContent red "\n ---> uuid XTLS-direct读取错误，重新生成"
+        uuidDirect=`/etc/v2ray-agent/xray/xray uuid`
+    fi
+
+    if [[ "${uuid}" = "${uuidDirect}" ]]
+    then
+        echoContent red "\n ---> uuid重复，重新生成"
+        uuid=`/etc/v2ray-agent/xray/xray uuid`
+        uuidDirect=`/etc/v2ray-agent/xray/xray uuid`
+    fi
+    echoContent green "\n ---> 使用成功"
+
+    rm -rf /etc/v2ray-agent/xray/conf/*
+    rm -rf /etc/v2ray-agent/xray/config_full.json
+    if [[ "$1" = "all" ]]
+    then
+        # default v2ray-core
+        cat << EOF > /etc/v2ray-agent/xray/config_full.json
+{
+  "log": {
+    "access": "/etc/v2ray-agent/xray/xray_access.log",
+    "error": "/etc/v2ray-agent/xray/xray_error.log",
+    "loglevel": "debug"
+  },
+  "inbounds": [
+    {
+      "port": 443,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "${uuid}",
+            "add": "${add}",
+            "email": "${domain}_VLESS_TLS_TCP"
+          }
+        ],
+        "decryption": "none",
+        "fallbacks": [
+          {
+            "dest": 31296,
+            "xver": 0
+          },
+          {
+            "path": "/${customPath}",
+            "dest": 31299,
+            "xver": 1
+          },
+          {
+            "path": "/${customPath}tcp",
+            "dest": 31298,
+            "xver": 1
+          },
+          {
+            "path": "/${customPath}ws",
+            "dest": 31297,
+            "xver": 1
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "tls",
+        "tlsSettings": {
+          "alpn": [
+            "http/1.1"
+          ],
+          "certificates": [
+            {
+              "certificateFile": "/etc/v2ray-agent/tls/${domain}.crt",
+              "keyFile": "/etc/v2ray-agent/tls/${domain}.key"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "port": 31299,
+      "protocol": "vmess",
+      "settings": {
+        "clients": [
+          {
+            "id": "${uuid}",
+            "alterId": 1,
+            "level": 0,
+            "email": "${domain}_vmess_ws"
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "none",
+        "wsSettings": {
+          "acceptProxyProtocol": true,
+          "path": "/${customPath}"
+        }
+      }
+    },
+    {
+      "port": 31298,
+      "listen": "127.0.0.1",
+      "protocol": "vmess",
+      "settings": {
+        "clients": [
+          {
+            "id": "${uuid}",
+            "level": 0,
+            "alterId": 1,
+            "email": "${domain}_vmess_tcp"
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "none",
+        "tcpSettings": {
+          "acceptProxyProtocol": true,
+          "header": {
+            "type": "http",
+            "request": {
+              "path": [
+                "/${customPath}tcp"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "port": 31297,
+      "listen": "127.0.0.1",
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "${uuid}",
+            "level": 0,
+            "email": "${domain}_vless_ws"
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "none",
+        "wsSettings": {
+          "acceptProxyProtocol": true,
+          "path": "/${customPath}ws"
+        }
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "freedom",
+      "settings": {
+        "domainStrategy": "UseIPv4"
+      }
+    }
+  ],
+  "dns": {
+    "servers": [
+      "74.82.42.42",
+      "8.8.8.8",
+      "8.8.4.4",
+      "1.1.1.1",
+      "localhost"
+    ]
+  }
+}
+EOF
+    elif [[ "$1" = "custom" ]]
+    then
+        # custom xray-core
+        cat << EOF > /etc/v2ray-agent/xray/conf/00_log.json
+{
+  "log": {
+    "access": "/etc/v2ray-agent/v2ray/xray_access.log",
+    "error": "/etc/v2ray-agent/v2ray/xray_error.log",
+    "loglevel": "debug"
+  }
+}
+EOF
+        # outbounds
+       cat << EOF > /etc/v2ray-agent/xray/conf/10_outbounds.json
+{
+    "outbounds": [
+        {
+          "protocol": "freedom",
+          "settings": {
+            "domainStrategy": "UseIPv4"
+          }
+        }
+    ]
+}
+EOF
+        # dns
+       cat << EOF > /etc/v2ray-agent/xray/conf/11_dns.json
+{
+    "dns": {
+        "servers": [
+          "74.82.42.42",
+          "8.8.8.8",
+          "8.8.4.4",
+          "1.1.1.1",
+          "localhost"
+        ]
+  }
+}
+EOF
+        # VLESS_TCP_TLS/XTLS
+        # 没有path则回落到此端口
+        local fallbacksList='{"dest":31296,"xver":0}'
+
+        if [[ -z `echo ${customInstallType}|grep 4` ]]
+        then
+            fallbacksList='{"dest":80,"xver":0}'
+        fi
+
+        # VLESS_WS_TLS
+        if [[ ! -z `echo ${customInstallType}|grep 1` ]]
+        then
+            fallbacksList=${fallbacksList}',{"path":"/'${customPath}'ws","dest":31297,"xver":1}'
+            cat << EOF > /etc/v2ray-agent/xray/conf/03_VLESS_WS_inbounds.json
+{
+"inbounds":[
+        {
+      "port": 31297,
+      "listen": "127.0.0.1",
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "${uuid}",
+            "level": 0,
+            "email": "${domain}_vless_ws"
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "none",
+        "wsSettings": {
+          "acceptProxyProtocol": true,
+          "path": "/${customPath}ws"
+        }
+      }
+    }
+    ]
+}
+EOF
+        fi
+# VMess_TCP
+        if [[ ! -z `echo ${customInstallType}|grep 2` ]]
+        then
+            fallbacksList=${fallbacksList}',{"path":"/'${customPath}'tcp","dest":31298,"xver":1}'
+            cat << EOF > /etc/v2ray-agent/xray/conf/04_VMess_TCP_inbounds.json
+{
+"inbounds":[
+    {
+      "port": 31298,
+      "listen": "127.0.0.1",
+      "protocol": "vmess",
+      "tag":"VMessTCP",
+      "settings": {
+        "clients": [
+          {
+            "id": "${uuid}",
+            "level": 0,
+            "alterId": 1,
+            "email": "${domain}_vmess_tcp"
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "none",
+        "tcpSettings": {
+          "acceptProxyProtocol": true,
+          "header": {
+            "type": "http",
+            "request": {
+              "path": [
+                "/${customPath}tcp"
+              ]
+            }
+          }
+        }
+      }
+    }
+]
+}
+EOF
+        fi
+        # VMess_WS
+        if [[ ! -z `echo ${customInstallType}|grep 3` ]]
+        then
+            fallbacksList=${fallbacksList}',{"path":"/'${customPath}'","dest":31299,"xver":1}'
+            cat << EOF > /etc/v2ray-agent/xray/conf/05_VMess_WS_inbounds.json
+{
+"inbounds":[
+{
+      "port": 31299,
+      "protocol": "vmess",
+      "tag":"VMessWS",
+      "settings": {
+        "clients": [
+          {
+            "id": "${uuid}",
+            "alterId": 1,
+            "add": "${add}",
+            "level": 0,
+            "email": "${domain}_vmess_ws"
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "none",
+        "wsSettings": {
+          "acceptProxyProtocol": true,
+          "path": "/${customPath}"
+        }
+      }
+    }
+]
+}
+EOF
+        fi
+        # VLESS_TCP
+        if [[ "${selectCoreType}" = "2" ]]
+        then
+            cat << EOF > /etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json
+{
+  "inbounds":[
+    {
+      "port": 443,
+      "protocol": "vless",
+      "tag":"VLESSTCP",
+      "settings": {
+        "clients": [
+          {
+            "id": "${uuid}",
+            "add": "${add}",
+            "email": "${domain}_VLESS_TLS_TCP"
+          }
+        ],
+        "decryption": "none",
+        "fallbacks": [
+            ${fallbacksList}
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "tls",
+        "tlsSettings": {
+          "alpn": [
+            "http/1.1"
+          ],
+          "certificates": [
+            {
+              "certificateFile": "/etc/v2ray-agent/tls/${domain}.crt",
+              "keyFile": "/etc/v2ray-agent/tls/${domain}.key"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
+EOF
+        elif [[ "${selectCoreType}" = "3" ]]
+        then
+
+        cat << EOF > /etc/v2ray-agent/v2ray/xray/02_VLESS_TCP_inbounds.json
+{
+  "inbounds":[
+    {
+      "port": 443,
+      "protocol": "vless",
+      "tag":"VLESSTCP",
+      "settings": {
+        "clients": [
+          {
+            "id": "${uuid}",
+            "add": "${add}",
+            "flow":"xtls-rprx-origin",
+            "email": "${domain}_VLESS_XTLS/TLS-origin_TCP"
+          },
+          {
+            "id": "${uuidDirect}",
+            "flow":"xtls-rprx-direct",
+            "email": "${domain}_VLESS_XTLS/TLS-direct_TCP"
+          }
+        ],
+        "decryption": "none",
+        "fallbacks": [
+            ${fallbacksList}
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "xtls",
+        "xtlsSettings": {
+          "alpn": [
+            "http/1.1"
+          ],
+          "certificates": [
+            {
+              "certificateFile": "/etc/v2ray-agent/tls/${domain}.crt",
+              "keyFile": "/etc/v2ray-agent/tls/${domain}.key"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
+EOF
+        fi
+
+    fi
+
+    # 清空v2ray的内容
+    rm -rf /etc/v2ray-agent/v2ray/*
+}
 # 初始化Trojan-Go配置
 initTrojanGoConfig(){
 
@@ -2010,7 +2609,7 @@ showAccounts(){
     then
         showStatus=true
         # VLESS tcp
-        local tcp=`cat /etc/v2ray-agent/v2ray/config_full.json|jq .inbounds[0]`
+        local tcp=`cat ${configFilePath}|jq .inbounds[0]`
         local port=`echo ${tcp}|jq .port`
         local tcpID=`echo ${tcp}|jq .settings.clients[0].id`
         local tcpEmail="`echo ${tcp}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
@@ -2022,24 +2621,24 @@ showAccounts(){
 
 
          # VLESS ws
-        local vlessWS=`cat /etc/v2ray-agent/v2ray/config_full.json|jq .inbounds[3]`
+        local vlessWS=`cat ${configFilePath}|jq .inbounds[3]`
         local vlessWSID=`echo ${vlessWS}|jq .settings.clients[0].id`
         local vlessWSEmail="`echo ${vlessWS}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
         local vlessWSPath=`echo ${vlessWS}|jq .streamSettings.wsSettings.path`
 
         # Vmess ws
-        local ws=`cat /etc/v2ray-agent/v2ray/config_full.json|jq .inbounds[1]`
+        local ws=`cat ${configFilePath}|jq .inbounds[1]`
         local wsID=`echo ${ws}|jq .settings.clients[0].id`
         local wsEmail="`echo ${ws}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
         local wsPath=`echo ${ws}|jq .streamSettings.wsSettings.path`
 
         # Vmess tcp
-        local vmessTCP=`cat /etc/v2ray-agent/v2ray/config_full.json|jq .inbounds[2]`
+        local vmessTCP=`cat ${configFilePath}|jq .inbounds[2]`
         local vmessTCPID=`echo ${vmessTCP}|jq .settings.clients[0].id`
         local vmessTCPEmail="`echo ${vmessTCP}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
         local vmessTCPath=`echo ${vmessTCP}|jq .streamSettings.tcpSettings.header.request.path[0]`
         echoContent red currentHost:${currentHost}
-        if [[ "${v2rayCoreInstallType}" = "3" ]]
+        if [[ "${coreInstallType}" = "3" ]]
         then
 #            host=`echo ${tcp}|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
             echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-origin ==========================="
@@ -2048,7 +2647,7 @@ showAccounts(){
             echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-direct ==========================="
             defaultBase64Code vlesstcp ${tcpDirectEmail} "${tcpIDirect}" "${currentHost}:${port}" ${add}
 
-        elif [[ "${v2rayCoreInstallType}" = "2" ]]
+        elif [[ "${coreInstallType}" = "2" ]]
         then
 #            host=`echo ${tcp}|jq .streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
             echoContent skyBlue "\n============================ VLESS TCP TLS ======================================="
@@ -2079,7 +2678,7 @@ showAccounts(){
         local tcpIDirect=`echo ${tcp}|jq .settings.clients[1].id`
         local tcpDirectEmail="`echo ${tcp}|jq .settings.clients[1].email|awk -F '["]' '{print $2}'`"
 
-        if [[ "${v2rayCoreInstallType}" = "3" ]]
+        if [[ "${coreInstallType}" = "3" ]]
         then
 #            host=`echo ${tcp}|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
             echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-origin ==========================="
@@ -2088,7 +2687,7 @@ showAccounts(){
             echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-direct ==========================="
             defaultBase64Code vlesstcp ${tcpDirectEmail} "${tcpIDirect}" "${currentHost}:${port}" ${add}
 
-        elif [[ "${v2rayCoreInstallType}" = "2" ]]
+        elif [[ "${coreInstallType}" = "2" ]]
         then
 #            host=`echo ${tcp}|jq .streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
             echoContent skyBlue "\n============================ VLESS TCP TLS ======================================="
@@ -2202,7 +2801,7 @@ updateV2RayCDN(){
     if [[ ! -z "${v2rayAgentInstallType}" ]]
     then
 
-        local add=`cat ${v2rayConfigFilePath}|grep -v grep|grep add`
+        local add=`cat ${configFilePath}|grep -v grep|grep add`
         if [[ ! -z ${add} ]]
         then
             echoContent red "=============================================================="
@@ -2235,7 +2834,7 @@ updateV2RayCDN(){
                     sed -i "s/${add}/${setDomain}/g"  `grep "${add}" -rl ${configPath}`
                 fi
 
-                if [[ `cat ${v2rayConfigFilePath}|grep -v grep|grep add|awk -F '["]' '{print $4}'` = ${setDomain} ]]
+                if [[ `cat ${configFilePath}|grep -v grep|grep add|awk -F '["]' '{print $4}'` = ${setDomain} ]]
                 then
                     echoContent green " ---> V2Ray CDN修改成功"
                     handleV2Ray stop
@@ -2582,14 +3181,25 @@ selectCoreInstall(){
     read -p "请选择：" selectCoreType
     case ${selectCoreType} in
         1)
-            echoContent red ' ---> 暂无'
-            exit 0
+           xrayCoreInstall
         ;;
         2)
             v2rayCoreVersion=
+            if [[ "${selectInstallType}" = "2" ]]
+            then
+                customInstall
+            else
+                v2rayCoreInstall
+            fi
         ;;
         3)
             v2rayCoreVersion=v4.32.1
+            if [[ "${selectInstallType}" = "2" ]]
+            then
+                customInstall
+            else
+                v2rayCoreInstall
+            fi
         ;;
         *)
             echoContent red ' ---> 选择错误，重新选择'
@@ -2638,6 +3248,7 @@ v2rayCoreInstall(){
 # xray-core 安装
 xrayCoreInstall(){
     customInstallType=
+
     totalProgress=17
     installTools 2
     # 申请tls
@@ -2646,19 +3257,20 @@ xrayCoreInstall(){
     handleNginx stop
     initNginxConfig 5
     randomPathFunction 6
-    # 安装V2Ray
-    installV2Ray 7
-    installV2RayService 8
+    # 安装Xray
+    handleV2Ray stop
+    installXray 7
+    installXrayService 8
     installTrojanGo 9
     installTrojanService 10
     customCDNIP 11
-    initV2RayConfig all 12
+    initXrayConfig all 12
     initTrojanGoConfig 13
-    installCronTLS 14
+#    installCronTLS 14
     nginxBlog 15
-    handleV2Ray stop
+    handleXray stop
     sleep 2
-    handleV2Ray start
+    handleXray start
 
     handleNginx start
     handleTrojanGo stop
@@ -2676,7 +3288,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.1.12"
+    echoContent green "当前版本：v2.1.13"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
@@ -2703,11 +3315,9 @@ menu(){
      case ${selectInstallType} in
         1)
             selectCoreInstall
-            v2rayCoreInstall
         ;;
         2)
             selectCoreInstall
-            customInstall
         ;;
         3)
             showAccounts 1
