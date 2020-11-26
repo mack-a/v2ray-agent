@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# 检测区
+# -------------------------------------------------------------
 # 检查系统
 checkSystem(){
 	if [[ ! -z `find /etc -name "redhat-release"` ]] || [[ ! -z `cat /proc/version | grep -i "centos" | grep -v grep ` ]]
@@ -36,21 +38,21 @@ initVar(){
     removeType='yum -y remove'
     upgrade="yum -y update"
     echoType='echo -e'
-    branch=master
 
-    coreType=
+    # 域名
     domain=
+
+    # CDN节点的address
     add=
-    globalType=
-    customPath=
-    centosVersion=0
+
+    # 安装总进度
     totalProgress=1
-    iplc=$1
+
+    # UUID
     uuid=
     uuidDirect=
     newUUID=
     newDirectUUID=
-
 
     # 1.xray-core安装
     # 2.v2ray-core 安装
@@ -59,7 +61,7 @@ initVar(){
 
     # 1.全部安装
     # 2.个性化安装
-    installType=
+    v2rayAgentInstallType=
 
     # 当前的个性化安装方式
     currentCustomInstallType=
@@ -84,6 +86,12 @@ initVar(){
 
     # 默认core版本
     v2rayCoreVersion=
+
+    # 随机路径
+    customPath=
+
+    # centos version
+    centosVersion=
 }
 
 # 检测安装方式
@@ -95,21 +103,20 @@ initInstallType(){
         if [[ -f "/etc/v2ray-agent/v2ray/v2ray" && -f "/etc/v2ray-agent/v2ray/v2ctl" ]]
         then
             coreInstallStatus=true
-            if [[ -f "/etc/v2ray-agent/v2ray/v2ray_full.json" ]]
+            if [[ -f "/etc/v2ray-agent/v2ray/config_full.json" ]]
             then
-
-                installType=1
-                if [[ ! -z `cat /etc/v2ray-agent/v2ray/v2ray_full.json|grep xtls` ]]
+                v2rayAgentInstallType=1
+                if [[ ! -z `cat /etc/v2ray-agent/v2ray/config_full.json|grep xtls` ]]
                 then
                     v2rayCoreInstallType=3
-                elif [[ -z `cat /etc/v2ray-agent/v2ray/v2ray_full.json|grep xtls` ]]
+                elif [[ -z `cat /etc/v2ray-agent/v2ray/config_full.json|grep xtls` ]]
                 then
                     v2rayCoreInstallType=2
                 fi
 
             elif [[ -d "/etc/v2ray-agent/v2ray/conf" && -f "/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json" ]]
             then
-                installType=2
+                v2rayAgentInstallType=2
                 if [[ ! -z `cat /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json|grep xtls` ]]
                 then
                     v2rayCoreInstallType=3
@@ -127,7 +134,7 @@ initInstallType(){
 
 # 检测个性化安装的方式
 initCustomInstallType(){
-    if [[ "${installType}" = "2" ]]
+    if [[ "${v2rayAgentInstallType}" = "2" ]]
     then
         # currentCustomInstallType
         while read row
@@ -155,18 +162,20 @@ initCustomInstallType(){
 # 检查文件目录以及path路径
 initConfigHostPath(){
     # config path
-    if [[ "${installType}" = "1" ]]
+    if [[ "${v2rayAgentInstallType}" = "1" ]]
     then
-        v2rayConfigFilePath=/etc/v2ray-agent/v2ray/v2ray_full.json
-    elif [[ "${installType}" = "2" ]]
+        v2rayConfigFilePath=/etc/v2ray-agent/v2ray/config_full.json
+
+    elif [[ "${v2rayAgentInstallType}" = "2" ]]
     then
         v2rayConfigFilePath=/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json
     fi
+
     # path
     if [[ ! -z "${v2rayConfigFilePath}" ]]
     then
         local path=`cat ${v2rayConfigFilePath}|jq .inbounds[0].settings.fallbacks|jq -c '.[].path'|awk -F "[\"][/]" '{print $2}'|awk -F "[\"]" '{print $1}'|tail -n +2|head -n 1`
-        if [[ ! -z "${currentPath}" ]]
+        if [[ ! -z "${path}" ]]
         then
             currentPath=${path:0:4}
         fi
@@ -189,8 +198,26 @@ checkCoreStatus(){
      if [[ -d "/etc/v2ray-agent" && -d "/etc/v2ray-agent/v2ray" ]] && [[ -f "/etc/v2ray-agent/v2ray/v2ray" && -f "/etc/v2ray-agent/v2ray/v2ctl" ]]
      then
         coreInstallStatus=true
+     else
+        coreInstallStatus=
      fi
 }
+initVar
+echo initVar
+checkSystem
+echo checkSystem
+initInstallType
+echo initInstallType
+checkCoreStatus
+echo checkCoreStatus
+initCustomInstallType
+echo initCustomInstallType
+initConfigHostPath
+echo initConfigHostPath
+
+
+
+# -------------------------------------------------------------
 
 echoContent(){
     case $1 in
@@ -223,6 +250,39 @@ echoContent(){
     esac
 }
 
+echoContent red v2rayCoreInstallType:${v2rayCoreInstallType}
+
+echoContent red v2rayAgentInstallType:${v2rayAgentInstallType}
+
+    # 当前的个性化安装方式
+echoContent red currentCustomInstallType:${currentCustomInstallType}
+
+    # 选择的个性化安装方式
+echoContent red selectCustomInstallType:${selectCustomInstallType}
+
+    # 配置文件的路径
+echoContent red v2rayConfigFilePath:${v2rayConfigFilePath}
+
+    # 配置文件的path
+echoContent red currentPath:${currentPath}
+
+    # 配置文件的host
+echoContent red currentHost:${currentHost}
+
+    # 安装时选择的core类型
+echoContent red selectCoreType:${selectCoreType}
+
+
+echoContent red ${coreInstallStatus}
+
+
+echoContent red ${v2rayCoreVersion}
+
+
+echoContent red ${customPath}
+
+
+echoContent red ${centosVersion}
 # 初始化安装目录
 mkdirTools(){
     mkdir -p /etc/v2ray-agent/tls
@@ -451,7 +511,7 @@ checkIP(){
 # 安装TLS
 installTLS(){
     echoContent skyBlue "\n进度  $1/${totalProgress} : 申请TLS证书"
-    if [[ ! -z `ls /etc/v2ray-agent/tls|grep ${domain}.crt` ]] && [[ ! -z `ls /etc/v2ray-agent/tls|grep ${domain}.key` ]]
+    if [[ -z `ls /etc/v2ray-agent/tls|grep ${domain}.crt` ]] && [[ -z `ls /etc/v2ray-agent/tls|grep ${domain}.key` ]]
     then
         echoContent green " ---> 安装TLS证书"
 
@@ -507,8 +567,6 @@ randomPathFunction(){
     customPath=
     if [[ ! -z "${v2rayConfigFilePath}" ]]
     then
-
-        v2rayConfigFilePath=/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json
         path=`cat ${v2rayConfigFilePath}|jq .inbounds[0].settings.fallbacks|jq -c '.[].path'|awk -F "[\"][/]" '{print $2}'|awk -F "[\"]" '{print $1}'|tail -n +2|head -n 1`
         customPath=${path:0:4}
     fi
@@ -533,6 +591,7 @@ randomPathFunction(){
         fi
     fi
     echoContent yellow "path：${customPath}"
+    echoContent skyBlue "\n----------------------------"
 }
 # Nginx伪装博客
 nginxBlog(){
@@ -736,6 +795,7 @@ checkTLStatus(){
 # 安装V2Ray、指定版本
 installV2Ray(){
     checkCoreStatus
+    echoContent red coreInstallStatus:${coreInstallStatus}
     echoContent skyBlue "\n进度  $1/${totalProgress} : 安装V2Ray"
     # 首先要卸载掉其余途径安装的V2Ray
     if [[ ! -z `ps -ef|grep -v grep|grep v2ray` ]] && [[ -z `ps -ef|grep -v grep|grep v2ray|grep v2ray-agent` ]]
@@ -764,7 +824,7 @@ installV2Ray(){
         unzip -o /etc/v2ray-agent/v2ray/v2ray-linux-64.zip -d /etc/v2ray-agent/v2ray > /dev/null
         rm -rf /etc/v2ray-agent/v2ray/v2ray-linux-64.zip
     else
-        if [[ "${coreType}" = "3" ]]
+        if [[ "${selectCoreType}" = "3" ]]
         then
             echoContent green " ---> 锁定v2ray-core版本为v4.32.1"
             rm -f /etc/v2ray-agent/v2ray/v2ray
@@ -801,10 +861,10 @@ installTrojanGo(){
     else
         echoContent green " ---> Trojan-Go版本:`/etc/v2ray-agent/trojan/trojan-go --version|awk '{print $2}'|head -1`"
 
-        read -p "是否重新安装？[y/n]:" reInstalTrojanStatus
-        if [[ "${reInstalV2RayStatus}" = "y" ]]
+        read -p "是否重新安装？[y/n]:" reInstallTrojanStatus
+        if [[ "${reInstallTrojanStatus}" = "y" ]]
         then
-            rm -rf /etc/v2ray-agent/trojan/trojan-go
+            rm -rf /etc/v2ray-agent/trojan/trojan-go*
             installTrojanGo $1
         fi
     fi
@@ -1156,27 +1216,30 @@ handleTrojanGo(){
 # 初始化V2Ray 配置文件
 initV2RayConfig(){
     echoContent skyBlue "\n进度 $2/${totalProgress} : 初始化V2Ray配置"
-
     if [[ ! -z "${v2rayConfigFilePath}" ]]
     then
         echo
         read -p "读取到上次安装记录，是否使用上次安装时的UUID ？[y/n]:" historyUUIDStatus
         if [[ "${historyUUIDStatus}" = "y" ]]
         then
-            if [[ "${installType}" = "2" ]]
+            if [[ "${v2rayAgentInstallType}" = "1" ]]
             then
                 uuid=`cat ${v2rayConfigFilePath}|jq .inbounds[0].settings.clients[0].id|awk -F '["]' '{print $2}'`
-            elif [[ "${installType}" = "3" ]]
+            elif [[ "${v2rayAgentInstallType}" = "2" ]]
             then
+                uuid=`cat ${v2rayConfigFilePath}|jq .inbounds[0].settings.clients[0].id|awk -F '["]' '{print $2}'`
                 uuidDirect=`cat ${v2rayConfigFilePath}|jq .inbounds[0].settings.clients[1].id|awk -F '["]' '{print $2}'`
             fi
-
+        else
+            uuid=`/etc/v2ray-agent/v2ray/v2ctl uuid`
+            uuidDirect=`/etc/v2ray-agent/v2ray/v2ctl uuid`
         fi
     else
-        uuid=`/etc/v2ray-agent/v2ray/v2ctl uuid`
-        uuidDirect=`/etc/v2ray-agent/v2ray/v2ctl uuid`
+        echoContent red '\n ---> 无法读取目录'
+        exit 0;
     fi
-
+    echoContent red uuid:${uuid}
+    echoContent red uuidDirect:${uuidDirect}
     if [[ -z "${uuid}" ]]
     then
         echoContent red "\n ---> uuid读取错误，重新生成"
@@ -1677,7 +1740,7 @@ EOF
 EOF
         fi
         # VLESS_TCP
-        if [[ "${coreType}" = "2" ]]
+        if [[ "${selectCoreType}" = "2" ]]
         then
             cat << EOF > /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json
 {
@@ -1718,7 +1781,7 @@ EOF
   ]
 }
 EOF
-        elif [[ "${coreType}" = "3" ]]
+        elif [[ "${selectCoreType}" = "3" ]]
         then
 
         cat << EOF > /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json
@@ -1819,7 +1882,7 @@ customCDNIP(){
     echoContent yellow " 移动:104.19.41.56"
     echoContent yellow " 联通:104.16.160.136"
     echoContent yellow " 电信:104.17.78.198"
-    echoContent skyBlue "-------------------------------------------------------------"
+    echoContent skyBlue "----------------------------"
     read -p '是否使用？[y/n]:' dnsProxy
     if [[ "${dnsProxy}" = "y" ]]
     then
@@ -1938,10 +2001,12 @@ defaultBase64Code(){
 
 # 账号
 showAccounts(){
+    initInstallType
     showStatus=
-    local host=
+#    local host=
+    echo v2rayAgentInstallType:${v2rayAgentInstallType}
     echoContent skyBlue "\n进度 $1/${totalProgress} : 账号"
-    if [[ "${installType}" = "2" ]]
+    if [[ "${v2rayAgentInstallType}" = "1" ]]
     then
         showStatus=true
         # VLESS tcp
@@ -1973,33 +2038,33 @@ showAccounts(){
         local vmessTCPID=`echo ${vmessTCP}|jq .settings.clients[0].id`
         local vmessTCPEmail="`echo ${vmessTCP}|jq .settings.clients[0].email|awk -F '["]' '{print $2}'`"
         local vmessTCPath=`echo ${vmessTCP}|jq .streamSettings.tcpSettings.header.request.path[0]`
-
-        if [[ "${selectCoreType}" = "3" ]]
+        echoContent red currentHost:${currentHost}
+        if [[ "${v2rayCoreInstallType}" = "3" ]]
         then
-            host=`echo ${tcp}|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+#            host=`echo ${tcp}|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
             echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-origin ==========================="
-            defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${host}:${port}" ${add}
+            defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${currentHost}:${port}" ${add}
 
             echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-direct ==========================="
-            defaultBase64Code vlesstcp ${tcpDirectEmail} "${tcpIDirect}" "${host}:${port}" ${add}
+            defaultBase64Code vlesstcp ${tcpDirectEmail} "${tcpIDirect}" "${currentHost}:${port}" ${add}
 
-        elif [[ "${selectCoreType}" = "2" ]]
+        elif [[ "${v2rayCoreInstallType}" = "2" ]]
         then
-            host=`echo ${tcp}|jq .streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+#            host=`echo ${tcp}|jq .streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
             echoContent skyBlue "\n============================ VLESS TCP TLS ======================================="
-            defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${host}:${port}" ${add}
+            defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${currentHost}:${port}" ${add}
         fi
 
         echoContent skyBlue "\n================================ VLESS WS TLS CDN ================================"
-        defaultBase64Code vlessws ${vlessWSEmail} "${vlessWSID}" "${host}:${port}" "${vlessWSPath}" ${CDNADD}
+        defaultBase64Code vlessws ${vlessWSEmail} "${vlessWSID}" "${currentHost}:${port}" "${vlessWSPath}" ${CDNADD}
 
         echoContent skyBlue "\n================================ VMess WS TLS CDN ================================"
-        defaultBase64Code vmessws ${wsEmail} "${wsID}" "${host}:${port}" "${wsPath}" ${CDNADD}
+        defaultBase64Code vmessws ${wsEmail} "${wsID}" "${currentHost}:${port}" "${wsPath}" ${CDNADD}
 
         echoContent skyBlue "\n================================= VMess TCP TLS  ================================="
-        defaultBase64Code vmesstcp ${vmessTCPEmail} "${vmessTCPID}" "${host}:${port}" "${vmessTCPath}" "${host}"
+        defaultBase64Code vmesstcp ${vmessTCPEmail} "${vmessTCPID}" "${currentHost}:${port}" "${vmessTCPath}" "${currentHost}"
 
-    elif [[ ! -z "${selectCustomInstallType}" ]]
+    elif [[ "${v2rayAgentInstallType}" = "2" ]]
     then
         showStatus=true
 
@@ -2014,25 +2079,25 @@ showAccounts(){
         local tcpIDirect=`echo ${tcp}|jq .settings.clients[1].id`
         local tcpDirectEmail="`echo ${tcp}|jq .settings.clients[1].email|awk -F '["]' '{print $2}'`"
 
-        if [[ "${selectCoreType}" = "3" ]]
+        if [[ "${v2rayCoreInstallType}" = "3" ]]
         then
-            host=`echo ${tcp}|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+#            host=`echo ${tcp}|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
             echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-origin ==========================="
-            defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${host}:${port}" ${add}
+            defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${currentHost}:${port}" ${add}
 
             echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-direct ==========================="
-            defaultBase64Code vlesstcp ${tcpDirectEmail} "${tcpIDirect}" "${host}:${port}" ${add}
+            defaultBase64Code vlesstcp ${tcpDirectEmail} "${tcpIDirect}" "${currentHost}:${port}" ${add}
 
-        elif [[ "${selectCoreType}" = "2" ]]
+        elif [[ "${v2rayCoreInstallType}" = "2" ]]
         then
-            host=`echo ${tcp}|jq .streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
+#            host=`echo ${tcp}|jq .streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
             echoContent skyBlue "\n============================ VLESS TCP TLS ======================================="
-            defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${host}:${port}" ${add}
+            defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${currentHost}:${port}" ${add}
         fi
 
-        if [[ ! -z "${selectCustomInstallType}" ]]
+        if [[ ! -z "${currentCustomInstallType}" ]]
         then
-            if [[ ! -z `echo ${selectCustomInstallType}|grep 1` ]]
+            if [[ ! -z `echo ${currentCustomInstallType}|grep 1` ]]
             then
                 # VLESS ws
                 local vlessWS=`cat /etc/v2ray-agent/v2ray/conf/03_VLESS_WS_inbounds.json|jq .inbounds[0]`
@@ -2042,9 +2107,9 @@ showAccounts(){
                 local vlessWSPath=`echo ${vlessWS}|jq .streamSettings.wsSettings.path`
 
                 echoContent skyBlue "\n================================ VLESS WS TLS CDN ================================"
-                defaultBase64Code vlessws ${vlessWSEmail} "${vlessWSID}" "${host}:${port}" "${vlessWSPath}" ${CDNADD}
+                defaultBase64Code vlessws ${vlessWSEmail} "${vlessWSID}" "${currentHost}:${port}" "${vlessWSPath}" ${CDNADD}
             fi
-            if [[ ! -z `echo ${selectCustomInstallType}|grep 2` ]]
+            if [[ ! -z `echo ${currentCustomInstallType}|grep 2` ]]
             then
 
                 local vmessTCP=`cat /etc/v2ray-agent/v2ray/conf/04_VMess_TCP_inbounds.json|jq .inbounds[0]`
@@ -2053,9 +2118,9 @@ showAccounts(){
                 local vmessTCPath=`echo ${vmessTCP}|jq .streamSettings.tcpSettings.header.request.path[0]`
 
                 echoContent skyBlue "\n================================= VMess TCP TLS  ================================="
-                defaultBase64Code vmesstcp ${vmessTCPEmail} "${vmessTCPID}" "${host}:${port}" "${vmessTCPath}" "${host}"
+                defaultBase64Code vmesstcp ${vmessTCPEmail} "${vmessTCPID}" "${currentHost}:${port}" "${vmessTCPath}" "${currentHost}"
             fi
-            if [[ ! -z `echo ${selectCustomInstallType}|grep 3` ]]
+            if [[ ! -z `echo ${currentCustomInstallType}|grep 3` ]]
             then
 
                 local ws=`cat /etc/v2ray-agent/v2ray/conf/05_VMess_WS_inbounds.json|jq .inbounds[0]`
@@ -2064,7 +2129,7 @@ showAccounts(){
                 local wsPath=`echo ${ws}|jq .streamSettings.wsSettings.path`
 
                 echoContent skyBlue "\n================================ VMess WS TLS CDN ================================"
-                defaultBase64Code vmessws ${wsEmail} "${wsID}" "${host}:${port}" "${wsPath}" ${CDNADD}
+                defaultBase64Code vmessws ${wsEmail} "${wsID}" "${currentHost}:${port}" "${wsPath}" ${CDNADD}
             fi
         fi
     fi
@@ -2076,14 +2141,14 @@ showAccounts(){
         local trojanGoPath=`cat /etc/v2ray-agent/trojan/config_full.json|jq .websocket.path|awk -F '["]' '{print $2}'`
         local trojanGoAdd=`cat /etc/v2ray-agent/trojan/config_full.json|jq .websocket.add|awk -F '["]' '{print $2}'`
         echoContent skyBlue "\n==================================  Trojan TLS  =================================="
-        defaultBase64Code trojan trojan ${trojanUUID} ${host}
+        defaultBase64Code trojan trojan ${trojanUUID} ${currentHost}
 
         echoContent skyBlue "\n================================  Trojan WS TLS   ================================"
         if [[ -z ${trojanGoAdd} ]]
         then
-            trojanGoAdd=${host}
+            trojanGoAdd=${currentHost}
         fi
-        defaultBase64Code trojangows trojan ${trojanUUID} ${host} ${trojanGoPath} ${trojanGoAdd}
+        defaultBase64Code trojangows trojan ${trojanUUID} ${currentHost} ${trojanGoPath} ${trojanGoAdd}
     fi
     if [[ -z ${showStatus} ]]
     then
@@ -2134,7 +2199,7 @@ unInstall(){
 # 修改V2Ray CDN节点
 updateV2RayCDN(){
     echoContent skyBlue "\n进度 $1/${totalProgress} : 修改CDN节点"
-    if [[ ! -z "${installType}" ]]
+    if [[ ! -z "${v2rayAgentInstallType}" ]]
     then
 
         local add=`cat ${v2rayConfigFilePath}|grep -v grep|grep add`
@@ -2212,7 +2277,7 @@ updateV2RayCDN(){
 resetUUID(){
     echoContent skyBlue "\n进度 $1/${totalProgress} : 重置UUID"
     local resetStatus=false
-    if [[ ! -z "${installType}" ]] && [[ -z "${currentCustomInstallType}" ]]
+    if [[ ! -z "${v2rayAgentInstallType}" ]] && [[ -z "${currentCustomInstallType}" ]]
     then
         newUUID=`/etc/v2ray-agent/v2ray/v2ctl uuid`
         newDirectUUID=`/etc/v2ray-agent/v2ray/v2ctl uuid`
@@ -2251,7 +2316,7 @@ resetUUID(){
         handleV2Ray stop
         handleV2Ray start
         resetStatus=true
-    elif [[ ! -z "${installType}" ]] && [[ ! -z "${currentCustomInstallType}" ]]
+    elif [[ ! -z "${v2rayAgentInstallType}" ]] && [[ ! -z "${currentCustomInstallType}" ]]
     then
         newUUID=`/etc/v2ray-agent/v2ray/v2ctl uuid`
         newDirectUUID=`/etc/v2ray-agent/v2ray/v2ctl uuid`
@@ -2333,6 +2398,9 @@ resetUUID(){
     fi
     if [[ "${resetStatus}" = "true" ]]
     then
+        initInstallType
+        initConfigHostPath
+        initCustomInstallType
         showAccounts 1
     fi
 }
@@ -2493,6 +2561,9 @@ customInstall(){
         handleV2Ray start
         # 生成账号
         checkGFWStatue 15
+        initInstallType
+        initConfigHostPath
+        initCustomInstallType
         showAccounts 16
     else
         echoContent red " ---> 输入不合法"
@@ -2508,8 +2579,8 @@ selectCoreInstall(){
     echoContent yellow "2.v2ray-core"
     echoContent yellow "3.v2ray-core[XTLS]"
     echoContent red "=============================================================="
-    read -p "请选择：" coreType
-    case ${coreType} in
+    read -p "请选择：" selectCoreType
+    case ${selectCoreType} in
         1)
             echoContent red ' ---> 暂无'
             exit 0
@@ -2558,6 +2629,9 @@ v2rayCoreInstall(){
     handleTrojanGo start
     # 生成账号
     checkGFWStatue 16
+    initInstallType
+    initConfigHostPath
+    initCustomInstallType
     showAccounts 17
 }
 
@@ -2565,7 +2639,6 @@ v2rayCoreInstall(){
 xrayCoreInstall(){
     customInstallType=
     totalProgress=17
-    mkdirTools 1
     installTools 2
     # 申请tls
     initTLSNginxConfig 3
@@ -2593,6 +2666,9 @@ xrayCoreInstall(){
     handleTrojanGo start
     # 生成账号
     checkGFWStatue 16
+    initInstallType
+    initConfigHostPath
+    initCustomInstallType
     showAccounts 17
 }
 # 主菜单
@@ -2623,7 +2699,6 @@ menu(){
     echoContent red "=============================================================="
     mkdirTools
     aliasInstall
-    judgeCoreType
     read -p "请选择:" selectInstallType
      case ${selectInstallType} in
         1)
