@@ -45,12 +45,12 @@
 - VMess/VLESS也可开启Mux，效果需要自己尝试，XTLS不支持Mux。仅需客户端开启，服务端自适应。
 
 ## 特性
-- 兼容不同的核心安装，支持安装带有XTLS的v2ray-core。支持正在维护的v2fly/v2ray-core的核心，支持xray-core核心安装【目前此核心未发布】。
+- 兼容不同的核心安装，支持安装带有XTLS的v2ray-core。支持正在维护的v2fly/v2ray-core的核心，支持xray-core核心安装。
+- 支持不同核心之间的配置文件互相读取。
 - 支持 VLESS/VMess/trojan/trojan-go ws的协议
 - 支持Debian、Ubuntu、Centos，支持主流的cpu架构。
 - 支持个性化安装，VLESS+TCP+TLS为必选，其余为可选项。
 - 支持快捷方式启动，安装完毕后，shell输入[vasma]即可打开脚本，脚本执行路径[/etc/v2ray-agent/install.sh]
-- [ ] 未来会支持xray-core
 - [ ] 未来会支持ipv6
 
 
