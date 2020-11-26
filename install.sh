@@ -170,9 +170,9 @@ readCustomInstallType(){
         local customConf=
         if [[ "${coreInstallType}" = "1" ]]
         then
-            customConf=ls /etc/v2ray-agent/xray/conf|grep -v grep|grep inbounds.json|awk -F "[.]" '{print $1}'
+            customConf="ls /etc/v2ray-agent/xray/conf|grep -v grep|grep inbounds.json|awk -F "[.]" '{print $1}'"
         else
-            customConf=ls /etc/v2ray-agent/v2ray/conf|grep -v grep|grep inbounds.json|awk -F "[.]" '{print $1}'
+            customConf="ls /etc/v2ray-agent/v2ray/conf|grep -v grep|grep inbounds.json|awk -F "[.]" '{print $1}'"
         fi
 
         while read row
