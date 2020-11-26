@@ -226,8 +226,6 @@ readConfigHostPathUUID(){
         currentHost=`cat ${xrayCoreConfigFilePath}|jq .inbounds[0].streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
         currentUUID=`cat ${xrayCoreConfigFilePath}|jq .inbounds[0].settings.clients[0].id|awk -F '["]' '{print $2}'`
         currentUUIDDirect=`cat ${xrayCoreConfigFilePath}|jq .inbounds[0].settings.clients[1].id|awk -F '["]' '{print $2}'`
-        echo currentUUIDDirect:${currentUUIDDirect}
-        echo xrayCoreConfigFilePath:${xrayCoreConfigFilePath}
     elif [[ "${coreInstallType}" = "2" ]]
     then
         currentHost=`cat ${v2rayCoreConfigFilePath}|jq .inbounds[0].streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
@@ -2583,7 +2581,6 @@ showAccounts(){
     readInstallType
     readConfigHostPathUUID
     showStatus=
-    echo v2rayAgentInstallType:${v2rayAgentInstallType}
     echoContent skyBlue "\n进度 $1/${totalProgress} : 账号"
 
 
