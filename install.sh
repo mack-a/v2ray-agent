@@ -103,7 +103,6 @@ readInstallType(){
     xrayCoreConfigFilePath=
     v2rayCoreConfigFilePath=
 
-    echo 进入readInstallType
     # 1.检测安装目录
     if [[ -d "/etc/v2ray-agent"  ]]
     then
@@ -267,16 +266,10 @@ cleanUp(){
 }
 
 initVar
-echo initVar
 checkSystem
-echo checkSystem
 readInstallType
-echo readInstallType
 readCustomInstallType
-echo readCustomInstallType
 readConfigHostPathUUID
-echo readConfigHostPathUUID
-
 
 
 # -------------------------------------------------------------
@@ -1159,10 +1152,10 @@ installXrayService(){
     then
         rm -rf /etc/systemd/system/xray.service
         touch /etc/systemd/system/xray.service
-        execStart='/etc/v2ray-agent/xray/xray -config /etc/v2ray-agent/xray/config_full.json'
+        execStart='/etc/v2ray-agent/xray/xray run -config /etc/v2ray-agent/xray/config_full.json'
         if [[ ! -z ${customInstallType} ]]
         then
-            execStart='/etc/v2ray-agent/xray/xray -confdir /etc/v2ray-agent/xray/conf'
+            execStart='/etc/v2ray-agent/xray/xray run -confdir /etc/v2ray-agent/xray/conf'
         fi
     cat << EOF > /etc/systemd/system/xray.service
 [Unit]
@@ -3185,7 +3178,7 @@ customInstall(){
 selectCoreInstall(){
     echoContent skyBlue "\n功能 1/${totalProgress} : 选择核心安装"
     echoContent red "\n=============================================================="
-    echoContent yellow "1.xray-core"
+    echoContent yellow "1.Xray-core"
     echoContent yellow "2.v2ray-core"
     echoContent yellow "3.v2ray-core[XTLS]"
     echoContent red "=============================================================="
