@@ -255,11 +255,11 @@ cleanUp(){
 
     elif [[ "$1" = "v2rayDel" ]]
     then
-        rm -rf `ls /etc/v2ray-agent/v2ray/*`
+        rm -rf /etc/v2ray-agent/v2ray/*
 
     elif [[ "$1" = "xrayDel" ]]
     then
-        rm -rf `ls /etc/v2ray-agent/xray/*`
+        rm -rf /etc/v2ray-agent/xray/*
     fi
 }
 
@@ -2759,8 +2759,16 @@ updateV2RayCDN(){
     echoContent skyBlue "\n进度 $1/${totalProgress} : 修改CDN节点"
     if [[ ! -z "${v2rayAgentInstallType}" ]]
     then
+        local configPath=
+        if [[ "${coreInstallType}" = "1" ]]
+        then
+            configPath=${xrayCoreConfigFilePath}
+        elif [[ "${coreInstallType}" = "2" || "${coreInstallType}" = "3" ]]
+        then
+            configPath=${v2rayCoreConfigFilePath}
+        fi
 
-        local add=`cat ${v2rayCoreConfigFilePath}|grep -v grep|grep add`
+        local add=`cat ${configPath}|grep -v grep|grep add`
         if [[ ! -z ${add} ]]
         then
             echoContent red "=============================================================="
@@ -2790,29 +2798,37 @@ updateV2RayCDN(){
                 add=`echo ${add}|awk -F '["]' '{print $4}'`
                 if [[ ! -z ${add} ]]
                 then
-                    sed -i "s/${add}/${setDomain}/g"  `grep "${add}" -rl ${configPath}`
+                    sed -i "s/\"${add}\"/\"${setDomain}\"/g"  `grep "${add}" -rl ${configPath}`
                 fi
 
-                if [[ `cat ${v2rayCoreConfigFilePath}|grep -v grep|grep add|awk -F '["]' '{print $4}'` = ${setDomain} ]]
+                if [[ `cat ${configPath}|grep -v grep|grep add|awk -F '["]' '{print $4}'` = ${setDomain} ]]
                 then
                     echoContent green " ---> V2Ray CDN修改成功"
-                    handleV2Ray stop
-                    handleV2Ray start
+                    if [[ "${coreInstallType}" = "1" ]]
+                    then
+                        handleXray stop
+                        handleXray start
+                    elif [[ "${coreInstallType}" = "2" || "${coreInstallType}" = "3" ]]
+                    then
+                        handleV2Ray stop
+                        handleV2Ray start
+                    fi
+
                 else
                     echoContent red " ---> 修改V2Ray CDN失败"
                 fi
 
                 # trojan
-                if [[ -d "/etc/v2ray-agent/trojan" ]] && [[ -f "/etc/v2ray-agent/trojan/config.json" ]]
+                if [[ -d "/etc/v2ray-agent/trojan" ]] && [[ -f "/etc/v2ray-agent/trojan/config_full.json" ]]
                 then
-                    add=`cat /etc/v2ray-agent/trojan/config.json|jq .websocket.add|awk -F '["]' '{print $2}'`
+                    add=`cat /etc/v2ray-agent/trojan/config_full.json|jq .websocket.add|awk -F '["]' '{print $2}'`
                     if [[ ! -z ${add} ]]
                     then
-                        sed -i "s/${add}/${setDomain}/g"  `grep "${add}" -rl /etc/v2ray-agent/trojan/config.json`
+                        sed -i "s/${add}/${setDomain}/g"  `grep "${add}" -rl /etc/v2ray-agent/trojan/config_full.json`
                     fi
                 fi
 
-                if [[ -d "/etc/v2ray-agent/trojan" ]] && [[ -f "/etc/v2ray-agent/trojan/config.json" ]] && [[ `cat /etc/v2ray-agent/trojan/config.json|jq .websocket.add|awk -F '["]' '{print $2}'` = ${setDomain} ]]
+                if [[ -d "/etc/v2ray-agent/trojan" ]] && [[ -f "/etc/v2ray-agent/trojan/config_full.json" ]] && [[ `cat /etc/v2ray-agent/trojan/config_full.json|jq .websocket.add|awk -F '["]' '{print $2}'` = ${setDomain} ]]
                 then
                     echoContent green "\n ---> Trojan CDN修改成功"
                     handleTrojanGo stop
@@ -3279,8 +3295,8 @@ v2rayCoreInstall(){
 
 # xray-core 安装
 xrayCoreInstall(){
-    selectCustomInstallType=
     cleanUp v2rayClean
+    selectCustomInstallType=
 
     totalProgress=17
     installTools 2
@@ -3319,7 +3335,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.1.13"
+    echoContent green "当前版本：v2.1.14"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
