@@ -50,6 +50,7 @@
 - 支持 VLESS/VMess/trojan/trojan-go-->ws的协议
 - 支持Debian、Ubuntu、Centos，支持主流的cpu架构。
 - 支持个性化安装。
+- 不需要卸载就可以重装任何组合。卸载脚本时，是完全卸载无残留。
 - 支持快捷方式启动，安装完毕后，shell输入[vasma]即可打开脚本，脚本执行路径[/etc/v2ray-agent/install.sh]
 - [ ] 未来会支持ipv6
 
