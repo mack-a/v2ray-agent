@@ -612,7 +612,7 @@ nginxBlog(){
 #    echoContent yellow "添加伪装博客--->"
     echoContent skyBlue "\n进度 $1/${totalProgress} : 添加伪装博客"
     rm -rf /usr/share/nginx/html
-    wget -q -P /usr/share/nginx https://raw.githubusercontent.com/mack-a/v2ray-agent/${branch}/fodder/blog/unable/html.zip > /dev/null
+    wget -q -P /usr/share/nginx https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html.zip > /dev/null
     unzip -o  /usr/share/nginx/html.zip -d /usr/share/nginx/html > /dev/null
     echoContent green " ---> 添加伪装博客成功"
 }
