@@ -51,7 +51,6 @@
 - 支持Debian、Ubuntu、Centos，支持主流的cpu架构。
 - 支持个性化安装。
 - 不需要卸载就可以重装任何组合。卸载脚本时，是完全卸载无残留。
-- 支持快捷方式启动，安装完毕后，shell输入[**vasma**]即可打开脚本，脚本执行路径[/etc/v2ray-agent/install.sh]
 - [ ] 未来会支持ipv6
 
 
@@ -66,12 +65,21 @@
 ## 关于v2ray-core即将移除XTLS，未来的脚本修改说明 
 - 具体请[点击查看](https://github.com/mack-a/v2ray-agent/issues/32)
 
+# 脚本目录
+- v2ray-core[/etc/v2ray-agent/v2ray]
+- Xray-core[/etc/v2ray-agent/xray]
+- Trojan[/etc/v2ray-agent/trojan]
+- TLS证书[/etc/v2ray-agent/tls]
+- Nginx配置文件[/etc/nginx/conf.d/alone.conf]、Nginx伪装博客目录[/usr/share/nginx/html]
+
+
 ## 安装脚本
 ```
 wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh" && chmod 700 /root/install.sh && /root/install.sh
 ```
 
 - 示例图
+- 支持快捷方式启动，安装完毕后，shell输入[**vasma**]即可打开脚本，脚本执行路径[/etc/v2ray-agent/install.sh]
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/install.jpg" width=700>
 
 # 许可证
