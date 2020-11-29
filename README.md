@@ -14,7 +14,9 @@
   * [注意事项](#注意事项)
   * [安装脚本](#安装脚本)
 * * *
->使用必读此[issue](https://github.com/mack-a/v2ray-agent/issues/32)
+
+## 关于v2ray-core即将移除XTLS，未来的脚本修改说明
+- 具体请[点击查看](https://github.com/mack-a/v2ray-agent/issues/32)，使用脚本前必读
 
 # 1.七合一共存脚本+伪装博客
 - 如果没有使用过Cloudflare[点击这里](https://github.com/mack-a/v2ray-agent/blob/master/documents/cloudflare_init.md)查看入门教程
@@ -61,9 +63,6 @@
 - 脚本安装路径[/etc/v2ray-agent]
 - 不支持非root账户
 - 现在脚本进入相对稳定的时期，如果有功能不完善的地方，请提issues。
- 
-## 关于v2ray-core即将移除XTLS，未来的脚本修改说明 
-- 具体请[点击查看](https://github.com/mack-a/v2ray-agent/issues/32)
 
 ## 脚本目录
 - v2ray-core[/etc/v2ray-agent/v2ray]
