@@ -65,7 +65,7 @@
 ## 关于v2ray-core即将移除XTLS，未来的脚本修改说明 
 - 具体请[点击查看](https://github.com/mack-a/v2ray-agent/issues/32)
 
-# 脚本目录
+## 脚本目录
 - v2ray-core[/etc/v2ray-agent/v2ray]
 - Xray-core[/etc/v2ray-agent/xray]
 - Trojan[/etc/v2ray-agent/trojan]
