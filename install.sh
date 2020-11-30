@@ -914,7 +914,7 @@ installTrojanGo(){
     fi
 }
 
-# V2Ray版本管理
+# v2ray版本管理
 v2rayVersionManageMenu(){
     echoContent skyBlue "\n进度  $1/${totalProgress} : V2Ray版本管理"
     if [[ ! -d "/etc/v2ray-agent/v2ray/" ]]
@@ -952,11 +952,49 @@ v2rayVersionManageMenu(){
 
 }
 
+# xray版本管理
+xrayVersionManageMenu(){
+    echoContent skyBlue "\n进度  $1/${totalProgress} : Xray版本管理"
+    if [[ ! -d "/etc/v2ray-agent/xray/" ]]
+    then
+        echoContent red " ---> 没有检测到安装目录，请执行脚本安装内容"
+        menu
+        exit 0;
+    fi
+    echoContent red "\n=============================================================="
+    echoContent yellow "1.升级"
+    echoContent yellow "2.回退"
+    echoContent red "=============================================================="
+    read -p "请选择：" selectXrayType
+    if [[ "${selectXrayType}" = "1" ]]
+    then
+        updateXray
+    elif [[ "${selectXrayType}" = "2" ]]
+    then
+        echoContent yellow "\n1.只可以回退最近的两个版本"
+        echoContent yellow "2.不保证回退后一定可以正常使用"
+        echoContent yellow "3.如果回退的版本不支持当前的config，则会无法连接，谨慎操作"
+        echoContent skyBlue "------------------------Version-------------------------------"
+        curl -s https://github.com/XTLS/Xray-core/releases|grep /XTLS/Xray-core/releases/tag/|head -3|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'|tail -n 2|awk '{print ""NR""":"$0}'
+        echoContent skyBlue "--------------------------------------------------------------"
+        read -p "请输入要回退的版本：" selectXrayVersionType
+        version=`curl -s https://github.com/XTLS/Xray-core/releases|grep /XTLS/Xray-core/releases/tag/|head -3|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'|tail -n 2|awk '{print ""NR""":"$0}'|grep "${selectXrayVersionType}:"|awk -F "[:]" '{print $2}'`
+        if [[ ! -z "${version}" ]]
+        then
+            updateXray ${version}
+        else
+            echoContent red "\n ---> 输入有误，请重新输入"
+            xrayVersionManageMenu 1
+        fi
+    fi
+
+}
 # 更新V2Ray
 updateV2Ray(){
     readInstallType
-    if [[ "${coreInstallType}" = "2" || "${coreInstallType}" = "3" ]]
+    if [[ -z "${coreInstallType}" ]]
     then
+
         if [[ ! -z "$1" ]]
         then
             version=$1
@@ -1000,6 +1038,14 @@ updateV2Ray(){
             read -p "回退版本为${version}，是否继续？[y/n]:" rollbackV2RayStatus
             if [[ "${rollbackV2RayStatus}" = "y" ]]
             then
+                if [[ "${coreInstallType}" = "2" || "${coreInstallType}" = "3"  ]]
+                then
+                    echoContent green " ---> 当前v2ray-core版本:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`"
+                elif [[ "${coreInstallType}" = "1"  ]]
+                then
+                    echoContent green " ---> 当前Xray-core版本:`/etc/v2ray-agent/xray/xray --version|awk '{print $2}'|head -1`"
+                fi
+
                 handleV2Ray stop
                 rm -f /etc/v2ray-agent/v2ray/v2ray
                 rm -f /etc/v2ray-agent/v2ray/v2ctl
@@ -1034,6 +1080,82 @@ updateV2Ray(){
     fi
 }
 
+# 更新Xray
+updateXray(){
+    readInstallType
+    if [[ -z "${coreInstallType}" ]]
+    then
+        if [[ ! -z "$1" ]]
+        then
+            version=$1
+        else
+            version=`curl -s https://github.com/XTLS/Xray-core/releases|grep /XTLS/Xray-core/releases/tag/|head -1|awk '{print $3}'|awk -F "[<]" '{print $1}'`
+        fi
+
+        echoContent green " ---> Xray-core版本:${version}"
+
+        if [[ ! -z `wget --help|grep show-progress` ]]
+        then
+            wget -c -q --show-progress -P /etc/v2ray-agent/xray/ https://github.com/XTLS/Xray-core/releases/download/${version}/Xray-linux-64.zip
+        else
+            wget -c -P /etc/v2ray-agent/xray/ https://github.com/XTLS/Xray-core/releases/download/${version}/Xray-linux-64.zip > /dev/null 2>&1
+        fi
+
+        unzip -o /etc/v2ray-agent/xray/Xray-linux-64.zip -d /etc/v2ray-agent/xray > /dev/null
+        rm -rf /etc/v2ray-agent/xray/Xray-linux-64.zip
+        chmod 655 /etc/v2ray-agent/xray/xray
+        handleXray stop
+        handleXray start
+    else
+        echoContent green " ---> 当前Xray-core版本:`/etc/v2ray-agent/xray/xray --version|awk '{print $2}'|head -1`"
+
+        if [[ ! -z "$1" ]]
+        then
+            version=$1
+        else
+            version=`curl -s https://github.com/XTLS/Xray-core/releases|grep /XTLS/Xray-core/releases/tag/|head -1|awk '{print $3}'|awk -F "[<]" '{print $1}'`
+        fi
+
+        if [[ ! -z "$1" ]]
+        then
+            read -p "回退版本为${version}，是否继续？[y/n]:" rollbackXrayStatus
+            if [[ "${rollbackXrayStatus}" = "y" ]]
+            then
+                echoContent green " ---> 当前Xray-core版本:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`"
+
+                handleV2Ray stop
+                rm -f /etc/v2ray-agent/v2ray/v2ray
+                rm -f /etc/v2ray-agent/v2ray/v2ctl
+                updateV2Ray ${version}
+            else
+                echoContent green " ---> 放弃回退版本"
+            fi
+        elif [[ "${version}" = "v`/etc/v2ray-agent/xray/xray --version|awk '{print $2}'|head -1`" ]]
+        then
+            read -p "当前版本与最新版相同，是否重新安装？[y/n]:" reInstallXrayStatus
+            if [[ "${reInstallXrayStatus}" = "y" ]]
+            then
+                handleXray stop
+                rm -f /etc/v2ray-agent/xray/xray
+                rm -f /etc/v2ray-agent/xray/xray
+                updateXray
+            else
+                echoContent green " ---> 放弃重新安装"
+            fi
+        else
+            read -p "最新版本为：${version}，是否更新？[y/n]：" installXrayStatus
+            if [[ "${installXrayStatus}" = "y" ]]
+            then
+                rm -f /etc/v2ray-agent/xray/xray
+                rm -f /etc/v2ray-agent/xray/xray
+                updateXray
+            else
+                echoContent green " ---> 放弃更新"
+            fi
+
+        fi
+    fi
+}
 # 更新Trojan-Go
 updateTrojanGo(){
     echoContent skyBlue "\n进度  $1/${totalProgress} : 更新Trojan-Go"
@@ -3367,12 +3489,36 @@ xrayCoreInstall(){
     checkGFWStatue 16
     showAccounts 17
 }
+
+# 核心管理
+coreVersionManageMenu(){
+
+    if [[ -z "${coreInstallType}" ]]
+    then
+        echoContent red " ---> 没有检测到安装目录，请执行脚本安装内容"
+        menu
+        exit 0;
+    fi
+    if [[ "${coreInstallType}" = "1" ]]
+    then
+        xrayVersionManageMenu 1
+    elif [[ "${coreInstallType}" = "2" ]]
+    then
+        v2rayCoreVersion=
+        v2rayVersionManageMenu 1
+
+    elif [[ "${coreInstallType}" = "3" ]]
+    then
+        v2rayCoreVersion=v4.32.1
+        v2rayVersionManageMenu 1
+    fi
+}
 # 主菜单
 menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.1.15"
+    echoContent green "当前版本：v2.1.16"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
@@ -3385,7 +3531,7 @@ menu(){
     echoContent yellow "6.更换CDN节点"
     echoContent yellow "7.重置uuid"
     echoContent skyBlue "-------------------------版本管理-----------------------------"
-    echoContent yellow "8.V2Ray版本管理"
+    echoContent yellow "8.core版本管理"
     echoContent yellow "9.升级Trojan-Go"
     echoContent yellow "10.升级脚本"
     echoContent yellow "11.安装BBR"
@@ -3418,7 +3564,7 @@ menu(){
             resetUUID 1
         ;;
         8)
-            v2rayVersionManageMenu 1
+            coreVersionManageMenu 1
         ;;
         9)
             updateTrojanGo 1
