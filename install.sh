@@ -2412,7 +2412,7 @@ EOF
 # 自定义CDN IP
 customCDNIP(){
     echoContent skyBlue "\n进度 $1/${totalProgress} : 添加DNS智能解析"
-    echoContent yellow " 移动:104.19.41.56"
+    echoContent yellow " 移动:104.19.45.117"
     echoContent yellow " 联通:104.16.160.136"
     echoContent yellow " 电信:104.17.78.198"
     echoContent skyBlue "----------------------------"
