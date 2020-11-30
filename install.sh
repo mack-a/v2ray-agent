@@ -226,18 +226,12 @@ readConfigHostPathUUID(){
         currentHost=`cat ${xrayCoreConfigFilePath}|jq .inbounds[0].streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
         currentUUID=`cat ${xrayCoreConfigFilePath}|jq .inbounds[0].settings.clients[0].id|awk -F '["]' '{print $2}'`
         currentUUIDDirect=`cat ${xrayCoreConfigFilePath}|jq .inbounds[0].settings.clients[1].id|awk -F '["]' '{print $2}'`
-    elif [[ "${coreInstallType}" = "2" ]]
-    then
-        currentHost=`cat ${v2rayCoreConfigFilePath}|jq .inbounds[0].streamSettings.tlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
-        currentUUID=`cat ${v2rayCoreConfigFilePath}|jq .inbounds[0].settings.clients[0].id|awk -F '["]' '{print $2}'`
-
-    elif [[ "${coreInstallType}" = "3" ]]
+    elif [[ "${coreInstallType}" = "2" || "${coreInstallType}" = "3" ]]
     then
         currentHost=`cat ${v2rayCoreConfigFilePath}|jq .inbounds[0].streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
         currentUUID=`cat ${v2rayCoreConfigFilePath}|jq .inbounds[0].settings.clients[0].id|awk -F '["]' '{print $2}'`
         currentUUIDDirect=`cat ${v2rayCoreConfigFilePath}|jq .inbounds[0].settings.clients[1].id|awk -F '["]' '{print $2}'`
     fi
-
 }
 
 # 清理旧残留
@@ -2851,12 +2845,19 @@ updateV2RayCDN(){
 resetUUID(){
     echoContent skyBlue "\n进度 $1/${totalProgress} : 重置UUID"
     local resetStatus=false
-    if [[ ! -z "${v2rayAgentInstallType}" ]] && [[ -z "${currentCustomInstallType}" ]]
+    if [[ "${coreInstallType}" = "1" ]]
+    then
+        newUUID=`/etc/v2ray-agent/xray/xray uuid`
+        newDirectUUID=`/etc/v2ray-agent/xray/xray uuid`
+    elif [[ "${coreInstallType}" = "2" || "${coreInstallType}" = "3" ]]
     then
         newUUID=`/etc/v2ray-agent/v2ray/v2ctl uuid`
         newDirectUUID=`/etc/v2ray-agent/v2ray/v2ctl uuid`
-        currentUUID=`cat /etc/v2ray-agent/v2ray/config_full.json|jq .inbounds[0].settings.clients[0].id|awk -F '["]' '{print $2}'`
-        currentDirectUUID=`cat /etc/v2ray-agent/v2ray/config_full.json|jq .inbounds[0].settings.clients[1].id|awk -F '["]' '{print $2}'`
+    fi
+
+    if [[ ! -z "${v2rayAgentInstallType}" ]] && [[ -z "${currentCustomInstallType}" ]]
+    then
+
         if [[ ! -z "${currentUUID}" ]]
         then
             read -p "是否自定义uuid？[y/n]:" customUUIDStatus
@@ -2866,9 +2867,16 @@ resetUUID(){
                 read -p "请输入合法的uuid:" newUUID
                 echo
             fi
-            sed -i "s/${currentUUID}/${newUUID}/g"  `grep "${currentUUID}" -rl /etc/v2ray-agent/v2ray/config_full.json`
+            if [[ "${coreInstallType}" = "1" ]]
+            then
+                sed -i "s/${currentUUID}/${newUUID}/g"  `grep "${currentUUID}" -rl /etc/v2ray-agent/xray/config_full.json`
+            elif [[ "${coreInstallType}" = "2" || "${coreInstallType}" = "3" ]]
+            then
+                sed -i "s/${currentUUID}/${newUUID}/g"  `grep "${currentUUID}" -rl /etc/v2ray-agent/v2ray/config_full.json`
+            fi
+        fi
 
-        elif [[  ! -z "${currentDirectUUID}"  ]]
+        if [[  ! -z "${currentUUIDDirect}"  ]]
         then
             echoContent skyBlue "-------------------------------------------------------------"
             read -p "是否自定义 XTLS-direct-uuid？[y/n]:" customUUIDStatus
@@ -2884,16 +2892,31 @@ resetUUID(){
                     exit 0;
                 fi
             fi
-            sed -i "s/${currentDirectUUID}/${newDirectUUID}/g"  `grep "${currentDirectUUID}" -rl /etc/v2ray-agent/v2ray/config_full.json`
+            if [[ "${coreInstallType}" = "1" ]]
+            then
+                sed -i "s/${currentUUIDDirect}/${newDirectUUID}/g"  `grep "${currentUUIDDirect}" -rl /etc/v2ray-agent/xray/config_full.json`
+            elif [[ "${coreInstallType}" = "2" || "${coreInstallType}" = "3" ]]
+            then
+                sed -i "s/${currentUUIDDirect}/${newDirectUUID}/g"  `grep "${currentUUIDDirect}" -rl /etc/v2ray-agent/v2ray/config_full.json`
+            fi
+
         fi
-        echoContent green " ---> V2Ray UUID重置完毕"
-        handleV2Ray stop
-        handleV2Ray start
+        if [[ "${coreInstallType}" = "1" ]]
+        then
+            echoContent green " ---> Xray UUID重置完毕"
+            handleXray stop
+            handleXray start
+        elif [[ "${coreInstallType}" = "2" || "${coreInstallType}" = "3" ]]
+        then
+            echoContent green " ---> V2Ray UUID重置完毕"
+            handleV2Ray stop
+            handleV2Ray start
+        fi
+
         resetStatus=true
+
     elif [[ ! -z "${v2rayAgentInstallType}" ]] && [[ ! -z "${currentCustomInstallType}" ]]
     then
-        newUUID=`/etc/v2ray-agent/v2ray/v2ctl uuid`
-        newDirectUUID=`/etc/v2ray-agent/v2ray/v2ctl uuid`
         read -p "是否自定义uuid？[y/n]:" customUUIDStatus
         if [[ "${customUUIDStatus}" = "y" ]]
         then
@@ -2901,18 +2924,26 @@ resetUUID(){
             read -p "请输入合法的uuid:" newUUID
             echo
         fi
+        local configPathType=
+        if [[ "${coreInstallType}" = "1" ]]
+        then
+            configPathType=xray
+        elif [[ "${coreInstallType}" = "2" || "${coreInstallType}" = "3" ]]
+        then
+            configPathType=v2ray
+        fi
 
         uuidCount=0
-        ls /etc/v2ray-agent/v2ray/conf|grep inbounds|while read row
+        ls /etc/v2ray-agent/${configPathType}/conf|grep inbounds|while read row
         do
-            cat /etc/v2ray-agent/v2ray/conf/${row}|jq .inbounds|jq -c '.[].settings.clients'|jq -c '.[].id'|while read row2
+            cat /etc/v2ray-agent/${configPathType}/conf/${row}|jq .inbounds|jq -c '.[].settings.clients'|jq -c '.[].id'|while read row2
             do
                 if [[ "${row}" = "02_VLESS_TCP_inbounds.json" ]]
                 then
                     if [[ "${uuidCount}" != "1" ]]
                     then
                         oldUUID=`echo ${row2}|awk -F "[\"]" '{print $2}'`
-                        sed -i "s/${oldUUID}/${newUUID}/g"  `grep "${oldUUID}" -rl /etc/v2ray-agent/v2ray/conf/${row}`
+                        sed -i "s/${oldUUID}/${newUUID}/g"  `grep "${oldUUID}" -rl /etc/v2ray-agent/${configPathType}/conf/${row}`
                     fi
                     if [[ "${row}" = "02_VLESS_TCP_inbounds.json" ]]
                     then
@@ -2920,14 +2951,12 @@ resetUUID(){
                     fi
                 else
                     oldUUID=`echo ${row2}|awk -F "[\"]" '{print $2}'`
-                    sed -i "s/${oldUUID}/${newUUID}/g"  `grep "${oldUUID}" -rl /etc/v2ray-agent/v2ray/conf/${row}`
+                    sed -i "s/${oldUUID}/${newUUID}/g"  `grep "${oldUUID}" -rl /etc/v2ray-agent/${configPathType}/conf/${row}`
                 fi
-
             done
         done
 
-        currentDirectUUID=`cat /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json|jq .inbounds|jq -c '.[].settings.clients[1].id'|awk -F "[\"]" '{print $2}'`
-        if [[ ! -z "${currentDirectUUID}" ]]
+        if [[ ! -z "${currentUUIDDirect}" ]]
         then
             echoContent skyBlue "-------------------------------------------------------------"
             read -p "是否自定义xtls-direct-uuid？[y/n]:" customUUIDStatus
@@ -2943,12 +2972,20 @@ resetUUID(){
                     exit 0;
                 fi
             fi
-            sed -i "s/${currentDirectUUID}/${newDirectUUID}/g"  `grep "${currentDirectUUID}" -rl /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json`
+            sed -i "s/${currentUUIDDirect}/${newDirectUUID}/g"  `grep "${currentUUIDDirect}" -rl /etc/v2ray-agent/${configPathType}/conf/02_VLESS_TCP_inbounds.json`
         fi
 
-        echoContent green " ---> V2Ray UUID重置完毕"
-        handleV2Ray stop
-        handleV2Ray start
+        if [[ "${coreInstallType}" = "1" ]]
+        then
+            echoContent green " ---> Xray UUID重置完毕"
+            handleXray stop
+            handleXray start
+        elif [[ "${coreInstallType}" = "2" || "${coreInstallType}" = "3" ]]
+        then
+            echoContent green " ---> V2Ray UUID重置完毕"
+            handleV2Ray stop
+            handleV2Ray start
+        fi
         resetStatus=true
     else
         echoContent red " ---> 未使用脚本安装V2Ray"
