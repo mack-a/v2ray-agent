@@ -2293,8 +2293,8 @@ EOF
         cat << EOF > /etc/v2ray-agent/xray/conf/00_log.json
 {
   "log": {
-    "access": "/etc/v2ray-agent/v2ray/xray_access.log",
-    "error": "/etc/v2ray-agent/v2ray/xray_error.log",
+    "access": "/etc/v2ray-agent/xray/xray_access.log",
+    "error": "/etc/v2ray-agent/xray/xray_error.log",
     "loglevel": "debug"
   }
 }
@@ -3181,7 +3181,22 @@ bbrInstall(){
 checkLog(){
     echoContent skyBlue "\n功能 $1/${totalProgress} : 查看日志"
     echoContent red "\n=============================================================="
-    echoContent skyBlue "-------------------------V2Ray--------------------------------"
+    local coreType=
+    if [[ "${coreInstallType}" = "1" ]]
+    then
+        coreType=xray/xray
+
+    elif [[ "${coreInstallType}" = "2" || "${coreInstallType}" = "3" ]]
+    then
+        coreType=v2ray/v2ray
+    else
+        echoContent red " ---> 没有检测到安装目录，请执行脚本安装内容"
+        menu
+        exit 0;
+    fi
+
+
+    echoContent skyBlue "-------------------------V2Ray/Xray--------------------------------"
     echoContent yellow "1.查看info日志"
     echoContent yellow "2.监听info日志"
     echoContent yellow "3.查看error日志"
@@ -3195,23 +3210,25 @@ checkLog(){
     echoContent yellow "9.查看Nginx日志"
     echoContent yellow "10.清空Nginx日志"
     echoContent red "=============================================================="
+
+
     read -p "请选择：" selectLogType
     case ${selectLogType} in
         1)
-            cat /etc/v2ray-agent/v2ray/v2ray_access.log
+            cat /etc/v2ray-agent/${coreType}_access.log
         ;;
         2)
-            tail -f /etc/v2ray-agent/v2ray/v2ray_access.log
+            tail -f /etc/v2ray-agent/${coreType}_access.log
         ;;
         3)
-            cat /etc/v2ray-agent/v2ray/v2ray_error.log
+            cat /etc/v2ray-agent/${coreType}_error.log
         ;;
         4)
-            tail -f /etc/v2ray-agent/v2ray/v2ray_error.log
+            tail -f /etc/v2ray-agent/${coreType}_error.log
         ;;
         5)
-            echo '' > /etc/v2ray-agent/v2ray/v2ray_access.log
-            echo '' > /etc/v2ray-agent/v2ray/v2ray_error.log
+            echo '' > /etc/v2ray-agent/${coreType}_access.log
+            echo '' > /etc/v2ray-agent/${coreType}_error.log
             echoContent green " ---> 清空完毕"
         ;;
         6)
