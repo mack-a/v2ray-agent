@@ -1651,12 +1651,30 @@ initV2RayConfig(){
       }
     }
   ],
+  "routing":{
+    "domainStrategy": "AsIs",
+    "rules": [
+      {
+        "type": "field",
+        "protocol": [
+          "bittorrent"
+        ],
+        "outboundTag": "blocked"
+      }
+    ]
+  },
   "outbounds": [
     {
+      "tag":"direct",
       "protocol": "freedom",
       "settings": {
         "domainStrategy": "UseIPv4"
       }
+    },
+    {
+      "tag": "blocked",
+      "protocol": "blackhole",
+      "settings": {}
     }
   ],
   "dns": {
@@ -1813,12 +1831,30 @@ EOF
       }
     }
   ],
+  "routing":{
+    "domainStrategy": "AsIs",
+    "rules": [
+      {
+        "type": "field",
+        "protocol": [
+          "bittorrent"
+        ],
+        "outboundTag": "blocked"
+      }
+    ]
+  },
   "outbounds": [
     {
+      "tag":"direct",
       "protocol": "freedom",
       "settings": {
         "domainStrategy": "UseIPv4"
       }
+    },
+    {
+      "tag": "blocked",
+      "protocol": "blackhole",
+      "settings": {}
     }
   ],
   "dns": {
@@ -1853,8 +1889,29 @@ EOF
           "settings": {
             "domainStrategy": "UseIPv4"
           }
+        },
+        {
+          "tag": "blocked",
+          "protocol": "blackhole",
+          "settings": {}
         }
     ]
+}
+EOF
+       cat << EOF > /etc/v2ray-agent/v2ray/conf/09_routing.json
+{
+    "routing":{
+        "domainStrategy": "AsIs",
+        "rules": [
+          {
+            "type": "field",
+            "protocol": [
+              "bittorrent"
+            ],
+            "outboundTag": "blocked"
+          }
+        ]
+  }
 }
 EOF
         # dns
@@ -2268,12 +2325,30 @@ initXrayConfig(){
       }
     }
   ],
+  "routing":{
+    "domainStrategy": "AsIs",
+    "rules": [
+      {
+        "type": "field",
+        "protocol": [
+          "bittorrent"
+        ],
+        "outboundTag": "blocked"
+      }
+    ]
+  },
   "outbounds": [
     {
+      "tag":"direct",
       "protocol": "freedom",
       "settings": {
         "domainStrategy": "UseIPv4"
       }
+    },
+    {
+      "tag": "blocked",
+      "protocol": "blackhole",
+      "settings": {}
     }
   ],
   "dns": {
@@ -2299,6 +2374,23 @@ EOF
   }
 }
 EOF
+      cat << EOF > /etc/v2ray-agent/xray/conf/09_routing.json
+{
+    "routing":{
+        "domainStrategy": "AsIs",
+        "rules": [
+          {
+            "type": "field",
+            "protocol": [
+              "bittorrent"
+            ],
+            "outboundTag": "blocked"
+          }
+        ]
+  }
+}
+EOF
+
         # outbounds
        cat << EOF > /etc/v2ray-agent/xray/conf/10_outbounds.json
 {
@@ -2308,8 +2400,29 @@ EOF
           "settings": {
             "domainStrategy": "UseIPv4"
           }
+        },
+        {
+          "tag": "blocked",
+          "protocol": "blackhole",
+          "settings": {}
         }
     ]
+}
+EOF
+      cat << EOF > /etc/v2ray-agent/v2ray/conf/09_routing.json
+{
+    "routing":{
+        "domainStrategy": "AsIs",
+        "rules": [
+          {
+            "type": "field",
+            "protocol": [
+              "bittorrent"
+            ],
+            "outboundTag": "blocked"
+          }
+        ]
+  }
 }
 EOF
         # dns
@@ -3550,7 +3663,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.1.17"
+    echoContent green "当前版本：v2.1.18"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
