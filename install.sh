@@ -605,9 +605,23 @@ randomPathFunction(){
 nginxBlog(){
 #    echoContent yellow "添加伪装博客--->"
     echoContent skyBlue "\n进度 $1/${totalProgress} : 添加伪装博客"
-    rm -rf /usr/share/nginx/html
-    wget -q -P /usr/share/nginx https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html.zip > /dev/null
-    unzip -o  /usr/share/nginx/html.zip -d /usr/share/nginx/html > /dev/null
+    if [[ -d "/usr/share/nginx/html" && -f  "/usr/share/nginx/html/check" ]]
+    then
+        read -p "检测到安装伪装博客，是否需要重新安装[y/n]：" nginxBlogInstallStatus
+        if [[ "${nginxBlogInstallStatus}" = "y" ]]
+        then
+            rm -rf /usr/share/nginx/html
+            wget -q -P /usr/share/nginx https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html.zip > /dev/null
+            unzip -o  /usr/share/nginx/html.zip -d /usr/share/nginx/html > /dev/null
+            rm -f /usr/share/nginx/html.zip*
+        fi
+    else
+        rm -rf /usr/share/nginx/html
+        wget -q -P /usr/share/nginx https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html.zip > /dev/null
+        unzip -o  /usr/share/nginx/html.zip -d /usr/share/nginx/html > /dev/null
+        rm -f /usr/share/nginx/html.zip*
+    fi
+
     echoContent green " ---> 添加伪装博客成功"
 }
 # 操作Nginx
