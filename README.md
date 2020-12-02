@@ -21,6 +21,15 @@
 # 1.七合一共存脚本+伪装博客
 - 如果没有使用过Cloudflare[点击这里](https://github.com/mack-a/v2ray-agent/blob/master/documents/cloudflare_init.md)查看入门教程
 
+## 特性
+- 支持[Xray-core[XTLS]](https://github.com/XTLS/Xray-core)、v2ray-core [XTLS]、v2ray-core
+- 支持不同核心之间的配置文件互相读取。
+- 支持 VLESS/VMess/trojan/trojan-go-->ws的协议
+- 支持Debian、Ubuntu、Centos，支持主流的cpu架构。
+- 支持个性化安装。
+- 不需要卸载就可以重装任何组合。卸载脚本时，是完全卸载无残留。
+- [ ] 未来会支持ipv6
+
 ## 组合方式
 - VLESS+TCP+TLS
 - VLESS+TCP+xtls-rprx-origin
@@ -45,15 +54,6 @@
 - 移动宽带  ---> VMESS+WS+TLS/Trojan-Go+WS + Cloudflare
 - Trojan建议开启Mux【**多路复用**】，仅需客户端开启，服务端自适应。
 - VMess/VLESS也可开启Mux，效果需要自己尝试，XTLS不支持Mux。仅需客户端开启，服务端自适应。
-
-## 特性
-- 支持[Xray-core[XTLS]](https://github.com/XTLS/Xray-core)、v2ray-core [XTLS]、v2ray-core
-- 支持不同核心之间的配置文件互相读取。
-- 支持 VLESS/VMess/trojan/trojan-go-->ws的协议
-- 支持Debian、Ubuntu、Centos，支持主流的cpu架构。
-- 支持个性化安装。
-- 不需要卸载就可以重装任何组合。卸载脚本时，是完全卸载无残留。
-- [ ] 未来会支持ipv6
 
 
 ## 注意事项
