@@ -24,11 +24,11 @@
 ## 组合方式
 - VLESS+TCP+TLS
 - VLESS+TCP+xtls-rprx-origin
-- VLESS+TCP+xtls-rprx-direct【推荐】
+- VLESS+TCP+xtls-rprx-direct【**推荐**】
 - VLESS+WS+TLS 
 - VMess+TCP+TLS
 - VMess+WS+TLS
-- Trojan【推荐】
+- Trojan【**推荐**】
 - Trojan-Go+WS
 
 ## 线路推荐
@@ -43,7 +43,7 @@
 ## 组合推荐
 - 中专/gia ---> VLESS+TCP+TLS/XTLS、Trojan【推荐使用XTLS的xtls-rprx-direct】
 - 移动宽带  ---> VMESS+WS+TLS/Trojan-Go+WS + Cloudflare
-- Trojan建议开启Mux【多路复用】，仅需客户端开启，服务端自适应。
+- Trojan建议开启Mux【**多路复用**】，仅需客户端开启，服务端自适应。
 - VMess/VLESS也可开启Mux，效果需要自己尝试，XTLS不支持Mux。仅需客户端开启，服务端自适应。
 
 ## 特性
@@ -59,17 +59,18 @@
 ## 注意事项
 - 修改Cloudflare->SSL/TLS->Overview->Full
 - Cloudflare ---> A记录解析的云朵必须为灰色
-- wget: command not found [这里需要自己手动安装下wget]，如未使用过Linux，[点击查看](https://github.com/mack-a/v2ray-agent/tree/master/documents/install_tools.md)安装教程
-- 脚本安装路径[/etc/v2ray-agent]
+- wget: command not found [**这里需要自己手动安装下wget**]，如未使用过Linux，[点击查看](https://github.com/mack-a/v2ray-agent/tree/master/documents/install_tools.md)安装教程
+- 脚本安装路径[**/etc/v2ray-agent**]
 - 不支持非root账户
 - 现在脚本进入相对稳定的时期，如果有功能不完善的地方，请提issues。
+- **脚本默认屏蔽BT**。
 
 ## 脚本目录
-- v2ray-core[/etc/v2ray-agent/v2ray]
-- Xray-core[/etc/v2ray-agent/xray]
-- Trojan[/etc/v2ray-agent/trojan]
-- TLS证书[/etc/v2ray-agent/tls]
-- Nginx配置文件[/etc/nginx/conf.d/alone.conf]、Nginx伪装博客目录[/usr/share/nginx/html]
+- v2ray-core[**/etc/v2ray-agent/v2ray**]
+- Xray-core[**/etc/v2ray-agent/xray**]
+- Trojan[**/etc/v2ray-agent/trojan**]
+- TLS证书[**/etc/v2ray-agent/tls**]
+- Nginx配置文件[**/etc/nginx/conf.d/alone.conf**]、Nginx伪装博客目录[**/usr/share/nginx/html**]
 
 
 ## 安装脚本
@@ -78,7 +79,7 @@ wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-
 ```
 
 - 示例图
-- 支持快捷方式启动，安装完毕后，shell输入[**vasma**]即可打开脚本，脚本执行路径[/etc/v2ray-agent/install.sh]
+- 支持快捷方式启动，安装完毕后，shell输入[**vasma**]即可打开脚本，脚本执行路径[**/etc/v2ray-agent/install.sh**]
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/install.jpg" width=700>
 
 # 许可证
