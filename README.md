@@ -66,11 +66,11 @@
 - **脚本默认屏蔽BT**。
 
 ## 脚本目录
-- v2ray-core **/etc/v2ray-agent/v2ray**
-- Xray-core **/etc/v2ray-agent/xray**
-- Trojan **/etc/v2ray-agent/trojan**
-- TLS证书 **/etc/v2ray-agent/tls**
-- Nginx配置文件 **/etc/nginx/conf.d/alone.conf** 、Nginx伪装博客目录 **/usr/share/nginx/html**
+- v2ray-core 【**/etc/v2ray-agent/v2ray**】
+- Xray-core 【**/etc/v2ray-agent/xray**】
+- Trojan 【**/etc/v2ray-agent/trojan**】
+- TLS证书 【**/etc/v2ray-agent/tls**】
+- Nginx配置文件 【**/etc/nginx/conf.d/alone.conf**】、Nginx伪装博客目录 【**/usr/share/nginx/html**】
 
 
 ## 安装脚本
