@@ -498,6 +498,23 @@ initTLSNginxConfig(){
     fi
 }
 
+# 修改nginx重定向配置
+updateRedirectNginxConf(){
+cat << EOF > /etc/nginx/conf.d/alone.conf
+    server {
+        listen 80;
+        server_name ${domain};
+        return 301 https://${domain}$request_uri;
+    }
+    server {
+        listen 31299;
+        server_name ${domain};
+        root /usr/share/nginx/html;
+#        location ~ /.well-known {allow all;}
+#        location /test {return 200 'fjkvymb6len';}
+    }
+EOF
+}
 # 检查ip
 checkIP(){
     pingIP=`ping -c 1 -W 1000 ${domain}|sed '1{s/[^(]*(//;s/).*//;q;}'`
@@ -1934,7 +1951,7 @@ EOF
 
         if [[ -z `echo ${selectCustomInstallType}|grep 4` ]]
         then
-            fallbacksList='{"dest":80,"xver":0}'
+            fallbacksList='{"dest":31299,"xver":0}'
         fi
 
         # VLESS_WS_TLS
@@ -2445,7 +2462,7 @@ EOF
 
         if [[ -z `echo ${selectCustomInstallType}|grep 4` ]]
         then
-            fallbacksList='{"dest":80,"xver":0}'
+            fallbacksList='{"dest":31299,"xver":0}'
         fi
 
         # VLESS_WS_TLS
@@ -2620,7 +2637,7 @@ initTrojanGoConfig(){
     "local_addr": "127.0.0.1",
     "local_port": 31296,
     "remote_addr": "127.0.0.1",
-    "remote_port": 80,
+    "remote_port": 31299,
     "log_level":0,
     "log_file":"/etc/v2ray-agent/trojan/trojan.log",
     "password": [
@@ -3422,6 +3439,7 @@ customV2RayInstall(){
             customCDNIP 6
         fi
         nginxBlog 7
+        updateRedirectNginxConf
         handleNginx start
 
         # 安装V2Ray
@@ -3486,6 +3504,7 @@ customXrayInstall(){
             customCDNIP 6
         fi
         nginxBlog 7
+        updateRedirectNginxConf
         handleNginx start
 
         # 安装V2Ray
@@ -3585,6 +3604,7 @@ v2rayCoreInstall(){
     initTrojanGoConfig 13
     installCronTLS 14
     nginxBlog 15
+    updateRedirectNginxConf
     handleV2Ray stop
     sleep 2
     handleV2Ray start
@@ -3622,6 +3642,7 @@ xrayCoreInstall(){
     initTrojanGoConfig 13
 #    installCronTLS 14
     nginxBlog 15
+    updateRedirectNginxConf
     handleXray stop
     sleep 2
     handleXray start
