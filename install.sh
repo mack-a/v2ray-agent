@@ -507,7 +507,7 @@ cat << EOF > /etc/nginx/conf.d/alone.conf
         return 301 https://${domain}$request_uri;
     }
     server {
-        listen 31299;
+        listen 31300;
         server_name ${domain};
         root /usr/share/nginx/html;
 #        location ~ /.well-known {allow all;}
@@ -1951,7 +1951,7 @@ EOF
 
         if [[ -z `echo ${selectCustomInstallType}|grep 4` ]]
         then
-            fallbacksList='{"dest":31299,"xver":0}'
+            fallbacksList='{"dest":31300,"xver":0}'
         fi
 
         # VLESS_WS_TLS
@@ -2637,7 +2637,7 @@ initTrojanGoConfig(){
     "local_addr": "127.0.0.1",
     "local_port": 31296,
     "remote_addr": "127.0.0.1",
-    "remote_port": 31299,
+    "remote_port": 31300,
     "log_level":0,
     "log_file":"/etc/v2ray-agent/trojan/trojan.log",
     "password": [
