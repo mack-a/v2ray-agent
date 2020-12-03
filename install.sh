@@ -2462,7 +2462,7 @@ EOF
 
         if [[ -z `echo ${selectCustomInstallType}|grep 4` ]]
         then
-            fallbacksList='{"dest":31299,"xver":0}'
+            fallbacksList='{"dest":31300,"xver":0}'
         fi
 
         # VLESS_WS_TLS
