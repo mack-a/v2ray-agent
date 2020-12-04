@@ -957,7 +957,7 @@ v2rayVersionManageMenu(){
     fi
     echoContent red "\n=============================================================="
     echoContent yellow "1.升级"
-    echoContent yellow "2.回退"
+#    echoContent yellow "2.回退"
     echoContent red "=============================================================="
     read -p "请选择：" selectV2RayType
     if [[ "${selectV2RayType}" = "1" ]]
