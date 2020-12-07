@@ -1,11 +1,10 @@
-# 常用命令
-## 启动脚本
+# 启动脚本
 ```
 vasma
 ```
 
-## 服务管理
-### Xray-core、v2ray-core、trojan-go
+# 服务管理
+## Xray-core、v2ray-core、trojan-go
 - 重启
 ```
 # xray
@@ -42,7 +41,7 @@ systemctl stop v2ray
 systemctl stop trojan-go
 ```
 
-### nginx
+## nginx
 - 重启
 ```
 nginx -s reload
