@@ -72,6 +72,7 @@
 - TLS证书 【**/etc/v2ray-agent/tls**】
 - Nginx配置文件 【**/etc/nginx/conf.d/alone.conf**】、Nginx伪装博客目录 【**/usr/share/nginx/html**】
 
+## [脚本常用命令](https://github.com/mack-a/v2ray-agent/blob/master/documents/common_commands.md)
 
 ## 安装脚本
 ```
