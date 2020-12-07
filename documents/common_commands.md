@@ -10,8 +10,10 @@ vasma
 ```
 # xray
 systemctl restart xray
+
 # v2ray
 systemctl restart v2ray
+
 # trojan-go
 systemctl restart trojan-go
 ```
@@ -20,8 +22,10 @@ systemctl restart trojan-go
 ````
 # xray
 systemctl start xray
+
 # v2ray
 systemctl start v2ray
+
 # trojan-go
 systemctl start trojan-go
 ````
@@ -30,8 +34,10 @@ systemctl start trojan-go
 ```
 # xray
 systemctl stop xray
+
 # v2ray
 systemctl stop v2ray
+
 # trojan-go
 systemctl stop trojan-go
 ```
