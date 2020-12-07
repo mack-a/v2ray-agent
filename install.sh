@@ -1537,9 +1537,8 @@ initV2RayConfig(){
         cat << EOF > /etc/v2ray-agent/v2ray/config_full.json
 {
   "log": {
-    "access": "/etc/v2ray-agent/v2ray/v2ray_access.log",
     "error": "/etc/v2ray-agent/v2ray/v2ray_error.log",
-    "loglevel": "debug"
+    "loglevel": "warning"
   },
   "inbounds": [
     {
@@ -1711,9 +1710,8 @@ EOF
         cat << EOF > /etc/v2ray-agent/v2ray/config_full.json
 {
   "log": {
-    "access": "/etc/v2ray-agent/v2ray/v2ray_access.log",
     "error": "/etc/v2ray-agent/v2ray/v2ray_error.log",
-    "loglevel": "debug"
+    "loglevel": "warning"
   },
   "inbounds": [
     {
@@ -1891,9 +1889,8 @@ EOF
         cat << EOF > /etc/v2ray-agent/v2ray/conf/00_log.json
 {
   "log": {
-    "access": "/etc/v2ray-agent/v2ray/v2ray_access.log",
     "error": "/etc/v2ray-agent/v2ray/v2ray_error.log",
-    "loglevel": "debug"
+    "loglevel": "warning"
   }
 }
 EOF
@@ -2205,9 +2202,8 @@ initXrayConfig(){
         cat << EOF > /etc/v2ray-agent/xray/config_full.json
 {
   "log": {
-    "access": "/etc/v2ray-agent/xray/xray_access.log",
     "error": "/etc/v2ray-agent/xray/xray_error.log",
-    "loglevel": "debug"
+    "loglevel": "warning"
   },
   "inbounds": [
     {
@@ -2385,9 +2381,8 @@ EOF
         cat << EOF > /etc/v2ray-agent/xray/conf/00_log.json
 {
   "log": {
-    "access": "/etc/v2ray-agent/xray/xray_access.log",
     "error": "/etc/v2ray-agent/xray/xray_error.log",
-    "loglevel": "debug"
+    "loglevel": "warning"
   }
 }
 EOF
@@ -2638,7 +2633,7 @@ initTrojanGoConfig(){
     "local_port": 31296,
     "remote_addr": "127.0.0.1",
     "remote_port": 31300,
-    "log_level":0,
+    "log_level":3,
     "log_file":"/etc/v2ray-agent/trojan/trojan.log",
     "password": [
         "${uuid}"
