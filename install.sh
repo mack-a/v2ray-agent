@@ -2632,6 +2632,7 @@ initTrojanGoConfig(){
     "local_port": 31296,
     "remote_addr": "127.0.0.1",
     "remote_port": 31300,
+    "disable_http_check":true,
     "log_level":3,
     "log_file":"/etc/v2ray-agent/trojan/trojan.log",
     "password": [
@@ -2979,10 +2980,16 @@ updateNginxBlog(){
     echoContent yellow "4.植物花卉模版"
     echoContent red "=============================================================="
     read -p "请选择：" selectInstallNginxBlogType
-    if [[ "${selectInstallNginxBlogType}" =~ ^[1-4]& ]]
+
+    if [[ "${selectInstallNginxBlogType}" =~ ^[1-4]$ ]]
     then
         rm -rf /usr/share/nginx/html
-        wget -q -P /usr/share/nginx https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${selectInstallNginxBlogType}.zip > /dev/null
+        if [[ ! -z `wget --help|grep show-progress` ]]
+        then
+            wget -q -q --show-progress -P /usr/share/nginx https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${selectInstallNginxBlogType}.zip > /dev/null
+        else
+            wget -c -P /etc/v2ray-agent/v2ray/ https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip > /dev/null 2>&1
+        fi
         unzip -o  /usr/share/nginx/html${selectInstallNginxBlogType}.zip -d /usr/share/nginx/html > /dev/null
         rm -f /usr/share/nginx/html${selectInstallNginxBlogType}.zip*
         echoContent green " ---> 更换伪装博客成功"
@@ -3730,8 +3737,6 @@ menu(){
             selectCoreInstall
         ;;
         2)
-#            echoContent red " ---> 暂不开放"
-#            exit 0;
             selectCoreInstall
         ;;
         3)
