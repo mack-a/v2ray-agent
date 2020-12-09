@@ -620,25 +620,24 @@ randomPathFunction(){
 }
 # Nginx伪装博客
 nginxBlog(){
-#    echoContent yellow "添加伪装博客--->"
-    echoContent skyBlue "\n进度 $1/${totalProgress} : 添加伪装博客"
+    echoContent skyBlue "\n进度 $1/${totalProgress} : 添加伪装站点"
     if [[ -d "/usr/share/nginx/html" && -f "/usr/share/nginx/html/check" ]]
     then
-        read -p "检测到安装伪装博客，是否需要重新安装[y/n]：" nginxBlogInstallStatus
+        read -p "检测到安装伪装站点，是否需要重新安装[y/n]：" nginxBlogInstallStatus
         if [[ "${nginxBlogInstallStatus}" = "y" ]]
         then
             rm -rf /usr/share/nginx/html
-            wget -q -P /usr/share/nginx https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html.zip > /dev/null
-            unzip -o  /usr/share/nginx/html.zip -d /usr/share/nginx/html > /dev/null
+            wget -q -P /usr/share/nginx https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html1.zip > /dev/null
+            unzip -o  /usr/share/nginx/html1.zip -d /usr/share/nginx/html > /dev/null
             rm -f /usr/share/nginx/html.zip*
-            echoContent green " ---> 添加伪装博客成功"
+            echoContent green " ---> 添加伪装站点成功"
         fi
     else
         rm -rf /usr/share/nginx/html
-        wget -q -P /usr/share/nginx https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html.zip > /dev/null
-        unzip -o  /usr/share/nginx/html.zip -d /usr/share/nginx/html > /dev/null
-        rm -f /usr/share/nginx/html.zip*
-        echoContent green " ---> 添加伪装博客成功"
+        wget -q -P /usr/share/nginx https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html1.zip > /dev/null
+        unzip -o  /usr/share/nginx/html1.zip -d /usr/share/nginx/html > /dev/null
+        rm -f /usr/share/nginx/html1.zip*
+        echoContent green " ---> 添加伪装站点成功"
     fi
 
 }
@@ -2970,6 +2969,29 @@ showAccounts(){
     fi
 }
 
+# 更新伪装站
+updateNginxBlog(){
+    echoContent skyBlue "\n进度 $1/${totalProgress} : 更换伪装站点"
+    echoContent red "=============================================================="
+    echoContent yellow "1.数据统计模版"
+    echoContent yellow "2.下雪动画用户注册登录模版"
+    echoContent yellow "3.物流大数据服务平台模版"
+    echoContent yellow "4.植物花卉模版"
+    echoContent red "=============================================================="
+    read -p "请选择：" selectInstallNginxBlogType
+    if [[ "${selectInstallNginxBlogType}" =~ ^[1-4]& ]]
+    then
+        rm -rf /usr/share/nginx/html
+        wget -q -P /usr/share/nginx https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${selectInstallNginxBlogType}.zip > /dev/null
+        unzip -o  /usr/share/nginx/html${selectInstallNginxBlogType}.zip -d /usr/share/nginx/html > /dev/null
+        rm -f /usr/share/nginx/html${selectInstallNginxBlogType}.zip*
+        echoContent green " ---> 更换伪装博客成功"
+    else
+        echoContent red " ---> 选择错误，请重新选择"
+        updateNginxBlog
+    fi
+}
+
 # 卸载脚本
 unInstall(){
     read -p "是否确认卸载安装内容？[y/n]:" unInstallStatus
@@ -3687,7 +3709,7 @@ menu(){
     echoContent yellow "2.任意组合安装"
     echoContent skyBlue "-------------------------工具管理-----------------------------"
     echoContent yellow "3.查看账号"
-    echoContent yellow "4.自动排错 [已废弃]"
+    echoContent yellow "4.更换伪装站"
     echoContent yellow "5.更新证书"
     echoContent yellow "6.更换CDN节点"
     echoContent yellow "7.重置uuid"
@@ -3714,6 +3736,9 @@ menu(){
         ;;
         3)
             showAccounts 1
+        ;;
+        4)
+            updateNginxBlog 1
         ;;
         5)
             renewalTLS 1
