@@ -482,6 +482,10 @@ initTLSNginxConfig(){
             echoContent yellow  "请输入要配置的域名 例：blog.v2ray-agent.com --->"
             read -p "域名:" domain
         fi
+    else
+	echo
+	echoContent yellow  "请输入要配置的域名 例：blog.v2ray-agent.com --->"
+	read -p "域名:" domain
     fi
 
     if [[ -z ${domain} ]]
