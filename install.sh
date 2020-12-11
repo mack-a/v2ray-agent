@@ -469,15 +469,28 @@ installTools(){
 initTLSNginxConfig(){
     handleNginx stop
     echoContent skyBlue "\n进度  $1/${totalProgress} : 初始化Nginx申请证书配置"
-    echoContent yellow  "请输入要配置的域名 例：blog.v2ray-agent.com --->"
-    read -p "域名:" domain
+    if [[ ! -z "${currentHost}" ]]
+    then
+        echo
+        read -p "读取到上次安装记录，是否使用上次安装时的域名 ？[y/n]:" historyDomainStatus
+        if [[ "${historyDomainStatus}" = "y" ]]
+        then
+            domain=${currentHost}
+            echoContent yellow "\n ---> 域名：${domain}"
+        else
+            echo
+            echoContent yellow  "请输入要配置的域名 例：blog.v2ray-agent.com --->"
+            read -p "域名:" domain
+        fi
+    fi
+
     if [[ -z ${domain} ]]
     then
         echoContent red "  域名不可为空--->"
         initTLSNginxConfig
     else
         # 修改配置
-        echoContent green " ---> 配置Nginx"
+        echoContent green "\n ---> 配置Nginx"
         touch /etc/nginx/conf.d/alone.conf
         echo "server {listen 80;server_name ${domain};root /usr/share/nginx/html;location ~ /.well-known {allow all;}location /test {return 200 'fjkvymb6len';}}" > /etc/nginx/conf.d/alone.conf
         # 启动nginx
@@ -490,7 +503,7 @@ initTLSNginxConfig(){
         if [[ ! -z ${domainResult} ]]
         then
             handleNginx stop
-            echoContent green " ---> Nginx配置成功"
+            echoContent green "\n ---> Nginx配置成功"
         else
             echoContent red " ---> 无法正常访问服务器，请检测域名是否正确、域名的DNS解析以及防火墙设置是否正确--->"
             exit 0;
@@ -520,6 +533,7 @@ checkIP(){
     pingIP=`ping -c 1 -W 1000 ${domain}|sed '1{s/[^(]*(//;s/).*//;q;}'`
     if [[ ! -z "${pingIP}" ]] && [[ `echo ${pingIP}|grep '^\([1-9]\|[1-9][0-9]\|1[0-9][0-9]\|2[0-4][0-9]\|25[0-5]\)\.\([0-9]\|[1-9][0-9]\|1[0-9][0-9]\|2[0-4][0-9]\|25[0-5]\)\.\([0-9]\|[1-9][0-9]\|1[0-9][0-9]\|2[0-4][0-9]\|25[0-5]\)\.\([0-9]\|[1-9][0-9]\|1[0-9][0-9]\|2[0-4][0-9]\|25[0-5]\)$'` ]]
     then
+        echo
         read -p "当前域名的IP为 [${pingIP}]，是否正确[y/n]？" domainStatus
         if [[ "${domainStatus}" = "y" ]]
         then
@@ -623,6 +637,7 @@ nginxBlog(){
     echoContent skyBlue "\n进度 $1/${totalProgress} : 添加伪装站点"
     if [[ -d "/usr/share/nginx/html" && -f "/usr/share/nginx/html/check" ]]
     then
+        echo
         read -p "检测到安装伪装站点，是否需要重新安装[y/n]：" nginxBlogInstallStatus
         if [[ "${nginxBlogInstallStatus}" = "y" ]]
         then
@@ -2668,7 +2683,7 @@ EOF
 # 自定义CDN IP
 customCDNIP(){
     echoContent skyBlue "\n进度 $1/${totalProgress} : 添加DNS智能解析"
-    echoContent yellow " 移动:104.19.45.117"
+    echoContent yellow "\n 移动:104.19.45.117"
     echoContent yellow " 联通:104.16.160.136"
     echoContent yellow " 电信:104.17.78.198"
     echoContent skyBlue "----------------------------"
@@ -3708,7 +3723,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.1.24"
+    echoContent green "当前版本：v2.1.25"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
