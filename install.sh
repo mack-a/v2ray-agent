@@ -1535,7 +1535,7 @@ initV2RayConfig(){
 
     if [[ -z "${uuidDirect}" ]] && [[ "${selectCoreType}" = "3" ]]
     then
-        echoContent red "\n ---> uuid XTLS-direct读取错误，重新生成"
+        echoContent red "\n ---> uuid XTLS-direct/XTLS-splice读取错误，重新生成"
         uuidDirect=`/etc/v2ray-agent/v2ray/v2ctl uuid`
     fi
 
@@ -2200,7 +2200,7 @@ initXrayConfig(){
 
     if [[ -z "${uuidDirect}" ]] && [[ "${selectCoreType}" = "1" ]]
     then
-        echoContent red "\n ---> uuid XTLS-direct读取错误，重新生成"
+        echoContent red "\n ---> uuid XTLS-direct/XTLS-splice读取错误，重新生成"
         uuidDirect=`/etc/v2ray-agent/xray/xray uuid`
     fi
 
@@ -2862,7 +2862,7 @@ showAccounts(){
             echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-origin ==========================="
             defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${currentHost}:${port}" ${add}
 
-            echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-direct ==========================="
+            echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-direct/XTLS-splice ==========================="
             defaultBase64Code vlesstcp ${tcpDirectEmail} "${tcpIDirect}" "${currentHost}:${port}" ${add}
 
         elif [[ "${coreInstallType}" = "2" ]]
@@ -2909,7 +2909,7 @@ showAccounts(){
             echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-origin ==========================="
             defaultBase64Code vlesstcp ${tcpEmail} "${tcpID}" "${currentHost}:${port}" ${add}
 
-            echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-direct ==========================="
+            echoContent skyBlue "\n============================ VLESS TCP TLS/XTLS-direct/XTLS-splice ==========================="
             defaultBase64Code vlesstcp ${tcpDirectEmail} "${tcpIDirect}" "${currentHost}:${port}" ${add}
 
         elif [[ "${coreInstallType}" = "2" ]]
