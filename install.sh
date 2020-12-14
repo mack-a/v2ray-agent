@@ -482,6 +482,10 @@ initTLSNginxConfig(){
             echoContent yellow  "请输入要配置的域名 例：blog.v2ray-agent.com --->"
             read -p "域名:" domain
         fi
+    else
+	echo
+	echoContent yellow  "请输入要配置的域名 例：blog.v2ray-agent.com --->"
+	read -p "域名:" domain
     fi
 
     if [[ -z ${domain} ]]
@@ -3723,7 +3727,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.1.25"
+    echoContent green "当前版本：v2.1.26"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
