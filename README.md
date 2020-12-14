@@ -28,7 +28,6 @@
 - 支持Debian、Ubuntu、Centos，支持主流的cpu架构。
 - 支持个性化安装。
 - 不需要卸载就可以重装任何组合。卸载脚本时，是完全卸载无残留。
-- [ ] 未来会支持ipv6
 
 ## 组合方式
 - VLESS+TCP+TLS
@@ -73,7 +72,7 @@
 - Nginx配置文件 【**/etc/nginx/conf.d/alone.conf**】、Nginx伪装博客目录 【**/usr/share/nginx/html**】
 
 ## [脚本常用命令](https://github.com/mack-a/v2ray-agent/blob/master/documents/common_commands.md)
-
+## [常见脚本错误处理](https://github.com/mack-a/v2ray-agent/blob/master/documents/shell_error.md)
 ## 安装脚本
 ```
 wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh" && chmod 700 /root/install.sh && /root/install.sh
