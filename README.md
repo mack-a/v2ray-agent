@@ -25,7 +25,7 @@
 - 支持[Xray-core[XTLS]](https://github.com/XTLS/Xray-core)、v2ray-core [XTLS]、v2ray-core
 - 支持不同核心之间的配置文件互相读取。
 - 支持 VLESS/VMess/trojan/trojan-go-->ws的协议
-- 支持Debian、Ubuntu、Centos，支持主流的cpu架构。
+- 支持Debian、Ubuntu、Centos，支持主流的cpu架构。**不建议用Centos**
 - 支持个性化安装。
 - 不需要卸载就可以重装任何组合。卸载脚本时，是完全卸载无残留。
 
