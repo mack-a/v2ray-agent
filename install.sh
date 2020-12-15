@@ -975,7 +975,7 @@ v2rayVersionManageMenu(){
     fi
     echoContent red "\n=============================================================="
     echoContent yellow "1.升级"
-#    echoContent yellow "2.回退"
+    echoContent yellow "2.回退"
     echoContent red "=============================================================="
     read -p "请选择：" selectV2RayType
     if [[ "${selectV2RayType}" = "1" ]]
@@ -1021,14 +1021,14 @@ xrayVersionManageMenu(){
         updateXray
     elif [[ "${selectXrayType}" = "2" ]]
     then
-        echoContent yellow "\n1.只可以回退最近的两个版本"
+        echoContent yellow "\n1.由于Xray-core频繁更新，只可以回退最近的一个版本"
         echoContent yellow "2.不保证回退后一定可以正常使用"
         echoContent yellow "3.如果回退的版本不支持当前的config，则会无法连接，谨慎操作"
         echoContent skyBlue "------------------------Version-------------------------------"
-        curl -s https://github.com/XTLS/Xray-core/releases|grep /XTLS/Xray-core/releases/tag/|head -3|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'|tail -n 2|awk '{print ""NR""":"$0}'
+        curl -s https://github.com/XTLS/Xray-core/releases|grep /XTLS/Xray-core/releases/tag/|head -3|awk '{print $3}'|awk -F "[<]" '{print $1}'|tail -n 1|awk '{print ""NR""":"$0}'
         echoContent skyBlue "--------------------------------------------------------------"
         read -p "请输入要回退的版本：" selectXrayVersionType
-        version=`curl -s https://github.com/XTLS/Xray-core/releases|grep /XTLS/Xray-core/releases/tag/|head -3|awk -F "[/]" '{print $6}'|awk -F "[>]" '{print $2}'|awk -F "[<]" '{print $1}'|tail -n 2|awk '{print ""NR""":"$0}'|grep "${selectXrayVersionType}:"|awk -F "[:]" '{print $2}'`
+        version=`curl -s https://github.com/XTLS/Xray-core/releases|grep /XTLS/Xray-core/releases/tag/|head -3|awk '{print $3}'|awk -F "[<]" '{print $1}'|tail -n 1|awk '{print ""NR""":"$0}'|grep "${selectXrayVersionType}:"|awk -F "[:]" '{print $2}'`
         if [[ ! -z "${version}" ]]
         then
             updateXray ${version}
@@ -1171,12 +1171,11 @@ updateXray(){
             read -p "回退版本为${version}，是否继续？[y/n]:" rollbackXrayStatus
             if [[ "${rollbackXrayStatus}" = "y" ]]
             then
-                echoContent green " ---> 当前Xray-core版本:`/etc/v2ray-agent/v2ray/v2ray --version|awk '{print $2}'|head -1`"
+                echoContent green " ---> 当前Xray-core版本:`/etc/v2ray-agent/xray/xray --version|awk '{print $2}'|head -1`"
 
-                handleV2Ray stop
-                rm -f /etc/v2ray-agent/v2ray/v2ray
-                rm -f /etc/v2ray-agent/v2ray/v2ctl
-                updateV2Ray ${version}
+                handleXray stop
+                rm -f /etc/v2ray-agent/xray/xray
+                updateXray ${version}
             else
                 echoContent green " ---> 放弃回退版本"
             fi
@@ -1196,7 +1195,6 @@ updateXray(){
             read -p "最新版本为：${version}，是否更新？[y/n]：" installXrayStatus
             if [[ "${installXrayStatus}" = "y" ]]
             then
-                rm -f /etc/v2ray-agent/xray/xray
                 rm -f /etc/v2ray-agent/xray/xray
                 updateXray
             else
@@ -3704,7 +3702,7 @@ coreVersionManageMenu(){
 
     if [[ -z "${coreInstallType}" ]]
     then
-        echoContent red " ---> 没有检测到安装目录，请执行脚本安装内容"
+        echoContent red "\n ---> 没有检测到安装目录，请执行脚本安装内容"
         menu
         exit 0;
     fi
@@ -3727,7 +3725,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.1.26"
+    echoContent green "当前版本：v2.1.27"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
