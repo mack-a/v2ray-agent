@@ -90,6 +90,10 @@ initVar(){
 
     # UUID
     currentUUID=
+
+    # pingIPv6 pingIPv4
+    pingIPv4=
+    pingIPv6=
 }
 
 # 检测安装方式
@@ -1515,23 +1519,32 @@ EOF
 EOF
 
     # outbounds
-    cat << EOF > /etc/v2ray-agent/v2ray/conf/10_outbounds.json
+    cat << EOF > /etc/v2ray-agent/v2ray/conf/10_ipv4_outbounds.json
 {
     "outbounds": [
         {
           "protocol": "freedom",
           "settings": {
             "domainStrategy": "UseIPv4"
-          }
-        },
-        {
-          "tag": "blocked",
-          "protocol": "blackhole",
-          "settings": {}
+          },
+          "tag": "IPv4-out"
         }
     ]
 }
 EOF
+
+    cat << EOF > /etc/v2ray-agent/v2ray/conf/10_bt_outbounds.json
+{
+    "outbounds": [
+        {
+          "protocol": "blackhole",
+          "settings": {}
+          "tag": "blocked",
+        }
+    ]
+}
+EOF
+
 
     # dns
     cat << EOF > /etc/v2ray-agent/v2ray/conf/11_dns.json
@@ -1809,20 +1822,28 @@ EOF
 }
 EOF
 
-    # outbounds
-    cat << EOF > /etc/v2ray-agent/xray/conf/10_outbounds.json
+   # outbounds
+    cat << EOF > /etc/v2ray-agent/xray/conf/10_ipv4_outbounds.json
 {
     "outbounds": [
         {
           "protocol": "freedom",
           "settings": {
             "domainStrategy": "UseIPv4"
-          }
-        },
+          },
+          "tag": "IPv4-out"
+        }
+    ]
+}
+EOF
+
+    cat << EOF > /etc/v2ray-agent/xray/conf/10_bt_outbounds.json
+{
+    "outbounds": [
         {
-          "tag": "blocked",
           "protocol": "blackhole",
-          "settings": {}
+          "settings": {},
+          "tag": "blocked"
         }
     ]
 }
@@ -2632,6 +2653,78 @@ aliasInstall(){
     fi
 }
 
+# 检查ipv6、ipv4
+checkIPv6(){
+    pingIPv6=`ping -6 -c 1 -W 1000 www.google.com|sed '2{s/[^(]*(//;s/).*//;q;}'|tail -n +2`
+    if [[ -z "${pingIPv6}" ]]
+    then
+        echoContent red " ---> 不支持ipv6"
+        exit;
+    fi
+}
+
+# ipv6 人机验证
+ipv6HumanVerification(){
+    if [[ -z "${configPath}" ]]
+    then
+        echoContent red " ---> 未安装，请使用脚本安装"
+        menu
+        exit;
+    fi
+
+    checkIPv6
+
+    cat << EOF > ${configPath}09_routing.json
+{
+    "routing":{
+        "domainStrategy": "AsIs",
+        "rules": [
+          {
+            "type": "field",
+            "protocol": [
+              "bittorrent"
+            ],
+            "outboundTag": "blocked"
+          },
+          {
+            "type": "field",
+            "domain": [
+              "domain:google.com",
+              "domain:google.com.hk"
+            ],
+            "outboundTag": "IP6-out"
+          }
+        ]
+  }
+}
+EOF
+
+#    cat << EOF > ${configPath}10_ipv6_outbounds.json
+    cat << EOF > ${configPath}10_ipv4_outbounds.json
+{
+  "outbounds": [
+    {
+          "protocol": "freedom",
+          "settings": {
+            "domainStrategy": "UseIPv4"
+          },
+          "tag": "IPv4-out"
+    },
+    {
+      "protocol": "freedom",
+      "settings": {
+        "domainStrategy": "UseIPv6"
+      },
+      "tag": "IP6-out"
+    }
+  ]
+}
+EOF
+    echoContent green " ---> 人机验证修改成功"
+    handleXray stop
+    handleXray start
+}
+
 # v2ray-core个性化安装
 customV2RayInstall(){
     echoContent skyBlue "\n========================个性化安装============================"
@@ -2916,7 +3009,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.2.0"
+    echoContent green "当前版本：v2.2.1"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
@@ -2928,7 +3021,7 @@ menu(){
     echoContent yellow "5.更新证书"
     echoContent yellow "6.更换CDN节点"
     echoContent yellow "7.多用户管理[todo]"
-    echoContent yellow "8.ipv6人机验证[todo]"
+    echoContent yellow "8.ipv6人机验证"
     echoContent skyBlue "-------------------------版本管理-----------------------------"
     echoContent yellow "9.core版本管理"
     echoContent yellow "10.升级Trojan-Go"
@@ -2963,6 +3056,9 @@ menu(){
         #7)
             #resetUUID 1
         #;;
+        8)
+            ipv6HumanVerification
+        ;;
         9)
             coreVersionManageMenu 1
         ;;
