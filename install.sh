@@ -1538,8 +1538,8 @@ EOF
     "outbounds": [
         {
           "protocol": "blackhole",
-          "settings": {}
-          "tag": "blocked",
+          "settings": {},
+          "tag": "blocked"
         }
     ]
 }
@@ -1562,12 +1562,12 @@ EOF
 EOF
     # VLESS_TCP_TLS/XTLS
     # 回落nginx
-    local fallbacksList='{"dest":31296,"xver":0}'
+    local fallbacksList='{"dest":31300,"xver":0}'
 
-    if [[ -z `echo ${selectCustomInstallType}|grep 4` || "$1" = "all" ]]
+    if [[ ! -z `echo ${selectCustomInstallType}|grep 4` || "$1" = "all" ]]
     then
         # 回落trojan-go
-        fallbacksList='{"dest":31300,"xver":0}'
+        fallbacksList='{"dest":31296,"xver":0}'
     fi
 
     # VLESS_WS_TLS
@@ -1865,12 +1865,12 @@ EOF
 EOF
     # VLESS_TCP_TLS/XTLS
     # 回落nginx
-    local fallbacksList='{"dest":31296,"xver":0}'
+    local fallbacksList='{"dest":31300,"xver":0}'
 
-    if [[ -z `echo ${selectCustomInstallType}|grep 4` || "$1" = "all" ]]
+    if [[ ! -z `echo ${selectCustomInstallType}|grep 4` || "$1" = "all" ]]
     then
         # 回落trojan-go
-        fallbacksList='{"dest":31300,"xver":0}'
+        fallbacksList='{"dest":31296,"xver":0}'
     fi
 
     # VLESS_WS_TLS
