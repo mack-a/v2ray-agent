@@ -1240,11 +1240,7 @@ installV2RayService(){
     then
         rm -rf /etc/systemd/system/v2ray.service
         touch /etc/systemd/system/v2ray.service
-        execStart='/etc/v2ray-agent/v2ray/v2ray -config /etc/v2ray-agent/v2ray/config_full.json'
-        if [[ ! -z ${selectCustomInstallType} ]]
-        then
-            execStart='/etc/v2ray-agent/v2ray/v2ray -confdir /etc/v2ray-agent/v2ray/conf'
-        fi
+        execStart='/etc/v2ray-agent/v2ray/v2ray -confdir /etc/v2ray-agent/v2ray/conf'
     cat << EOF > /etc/systemd/system/v2ray.service
 [Unit]
 Description=V2Ray - A unified platform for anti-censorship
@@ -1472,17 +1468,15 @@ handleTrojanGo(){
 # 初始化V2Ray 配置文件
 initV2RayConfig(){
     echoContent skyBlue "\n进度 $2/${totalProgress} : 初始化V2Ray配置"
-    if [[ ! -z "${aaaaaaaaa}" ]]
+    if [[ ! -z "${currentUUID}" ]]
     then
         echo
         read -p "读取到上次安装记录，是否使用上次安装时的UUID ？[y/n]:" historyUUIDStatus
         if [[ "${historyUUIDStatus}" = "y" ]]
         then
-            uuid=${aaaaaaaaa}
             uuid=${currentUUID}
         fi
     else
-        uuid=`/etc/v2ray-agent/v2ray/v2ctl uuid`
         uuid=`/etc/v2ray-agent/v2ray/v2ctl uuid`
     fi
     if [[ -z "${uuid}" ]]
@@ -1491,387 +1485,37 @@ initV2RayConfig(){
         uuid=`/etc/v2ray-agent/v2ray/v2ctl uuid`
     fi
 
-    if [[ -z "${uuid}" ]] && [[ "${selectCoreType}" = "3" ]]
-    then
-        echoContent red "\n ---> uuid XTLS-direct/XTLS-splice读取错误，重新生成"
-        uuid=`/etc/v2ray-agent/v2ray/v2ctl uuid`
-    fi
-
-    if [[ "${uuid}" = "${uuid}" ]]
-    then
-        echoContent red "\n ---> uuid重复，重新生成"
-        uuid=`/etc/v2ray-agent/v2ray/v2ctl uuid`
-        uuid=`/etc/v2ray-agent/v2ray/v2ctl uuid`
-    fi
-    echoContent green "\n ---> 使用成功"
-
     rm -rf /etc/v2ray-agent/v2ray/conf/*
     rm -rf /etc/v2ray-agent/v2ray/config_full.json
-    if [[ "$1" = "all" ]] && [[ "${selectCoreType}" = "2" ]]
-    then
-        # default v2ray-core
-        cat << EOF > /etc/v2ray-agent/v2ray/config_full.json
+
+    cat << EOF > /etc/v2ray-agent/v2ray/conf/00_log.json
 {
   "log": {
-    "error": "/etc/v2ray-agent/v2ray/v2ray_error.log",
-    "loglevel": "warning"
-  },
-  "inbounds": [
-    {
-      "port": 443,
-      "protocol": "vless",
-      "settings": {
-        "clients": [
-          {
-            "id": "${uuid}",
-            "add": "${add}",
-            "email": "${domain}_VLESS_TLS_TCP"
-          }
-        ],
-        "decryption": "none",
-        "fallbacks": [
-          {
-            "dest": 31296,
-            "xver": 0
-          },
-          {
-            "path": "/${customPath}",
-            "dest": 31299,
-            "xver": 1
-          },
-          {
-            "path": "/${customPath}tcp",
-            "dest": 31298,
-            "xver": 1
-          },
-          {
-            "path": "/${customPath}ws",
-            "dest": 31297,
-            "xver": 1
-          }
-        ]
-      },
-      "streamSettings": {
-        "network": "tcp",
-        "security": "tls",
-        "tlsSettings": {
-          "alpn": [
-            "http/1.1"
-          ],
-          "certificates": [
-            {
-              "certificateFile": "/etc/v2ray-agent/tls/${domain}.crt",
-              "keyFile": "/etc/v2ray-agent/tls/${domain}.key"
-            }
-          ]
-        }
-      }
-    },
-    {
-      "port": 31299,
-      "protocol": "vmess",
-      "settings": {
-        "clients": [
-          {
-            "id": "${uuid}",
-            "alterId": 1,
-            "level": 0,
-            "email": "${domain}_vmess_ws"
-          }
-        ]
-      },
-      "streamSettings": {
-        "network": "ws",
-        "security": "none",
-        "wsSettings": {
-          "acceptProxyProtocol": true,
-          "path": "/${customPath}"
-        }
-      }
-    },
-    {
-      "port": 31298,
-      "listen": "127.0.0.1",
-      "protocol": "vmess",
-      "settings": {
-        "clients": [
-          {
-            "id": "${uuid}",
-            "level": 0,
-            "alterId": 1,
-            "email": "${domain}_vmess_tcp"
-          }
-        ]
-      },
-      "streamSettings": {
-        "network": "tcp",
-        "security": "none",
-        "tcpSettings": {
-          "acceptProxyProtocol": true,
-          "header": {
-            "type": "http",
-            "request": {
-              "path": [
-                "/${customPath}tcp"
-              ]
-            }
-          }
-        }
-      }
-    },
-    {
-      "port": 31297,
-      "listen": "127.0.0.1",
-      "protocol": "vless",
-      "settings": {
-        "clients": [
-          {
-            "id": "${uuid}",
-            "level": 0,
-            "email": "${domain}_vless_ws"
-          }
-        ],
-        "decryption": "none"
-      },
-      "streamSettings": {
-        "network": "ws",
-        "security": "none",
-        "wsSettings": {
-          "acceptProxyProtocol": true,
-          "path": "/${customPath}ws"
-        }
-      }
-    }
-  ],
-  "routing":{
-    "domainStrategy": "AsIs",
-    "rules": [
-      {
-        "type": "field",
-        "protocol": [
-          "bittorrent"
-        ],
-        "outboundTag": "blocked"
-      }
-    ]
-  },
-  "outbounds": [
-    {
-      "tag":"direct",
-      "protocol": "freedom",
-      "settings": {
-        "domainStrategy": "UseIPv4"
-      }
-    },
-    {
-      "tag": "blocked",
-      "protocol": "blackhole",
-      "settings": {}
-    }
-  ],
-  "dns": {
-    "servers": [
-      "74.82.42.42",
-      "8.8.8.8",
-      "8.8.4.4",
-      "1.1.1.1",
-      "localhost"
-    ]
-  }
-}
-EOF
-    elif [[ "$1" = "all" ]] && [[ "${selectCoreType}" = "3" ]]
-    then
-        # 需锁定4.32.1
-        cat << EOF > /etc/v2ray-agent/v2ray/config_full.json
-{
-  "log": {
-    "error": "/etc/v2ray-agent/v2ray/v2ray_error.log",
-    "loglevel": "warning"
-  },
-  "inbounds": [
-    {
-      "port": 443,
-      "protocol": "vless",
-      "settings": {
-        "clients": [
-          {
-            "id": "${uuid}",
-            "add": "${add}",
-            "flow":"xtls-rprx-origin",
-            "email": "${domain}_VLESS_XTLS/TLS-origin_TCP"
-          },
-          {
-            "id": "${uuid}",
-            "flow":"xtls-rprx-direct",
-            "email": "${domain}_VLESS_XTLS/TLS-direct_TCP"
-          }
-        ],
-        "decryption": "none",
-        "fallbacks": [
-          {
-            "dest": 31296,
-            "xver": 0
-          },
-          {
-            "path": "/${customPath}",
-            "dest": 31299,
-            "xver": 1
-          },
-          {
-            "path": "/${customPath}tcp",
-            "dest": 31298,
-            "xver": 1
-          },
-          {
-            "path": "/${customPath}ws",
-            "dest": 31297,
-            "xver": 1
-          }
-        ]
-      },
-      "streamSettings": {
-        "network": "tcp",
-        "security": "xtls",
-        "xtlsSettings": {
-          "alpn": [
-            "http/1.1"
-          ],
-          "certificates": [
-            {
-              "certificateFile": "/etc/v2ray-agent/tls/${domain}.crt",
-              "keyFile": "/etc/v2ray-agent/tls/${domain}.key"
-            }
-          ]
-        }
-      }
-    },
-    {
-      "port": 31299,
-      "protocol": "vmess",
-      "settings": {
-        "clients": [
-          {
-            "id": "${uuid}",
-            "alterId": 1,
-            "level": 0,
-            "email": "${domain}_vmess_ws"
-          }
-        ]
-      },
-      "streamSettings": {
-        "network": "ws",
-        "security": "none",
-        "wsSettings": {
-          "acceptProxyProtocol": true,
-          "path": "/${customPath}"
-        }
-      }
-    },
-    {
-      "port": 31298,
-      "listen": "127.0.0.1",
-      "protocol": "vmess",
-      "settings": {
-        "clients": [
-          {
-            "id": "${uuid}",
-            "level": 0,
-            "alterId": 1,
-            "email": "${domain}_vmess_tcp"
-          }
-        ]
-      },
-      "streamSettings": {
-        "network": "tcp",
-        "security": "none",
-        "tcpSettings": {
-          "acceptProxyProtocol": true,
-          "header": {
-            "type": "http",
-            "request": {
-              "path": [
-                "/${customPath}tcp"
-              ]
-            }
-          }
-        }
-      }
-    },
-    {
-      "port": 31297,
-      "listen": "127.0.0.1",
-      "protocol": "vless",
-      "settings": {
-        "clients": [
-          {
-            "id": "${uuid}",
-            "level": 0,
-            "email": "${domain}_vless_ws"
-          }
-        ],
-        "decryption": "none"
-      },
-      "streamSettings": {
-        "network": "ws",
-        "security": "none",
-        "wsSettings": {
-          "acceptProxyProtocol": true,
-          "path": "/${customPath}ws"
-        }
-      }
-    }
-  ],
-  "routing":{
-    "domainStrategy": "AsIs",
-    "rules": [
-      {
-        "type": "field",
-        "protocol": [
-          "bittorrent"
-        ],
-        "outboundTag": "blocked"
-      }
-    ]
-  },
-  "outbounds": [
-    {
-      "tag":"direct",
-      "protocol": "freedom",
-      "settings": {
-        "domainStrategy": "UseIPv4"
-      }
-    },
-    {
-      "tag": "blocked",
-      "protocol": "blackhole",
-      "settings": {}
-    }
-  ],
-  "dns": {
-    "servers": [
-      "74.82.42.42",
-      "8.8.8.8",
-      "8.8.4.4",
-      "1.1.1.1",
-      "localhost"
-    ]
-  }
-}
-EOF
-    elif [[ "$1" = "custom" ]]
-    then
-        # custom v2ray-core
-        cat << EOF > /etc/v2ray-agent/v2ray/conf/00_log.json
-{
-  "log": {
-    "error": "/etc/v2ray-agent/v2ray/v2ray_error.log",
+    "error": "/etc/v2ray-agent/xray/xray_error.log",
     "loglevel": "warning"
   }
 }
 EOF
-        # outbounds
-       cat << EOF > /etc/v2ray-agent/v2ray/conf/10_outbounds.json
+    # routing
+    cat << EOF > /etc/v2ray-agent/v2ray/conf/09_routing.json
+{
+    "routing":{
+        "domainStrategy": "AsIs",
+        "rules": [
+          {
+            "type": "field",
+            "protocol": [
+              "bittorrent"
+            ],
+            "outboundTag": "blocked"
+          }
+        ]
+  }
+}
+EOF
+
+    # outbounds
+    cat << EOF > /etc/v2ray-agent/v2ray/conf/10_outbounds.json
 {
     "outbounds": [
         {
@@ -1888,24 +1532,9 @@ EOF
     ]
 }
 EOF
-       cat << EOF > /etc/v2ray-agent/v2ray/conf/09_routing.json
-{
-    "routing":{
-        "domainStrategy": "AsIs",
-        "rules": [
-          {
-            "type": "field",
-            "protocol": [
-              "bittorrent"
-            ],
-            "outboundTag": "blocked"
-          }
-        ]
-  }
-}
-EOF
-        # dns
-       cat << EOF > /etc/v2ray-agent/v2ray/conf/11_dns.json
+
+    # dns
+    cat << EOF > /etc/v2ray-agent/v2ray/conf/11_dns.json
 {
     "dns": {
         "servers": [
@@ -1918,130 +1547,134 @@ EOF
   }
 }
 EOF
-        # VLESS_TCP_TLS/XTLS
-        # 没有path则回落到此端口
-        local fallbacksList='{"dest":31296,"xver":0}'
+    # VLESS_TCP_TLS/XTLS
+    # 回落nginx
+    local fallbacksList='{"dest":31296,"xver":0}'
 
-        if [[ -z `echo ${selectCustomInstallType}|grep 4` ]]
-        then
-            fallbacksList='{"dest":31300,"xver":0}'
-        fi
+    if [[ -z `echo ${selectCustomInstallType}|grep 4` || "$1" = "all" ]]
+    then
+        # 回落trojan-go
+        fallbacksList='{"dest":31300,"xver":0}'
+    fi
 
-        # VLESS_WS_TLS
-        if [[ ! -z `echo ${selectCustomInstallType}|grep 1` ]]
-        then
-            fallbacksList=${fallbacksList}',{"path":"/'${customPath}'ws","dest":31297,"xver":1}'
-            cat << EOF > /etc/v2ray-agent/v2ray/conf/03_VLESS_WS_inbounds.json
-{
-"inbounds":[
-        {
-      "port": 31297,
-      "listen": "127.0.0.1",
-      "protocol": "vless",
-      "settings": {
-        "clients": [
-          {
-            "id": "${uuid}",
-            "level": 0,
-            "email": "${domain}_vless_ws"
-          }
-        ],
-        "decryption": "none"
-      },
-      "streamSettings": {
-        "network": "ws",
-        "security": "none",
-        "wsSettings": {
-          "acceptProxyProtocol": true,
-          "path": "/${customPath}ws"
-        }
-      }
-    }
-    ]
-}
-EOF
-        fi
-# VMess_TCP
-        if [[ ! -z `echo ${selectCustomInstallType}|grep 2` ]]
-        then
-            fallbacksList=${fallbacksList}',{"path":"/'${customPath}'tcp","dest":31298,"xver":1}'
-            cat << EOF > /etc/v2ray-agent/v2ray/conf/04_VMess_TCP_inbounds.json
+    # VLESS_WS_TLS
+    if [[ ! -z `echo ${selectCustomInstallType}|grep 1` || "$1" = "all" ]]
+    then
+        fallbacksList=${fallbacksList}',{"path":"/'${customPath}'ws","dest":31297,"xver":1}'
+        cat << EOF > /etc/v2ray-agent/v2ray/conf/03_VLESS_WS_inbounds.json
 {
 "inbounds":[
     {
-      "port": 31298,
-      "listen": "127.0.0.1",
-      "protocol": "vmess",
-      "tag":"VMessTCP",
-      "settings": {
-        "clients": [
-          {
-            "id": "${uuid}",
-            "level": 0,
-            "alterId": 1,
-            "email": "${domain}_vmess_tcp"
-          }
-        ]
-      },
-      "streamSettings": {
-        "network": "tcp",
-        "security": "none",
-        "tcpSettings": {
-          "acceptProxyProtocol": true,
-          "header": {
-            "type": "http",
-            "request": {
-              "path": [
-                "/${customPath}tcp"
-              ]
-            }
-          }
-        }
+  "port": 31297,
+  "listen": "127.0.0.1",
+  "protocol": "vless",
+  "settings": {
+    "clients": [
+      {
+        "id": "${uuid}",
+        "level": 0,
+        "email": "${domain}_vless_ws"
       }
+    ],
+    "decryption": "none"
+  },
+  "streamSettings": {
+    "network": "ws",
+    "security": "none",
+    "wsSettings": {
+      "acceptProxyProtocol": true,
+      "path": "/${customPath}ws"
     }
+  }
+}
 ]
 }
 EOF
-        fi
-        # VMess_WS
-        if [[ ! -z `echo ${selectCustomInstallType}|grep 3` ]]
-        then
-            fallbacksList=${fallbacksList}',{"path":"/'${customPath}'","dest":31299,"xver":1}'
-            cat << EOF > /etc/v2ray-agent/v2ray/conf/05_VMess_WS_inbounds.json
+    fi
+
+    # VMess_TCP
+    if [[ ! -z `echo ${selectCustomInstallType}|grep 2` || "$1" = "all"  ]]
+    then
+        fallbacksList=${fallbacksList}',{"path":"/'${customPath}'tcp","dest":31298,"xver":1}'
+        cat << EOF > /etc/v2ray-agent/v2ray/conf/04_VMess_TCP_inbounds.json
 {
 "inbounds":[
 {
-      "port": 31299,
-      "protocol": "vmess",
-      "tag":"VMessWS",
-      "settings": {
-        "clients": [
-          {
-            "id": "${uuid}",
-            "alterId": 1,
-            "add": "${add}",
-            "level": 0,
-            "email": "${domain}_vmess_ws"
-          }
-        ]
-      },
-      "streamSettings": {
-        "network": "ws",
-        "security": "none",
-        "wsSettings": {
-          "acceptProxyProtocol": true,
-          "path": "/${customPath}"
+  "port": 31298,
+  "listen": "127.0.0.1",
+  "protocol": "vmess",
+  "tag":"VMessTCP",
+  "settings": {
+    "clients": [
+      {
+        "id": "${uuid}",
+        "level": 0,
+        "alterId": 1,
+        "email": "${domain}_vmess_tcp"
+      }
+    ]
+  },
+  "streamSettings": {
+    "network": "tcp",
+    "security": "none",
+    "tcpSettings": {
+      "acceptProxyProtocol": true,
+      "header": {
+        "type": "http",
+        "request": {
+          "path": [
+            "/${customPath}tcp"
+          ]
         }
       }
     }
+  }
+}
 ]
 }
 EOF
-        fi
-        # VLESS_TCP
-        if [[ "${selectCoreType}" = "2" ]]
-        then
-            cat << EOF > /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json
+    fi
+
+    # VMess_WS
+    if [[ ! -z `echo ${selectCustomInstallType}|grep 3` || "$1" = "all"  ]]
+    then
+        fallbacksList=${fallbacksList}',{"path":"/'${customPath}'","dest":31299,"xver":1}'
+        cat << EOF > /etc/v2ray-agent/v2ray/conf/05_VMess_WS_inbounds.json
+{
+"inbounds":[
+{
+  "port": 31299,
+  "protocol": "vmess",
+  "tag":"VMessWS",
+  "settings": {
+    "clients": [
+      {
+        "id": "${uuid}",
+        "alterId": 1,
+        "add": "${add}",
+        "level": 0,
+        "email": "${domain}_vmess_ws"
+      }
+    ]
+  },
+  "streamSettings": {
+    "network": "ws",
+    "security": "none",
+    "wsSettings": {
+      "acceptProxyProtocol": true,
+      "path": "/${customPath}"
+    }
+  }
+}
+]
+}
+EOF
+    fi
+
+    # VLESS_TCP
+    if [[ "${selectCoreType}" = "2" ]]
+    then
+        cat << EOF > /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json
 {
   "inbounds":[
     {
@@ -2080,56 +1713,48 @@ EOF
   ]
 }
 EOF
-        elif [[ "${selectCoreType}" = "3" ]]
-        then
-
+    elif [[ "${selectCoreType}" = "3" ]]
+    then
         cat << EOF > /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json
 {
-  "inbounds":[
-    {
-      "port": 443,
-      "protocol": "vless",
-      "tag":"VLESSTCP",
-      "settings": {
-        "clients": [
-          {
-            "id": "${uuid}",
-            "add": "${add}",
-            "flow":"xtls-rprx-origin",
-            "email": "${domain}_VLESS_XTLS/TLS-origin_TCP"
-          },
-          {
-            "id": "${uuid}",
-            "flow":"xtls-rprx-direct",
-            "email": "${domain}_VLESS_XTLS/TLS-direct_TCP"
-          }
-        ],
-        "decryption": "none",
-        "fallbacks": [
-            ${fallbacksList}
-        ]
-      },
-      "streamSettings": {
-        "network": "tcp",
-        "security": "xtls",
-        "xtlsSettings": {
-          "alpn": [
-            "http/1.1"
-          ],
-          "certificates": [
-            {
-              "certificateFile": "/etc/v2ray-agent/tls/${domain}.crt",
-              "keyFile": "/etc/v2ray-agent/tls/${domain}.key"
-            }
-          ]
-        }
+"inbounds":[
+{
+  "port": 443,
+  "protocol": "vless",
+  "tag":"VLESSTCP",
+  "settings": {
+    "clients": [
+     {
+        "id": "${uuid}",
+        "add":"${add}",
+        "flow":"xtls-rprx-direct",
+        "email": "${domain}_VLESS_XTLS/TLS-direct_TCP"
       }
+    ],
+    "decryption": "none",
+    "fallbacks": [
+        ${fallbacksList}
+    ]
+  },
+  "streamSettings": {
+    "network": "tcp",
+    "security": "xtls",
+    "xtlsSettings": {
+      "alpn": [
+        "http/1.1"
+      ],
+      "certificates": [
+        {
+          "certificateFile": "/etc/v2ray-agent/tls/${domain}.crt",
+          "keyFile": "/etc/v2ray-agent/tls/${domain}.key"
+        }
+      ]
     }
-  ]
+  }
+}
+]
 }
 EOF
-        fi
-
     fi
 }
 
@@ -2472,7 +2097,7 @@ defaultBase64Code(){
         echo "   vmess://${qrCodeBase64Default}" >> /etc/v2ray-agent/v2ray/usersv2ray.conf
         echoContent yellow " ---> 通用json(VLESS+TCP+TLS)"
         echoContent green '    {"port":"'${port}'","ps":'${ps}',"tls":"tls","id":'"${id}"',"host":"'${host}'","type":"none","net":"tcp","add":"'${host}'","allowInsecure":0,"method":"none","peer":""}\n'
-        echoContent green '    V2Ray v4.27.4+ 目前无通用订阅，需要手动配置，VLESS TCP、XTLS和TCP大部分一样，其余内容不变，请注意手动输入的流控flow类型，v2ray-core v4.32.1之后不支持XTLS，Xray-core支持，建议使用Xray-core\n'
+        echoContent green '    V2Ray、Xray 目前无通用订阅，需要手动配置，VLESS TCP、XTLS和TCP大部分一样，其余内容不变，请注意手动输入的流控flow类型，v2ray-core v4.32.1之后不支持XTLS，Xray-core支持，建议使用Xray-core\n'
 
     elif [[ "${type}" = "vmessws" ]]
     then
@@ -2695,14 +2320,12 @@ updateV2RayCDN(){
 
         if [[ ! -z ${setDomain} ]]
         then
-            # v2ray
-            add=`echo ${currentAdd}|awk -F '["]' '{print $4}'`
-            if [[ ! -z ${add} ]]
+            if [[ ! -z ${currentAdd} ]]
             then
-                sed -i "s/\"${add}\"/\"${setDomain}\"/g"  `grep "${add}" -rl ${configPath}`
+                sed -i "s/\"${currentAdd}\"/\"${setDomain}\"/g"  `grep "${currentAdd}" -rl ${configPath}02_VLESS_TCP_inbounds.json`
             fi
 
-            if [[ `cat ${configPath}/02_VLESS_TCP_inbounds.json|grep -v grep|grep add|awk -F '["]' '{print $4}'` = ${setDomain} ]]
+            if [[ `cat ${configPath}02_VLESS_TCP_inbounds.json|grep -v grep|grep add|awk -F '["]' '{print $4}'` = ${setDomain} ]]
             then
                 echoContent green " ---> CDN修改成功"
                 if [[ "${coreInstallType}" = "1" ]]
@@ -3293,7 +2916,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.1.27"
+    echoContent green "当前版本：v2.2.0"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
@@ -3304,15 +2927,16 @@ menu(){
     echoContent yellow "4.更换伪装站"
     echoContent yellow "5.更新证书"
     echoContent yellow "6.更换CDN节点"
-    echoContent yellow "7.重置uuid"
+    echoContent yellow "7.多用户管理[todo]"
+    echoContent yellow "8.ipv6人机验证[todo]"
     echoContent skyBlue "-------------------------版本管理-----------------------------"
-    echoContent yellow "8.core版本管理"
-    echoContent yellow "9.升级Trojan-Go"
-    echoContent yellow "10.升级脚本"
-    echoContent yellow "11.安装BBR"
+    echoContent yellow "9.core版本管理"
+    echoContent yellow "10.升级Trojan-Go"
+    echoContent yellow "11.升级脚本"
+    echoContent yellow "12.安装BBR"
     echoContent skyBlue "-------------------------脚本管理-----------------------------"
-    echoContent yellow "12.查看日志"
-    echoContent yellow "13.卸载脚本"
+    echoContent yellow "13.查看日志"
+    echoContent yellow "14.卸载脚本"
     echoContent red "=============================================================="
     mkdirTools
     aliasInstall
@@ -3339,22 +2963,22 @@ menu(){
         #7)
             #resetUUID 1
         #;;
-        8)
+        9)
             coreVersionManageMenu 1
         ;;
-        9)
+        10)
             updateTrojanGo 1
         ;;
-        10)
+        11)
             updateV2RayAgent 1
         ;;
-        11)
+        12)
             bbrInstall
         ;;
-        12)
+        13)
             checkLog 1
         ;;
-        13)
+        14)
             unInstall 1
         ;;
     esac
