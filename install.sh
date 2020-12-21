@@ -492,7 +492,34 @@ cat << EOF > /etc/nginx/conf.d/alone.conf
     server {
         listen 31300;
         server_name ${domain};
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains;preload" always;
+        add_header Content-Security-Policy "default-src 'self' *.google-analytics.com *.swiftypecdn.com *.swiftype.com *.gstatic.com *.disqus.com *.disquscdn.com *.google.com *.facebook.com *.pippio.com *.crwdcntrl.net *.bluekai.com *.exelator.com *.narrative.io disqus.com 'unsafe-inline'; img-src * data: blob:";
+        add_header X-XSS-Protection "1; mode=block"
+        add_header Cache-Control 'no-cache';
+        add_header X-Content-Type-Options nosniff;
         root /usr/share/nginx/html;
+#        location ~ /.well-known {allow all;}
+#        location /test {return 200 'fjkvymb6len';}
+    }
+
+
+
+    server {
+        listen 80;
+        server_name gcp2.v2ray-agent.com;
+        return 301 https://gcp2.v2ray-agent.com$request_uri;
+    }
+    server {
+        listen 31300;
+        server_name gcp2.v2ray-agent.com;
+        root /usr/share/nginx/html;
+        location / {
+            add_header Strict-Transport-Security "max-age=31536000; includeSubDomains;preload" always;
+            add_header Content-Security-Policy "default-src 'self' *.google-analytics.com *.swiftypecdn.com *.swiftype.com *.gstatic.com *.disqus.com *.disquscdn.com *.google.com *.facebook.com *.pippio.com *.crwdcntrl.net *.bluekai.com *.exelator.com *.narrative.io disqus.com 'unsafe-inline'; img-src * data: blob:";
+            add_header X-XSS-Protection "1; mode=block"
+            add_header Cache-Control 'no-cache';
+            add_header X-Content-Type-Options nosniff;
+        }
 #        location ~ /.well-known {allow all;}
 #        location /test {return 200 'fjkvymb6len';}
     }
