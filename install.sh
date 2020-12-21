@@ -54,6 +54,9 @@ initVar(){
     # 3.v2ray-core[xtls] 安装
     coreInstallType=
 
+    # 核心安装path
+    coreInstallPath=
+
     # 1.全部安装
     # 2.个性化安装
     v2rayAgentInstallType=
@@ -115,9 +118,11 @@ readInstallType(){
                 then
                     # 不带XTLS的v2ray-core
                     coreInstallType=2
+                    coreInstallPath=/etc/v2ray-agent/v2ray/v2ray
                 elif [[ ! -z `cat /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json|grep xtls` ]]
                 then
                     # 带XTLS的v2ray-core
+                    coreInstallPath=/etc/v2ray-agent/v2ray/v2ray
                     coreInstallType=3
                 fi
             fi
@@ -130,6 +135,7 @@ readInstallType(){
             then
                 # xray-core
                 configPath=/etc/v2ray-agent/xray/conf/
+                coreInstallPath=/etc/v2ray-agent/xray/xray
                 coreInstallType=1
             fi
         fi
@@ -2393,160 +2399,85 @@ updateV2RayCDN(){
     menu
 }
 
-# 重置UUID
-resetUUID(){
-    # todo 重构此方法 兼容多用户
-    echoContent skyBlue "\n进度 $1/${totalProgress} : 重置UUID"
-    local resetStatus=false
+# manageUser 用户管理
+manageUser(){
+    echoContent skyBlue "\n进度 $1/${totalProgress} : 多用户管理"
+    echoContent skyBlue "-----------------------------------------------------"
+    echoContent yellow "1.添加用户"
+    echoContent yellow "2.删除用户[todo]"
+    echoContent skyBlue "-----------------------------------------------------"
+    read -p "请选择：" manageUserType
+    if [[ "${manageUserType}" = "1" ]]
+    then
+        addUser
+    elif [[ "${manageUserType}" = "2" ]]
+    then
+#        removeUser
+        echo
+    else
+        echoContent red " ---> 选择错误"
+    fi
+}
+
+# 添加用户
+addUser(){
+    read -p "请输入要添加的用户数量：" userNum
+    if [[ -z ${userNum} || ${userNum} -le 0 ]]
+    then
+        echoContent red " ---> 输入有误，请重新输入"
+    fi
+
+    # 生成用户
+    local users=
+    while [[ ${userNum} -gt 0 ]]
+    do
+        let userNum--
+        uuid=`${coreInstallPath} uuid`
+        if [[ ${userNum} = 0 ]]
+        then
+            users=${users}{\"id\":\"${uuid}\",\"flow\":\"xtls-rprx-direct\",\"email\":\"${currentHost}_${uuid}\"}
+        else
+            users=${users}{\"id\":\"${uuid}\",\"flow\":\"xtls-rprx-direct\",\"email\":\"${currentHost}_${uuid}\"},
+        fi
+    done
+    # 兼容v2ray-core
+    if [[ "${coreInstallType}" = "2" ]]
+    then
+        users=`echo ${users}|sed 's/"flow":"xtls-rprx-direct",//g'`
+    fi
+
+    if [[ ! -z `echo ${currentInstallProtocolType} | grep 0` ]]
+    then
+        echo `cat ${configPath}02_VLESS_TCP_inbounds.json|jq '.inbounds[0].settings.clients += ['${users}']'` > ${configPath}02_VLESS_TCP_inbounds.json
+    fi
+
+    users=`echo ${users}|sed 's/"flow":"xtls-rprx-direct",//g'`
+
+    if [[ ! -z `echo ${currentInstallProtocolType} | grep 1` ]]
+    then
+        echo `cat ${configPath}03_VLESS_WS_inbounds.json|jq '.inbounds[0].settings.clients += ['${users}']'` > ${configPath}03_VLESS_WS_inbounds.json
+    fi
+
+    if [[ ! -z `echo ${currentInstallProtocolType}|grep 2` ]]
+    then
+        echo `cat ${configPath}04_VMess_TCP_inbounds.json|jq '.inbounds[0].settings.clients += ['${users}']'` > ${configPath}04_VMess_TCP_inbounds.json
+    fi
+
+    if [[ ! -z `echo ${currentInstallProtocolType} | grep 3` ]]
+    then
+        echo `cat ${configPath}05_VMess_WS_inbounds.json|jq '.inbounds[0].settings.clients += ['${users}']'` > ${configPath}05_VMess_WS_inbounds.json
+    fi
+
     if [[ "${coreInstallType}" = "1" ]]
     then
-        newUUID=`/etc/v2ray-agent/xray/xray uuid`
+        handleXray stop
+        handleXray start
     elif [[ "${coreInstallType}" = "2" || "${coreInstallType}" = "3" ]]
     then
-        newUUID=`/etc/v2ray-agent/v2ray/v2ctl uuid`
+        handleV2Ray stop
+        handleV2Ray start
     fi
-
-    if [[ ! -z "${v2rayAgentInstallType}" ]] && [[ -z "${currentInstallProtocolType}" ]]
-    then
-
-        if [[  ! -z "${currentUUID}"  ]]
-        then
-            echoContent skyBlue "-------------------------------------------------------------"
-            read -p "是否自定义 XTLS-direct-uuid？[y/n]:" customUUIDStatus
-            if [[ "${customUUIDStatus}" = "y" ]]
-            then
-                echo
-                read -p "请输入合法的uuid:" newDirectUUID
-                echo
-                if [[ "${newUUID}" = "${newDirectUUID}" ]]
-                then
-                    echoContent red " ---> 两个uuid不可重复"
-                    resetUUID 1
-                    exit 0;
-                fi
-            fi
-            if [[ "${coreInstallType}" = "1" ]]
-            then
-                sed -i "s/${currentUUID}/${newDirectUUID}/g"  `grep "${currentUUID}" -rl /etc/v2ray-agent/xray/02_VLESS_TCP_inbounds.json`
-            elif [[ "${coreInstallType}" = "2" || "${coreInstallType}" = "3" ]]
-            then
-                sed -i "s/${currentUUID}/${newDirectUUID}/g"  `grep "${currentUUID}" -rl /etc/v2ray-agent/v2ray/config_full.json`
-            fi
-
-        fi
-        if [[ "${coreInstallType}" = "1" ]]
-        then
-            echoContent green " ---> Xray UUID重置完毕"
-            handleXray stop
-            handleXray start
-        elif [[ "${coreInstallType}" = "2" || "${coreInstallType}" = "3" ]]
-        then
-            echoContent green " ---> V2Ray UUID重置完毕"
-            handleV2Ray stop
-            handleV2Ray start
-        fi
-
-        resetStatus=true
-
-    elif [[ ! -z "${v2rayAgentInstallType}" ]] && [[ ! -z "${currentInstallProtocolType}" ]]
-    then
-        read -p "是否自定义uuid？[y/n]:" customUUIDStatus
-        if [[ "${customUUIDStatus}" = "y" ]]
-        then
-            echo
-            read -p "请输入合法的uuid:" newUUID
-            echo
-        fi
-        local configPathType=
-        if [[ "${coreInstallType}" = "1" ]]
-        then
-            configPathType=xray
-        elif [[ "${coreInstallType}" = "2" || "${coreInstallType}" = "3" ]]
-        then
-            configPathType=v2ray
-        fi
-
-        uuidCount=0
-        ls /etc/v2ray-agent/${configPathType}/conf|grep inbounds|while read row
-        do
-            cat /etc/v2ray-agent/${configPathType}/conf/${row}|jq .inbounds|jq -c '.[].settings.clients'|jq -c '.[].id'|while read row2
-            do
-                if [[ "${row}" = "02_VLESS_TCP_inbounds.json" ]]
-                then
-                    if [[ "${uuidCount}" != "1" ]]
-                    then
-                        oldUUID=`echo ${row2}|awk -F "[\"]" '{print $2}'`
-                        sed -i "s/${oldUUID}/${newUUID}/g"  `grep "${oldUUID}" -rl /etc/v2ray-agent/${configPathType}/conf/${row}`
-                    fi
-                    if [[ "${row}" = "02_VLESS_TCP_inbounds.json" ]]
-                    then
-                        uuidCount=1
-                    fi
-                else
-                    oldUUID=`echo ${row2}|awk -F "[\"]" '{print $2}'`
-                    sed -i "s/${oldUUID}/${newUUID}/g"  `grep "${oldUUID}" -rl /etc/v2ray-agent/${configPathType}/conf/${row}`
-                fi
-            done
-        done
-
-#        if [[ ! -z "${currentUUID}" ]]
-#        then
-#            echoContent skyBlue "-------------------------------------------------------------"
-#            read -p "是否自定义xtls-direct-uuid？[y/n]:" customUUIDStatus
-#            if [[ "${customUUIDStatus}" = "y" ]]
-#            then
-#                echo
-#                read -p "请输入合法的uuid:" newDirectUUID
-#                echo
-#                if [[ "${newUUID}" = "${newDirectUUID}" ]]
-#                then
-#                    echoContent red " ---> 两个uuid不可重复"
-#                    resetUUID 1
-#                    exit 0;
-#                fi
-#            fi
-#            sed -i "s/${currentUUID}/${newDirectUUID}/g"  `grep "${currentUUID}" -rl /etc/v2ray-agent/${configPathType}/conf/02_VLESS_TCP_inbounds.json`
-#        fi
-
-        if [[ "${coreInstallType}" = "1" ]]
-        then
-            echoContent green " ---> Xray UUID重置完毕"
-            handleXray stop
-            handleXray start
-        elif [[ "${coreInstallType}" = "2" || "${coreInstallType}" = "3" ]]
-        then
-            echoContent green " ---> V2Ray UUID重置完毕"
-            handleV2Ray stop
-            handleV2Ray start
-        fi
-        resetStatus=true
-    else
-        echoContent red " ---> 未使用脚本安装V2Ray"
-        menu
-        exit 0;
-    fi
-
-    if [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/trojan" ]] && [[ -f "/etc/v2ray-agent/trojan/config_full.json" ]]
-    then
-        cat /etc/v2ray-agent/trojan/config_full.json|jq .password|jq -c '.[]'|while read row
-        do
-            oldUUID=`echo ${row}|awk -F "[\"]" '{print $2}'`
-            sed -i "s/${oldUUID}/${newUUID}/g"  `grep "${oldUUID}" -rl /etc/v2ray-agent/trojan/config_full.json`
-        done
-        echoContent green " ---> Trojan UUID重置完毕"
-        handleTrojanGo stop
-        handleTrojanGo start
-        resetStatus=true
-    else
-        echoContent red " ---> 未使用脚本安装Trojan"
-    fi
-    if [[ "${resetStatus}" = "true" ]]
-    then
-        readInstallType
-        readConfigHostPathUUID
-        readInstallProtocolType
-        showAccounts 1
-    fi
+    echoContent green " ---> 添加完成"
 }
 
 # 更新脚本
@@ -3013,7 +2944,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.2.3"
+    echoContent green "当前版本：v2.2.4"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
@@ -3024,7 +2955,7 @@ menu(){
     echoContent yellow "4.更换伪装站"
     echoContent yellow "5.更新证书"
     echoContent yellow "6.更换CDN节点"
-    echoContent yellow "7.多用户管理[todo]"
+    echoContent yellow "7.多用户管理"
     echoContent yellow "8.ipv6人机验证"
     echoContent skyBlue "-------------------------版本管理-----------------------------"
     echoContent yellow "9.core版本管理"
@@ -3057,9 +2988,9 @@ menu(){
         6)
             updateV2RayCDN 1
         ;;
-        #7)
-            #resetUUID 1
-        #;;
+        7)
+            manageUser 1
+        ;;
         8)
             ipv6HumanVerification
         ;;
