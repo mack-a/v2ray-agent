@@ -492,36 +492,12 @@ cat << EOF > /etc/nginx/conf.d/alone.conf
     server {
         listen 31300;
         server_name ${domain};
-        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains;preload" always;
-        add_header Content-Security-Policy "default-src 'self' *.google-analytics.com *.swiftypecdn.com *.swiftype.com *.gstatic.com *.disqus.com *.disquscdn.com *.google.com *.facebook.com *.pippio.com *.crwdcntrl.net *.bluekai.com *.exelator.com *.narrative.io disqus.com 'unsafe-inline'; img-src * data: blob:";
-        add_header X-XSS-Protection "1; mode=block"
-        add_header Cache-Control 'no-cache';
-        add_header X-Content-Type-Options nosniff;
-        root /usr/share/nginx/html;
-#        location ~ /.well-known {allow all;}
-#        location /test {return 200 'fjkvymb6len';}
-    }
-
-
-
-    server {
-        listen 80;
-        server_name gcp2.v2ray-agent.com;
-        return 301 https://gcp2.v2ray-agent.com$request_uri;
-    }
-    server {
-        listen 31300;
-        server_name gcp2.v2ray-agent.com;
         root /usr/share/nginx/html;
         location / {
-            add_header Strict-Transport-Security "max-age=31536000; includeSubDomains;preload" always;
-            add_header Content-Security-Policy "default-src 'self' *.google-analytics.com *.swiftypecdn.com *.swiftype.com *.gstatic.com *.disqus.com *.disquscdn.com *.google.com *.facebook.com *.pippio.com *.crwdcntrl.net *.bluekai.com *.exelator.com *.narrative.io disqus.com 'unsafe-inline'; img-src * data: blob:";
-            add_header X-XSS-Protection "1; mode=block"
-            add_header Cache-Control 'no-cache';
-            add_header X-Content-Type-Options nosniff;
+            add_header Strict-Transport-Security "max-age=63072000" always;
         }
-#        location ~ /.well-known {allow all;}
-#        location /test {return 200 'fjkvymb6len';}
+#       location ~ /.well-known {allow all;}
+#       location /test {return 200 'fjkvymb6len';}
     }
 EOF
 }
@@ -1565,8 +1541,8 @@ EOF
     "outbounds": [
         {
           "protocol": "blackhole",
-          "settings": {}
-          "tag": "blocked",
+          "settings": {},
+          "tag": "blocked"
         }
     ]
 }
@@ -1589,12 +1565,12 @@ EOF
 EOF
     # VLESS_TCP_TLS/XTLS
     # 回落nginx
-    local fallbacksList='{"dest":31296,"xver":0}'
+    local fallbacksList='{"dest":31300,"xver":0}'
 
-    if [[ -z `echo ${selectCustomInstallType}|grep 4` || "$1" = "all" ]]
+    if [[ ! -z `echo ${selectCustomInstallType}|grep 4` || "$1" = "all" ]]
     then
         # 回落trojan-go
-        fallbacksList='{"dest":31300,"xver":0}'
+        fallbacksList='{"dest":31296,"xver":0}'
     fi
 
     # VLESS_WS_TLS
@@ -1892,12 +1868,12 @@ EOF
 EOF
     # VLESS_TCP_TLS/XTLS
     # 回落nginx
-    local fallbacksList='{"dest":31296,"xver":0}'
+    local fallbacksList='{"dest":31300,"xver":0}'
 
-    if [[ -z `echo ${selectCustomInstallType}|grep 4` || "$1" = "all" ]]
+    if [[ ! -z `echo ${selectCustomInstallType}|grep 4` || "$1" = "all" ]]
     then
         # 回落trojan-go
-        fallbacksList='{"dest":31300,"xver":0}'
+        fallbacksList='{"dest":31296,"xver":0}'
     fi
 
     # VLESS_WS_TLS
@@ -2040,6 +2016,7 @@ EOF
     "network": "tcp",
     "security": "xtls",
     "xtlsSettings": {
+      "minVersion": "1.2",
       "alpn": [
         "http/1.1"
       ],
@@ -3036,7 +3013,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.2.1"
+    echoContent green "当前版本：v2.2.2"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
