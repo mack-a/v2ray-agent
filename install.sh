@@ -493,8 +493,11 @@ cat << EOF > /etc/nginx/conf.d/alone.conf
         listen 31300;
         server_name ${domain};
         root /usr/share/nginx/html;
-#        location ~ /.well-known {allow all;}
-#        location /test {return 200 'fjkvymb6len';}
+        location / {
+            add_header Strict-Transport-Security "max-age=63072000" always;
+        }
+#       location ~ /.well-known {allow all;}
+#       location /test {return 200 'fjkvymb6len';}
     }
 EOF
 }
@@ -2013,6 +2016,7 @@ EOF
     "network": "tcp",
     "security": "xtls",
     "xtlsSettings": {
+      "minVersion": "1.2",
       "alpn": [
         "http/1.1"
       ],
