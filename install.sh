@@ -166,6 +166,10 @@ readInstallProtocolType(){
         fi
     done < <(echo `ls ${configPath}|grep -v grep|grep inbounds.json|awk -F "[.]" '{print $1}'`)
 
+    if [[ -f "/etc/v2ray-agent/trojan/trojan-go" ]] && [[ -f "/etc/v2ray-agent/trojan/config_full.json" ]]
+    then
+        currentInstallProtocolType=${currentInstallProtocolType}'4'
+    fi
 }
 
 # 检查文件目录以及path路径
@@ -620,6 +624,7 @@ randomPathFunction(){
         if [[ -z "${customPath}" ]]
         then
             customPath=`head -n 50 /dev/urandom|sed 's/[^a-z]//g'|strings -n 4|tr 'A-Z' 'a-z'|head -1`
+            currentPath=${customPath:0:4}
         fi
     fi
     echoContent yellow "path：${customPath}"
@@ -2205,7 +2210,7 @@ showAccounts(){
 
         cat ${configPath}02_VLESS_TCP_inbounds.json|jq .inbounds[0].settings.clients|jq -c '.[]'|while read user
         do
-            defaultBase64Code vlesstcp `echo ${user}|jq .email` `echo ${user}|jq .id` "${currentHost}:${currentPort}" ${currentAdd}
+            defaultBase64Code vlesstcp `echo ${user}|jq .email` `echo ${user}|jq .id` "${currentHost}:${currentPort}" ${currentHost}
         done
     fi
 
@@ -2227,7 +2232,7 @@ showAccounts(){
 
         cat ${configPath}04_VMess_TCP_inbounds.json|jq .inbounds[0].settings.clients|jq -c '.[]'|while read user
         do
-            defaultBase64Code vmesstcp `echo ${user}|jq .email` `echo ${user}|jq .id` "${currentHost}:${currentPort}" "${currentPath}tcp" "${currentAdd}"
+            defaultBase64Code vmesstcp `echo ${user}|jq .email` `echo ${user}|jq .id` "${currentHost}:${currentPort}" "${currentPath}tcp" "${currentHost}"
         done
     fi
 
@@ -2246,18 +2251,35 @@ showAccounts(){
     if [[ -d "/etc/v2ray-agent/" ]] && [[ -d "/etc/v2ray-agent/trojan/" ]] && [[ -f "/etc/v2ray-agent/trojan/config_full.json" ]]
     then
         showStatus=true
-        local trojanUUID=`cat /etc/v2ray-agent/trojan/config_full.json |jq .password[0]|awk -F '["]' '{print $2}'`
+#        local trojanUUID=`cat /etc/v2ray-agent/trojan/config_full.json |jq .password[0]|awk -F '["]' '{print $2}'`
         local trojanGoPath=`cat /etc/v2ray-agent/trojan/config_full.json|jq .websocket.path|awk -F '["]' '{print $2}'`
         local trojanGoAdd=`cat /etc/v2ray-agent/trojan/config_full.json|jq .websocket.add|awk -F '["]' '{print $2}'`
         echoContent skyBlue "\n==================================  Trojan TLS  ==================================\n"
-        defaultBase64Code trojan trojan ${trojanUUID} ${currentHost}
+        cat /etc/v2ray-agent/trojan/config_full.json |jq .password|while read user
+        do
+            trojanUUID=`echo ${user}|awk -F '["]' '{print $2}'`
+            if [[ ! -z "${trojanUUID}" ]]
+            then
+                defaultBase64Code trojan trojan ${trojanUUID} ${currentHost}
+            fi
+        done
+
 
         echoContent skyBlue "\n================================  Trojan WS TLS   ================================\n"
         if [[ -z ${trojanGoAdd} ]]
         then
             trojanGoAdd=${currentHost}
         fi
-        defaultBase64Code trojangows trojan ${trojanUUID} ${currentHost} ${trojanGoPath} ${trojanGoAdd}
+
+        cat /etc/v2ray-agent/trojan/config_full.json |jq .password|while read user
+        do
+            trojanUUID=`echo ${user}|awk -F '["]' '{print $2}'`
+            if [[ ! -z "${trojanUUID}" ]]
+            then
+                defaultBase64Code trojangows trojan ${trojanUUID} ${currentHost} ${trojanGoPath} ${trojanGoAdd}
+            fi
+
+        done
     fi
 
 }
@@ -2441,6 +2463,7 @@ addUser(){
 
     # 生成用户
     local users=
+    local trojanGoUsers=
     while [[ ${userNum} -gt 0 ]]
     do
         let userNum--
@@ -2448,9 +2471,20 @@ addUser(){
         if [[ ${userNum} = 0 ]]
         then
             users=${users}{\"id\":\"${uuid}\",\"flow\":\"xtls-rprx-direct\",\"email\":\"${currentHost}_${uuid}\"}
+
+            if [[ ! -z `echo ${currentInstallProtocolType}|grep 4` ]]
+            then
+                trojanGoUsers=${trojanGoUsers}\"${uuid}\"
+            fi
         else
             users=${users}{\"id\":\"${uuid}\",\"flow\":\"xtls-rprx-direct\",\"email\":\"${currentHost}_${uuid}\"},
+
+            if [[ ! -z `echo ${currentInstallProtocolType}|grep 4` ]]
+            then
+                trojanGoUsers=${trojanGoUsers}\"${uuid}\",
+            fi
         fi
+
     done
     # 兼容v2ray-core
     if [[ "${coreInstallType}" = "2" ]]
@@ -2480,6 +2514,14 @@ addUser(){
         echo `cat ${configPath}05_VMess_WS_inbounds.json|jq '.inbounds[0].settings.clients += ['${users}']'` > ${configPath}05_VMess_WS_inbounds.json
     fi
 
+    if [[ ! -z `echo ${currentInstallProtocolType} | grep 4` ]]
+    then
+        echo `cat ${configPath}../../trojan/config_full.json|jq '.password += ['${trojanGoUsers}']'` > ${configPath}../../trojan/config_full.json
+        handleTrojanGo stop
+        handleTrojanGo start
+    fi
+
+
     if [[ "${coreInstallType}" = "1" ]]
     then
         handleXray stop
@@ -2490,6 +2532,7 @@ addUser(){
         handleV2Ray start
     fi
     echoContent green " ---> 添加完成"
+    showAccounts 1
 }
 
 # 更新脚本
@@ -2956,7 +2999,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.2.4"
+    echoContent green "当前版本：v2.2.5"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
