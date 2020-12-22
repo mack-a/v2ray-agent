@@ -19,9 +19,9 @@ checkSystem(){
 	elif [[ ! -z `cat /etc/issue | grep -i "ubuntu" | grep -v grep` ]] || [[ ! -z `cat /proc/version | grep -i "ubuntu" | grep -v grep` ]]
 	then
 		release="ubuntu"
-		installType='apt -y install'
-		upgrade="apt update -y"
-		removeType='apt --purge remove'
+		installType='apt-get -y install'
+		upgrade="apt-get update -y"
+		removeType='apt-get --purge remove'
     fi
     if [[ -z ${release} ]]
     then
@@ -340,31 +340,31 @@ installTools(){
     if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep -w wget` ]]
     then
         echoContent green " ---> 安装wget"
-        ${installType} wget > /dev/null
+        ${installType} wget > /dev/null 2>&1
     fi
 
     if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep -w curl` ]]
     then
         echoContent green " ---> 安装curl"
-        ${installType} curl > /dev/null
+        ${installType} curl > /dev/null 2>&1
     fi
 
     if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep -w unzip` ]]
     then
         echoContent green " ---> 安装unzip"
-        ${installType} unzip > /dev/null
+        ${installType} unzip > /dev/null 2>&1
     fi
 
     if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep -w socat` ]]
     then
         echoContent green " ---> 安装socat"
-        ${installType} socat > /dev/null
+        ${installType} socat > /dev/null 2>&1
     fi
 
     if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep -w tar` ]]
     then
         echoContent green " ---> 安装tar"
-        ${installType} tar > /dev/null
+        ${installType} tar > /dev/null 2>&1
     fi
 
     if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep cron` ]]
@@ -372,15 +372,15 @@ installTools(){
         echoContent green " ---> 安装crontabs"
         if [[ "${release}" = "ubuntu" ]] || [[ "${release}" = "debian" ]]
         then
-            ${installType} cron > /dev/null
+            ${installType} cron > /dev/null 2>&1
         else
-            ${installType} crontabs > /dev/null
+            ${installType} crontabs > /dev/null 2>&1
         fi
     fi
     if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep -w jq` ]]
     then
         echoContent green " ---> 安装jq"
-        ${installType} jq > /dev/null
+        ${installType} jq > /dev/null 2>&1
     fi
 
     if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep binutils` ]]
@@ -388,16 +388,23 @@ installTools(){
         echoContent green " ---> 安装binutils"
         ${installType} binutils > /dev/null  2>&1
     fi
+
+    if [[ -z `find /bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep ping6` ]]
+    then
+        echoContent green " ---> 安装ping6"
+        ${installType} inetutils-ping > /dev/null 2>&1
+    fi
+
     if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep -w nginx` ]]
     then
         echoContent green " ---> 安装nginx"
-        ${installType} nginx > /dev/null
+        ${installType} nginx > /dev/null 2>&1
     fi
 
     if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep -w sudo` ]]
     then
         echoContent green " ---> 安装sudo"
-        ${installType} sudo > /dev/null
+        ${installType} sudo > /dev/null 2>&1
     fi
     # todo 关闭防火墙
 
@@ -504,7 +511,7 @@ EOF
 
 # 检查ip
 checkIP(){
-    pingIP=`ping -4 -c 1 -W 1000 ${domain}|sed '1{s/[^(]*(//;s/).*//;q;}'`
+    pingIP=`ping -c 1 -W 1000 ${domain}|sed '1{s/[^(]*(//;s/).*//;q;}'`
     # ping -6 -c 1 -W 1000 ${domain}|sed '1{s/^([\da-fA-F]{1,4}:){7}[\da-fA-F]{1,4}$//;q;}'
     if [[ ! -z "${pingIP}" ]] && [[ `echo ${pingIP}|grep '^\([1-9]\|[1-9][0-9]\|1[0-9][0-9]\|2[0-4][0-9]\|25[0-5]\)\.\([0-9]\|[1-9][0-9]\|1[0-9][0-9]\|2[0-4][0-9]\|25[0-5]\)\.\([0-9]\|[1-9][0-9]\|1[0-9][0-9]\|2[0-4][0-9]\|25[0-5]\)\.\([0-9]\|[1-9][0-9]\|1[0-9][0-9]\|2[0-4][0-9]\|25[0-5]\)$'` ]]
     then
@@ -561,6 +568,11 @@ installTLS(){
         if [[ "${reInstallStatus}" = "y" ]]
         then
             rm -rf /etc/v2ray-agent/tls/*
+            if [[ "${tlsStatus}" = "已过期" ]]
+            then
+                rm -rf /root/.acme.sh/${domain}_ecc/*
+            fi
+
             installTLS $1
         fi
     fi
@@ -2659,7 +2671,7 @@ aliasInstall(){
 
 # 检查ipv6、ipv4
 checkIPv6(){
-    pingIPv6=`ping -6 -c 1 -W 1000 www.google.com|sed '2{s/[^(]*(//;s/).*//;q;}'|tail -n +2`
+    pingIPv6=`ping6 -c 1 -W 1000 www.google.com|sed '2{s/[^(]*(//;s/).*//;q;}'|tail -n +2`
     if [[ -z "${pingIPv6}" ]]
     then
         echoContent red " ---> 不支持ipv6"
@@ -3013,7 +3025,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.2.3"
+    echoContent green "当前版本：v2.2.4"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
