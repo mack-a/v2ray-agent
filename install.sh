@@ -2645,7 +2645,7 @@ aliasInstall(){
 
 # 检查ipv6、ipv4
 checkIPv6(){
-    pingIPv6=`ping6 -c 1 -W 1000 www.google.com|sed '2{s/[^(]*(//;s/).*//;q;}'|tail -n +2`
+    pingIPv6=`ping6 -c 1 www.google.com|sed '2{s/[^(]*(//;s/).*//;q;}'|tail -n +2`
     if [[ -z "${pingIPv6}" ]]
     then
         echoContent red " ---> 不支持ipv6"
@@ -2667,7 +2667,7 @@ ipv6HumanVerification(){
     cat << EOF > ${configPath}09_routing.json
 {
     "routing":{
-        "domainStrategy": "AsIs",
+        "domainStrategy": "IPOnDemand",
         "rules": [
           {
             "type": "field",
@@ -2999,7 +2999,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.2.5"
+    echoContent green "当前版本：v2.2.6"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
