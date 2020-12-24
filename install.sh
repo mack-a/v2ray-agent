@@ -479,7 +479,7 @@ initTLSNginxConfig(){
         # 修改配置
         echoContent green "\n ---> 配置Nginx"
         touch /etc/nginx/conf.d/alone.conf
-        echo "server {listen 80;server_name ${domain};root /usr/share/nginx/html;location ~ /.well-known {allow all;}location /test {return 200 'fjkvymb6len';}}" > /etc/nginx/conf.d/alone.conf
+        echo "server {listen [::]:80;server_name ${domain};root /usr/share/nginx/html;location ~ /.well-known {allow all;}location /test {return 200 'fjkvymb6len';}}" > /etc/nginx/conf.d/alone.conf
         # 启动nginx
         handleNginx start
         echoContent yellow "\n检查IP是否设置为当前VPS"
@@ -521,9 +521,16 @@ EOF
 
 # 检查ip
 checkIP(){
+    echoContent skyblue " ---> 检查ipv4中"
     pingIP=`ping -c 1 -W 1000 ${domain}|sed '1{s/[^(]*(//;s/).*//;q;}'`
-    # ping -6 -c 1 -W 1000 ${domain}|sed '1{s/^([\da-fA-F]{1,4}:){7}[\da-fA-F]{1,4}$//;q;}'
-    if [[ ! -z "${pingIP}" ]] && [[ `echo ${pingIP}|grep '^\([1-9]\|[1-9][0-9]\|1[0-9][0-9]\|2[0-4][0-9]\|25[0-5]\)\.\([0-9]\|[1-9][0-9]\|1[0-9][0-9]\|2[0-4][0-9]\|25[0-5]\)\.\([0-9]\|[1-9][0-9]\|1[0-9][0-9]\|2[0-4][0-9]\|25[0-5]\)\.\([0-9]\|[1-9][0-9]\|1[0-9][0-9]\|2[0-4][0-9]\|25[0-5]\)$'` ]]
+    if [[ -z "${pingIP}" ]]
+    then
+        echoContent skyblue " ---> 检查ipv6中"
+        pingIP=`ping6 -c 1 ${domain}|sed '1{s/[^(]*(//;s/).*//;q;}'`
+        pingIPv6=${pingIP}
+    fi
+
+    if [[ ! -z "${pingIP}" ]] # && [[ `echo ${pingIP}|grep '^\([1-9]\|[1-9][0-9]\|1[0-9][0-9]\|2[0-4][0-9]\|25[0-5]\)\.\([0-9]\|[1-9][0-9]\|1[0-9][0-9]\|2[0-4][0-9]\|25[0-5]\)\.\([0-9]\|[1-9][0-9]\|1[0-9][0-9]\|2[0-4][0-9]\|25[0-5]\)\.\([0-9]\|[1-9][0-9]\|1[0-9][0-9]\|2[0-4][0-9]\|25[0-5]\)$'` ]]
     then
         echo
         read -p "当前域名的IP为 [${pingIP}]，是否正确[y/n]？" domainStatus
@@ -551,8 +558,17 @@ installTLS(){
     if [[ -z `ls /etc/v2ray-agent/tls|grep ${domain}.crt` ]] && [[ -z `ls /etc/v2ray-agent/tls|grep ${domain}.key` ]]
     then
         echoContent green " ---> 安装TLS证书"
+        echoContent red pingIPv6:${pingIPv6}
+        if [[ ! -z "${pingIPv6}" ]]
+        then
+            echo
+            sudo ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 --listen-v6 >/dev/null
+        else
+            echo
+            sudo ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 >/dev/null
+        fi
 
-        sudo ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 >/dev/null
+#        sudo ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 >/dev/null
         ~/.acme.sh/acme.sh --installcert -d ${domain} --fullchainpath /etc/v2ray-agent/tls/${domain}.crt --keypath /etc/v2ray-agent/tls/${domain}.key --ecc >/dev/null
         if [[ -z `cat /etc/v2ray-agent/tls/${domain}.crt` ]]
         then
@@ -593,7 +609,7 @@ initNginxConfig(){
 
         cat << EOF > /etc/nginx/conf.d/alone.conf
 server {
-    listen 80;
+    listen [::]:80;
     server_name ${domain};
     root /usr/share/nginx/html;
     location ~ /.well-known {allow all;}
