@@ -2,7 +2,7 @@
 name: bug反馈
 about: bug反馈
 title: ''
-labels: bug
+labels: ''
 assignees: ''
 
 ---
@@ -40,6 +40,3 @@ assignees: ''
 
 **10.是否仔细检查客户端与服务端的配置是否相同**
 - 是/否
-
-
-
