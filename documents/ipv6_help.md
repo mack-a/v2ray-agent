@@ -1,5 +1,6 @@
 # 注意事项
 - ipv6在本地环境只支持ipv4的情况下，只可以使用Cloudflare【Trojan-Go ws、VLESS+TLS+WS、VMess+TLS+WS】
+- ipv6可以结合此文档，使用自选ip实现更优的网络体验，[Cloudflare 优化方案](https://github.com/mack-a/v2ray-agent/blob/master/documents/optimize_V2Ray.md)
 - ipv6 vps需设置NAT64来下载脚本以及脚本中需要下载文件的问题
 
 # NAT64设置方法
