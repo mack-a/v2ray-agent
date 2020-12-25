@@ -29,7 +29,9 @@
 - 支持Debian、Ubuntu、Centos，支持主流的cpu架构。**不建议用Centos**
 - 支持个性化安装。
 - 不需要卸载就可以重装任何组合。卸载脚本时，是完全卸载无残留。
+- 支持纯ipv6，ipv6[注意事项](https://github.com/mack-a/v2ray-agent/blob/master/documents/ipv6_help.md)
 - 支持ipv6人机验证 **需自己申请IPv6隧道，不建议使用自带的IPv6**
+
 
 ## 组合方式
 - VLESS+TCP+TLS
