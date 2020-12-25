@@ -479,7 +479,7 @@ initTLSNginxConfig(){
         # 修改配置
         echoContent green "\n ---> 配置Nginx"
         touch /etc/nginx/conf.d/alone.conf
-        echo "server {listen [::]:80;server_name ${domain};root /usr/share/nginx/html;location ~ /.well-known {allow all;}location /test {return 200 'fjkvymb6len';}}" > /etc/nginx/conf.d/alone.conf
+        echo "server {listen 80;listen [::]:80;server_name ${domain};root /usr/share/nginx/html;location ~ /.well-known {allow all;}location /test {return 200 'fjkvymb6len';}}" > /etc/nginx/conf.d/alone.conf
         # 启动nginx
         handleNginx start
         echoContent yellow "\n检查IP是否设置为当前VPS"
@@ -503,6 +503,7 @@ updateRedirectNginxConf(){
 cat << EOF > /etc/nginx/conf.d/alone.conf
     server {
         listen 80;
+        listen [::]:80;
         server_name ${domain};
         return 301 https://${domain}$request_uri;
     }
@@ -521,11 +522,11 @@ EOF
 
 # 检查ip
 checkIP(){
-    echoContent skyblue " ---> 检查ipv4中"
+    echoContent skyBlue " ---> 检查ipv4中"
     pingIP=`ping -c 1 -W 1000 ${domain}|sed '1{s/[^(]*(//;s/).*//;q;}'`
     if [[ -z "${pingIP}" ]]
     then
-        echoContent skyblue " ---> 检查ipv6中"
+        echoContent skyBlue " ---> 检查ipv6中"
         pingIP=`ping6 -c 1 ${domain}|sed '1{s/[^(]*(//;s/).*//;q;}'`
         pingIPv6=${pingIP}
     fi
@@ -558,17 +559,13 @@ installTLS(){
     if [[ -z `ls /etc/v2ray-agent/tls|grep ${domain}.crt` ]] && [[ -z `ls /etc/v2ray-agent/tls|grep ${domain}.key` ]]
     then
         echoContent green " ---> 安装TLS证书"
-        echoContent red pingIPv6:${pingIPv6}
         if [[ ! -z "${pingIPv6}" ]]
         then
-            echo
             sudo ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 --listen-v6 >/dev/null
         else
-            echo
             sudo ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 >/dev/null
         fi
 
-#        sudo ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 >/dev/null
         ~/.acme.sh/acme.sh --installcert -d ${domain} --fullchainpath /etc/v2ray-agent/tls/${domain}.crt --keypath /etc/v2ray-agent/tls/${domain}.key --ecc >/dev/null
         if [[ -z `cat /etc/v2ray-agent/tls/${domain}.crt` ]]
         then
@@ -609,6 +606,7 @@ initNginxConfig(){
 
         cat << EOF > /etc/nginx/conf.d/alone.conf
 server {
+    listen 80;
     listen [::]:80;
     server_name ${domain};
     root /usr/share/nginx/html;
