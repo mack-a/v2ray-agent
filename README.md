@@ -26,7 +26,7 @@
 - 支持[Xray-core[XTLS]](https://github.com/XTLS/Xray-core)、v2ray-core [XTLS]、v2ray-core
 - 支持不同核心之间的配置文件互相读取。
 - 支持 VLESS/VMess/trojan/trojan-go-->ws的协议
-- 支持Debian、Ubuntu、Centos，支持主流的cpu架构。**不建议用Centos**
+- 支持Debian、Ubuntu、Centos，支持主流的cpu架构。**不建议用Centos、以及低版本的系统**
 - 支持个性化安装。
 - 不需要卸载就可以重装任何组合。卸载脚本时，是完全卸载无残留。
 - 支持纯ipv6，ipv6[注意事项](https://github.com/mack-a/v2ray-agent/blob/master/documents/ipv6_help.md)
