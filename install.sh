@@ -185,10 +185,15 @@ readConfigHostPathUUID(){
         local path=`cat ${configPath}02_VLESS_TCP_inbounds.json|jq .inbounds[0].settings.fallbacks|jq -c '.[].path'|awk -F "[\"][/]" '{print $2}'|awk -F "[\"]" '{print $1}'|tail -n +2|head -n 1`
         if [[ ! -z "${path}" ]]
         then
-            currentPath=${path:0:4}
+            if [[ `echo ${path:0-2}` = "ws" ]]
+            then
+                currentPath=`echo ${path}|awk -F "[w][s]" '{print $1}'`
+            elif [[ `echo ${path:0-2}` = "tcp" ]]
+            then
+                currentPath=`echo ${path}|awk -F "[t][c][p]" '{print $1}'`
+            fi
         fi
     fi
-
     if [[ "${coreInstallType}" = "1" ]]
     then
         currentHost=`cat ${configPath}02_VLESS_TCP_inbounds.json|jq .inbounds[0].streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print $2}'|awk -F '["]' '{print $1}'|awk -F '[.][c][r][t]' '{print $1}'`
