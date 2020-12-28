@@ -2707,8 +2707,14 @@ ipv6HumanVerification(){
     fi
 
     checkIPv6
-
-    cat << EOF > ${configPath}09_routing.json
+    echoContent skyBlue "\n功能 1/${totalProgress} : ipv6人机验证"
+    echoContent red "\n=============================================================="
+    echoContent yellow "1.添加"
+    echoContent yellow "2.卸载"
+    read -p "请选择:" ipv6Status
+    if [[ "${ipv6Status}" = "1" ]]
+    then
+        cat << EOF > ${configPath}09_routing.json
 {
     "routing":{
         "domainStrategy": "IPOnDemand",
@@ -2733,8 +2739,7 @@ ipv6HumanVerification(){
 }
 EOF
 
-#    cat << EOF > ${configPath}10_ipv6_outbounds.json
-    cat << EOF > ${configPath}10_ipv4_outbounds.json
+        cat << EOF > ${configPath}10_ipv4_outbounds.json
 {
   "outbounds": [
     {
@@ -2754,7 +2759,47 @@ EOF
   ]
 }
 EOF
-    echoContent green " ---> 人机验证修改成功"
+        echoContent green " ---> 人机验证修改成功"
+
+    elif [[ "${ipv6Status}" = "2" ]]
+    then
+        cat << EOF > ${configPath}09_routing.json
+{
+    "routing":{
+        "domainStrategy": "AsIs",
+        "rules": [
+          {
+            "type": "field",
+            "protocol": [
+              "bittorrent"
+            ],
+            "outboundTag": "blocked"
+          }
+        ]
+  }
+}
+EOF
+
+        cat << EOF > ${configPath}10_ipv4_outbounds.json
+{
+    "outbounds": [
+        {
+          "protocol": "freedom",
+          "settings": {
+            "domainStrategy": "UseIPv4"
+          },
+          "tag": "IPv4-out"
+        }
+    ]
+}
+EOF
+        echoContent green " ---> 人机验证卸载成功"
+    else
+        echoContent red " ---> 选择错误"
+        ipv6HumanVerification
+        exit
+    fi
+
     handleXray stop
     handleXray start
 }
@@ -3043,7 +3088,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.2.8"
+    echoContent green "当前版本：v2.2.9"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
