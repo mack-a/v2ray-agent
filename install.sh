@@ -12,6 +12,10 @@ checkSystem(){
 		upgrade="yum update -y --skip-broken"
 	elif [[ ! -z `cat /etc/issue | grep -i "debian" | grep -v grep` ]] || [[ ! -z `cat /proc/version | grep -i "debian" | grep -v grep` ]]
     then
+        if [[ ! -z `cat /etc/issue|grep -i "8"` ]]
+        then
+            debianVersion=8
+        fi
 		release="debian"
 		installType='apt -y install'
 		upgrade="apt update -y"
@@ -505,6 +509,7 @@ initTLSNginxConfig(){
 
 # 修改nginx重定向配置
 updateRedirectNginxConf(){
+
 cat << EOF > /etc/nginx/conf.d/alone.conf
     server {
         listen 80;
@@ -512,17 +517,37 @@ cat << EOF > /etc/nginx/conf.d/alone.conf
         server_name ${domain};
         return 301 https://${domain}$request_uri;
     }
-    server {
+EOF
+
+    if [[ "${debianVersion}" = "8" ]]
+    then
+cat << EOF >> /etc/nginx/conf.d/alone.conf
+        server {
         listen 31300;
         server_name ${domain};
         root /usr/share/nginx/html;
-        location / {
-            add_header Strict-Transport-Security "max-age=63072000" always;
-        }
+        # location / {
+        #     add_header Strict-Transport-Security "max-age=63072000" always;
+        # }
 #       location ~ /.well-known {allow all;}
 #       location /test {return 200 'fjkvymb6len';}
     }
 EOF
+    else
+cat << EOF >> /etc/nginx/conf.d/alone.conf
+        server {
+            listen 31300;
+            server_name ${domain};
+            root /usr/share/nginx/html;
+            location / {
+                add_header Strict-Transport-Security "max-age=63072000" always;
+            }
+    #       location ~ /.well-known {allow all;}
+    #       location /test {return 200 'fjkvymb6len';}
+        }
+EOF
+    fi
+
 }
 
 # 检查ip
@@ -3018,7 +3043,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.2.7"
+    echoContent green "当前版本：v2.2.8"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="

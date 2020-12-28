@@ -22,3 +22,14 @@ nameserver 8.8.4.4
 - 请更换Debian或者Ubuntu，或者拿着vps来私聊作者。
 
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/shell_error_02.jpg" width=700>
+
+## 4.Debian8启动nginx失败
+### 解决方法一
+- 手动删除add_header选项
+```
+vim /etc/nginx/conf.d/alone.conf
+# 删除下方代码
+location / {
+            add_header Strict-Transport-Security "max-age=63072000" always;
+}
+```
