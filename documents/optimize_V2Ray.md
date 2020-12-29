@@ -35,7 +35,7 @@ https://github.com/badafans/better-cloudflare-ip
 
 域名|移动|联通|电信
 -|-|-|-
-domain08.qiu4.ml|104.19.41.56|104.16.160.136|104.17.78.198
+domain08.qiu4.ml|104.19.41.56|amp.cloudflare.com|www.digitalocean.com
 amp.cloudflare.com|xx|xx|xx
 www.digitalocean.com|xx|xx|xx
 
