@@ -2482,7 +2482,7 @@ manageUser(){
     echoContent skyBlue "\n进度 $1/${totalProgress} : 多用户管理"
     echoContent skyBlue "-----------------------------------------------------"
     echoContent yellow "1.添加用户"
-    echoContent yellow "2.删除用户[todo]"
+    echoContent yellow "2.删除用户"
     echoContent skyBlue "-----------------------------------------------------"
     read -p "请选择：" manageUserType
     if [[ "${manageUserType}" = "1" ]]
@@ -2490,16 +2490,45 @@ manageUser(){
         addUser
     elif [[ "${manageUserType}" = "2" ]]
     then
-#        removeUser
-        echo
+        removeUser
     else
         echoContent red " ---> 选择错误"
     fi
 }
 
+# 自定义uuid
+customUUID(){
+    read -p "是否自定义UUID ？[y/n]:" customUUIDStatus
+    echo
+    if [[ "${customUUIDStatus}" = "y" ]]
+    then
+        read -p "请输入合法的UUID:" currentCustomUUID
+        echo
+        if [[ -z "${currentCustomUUID}" ]]
+        then
+            echoContent red " ---> UUID不可位空"
+        else
+            local repeat=
+            cat ${configPath}02_VLESS_TCP_inbounds.json|jq '.inbounds[0].settings.clients[].id'|awk -F "[\"]" '{print $2}'|while read line
+            do
+                if [[ "${line}" = "${currentCustomUUID}" ]]
+                then
+                    echo repeat >/tmp/v2ray-agent
+                fi
+            done
+            if [[ -f "/tmp/v2ray-agent" && ! -z `cat /tmp/v2ray-agent` ]]
+            then
+                echoContent red " ---> UUID不可重复"
+                rm /tmp/v2ray-agent
+                exit;
+            fi
+        fi
+    fi
+}
 # 添加用户
 addUser(){
     read -p "请输入要添加的用户数量：" userNum
+    echo
     if [[ -z ${userNum} || ${userNum} -le 0 ]]
     then
         echoContent red " ---> 输入有误，请重新输入"
@@ -2508,10 +2537,20 @@ addUser(){
     # 生成用户
     local users=
     local trojanGoUsers=
+    if [[ "${userNum}" = "1" ]]
+    then
+        customUUID
+    fi
     while [[ ${userNum} -gt 0 ]]
     do
         let userNum--
-        uuid=`${coreInstallPath} uuid`
+        if [[ ! -z "${currentCustomUUID}" ]]
+        then
+            uuid=${currentCustomUUID}
+        else
+            uuid=`${coreInstallPath} uuid`
+        fi
+
         if [[ ${userNum} = 0 ]]
         then
             users=${users}{\"id\":\"${uuid}\",\"flow\":\"xtls-rprx-direct\",\"email\":\"${currentHost}_${uuid}\"}
@@ -2538,29 +2577,29 @@ addUser(){
 
     if [[ ! -z `echo ${currentInstallProtocolType} | grep 0` ]]
     then
-        echo `cat ${configPath}02_VLESS_TCP_inbounds.json|jq '.inbounds[0].settings.clients += ['${users}']'` > ${configPath}02_VLESS_TCP_inbounds.json
+        echo `cat ${configPath}02_VLESS_TCP_inbounds.json|jq -r '.inbounds[0].settings.clients += ['${users}']'` > ${configPath}02_VLESS_TCP_inbounds.json
     fi
 
     users=`echo ${users}|sed 's/"flow":"xtls-rprx-direct",//g'`
 
     if [[ ! -z `echo ${currentInstallProtocolType} | grep 1` ]]
     then
-        echo `cat ${configPath}03_VLESS_WS_inbounds.json|jq '.inbounds[0].settings.clients += ['${users}']'` > ${configPath}03_VLESS_WS_inbounds.json
+        echo `cat ${configPath}03_VLESS_WS_inbounds.json|jq -r '.inbounds[0].settings.clients += ['${users}']'` > ${configPath}03_VLESS_WS_inbounds.json
     fi
 
     if [[ ! -z `echo ${currentInstallProtocolType}|grep 2` ]]
     then
-        echo `cat ${configPath}04_VMess_TCP_inbounds.json|jq '.inbounds[0].settings.clients += ['${users}']'` > ${configPath}04_VMess_TCP_inbounds.json
+        echo `cat ${configPath}04_VMess_TCP_inbounds.json|jq -r '.inbounds[0].settings.clients += ['${users}']'` > ${configPath}04_VMess_TCP_inbounds.json
     fi
 
     if [[ ! -z `echo ${currentInstallProtocolType} | grep 3` ]]
     then
-        echo `cat ${configPath}05_VMess_WS_inbounds.json|jq '.inbounds[0].settings.clients += ['${users}']'` > ${configPath}05_VMess_WS_inbounds.json
+        echo `cat ${configPath}05_VMess_WS_inbounds.json|jq -r '.inbounds[0].settings.clients += ['${users}']'` > ${configPath}05_VMess_WS_inbounds.json
     fi
 
     if [[ ! -z `echo ${currentInstallProtocolType} | grep 4` ]]
     then
-        echo `cat ${configPath}../../trojan/config_full.json|jq '.password += ['${trojanGoUsers}']'` > ${configPath}../../trojan/config_full.json
+        echo `cat ${configPath}../../trojan/config_full.json|jq -r '.password += ['${trojanGoUsers}']'` > ${configPath}../../trojan/config_full.json
         handleTrojanGo stop
         handleTrojanGo start
     fi
@@ -2579,6 +2618,55 @@ addUser(){
     showAccounts 1
 }
 
+# 移除用户
+removeUser(){
+    if [[ ! -z `echo ${currentInstallProtocolType} | grep 0` ]]
+    then
+        cat ${configPath}02_VLESS_TCP_inbounds.json|jq .inbounds[0].settings.clients|jq .[].id|awk -F "[\"]" '{print $2}'|awk '{print NR""":"$0}'
+        read -p "请选择要删除的用户编号:" delUserIndex
+        if [[ `cat ${configPath}02_VLESS_TCP_inbounds.json|jq -r '.inbounds[0].settings.clients|length'` -lt ${delUserIndex} ]]
+        then
+            echoContent red " ---> 选择错误"
+        else
+            delUserIndex=`expr ${delUserIndex} - 1`
+            echo delUserIndex:${delUserIndex}
+            echo `cat ${configPath}02_VLESS_TCP_inbounds.json|jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])'` > ${configPath}02_VLESS_TCP_inbounds.json
+        fi
+    fi
+    if [[ ! -z "${delUserIndex}" ]]
+    then
+        if [[ ! -z `echo ${currentInstallProtocolType} | grep 1` ]]
+        then
+            echo `cat ${configPath}03_VLESS_WS_inbounds.json|jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])'` > ${configPath}03_VLESS_WS_inbounds.json
+        fi
+
+        if [[ ! -z `echo ${currentInstallProtocolType}|grep 2` ]]
+        then
+            echo `cat ${configPath}04_VMess_TCP_inbounds.json|jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])'` > ${configPath}04_VMess_TCP_inbounds.json
+        fi
+
+        if [[ ! -z `echo ${currentInstallProtocolType} | grep 3` ]]
+        then
+            echo `cat ${configPath}05_VMess_WS_inbounds.json|jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])'` > ${configPath}05_VMess_WS_inbounds.json
+        fi
+
+        if [[ ! -z `echo ${currentInstallProtocolType} | grep 4` ]]
+        then
+            echo `cat ${configPath}../../trojan/config_full.json|jq -r 'del(.password['${delUserIndex}'])'` > ${configPath}../../trojan/config_full.json
+            handleTrojanGo stop
+            handleTrojanGo start
+        fi
+        if [[ "${coreInstallType}" = "1" ]]
+        then
+            handleXray stop
+            handleXray start
+        elif [[ "${coreInstallType}" = "2" || "${coreInstallType}" = "3" ]]
+        then
+            handleV2Ray stop
+            handleV2Ray start
+        fi
+    fi
+}
 # 更新脚本
 updateV2RayAgent(){
     echoContent skyBlue "\n进度  $1/${totalProgress} : 更新v2ray-agent脚本"
@@ -2800,8 +2888,16 @@ EOF
         exit
     fi
 
-    handleXray stop
-    handleXray start
+    if [[ "${coreInstallType}" = "1" ]]
+    then
+        handleXray stop
+        handleXray start
+
+    elif [[ "${coreInstallType}" = "2" || "${coreInstallType}" = "3" ]]
+    then
+        handleV2Ray stop
+        handleV2Ray start
+    fi
 }
 
 # v2ray-core个性化安装
@@ -3088,7 +3184,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.2.9"
+    echoContent green "当前版本：v2.2.10"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
