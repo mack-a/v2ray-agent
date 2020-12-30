@@ -2506,7 +2506,7 @@ customUUID(){
         echo
         if [[ -z "${currentCustomUUID}" ]]
         then
-            echoContent red " ---> UUID不可位空"
+            echoContent red " ---> UUID不可为空"
         else
             local repeat=
             cat ${configPath}02_VLESS_TCP_inbounds.json|jq '.inbounds[0].settings.clients[].id'|awk -F "[\"]" '{print $2}'|while read line
@@ -2525,6 +2525,37 @@ customUUID(){
         fi
     fi
 }
+
+# 自定义email
+customUserEmail(){
+    read -p "是否自定义email ？[y/n]:" customEmailStatus
+    echo
+    if [[ "${customEmailStatus}" = "y" ]]
+    then
+        read -p "请输入合法的email:" currentCustomEmail
+        echo
+        if [[ -z "${currentCustomEmail}" ]]
+        then
+            echoContent red " ---> email不可为空"
+        else
+            local repeat=
+            cat ${configPath}02_VLESS_TCP_inbounds.json|jq '.inbounds[0].settings.clients[].email'|awk -F "[\"]" '{print $2}'|while read line
+            do
+                if [[ "${line}" = "${currentCustomEmail}" ]]
+                then
+                    echo repeat >/tmp/v2ray-agent
+                fi
+            done
+            if [[ -f "/tmp/v2ray-agent" && ! -z `cat /tmp/v2ray-agent` ]]
+            then
+                echoContent red " ---> email不可重复"
+                rm /tmp/v2ray-agent
+                exit;
+            fi
+        fi
+    fi
+}
+
 # 添加用户
 addUser(){
     read -p "请输入要添加的用户数量：" userNum
@@ -2540,6 +2571,7 @@ addUser(){
     if [[ "${userNum}" = "1" ]]
     then
         customUUID
+        customUserEmail
     fi
     while [[ ${userNum} -gt 0 ]]
     do
@@ -2551,16 +2583,23 @@ addUser(){
             uuid=`${coreInstallPath} uuid`
         fi
 
+        if [[ ! -z "${currentCustomEmail}" ]]
+        then
+            email=${currentCustomEmail}
+        else
+            email=${currentHost}_${uuid}
+        fi
+
         if [[ ${userNum} = 0 ]]
         then
-            users=${users}{\"id\":\"${uuid}\",\"flow\":\"xtls-rprx-direct\",\"email\":\"${currentHost}_${uuid}\"}
+            users=${users}{\"id\":\"${uuid}\",\"flow\":\"xtls-rprx-direct\",\"email\":\"${email}\"}
 
             if [[ ! -z `echo ${currentInstallProtocolType}|grep 4` ]]
             then
                 trojanGoUsers=${trojanGoUsers}\"${uuid}\"
             fi
         else
-            users=${users}{\"id\":\"${uuid}\",\"flow\":\"xtls-rprx-direct\",\"email\":\"${currentHost}_${uuid}\"},
+            users=${users}{\"id\":\"${uuid}\",\"flow\":\"xtls-rprx-direct\",\"email\":\"${email}\"},
 
             if [[ ! -z `echo ${currentInstallProtocolType}|grep 4` ]]
             then
@@ -2622,14 +2661,13 @@ addUser(){
 removeUser(){
     if [[ ! -z `echo ${currentInstallProtocolType} | grep 0` ]]
     then
-        cat ${configPath}02_VLESS_TCP_inbounds.json|jq .inbounds[0].settings.clients|jq .[].id|awk -F "[\"]" '{print $2}'|awk '{print NR""":"$0}'
-        read -p "请选择要删除的用户编号:" delUserIndex
+        cat ${configPath}02_VLESS_TCP_inbounds.json|jq .inbounds[0].settings.clients|jq .[].email|awk -F "[\"]" '{print $2}'|awk '{print NR""":"$0}'
+        read -p "请选择要删除的用户编号[仅支持单个删除]:" delUserIndex
         if [[ `cat ${configPath}02_VLESS_TCP_inbounds.json|jq -r '.inbounds[0].settings.clients|length'` -lt ${delUserIndex} ]]
         then
             echoContent red " ---> 选择错误"
         else
             delUserIndex=`expr ${delUserIndex} - 1`
-            echo delUserIndex:${delUserIndex}
             echo `cat ${configPath}02_VLESS_TCP_inbounds.json|jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])'` > ${configPath}02_VLESS_TCP_inbounds.json
         fi
     fi
@@ -3184,7 +3222,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.2.10"
+    echoContent green "当前版本：v2.2.11"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
