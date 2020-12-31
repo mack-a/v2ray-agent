@@ -1565,7 +1565,7 @@ initV2RayConfig(){
     cat << EOF > /etc/v2ray-agent/v2ray/conf/00_log.json
 {
   "log": {
-    "error": "/etc/v2ray-agent/xray/xray_error.log",
+    "error": "/etc/v2ray-agent/v2ray/v2ray_error.log",
     "loglevel": "warning"
   }
 }
@@ -1587,8 +1587,22 @@ EOF
   }
 }
 EOF
-
     # outbounds
+    if [[ ! -z "${pingIPv6}" ]]
+    then
+        cat << EOF > /etc/v2ray-agent/v2ray/conf/10_ipv6_outbounds.json
+{
+    "outbounds": [
+        {
+          "protocol": "freedom",
+          "settings": {},
+          "tag": "direct"
+        }
+    ]
+}
+EOF
+else
+
     cat << EOF > /etc/v2ray-agent/v2ray/conf/10_ipv4_outbounds.json
 {
     "outbounds": [
@@ -1602,6 +1616,8 @@ EOF
     ]
 }
 EOF
+fi
+
 
     cat << EOF > /etc/v2ray-agent/v2ray/conf/10_bt_outbounds.json
 {
@@ -1893,6 +1909,21 @@ EOF
 EOF
 
    # outbounds
+    if [[ ! -z "${pingIPv6}" ]]
+    then
+        cat << EOF > /etc/v2ray-agent/xray/conf/10_ipv6_outbounds.json
+{
+    "outbounds": [
+        {
+          "protocol": "freedom",
+          "settings": {},
+          "tag": "direct"
+        }
+    ]
+}
+EOF
+
+else
     cat << EOF > /etc/v2ray-agent/xray/conf/10_ipv4_outbounds.json
 {
     "outbounds": [
@@ -1906,6 +1937,7 @@ EOF
     ]
 }
 EOF
+fi
 
     cat << EOF > /etc/v2ray-agent/xray/conf/10_bt_outbounds.json
 {
@@ -3233,7 +3265,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.2.12"
+    echoContent green "当前版本：v2.2.13"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
