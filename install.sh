@@ -2563,6 +2563,7 @@ addUser(){
     if [[ -z ${userNum} || ${userNum} -le 0 ]]
     then
         echoContent red " ---> 输入有误，请重新输入"
+        exit
     fi
 
     # 生成用户
@@ -2616,29 +2617,34 @@ addUser(){
 
     if [[ ! -z `echo ${currentInstallProtocolType} | grep 0` ]]
     then
-        echo `cat ${configPath}02_VLESS_TCP_inbounds.json|jq -r '.inbounds[0].settings.clients += ['${users}']'` > ${configPath}02_VLESS_TCP_inbounds.json
+        local vlessTcpResult=`cat ${configPath}02_VLESS_TCP_inbounds.json|jq -r '.inbounds[0].settings.clients += ['${users}']'`
+        echo ${vlessTcpResult} | jq . > ${configPath}02_VLESS_TCP_inbounds.json
     fi
 
     users=`echo ${users}|sed 's/"flow":"xtls-rprx-direct",//g'`
 
     if [[ ! -z `echo ${currentInstallProtocolType} | grep 1` ]]
     then
-        echo `cat ${configPath}03_VLESS_WS_inbounds.json|jq -r '.inbounds[0].settings.clients += ['${users}']'` > ${configPath}03_VLESS_WS_inbounds.json
+        local vlessWsResult=`cat ${configPath}03_VLESS_WS_inbounds.json|jq -r '.inbounds[0].settings.clients += ['${users}']'`
+        echo ${vlessWsResult}|jq . > ${configPath}03_VLESS_WS_inbounds.json
     fi
 
     if [[ ! -z `echo ${currentInstallProtocolType}|grep 2` ]]
     then
-        echo `cat ${configPath}04_VMess_TCP_inbounds.json|jq -r '.inbounds[0].settings.clients += ['${users}']'` > ${configPath}04_VMess_TCP_inbounds.json
+        local vmessTcpResult=`cat ${configPath}04_VMess_TCP_inbounds.json|jq -r '.inbounds[0].settings.clients += ['${users}']'`
+        echo ${vmessTcpResult}|jq . > ${configPath}04_VMess_TCP_inbounds.json
     fi
 
     if [[ ! -z `echo ${currentInstallProtocolType} | grep 3` ]]
     then
-        echo `cat ${configPath}05_VMess_WS_inbounds.json|jq -r '.inbounds[0].settings.clients += ['${users}']'` > ${configPath}05_VMess_WS_inbounds.json
+        local vmessWsResult=`cat ${configPath}05_VMess_WS_inbounds.json|jq -r '.inbounds[0].settings.clients += ['${users}']'`
+        echo ${vmessWsResult}|jq . > ${configPath}05_VMess_WS_inbounds.json
     fi
 
     if [[ ! -z `echo ${currentInstallProtocolType} | grep 4` ]]
     then
-        echo `cat ${configPath}../../trojan/config_full.json|jq -r '.password += ['${trojanGoUsers}']'` > ${configPath}../../trojan/config_full.json
+        local trojanResult=`cat ${configPath}../../trojan/config_full.json|jq -r '.password += ['${trojanGoUsers}']'`
+        echo ${trojanResult}|jq . > ${configPath}../../trojan/config_full.json
         handleTrojanGo stop
         handleTrojanGo start
     fi
@@ -2668,29 +2674,34 @@ removeUser(){
             echoContent red " ---> 选择错误"
         else
             delUserIndex=`expr ${delUserIndex} - 1`
-            echo `cat ${configPath}02_VLESS_TCP_inbounds.json|jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])'` > ${configPath}02_VLESS_TCP_inbounds.json
+            local vlessTcpResult=`cat ${configPath}02_VLESS_TCP_inbounds.json|jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])'`
+            echo ${vlessTcpResult}|jq . > ${configPath}02_VLESS_TCP_inbounds.json
         fi
     fi
     if [[ ! -z "${delUserIndex}" ]]
     then
         if [[ ! -z `echo ${currentInstallProtocolType} | grep 1` ]]
         then
-            echo `cat ${configPath}03_VLESS_WS_inbounds.json|jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])'` > ${configPath}03_VLESS_WS_inbounds.json
+            local vlessTcpResult=`cat ${configPath}03_VLESS_WS_inbounds.json|jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])'`
+            echo ${vlessTcpResult}|jq . > ${configPath}03_VLESS_WS_inbounds.json
         fi
 
         if [[ ! -z `echo ${currentInstallProtocolType}|grep 2` ]]
         then
-            echo `cat ${configPath}04_VMess_TCP_inbounds.json|jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])'` > ${configPath}04_VMess_TCP_inbounds.json
+            local vlessTcpResult=`cat ${configPath}04_VMess_TCP_inbounds.json|jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])'`
+            echo ${vlessTcpResult}|jq . > ${configPath}04_VMess_TCP_inbounds.json
         fi
 
         if [[ ! -z `echo ${currentInstallProtocolType} | grep 3` ]]
         then
-            echo `cat ${configPath}05_VMess_WS_inbounds.json|jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])'` > ${configPath}05_VMess_WS_inbounds.json
+            local vlessTcpResult=`cat ${configPath}05_VMess_WS_inbounds.json|jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])'`
+            echo ${vlessTcpResult}|jq . > ${configPath}05_VMess_WS_inbounds.json
         fi
 
         if [[ ! -z `echo ${currentInstallProtocolType} | grep 4` ]]
         then
-            echo `cat ${configPath}../../trojan/config_full.json|jq -r 'del(.password['${delUserIndex}'])'` > ${configPath}../../trojan/config_full.json
+            local trojanResult=`cat ${configPath}../../trojan/config_full.json|jq -r 'del(.password['${delUserIndex}'])'`
+            echo ${trojanResult}|jq . > ${configPath}../../trojan/config_full.json
             handleTrojanGo stop
             handleTrojanGo start
         fi
@@ -3222,7 +3233,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.2.11"
+    echoContent green "当前版本：v2.2.12"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
