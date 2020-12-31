@@ -2169,9 +2169,6 @@ initTrojanGoConfig(){
     },
     "router": {
         "enabled": false
-    },
-    "tcp":{
-        "prefer_ipv4":true
     }
 }
 EOF
@@ -2181,8 +2178,8 @@ EOF
 customCDNIP(){
     echoContent skyBlue "\n进度 $1/${totalProgress} : 添加DNS智能解析"
     echoContent yellow "\n 移动:104.19.45.117"
-    echoContent yellow " 联通:104.16.160.136"
-    echoContent yellow " 电信:104.17.78.198"
+    echoContent yellow " 联通:amp.cloudflare.com"
+    echoContent yellow " 电信:www.digitalocean.com"
     echoContent skyBlue "----------------------------"
     read -p '是否使用？[y/n]:' dnsProxy
     if [[ "${dnsProxy}" = "y" ]]
@@ -3265,7 +3262,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.2.13"
+    echoContent green "当前版本：v2.2.14"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
