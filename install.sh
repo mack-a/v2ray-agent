@@ -61,6 +61,8 @@ initVar(){
     # 核心安装path
     coreInstallPath=
 
+    # v2ctl Path
+    ctlPath=
     # 1.全部安装
     # 2.个性化安装
     v2rayAgentInstallType=
@@ -123,10 +125,12 @@ readInstallType(){
                     # 不带XTLS的v2ray-core
                     coreInstallType=2
                     coreInstallPath=/etc/v2ray-agent/v2ray/v2ray
+                    ctlPath=/etc/v2ray-agent/v2ray/v2ctl
                 elif [[ ! -z `cat /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json|grep xtls` ]]
                 then
                     # 带XTLS的v2ray-core
                     coreInstallPath=/etc/v2ray-agent/v2ray/v2ray
+                    ctlPath=/etc/v2ray-agent/v2ray/v2ctl
                     coreInstallType=3
                 fi
             fi
@@ -140,6 +144,7 @@ readInstallType(){
                 # xray-core
                 configPath=/etc/v2ray-agent/xray/conf/
                 coreInstallPath=/etc/v2ray-agent/xray/xray
+                ctlPath=/etc/v2ray-agent/xray/xray
                 coreInstallType=1
             fi
         fi
@@ -2603,6 +2608,7 @@ addUser(){
         customUUID
         customUserEmail
     fi
+
     while [[ ${userNum} -gt 0 ]]
     do
         let userNum--
@@ -2610,7 +2616,7 @@ addUser(){
         then
             uuid=${currentCustomUUID}
         else
-            uuid=`${coreInstallPath} uuid`
+            uuid=`${ctlPath} uuid`
         fi
 
         if [[ ! -z "${currentCustomEmail}" ]]
