@@ -194,13 +194,17 @@ readConfigHostPathUUID(){
         local path=`cat ${configPath}02_VLESS_TCP_inbounds.json|jq .inbounds[0].settings.fallbacks|jq -c '.[].path'|awk -F "[\"][/]" '{print $2}'|awk -F "[\"]" '{print $1}'|tail -n +2|head -n 1`
         if [[ ! -z "${path}" ]]
         then
-            if [[ `echo ${path:0-2}` = "ws" ]]
+            if [[ `echo ${path:0-3}` = "vws" ]]
+            then
+                currentPath=`echo ${path}|awk -F "[v][w][s]" '{print $1}'`
+            elif [[ `echo ${path:0-2}` = "ws" ]]
             then
                 currentPath=`echo ${path}|awk -F "[w][s]" '{print $1}'`
             elif [[ `echo ${path:0-2}` = "tcp" ]]
             then
                 currentPath=`echo ${path}|awk -F "[t][c][p]" '{print $1}'`
             fi
+
         fi
     fi
     if [[ "${coreInstallType}" = "1" ]]
@@ -1742,7 +1746,7 @@ EOF
     # VMess_WS
     if [[ ! -z `echo ${selectCustomInstallType}|grep 3` || "$1" = "all"  ]]
     then
-        fallbacksList=${fallbacksList}',{"path":"/'${customPath}'","dest":31299,"xver":1}'
+        fallbacksList=${fallbacksList}',{"path":"/'${customPath}'vws","dest":31299,"xver":1}'
         cat << EOF > /etc/v2ray-agent/v2ray/conf/05_VMess_WS_inbounds.json
 {
 "inbounds":[
@@ -1766,7 +1770,7 @@ EOF
     "security": "none",
     "wsSettings": {
       "acceptProxyProtocol": true,
-      "path": "/${customPath}"
+      "path": "/${customPath}vws"
     }
   }
 }
@@ -2061,7 +2065,7 @@ EOF
     # VMess_WS
     if [[ ! -z `echo ${selectCustomInstallType}|grep 3` || "$1" = "all"  ]]
     then
-        fallbacksList=${fallbacksList}',{"path":"/'${customPath}'","dest":31299,"xver":1}'
+        fallbacksList=${fallbacksList}',{"path":"/'${customPath}'vws","dest":31299,"xver":1}'
         cat << EOF > /etc/v2ray-agent/xray/conf/05_VMess_WS_inbounds.json
 {
 "inbounds":[
@@ -2085,7 +2089,7 @@ EOF
     "security": "none",
     "wsSettings": {
       "acceptProxyProtocol": true,
-      "path": "/${customPath}"
+      "path": "/${customPath}vws"
     }
   }
 }
@@ -2127,7 +2131,9 @@ EOF
       "certificates": [
         {
           "certificateFile": "/etc/v2ray-agent/tls/${domain}.crt",
-          "keyFile": "/etc/v2ray-agent/tls/${domain}.key"
+          "keyFile": "/etc/v2ray-agent/tls/${domain}.key",
+          "ocspStapling": 3600,
+          "usage":"encipherment"
         }
       ]
     }
@@ -2313,7 +2319,6 @@ showAccounts(){
             defaultBase64Code vmesstcp `echo ${user}|jq .email` `echo ${user}|jq .id` "${currentHost}:${currentPort}" "${currentPath}tcp" "${currentHost}"
         done
     fi
-
     # VMess WS
     if [[ ! -z "${configPath}" ]] && [[ ! -z `echo ${currentInstallProtocolType} | grep 3` || -z "${currentInstallProtocolType}"  ]]
     then
@@ -2321,7 +2326,7 @@ showAccounts(){
 
         cat ${configPath}05_VMess_WS_inbounds.json|jq .inbounds[0].settings.clients|jq -c '.[]'|while read user
         do
-            defaultBase64Code vmessws `echo ${user}|jq .email` `echo ${user}|jq .id` "${currentHost}:${currentPort}" "${currentPath}" ${currentAdd}
+            defaultBase64Code vmessws `echo ${user}|jq .email` `echo ${user}|jq .id` "${currentHost}:${currentPort}" "${currentPath}vws" ${currentAdd}
         done
     fi
 
@@ -3268,7 +3273,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.2.15"
+    echoContent green "当前版本：v2.2.16"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
