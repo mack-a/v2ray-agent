@@ -427,6 +427,8 @@ installTools(){
     then
         echoContent green " ---> 安装nginx"
         ${installType} nginx > /dev/null 2>&1
+        systemctl daemon-reload
+        systemctl enable nginx
     fi
 
     if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep -w sudo` ]]
