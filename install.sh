@@ -6,6 +6,11 @@ checkSystem(){
 	if [[ ! -z `find /etc -name "redhat-release"` ]] || [[ ! -z `cat /proc/version | grep -i "centos" | grep -v grep ` ]]
 	then
 	    centosVersion=`rpm -q centos-release|awk -F "[-]" '{print $3}'|awk -F "[.]" '{print $1}'`
+	    if [[ -z "${centosVersion}" ]] && [[ `cat /etc/centos-release|grep "release 8"` ]]
+	    then
+            centosVersion=8
+	    fi
+
 		release="centos"
 		installType='yum -y install'
 		removeType='yum -y remove'
@@ -306,7 +311,7 @@ installTools(){
     echoContent skyBlue "\n进度  $1/${totalProgress} : 安装工具"
     if [[ "${release}" = "centos" ]]
     then
-        echoContent green " ---> 检查安装jq、nginx epel源、yum-utils"
+        echoContent green " ---> 检查安装jq、nginx epel源、yum-utils、semanage"
         # jq epel源
         if [[ -z `command -v jq` ]]
         then
@@ -322,18 +327,22 @@ installTools(){
                 rpm -qa|grep -v grep|grep nginx|xargs rpm -e > /dev/null 2>&1
             fi
         fi
+
         if [[ "${centosVersion}" = "6" ]]
         then
             nginxEpel="http://nginx.org/packages/centos/6/x86_64/RPMS/nginx-1.18.0-1.el6.ngx.x86_64.rpm"
+            rpm -ivh ${nginxEpel} > /etc/v2ray-agent/error.log 2>&1
         elif [[ "${centosVersion}" = "7" ]]
         then
             nginxEpel="http://nginx.org/packages/centos/7/noarch/RPMS/nginx-release-centos-7-0.el7.ngx.noarch.rpm"
+            policyCoreUtils="policycoreutils-python.x86_64"
+            rpm -ivh ${nginxEpel} > /etc/v2ray-agent/error.log 2>&1
         elif [[ "${centosVersion}" = "8" ]]
         then
             nginxEpel="http://nginx.org/packages/centos/8/x86_64/RPMS/nginx-1.18.0-1.el8.ngx.x86_64.rpm"
+            policyCoreUtils="policycoreutils-python-utils-2.9-9.el8.noarch"
+            # rpm -ivh ${nginxEpel} > /etc/v2ray-agent/error.log 2>&1
         fi
-        # nginx epel源
-        rpm -ivh ${nginxEpel} > /etc/v2ray-agent/error.log 2>&1
 
         # yum-utils
         if [[ "${centosVersion}" = "8" ]]
@@ -426,9 +435,34 @@ installTools(){
     if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep -w nginx` ]]
     then
         echoContent green " ---> 安装nginx"
-        ${installType} nginx > /dev/null 2>&1
-        systemctl daemon-reload
-        systemctl enable nginx
+        if [[ "${centosVersion}" = "8" ]]
+        then
+            rpm -ivh ${nginxEpel} > /etc/v2ray-agent/error.log 2>&1
+        else
+            ${installType} nginx > /dev/null 2>&1
+        fi
+
+        if [[ ! -z "${centosVersion}" ]]
+        then
+            systemctl daemon-reload
+            systemctl enable nginx
+        fi
+    fi
+
+    if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep -w semanage` ]]
+    then
+        echoContent green " ---> 安装semanage"
+        ${installType} bash-completion > /dev/null 2>&1
+        echoContent red policyCoreUtils:${policyCoreUtils}
+        if [[ ! -z "${policyCoreUtils}" ]]
+        then
+            ${installType} ${policyCoreUtils} > /dev/null 2>&1
+        fi
+        if [[ ! -z `which semanage` ]]
+        then
+            semanage port -a -t http_port_t -p tcp 31300
+
+        fi
     fi
 
     if [[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep -w sudo` ]]
@@ -3275,7 +3309,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.2.16"
+    echoContent green "当前版本：v2.2.17"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
