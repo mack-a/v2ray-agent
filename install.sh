@@ -453,7 +453,6 @@ installTools(){
     then
         echoContent green " ---> 安装semanage"
         ${installType} bash-completion > /dev/null 2>&1
-        echoContent red policyCoreUtils:${policyCoreUtils}
         if [[ ! -z "${policyCoreUtils}" ]]
         then
             ${installType} ${policyCoreUtils} > /dev/null 2>&1
