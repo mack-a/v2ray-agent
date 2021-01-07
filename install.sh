@@ -2252,18 +2252,27 @@ defaultBase64Code(){
     local add=$6
     if [[ "${type}" = "vlesstcp" ]]
     then
-
         local VLESSID=`echo ${id}|awk -F "[\"]" '{print $2}'`
         local VLESSEmail=`echo ${ps}|awk -F "[\"]" '{print $2}'`
-        echoContent yellow " ---> 通用格式(VLESS+TCP+TLS/xtls-rprx-direct)"
-        echoContent green "    vless://${VLESSID}@${host}:${port}?security=xtls&encryption=none&host=${host}&headerType=none&type=tcp&flow=xtls-rprx-direct#${VLESSEmail}\n"
-        echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS/xtls-rprx-direct)"
-        echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3a%2f%2f${VLESSID}%40${host}%3a${port}%3fsecurity%3dxtls%26encryption%3dnone%26host%3d${host}%26headerType%3dnone%26type%3dtcp%26flow%3dxtls%2drprx%2ddirect%23${VLESSEmail}\n"
+        if [[ "${coreInstallType}" = "1" ]]
+        then
+            echoContent yellow " ---> 通用格式(VLESS+TCP+TLS/xtls-rprx-direct)"
+            echoContent green "    vless://${VLESSID}@${host}:${port}?security=xtls&encryption=none&host=${host}&headerType=none&type=tcp&flow=xtls-rprx-direct#${VLESSEmail}\n"
+            echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS/xtls-rprx-direct)"
+            echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3a%2f%2f${VLESSID}%40${host}%3a${port}%3fsecurity%3dxtls%26encryption%3dnone%26host%3d${host}%26headerType%3dnone%26type%3dtcp%26flow%3dxtls%2drprx%2ddirect%23${VLESSEmail}\n"
 
-        echoContent yellow " ---> 通用格式(VLESS+TCP+TLS/xtls-rprx-splice)"
-        echoContent green "    vless://${VLESSID}@${host}:${port}?security=xtls&encryption=none&host=${host}&headerType=none&type=tcp&flow=xtls-rprx-splice#${VLESSEmail}\n"
-        echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS/xtls-rprx-splice)"
-        echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3a%2f%2f${VLESSID}%40${host}%3a${port}%3fsecurity%3dxtls%26encryption%3dnone%26host%3d${host}%26headerType%3dnone%26type%3dtcp%26flow%3dxtls%2drprx%2dsplice%23${VLESSEmail}\n"
+            echoContent yellow " ---> 通用格式(VLESS+TCP+TLS/xtls-rprx-splice)"
+            echoContent green "    vless://${VLESSID}@${host}:${port}?security=xtls&encryption=none&host=${host}&headerType=none&type=tcp&flow=xtls-rprx-splice#${VLESSEmail}\n"
+            echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS/xtls-rprx-splice)"
+            echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3a%2f%2f${VLESSID}%40${host}%3a${port}%3fsecurity%3dxtls%26encryption%3dnone%26host%3d${host}%26headerType%3dnone%26type%3dtcp%26flow%3dxtls%2drprx%2dsplice%23${VLESSEmail}\n"
+
+        elif [[ "${coreInstallType}" = "2" || "${coreInstallType}" = "3" ]]
+        then
+            echoContent yellow " ---> 通用格式(VLESS+TCP+TLS)"
+            echoContent green "    vless://${VLESSID}@${host}:${port}?security=tls&encryption=none&host=${host}&headerType=none&type=tcp#${VLESSEmail}\n"
+            echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS)"
+            echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3a%2f%2f${VLESSID}%40${host}%3a${port}%3fsecurity%3dtls%26encryption%3dnone%26host%3d${host}%26headerType%3dnone%26type%3dtcp%23${VLESSEmail}\n"
+        fi
 
     elif [[ "${type}" = "vmessws" ]]
     then
@@ -2691,12 +2700,13 @@ addUser(){
     # 兼容v2ray-core
     if [[ "${coreInstallType}" = "2" ]]
     then
-        users=`echo ${users}|sed 's/"flow":"xtls-rprx-direct",//g'`
+        users=`echo ${users}|sed 's/"flow":"xtls-rprx-direct",/"alterId":1,/g'`
     fi
 
     if [[ ! -z `echo ${currentInstallProtocolType} | grep 0` ]]
     then
-        local vlessTcpResult=`cat ${configPath}02_VLESS_TCP_inbounds.json|jq -r '.inbounds[0].settings.clients += ['${users}']'`
+        local vlessUsers=`echo ${users}|sed 's/"alterId":1,//g'`
+        local vlessTcpResult=`cat ${configPath}02_VLESS_TCP_inbounds.json|jq -r '.inbounds[0].settings.clients += ['${vlessUsers}']'`
         echo ${vlessTcpResult} | jq . > ${configPath}02_VLESS_TCP_inbounds.json
     fi
 
@@ -2704,7 +2714,8 @@ addUser(){
 
     if [[ ! -z `echo ${currentInstallProtocolType} | grep 1` ]]
     then
-        local vlessWsResult=`cat ${configPath}03_VLESS_WS_inbounds.json|jq -r '.inbounds[0].settings.clients += ['${users}']'`
+        local vlessUsers=`echo ${users}|sed 's/"alterId":1,//g'`
+        local vlessWsResult=`cat ${configPath}03_VLESS_WS_inbounds.json|jq -r '.inbounds[0].settings.clients += ['${vlessUsers}']'`
         echo ${vlessWsResult}|jq . > ${configPath}03_VLESS_WS_inbounds.json
     fi
 
