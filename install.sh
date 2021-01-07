@@ -2252,13 +2252,13 @@ defaultBase64Code(){
     local add=$6
     if [[ "${type}" = "vlesstcp" ]]
     then
-        qrCodeBase64Default=`echo -n '{"port":"'${port}'","ps":'${ps}',"tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":"/'${path}'","net":"tcp","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
-        qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
-        echo "通用vmess(VLESS+TCP+TLS)链接: " > /etc/v2ray-agent/v2ray/usersv2ray.conf
-        echo "   vmess://${qrCodeBase64Default}" >> /etc/v2ray-agent/v2ray/usersv2ray.conf
-        echoContent yellow " ---> 通用json(VLESS+TCP+TLS)"
-        echoContent green '    {"port":"'${port}'","ps":'${ps}',"tls":"tls","id":'"${id}"',"host":"'${host}'","type":"none","net":"tcp","add":"'${host}'","allowInsecure":0,"method":"none","peer":""}\n'
-        echoContent green '    V2Ray、Xray 目前无通用订阅，需要手动配置，VLESS TCP、XTLS和TCP大部分一样，其余内容不变，请注意手动输入的流控flow类型，v2ray-core v4.32.1之后不支持XTLS，Xray-core支持，建议使用Xray-core\n'
+        echoContent yellow " ---> 通用格式(VLESS+TCP+TLS/XTLS)"
+        local VLESSID=`echo ${id}|awk -F "[\"]" '{print $2}'`
+        local VLESSEmail=`echo ${ps}|awk -F "[\"]" '{print $2}'`
+        echoContent green "    vless://${VLESSID}@${host}:${port}?security=xtls&encryption=none&host=${host}&headerType=none&type=tcp&flow=xtls-rprx-splice#${VLESSEmail}\n"
+
+        echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS/XTLS)"
+        echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3a%2f%2f${VLESSID}%40${host}%3a${port}%3fsecurity%3dxtls%26encryption%3dnone%26host%3d${host}%26headerType%3dnone%26type%3dtcp%26flow%3dxtls%2drprx%2dsplice%23${VLESSEmail}\n"
 
     elif [[ "${type}" = "vmessws" ]]
     then
@@ -2283,10 +2283,13 @@ defaultBase64Code(){
         echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vmess://${qrCodeBase64Default}\n"
     elif [[ "${type}" = "vlessws" ]]
     then
-        qrCodeBase64Default=`echo -n '{"port":"'${port}'","ps":'${ps}',"tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":"/'${path}'","net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}'|sed 's#/#\\\/#g'|base64`
-        qrCodeBase64Default=`echo ${qrCodeBase64Default}|sed 's/ //g'`
-        echoContent yellow " ---> 通用json(VLESS+WS+TLS)"
-        echoContent green '    {"port":"'${port}'","ps":'${ps}',"tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":"/'${path}'","net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}\n'
+        local VLESSID=`echo ${id}|awk -F "[\"]" '{print $2}'`
+        local VLESSEmail=`echo ${ps}|awk -F "[\"]" '{print $2}'`
+        echoContent yellow " ---> 通用格式(VLESS+WS+TLS)"
+        echoContent green "    vless://${VLESSID}@${host}:${port}?path=%2f${path}&security=tls&encryption=none%26host=${host}&type=ws#${VLESSEmail}\n"
+
+        echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS/XTLS)"
+        echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3a%2f%2f${VLESSID}%40${host}%3a${port}%3fpath%3d%2f${path}%26security%3dtls%26encryption%3dnone%26host%3d${host}%26type%3dws%23${VLESSEmail}"
     elif [[ "${type}" = "trojan" ]]
     then
         # URLEncode
@@ -3304,7 +3307,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.2.18"
+    echoContent green "当前版本：v2.2.19"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
