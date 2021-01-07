@@ -1715,7 +1715,6 @@ EOF
     "clients": [
       {
         "id": "${uuid}",
-        "level": 0,
         "email": "${domain}_vless_ws"
       }
     ],
@@ -1751,7 +1750,6 @@ EOF
     "clients": [
       {
         "id": "${uuid}",
-        "level": 0,
         "alterId": 1,
         "email": "${domain}_vmess_tcp"
       }
@@ -1795,7 +1793,6 @@ EOF
         "id": "${uuid}",
         "alterId": 1,
         "add": "${add}",
-        "level": 0,
         "email": "${domain}_vmess_ws"
       }
     ]
@@ -2034,7 +2031,6 @@ EOF
     "clients": [
       {
         "id": "${uuid}",
-        "level": 0,
         "email": "${domain}_vless_ws"
       }
     ],
@@ -2070,7 +2066,6 @@ EOF
     "clients": [
       {
         "id": "${uuid}",
-        "level": 0,
         "alterId": 1,
         "email": "${domain}_vmess_tcp"
       }
@@ -2114,7 +2109,6 @@ EOF
         "id": "${uuid}",
         "alterId": 1,
         "add": "${add}",
-        "level": 0,
         "email": "${domain}_vmess_ws"
       }
     ]
@@ -2406,6 +2400,7 @@ showAccounts(){
 updateNginxBlog(){
     echoContent skyBlue "\n进度 $1/${totalProgress} : 更换伪装站点"
     echoContent red "=============================================================="
+    echoContent yellow "# 如需自定义，请手动复制模版文件到 /usr/share/nginx/html \n"
     echoContent yellow "1.数据统计模版"
     echoContent yellow "2.下雪动画用户注册登录模版"
     echoContent yellow "3.物流大数据服务平台模版"
@@ -2418,10 +2413,11 @@ updateNginxBlog(){
         rm -rf /usr/share/nginx/html
         if [[ ! -z `wget --help|grep show-progress` ]]
         then
-            wget -q -q --show-progress -P /usr/share/nginx https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${selectInstallNginxBlogType}.zip > /dev/null
+            wget -c -q --show-progress -P /usr/share/nginx https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${selectInstallNginxBlogType}.zip > /dev/null
         else
-            wget -c -P /etc/v2ray-agent/v2ray/ https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip > /dev/null 2>&1
+            wget -c -P --show-progress -P /usr/share/nginx https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${selectInstallNginxBlogType}.zip > /dev/null
         fi
+
         unzip -o  /usr/share/nginx/html${selectInstallNginxBlogType}.zip -d /usr/share/nginx/html > /dev/null
         rm -f /usr/share/nginx/html${selectInstallNginxBlogType}.zip*
         echoContent green " ---> 更换伪装博客成功"
@@ -2696,7 +2692,7 @@ addUser(){
         echo ${vlessTcpResult} | jq . > ${configPath}02_VLESS_TCP_inbounds.json
     fi
 
-    users=`echo ${users}|sed 's/"flow":"xtls-rprx-direct",//g'`
+    users=`echo ${users}|sed 's/"flow":"xtls-rprx-direct",/"alterId":1,/g'`
 
     if [[ ! -z `echo ${currentInstallProtocolType} | grep 1` ]]
     then
@@ -3308,7 +3304,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.2.17"
+    echoContent green "当前版本：v2.2.18"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
