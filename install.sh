@@ -2252,12 +2252,17 @@ defaultBase64Code(){
     local add=$6
     if [[ "${type}" = "vlesstcp" ]]
     then
-        echoContent yellow " ---> 通用格式(VLESS+TCP+TLS/XTLS)"
+
         local VLESSID=`echo ${id}|awk -F "[\"]" '{print $2}'`
         local VLESSEmail=`echo ${ps}|awk -F "[\"]" '{print $2}'`
-        echoContent green "    vless://${VLESSID}@${host}:${port}?security=xtls&encryption=none&host=${host}&headerType=none&type=tcp&flow=xtls-rprx-splice#${VLESSEmail}\n"
+        echoContent yellow " ---> 通用格式(VLESS+TCP+TLS/xtls-rprx-direct)"
+        echoContent green "    vless://${VLESSID}@${host}:${port}?security=xtls&encryption=none&host=${host}&headerType=none&type=tcp&flow=xtls-rprx-direct#${VLESSEmail}\n"
+        echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS/xtls-rprx-direct)"
+        echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3a%2f%2f${VLESSID}%40${host}%3a${port}%3fsecurity%3dxtls%26encryption%3dnone%26host%3d${host}%26headerType%3dnone%26type%3dtcp%26flow%3dxtls%2drprx%2ddirect%23${VLESSEmail}\n"
 
-        echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS/XTLS)"
+        echoContent yellow " ---> 通用格式(VLESS+TCP+TLS/xtls-rprx-splice)"
+        echoContent green "    vless://${VLESSID}@${host}:${port}?security=xtls&encryption=none&host=${host}&headerType=none&type=tcp&flow=xtls-rprx-splice#${VLESSEmail}\n"
+        echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS/xtls-rprx-splice)"
         echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3a%2f%2f${VLESSID}%40${host}%3a${port}%3fsecurity%3dxtls%26encryption%3dnone%26host%3d${host}%26headerType%3dnone%26type%3dtcp%26flow%3dxtls%2drprx%2dsplice%23${VLESSEmail}\n"
 
     elif [[ "${type}" = "vmessws" ]]
@@ -3307,7 +3312,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.2.19"
+    echoContent green "当前版本：v2.2.20"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
