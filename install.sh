@@ -631,36 +631,41 @@ checkIP(){
 # 安装TLS
 installTLS(){
     echoContent skyBlue "\n进度  $1/${totalProgress} : 申请TLS证书"
-    if [[ -z `ls /etc/v2ray-agent/tls|grep ${domain}.crt` ]] && [[ -z `ls /etc/v2ray-agent/tls|grep ${domain}.key` ]]
+    local tlsDomain=${domain}
+    if [[ ! -z "${currentHost}" ]]
+    then
+        tlsDomain=${currentHost}
+    elif [[ ! -z "${domain}" ]]
+    then
+        tlsDomain=${domain}
+    fi
+    # 重构安装tls
+    if [[ -z `ls /etc/v2ray-agent/tls|grep ${tlsDomain}.crt` && -z `ls /etc/v2ray-agent/tls|grep ${tlsDomain}.key` ]] || [[ -d "/root/.acme.sh/${tlsDomain}_ecc" && ! -f "/root/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && ! -f "/root/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]]
     then
         echoContent green " ---> 安装TLS证书"
         if [[ ! -z "${pingIPv6}" ]]
         then
-            sudo ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 --listen-v6 >/dev/null
+            sudo ~/.acme.sh/acme.sh --issue -d ${tlsDomain} --standalone -k ec-256 --listen-v6 >/dev/null
         else
-            sudo ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 >/dev/null
+            sudo ~/.acme.sh/acme.sh --issue -d ${tlsDomain} --standalone -k ec-256 >/dev/null
         fi
 
-        ~/.acme.sh/acme.sh --installcert -d ${domain} --fullchainpath /etc/v2ray-agent/tls/${domain}.crt --keypath /etc/v2ray-agent/tls/${domain}.key --ecc >/dev/null
-        if [[ -z `cat /etc/v2ray-agent/tls/${domain}.crt` ]]
+        sudo ~/.acme.sh/acme.sh --installcert -d ${tlsDomain} --fullchainpath /etc/v2ray-agent/tls/${tlsDomain}.crt --keypath /etc/v2ray-agent/tls/${tlsDomain}.key --ecc >/dev/null
+        if [[ -z `cat /etc/v2ray-agent/tls/${tlsDomain}.crt` ]]
         then
             echoContent red " ---> TLS安装失败，请检查acme日志"
             exit 0
-        elif [[ -z `cat /etc/v2ray-agent/tls/${domain}.key` ]]
+        elif [[ -z `cat /etc/v2ray-agent/tls/${tlsDomain}.key` ]]
         then
             echoContent red " ---> TLS安装失败，请检查acme日志"
             exit 0
         fi
         echoContent green " ---> TLS生成成功"
 
-    elif  [[ -z `cat /etc/v2ray-agent/tls/${domain}.crt` ]] || [[ -z `cat /etc/v2ray-agent/tls/${domain}.key` ]]
+    elif [[ -d "/root/.acme.sh/${tlsDomain}_ecc" && -f "/root/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && -f "/root/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]]
     then
-        echoContent yellow " ---> 检测到错误证书，需重新生成，重新生成中"
-        rm -rf /etc/v2ray-agent/tls/*
-        installTLS $1
-    else
         echoContent green " ---> 检测到证书"
-        checkTLStatus
+        checkTLStatus ${tlsDomain}
         echoContent yellow " ---> 如未过期请选择[n]"
         read -p "是否重新生成？[y/n]:" reInstallStatus
         if [[ "${reInstallStatus}" = "y" ]]
@@ -668,7 +673,7 @@ installTLS(){
             rm -rf /etc/v2ray-agent/tls/*
             if [[ "${tlsStatus}" = "已过期" ]]
             then
-                rm -rf /root/.acme.sh/${domain}_ecc/*
+                rm -rf /root/.acme.sh/${tlsDomain}_ecc/*
             fi
 
             installTLS $1
@@ -772,99 +777,15 @@ installCronTLS(){
     then
         crontab -l >> /etc/v2ray-agent/backup_crontab.cron
         # 定时任务
-        echo "30 1 * * * /bin/bash /etc/v2ray-agent/reloadInstallTLS.sh" >> /etc/v2ray-agent/backup_crontab.cron
+        echo "30 1 * * * /bin/bash /etc/v2ray-agent/install.sh RenewTLS" >> /etc/v2ray-agent/backup_crontab.cron
         crontab /etc/v2ray-agent/backup_crontab.cron
     fi
-    # 备份
 
-    cat << EOF > /etc/v2ray-agent/reloadInstallTLS.sh
-#!/usr/bin/env bash
-echoContent(){
-    case \$1 in
-        # 红色
-        "red")
-            echo -e "\033[31m\${printN}\$2 \033[0m"
-        ;;
-        # 天蓝色
-        "skyBlue")
-            echo -e "\033[1;36m\${printN}\$2 \033[0m"
-        ;;
-        # 绿色
-        "green")
-            echo -e "\033[32m\${printN}\$2 \033[0m"
-        ;;
-        # 白色
-        "white")
-            echo -e "\033[37m\${printN}\$2 \033[0m"
-        ;;
-        "magenta")
-            echo -e "\033[31m\${printN}\$2 \033[0m"
-        ;;
-        "skyBlue")
-            echo -e "\033[36m\${printN}\$2 \033[0m"
-        ;;
-        # 黄色
-        "yellow")
-            echo -e "\033[33m\${printN}\$2 \033[0m"
-        ;;
-    esac
-}
-echoContent skyBlue "\n进度  1/1 : 更新证书"
-if [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]] && [[ -d "/etc/v2ray-agent/tls" ]] && [[ -d "/etc/v2ray-agent" ]] && [[ -d "/etc/v2ray-agent/v2ray" ]] && [[ -f "/etc/v2ray-agent/v2ray/config_full.json" ]] && [[ -d "/root/.acme.sh" ]]
-then
-    tcp=\`cat /etc/v2ray-agent/v2ray/config_full.json|jq .inbounds[0]\`
-    host=\`echo \${tcp}|jq .streamSettings.xtlsSettings.certificates[0].certificateFile|awk -F '[t][l][s][/]' '{print \$2}'|awk -F '["]' '{print \$1}'|awk -F '[.][c][r][t]' '{print \$1}'\`
-    if [[ -d "/root/.acme.sh/\${host}_ecc" ]] && [[ -f "/root/.acme.sh/\${host}_ecc/\${host}.key" ]] && [[ -f "/root/.acme.sh/\${host}_ecc/\${host}.cer" ]]
-    then
-        modifyTime=\`stat /root/.acme.sh/\${host}_ecc/\${host}.key|sed -n '6,6p'|awk '{print \$2" "\$3" "\$4" "\$5}'\`
-
-        modifyTime=\`date +%s -d "\${modifyTime}"\`
-        currentTime=\`date +%s\`
-#        currentTime=\`date +%s -d "2021-09-04 02:15:56.438105732 +0000"\`
-#        currentTIme=1609459200
-        stampDiff=\`expr \${currentTime} - \${modifyTime}\`
-        days=\`expr \${stampDiff} / 86400\`
-        remainingDays=\`expr 90 - \${days}\`
-        tlsStatus=\${remainingDays}
-        if [[ \${remainingDays} -le 0 ]]
-        then
-            tlsStatus="已过期"
-        fi
-        echoContent skyBlue " ---> 证书生成日期:"\`date -d @\${modifyTime} +"%F %H:%M:%S"\`
-        echoContent skyBlue " ---> 证书生成天数:"\${days}
-        echoContent skyBlue " ---> 证书剩余天数:"\${tlsStatus}
-        if [[ \${remainingDays} -le 1 ]]
-        then
-            echoContent yellow " ---> 重新生成证书"
-            if [[ \`ps -ef|grep -v grep|grep nginx\` ]]
-            then
-                nginx -s stop
-            fi
-            sudo ~/.acme.sh/acme.sh --installcert -d \${host} --fullchainpath /etc/v2ray-agent/tls/\${host}.crt --keypath /etc/v2ray-agent/tls/\${host}.key --ecc >> /etc/v2ray-agent/tls/acme.log
-            nginx
-            if [[ \`ps -ef|grep -v grep|grep nginx\` ]]
-            then
-                echoContent green " ---> nginx启动成功"
-            else
-                echoContent red " ---> nginx启动失败，请检查[/etc/v2ray-agent/tls/acme.log]"
-            fi
-        else
-            echoContent green " ---> 证书有效"
-        fi
-    else
-        echoContent red " ---> 无法找到相应路径，请使用脚本重新安装"
-    fi
-else
-    echoContent red " ---> 无法找到相应路径，请使用脚本重新安装"
-fi
-EOF
-    if [[ ! -z `crontab -l|grep -v grep|grep 'reloadInstallTLS'` ]]
+    if [[ ! -z `crontab -l|grep -v grep|grep '/etc/v2ray-agent/install.sh'` ]]
     then
         echoContent green " ---> 添加定时维护证书成功"
     else
-        crontab -l >> /etc/v2ray-agent/backup_crontab.cron
-
-        # 定时任务
+        echo "30 1 * * * /bin/bash /etc/v2ray-agent/install.sh RenewTLS" >> /etc/v2ray-agent/backup_crontab.cron
         crontab /etc/v2ray-agent/backup_crontab.cron
         echoContent green " ---> 添加定时维护证书成功"
     fi
@@ -873,36 +794,45 @@ EOF
 # 更新证书
 renewalTLS(){
     echoContent skyBlue "\n进度  1/1 : 更新证书"
-    if [[ -d "/root/.acme.sh" ]]
-    then
-        if [[ -d "/root/.acme.sh/${currentHost}_ecc" ]] && [[ -f "/root/.acme.sh/${currentHost}_ecc/${currentHost}.key" ]] && [[ -f "/root/.acme.sh/${currentHost}_ecc/${currentHost}.cer" ]]
-        then
-            modifyTime=`stat /root/.acme.sh/${currentHost}_ecc/${currentHost}.key|sed -n '6,6p'|awk '{print $2" "$3" "$4" "$5}'`
 
-            modifyTime=`date +%s -d "${modifyTime}"`
-            currentTime=`date +%s`
-            stampDiff=`expr ${currentTime} - ${modifyTime}`
-            days=`expr ${stampDiff} / 86400`
-            remainingDays=`expr 90 - ${days}`
-            tlsStatus=${remainingDays}
-            if [[ ${remainingDays} -le 0 ]]
+    if [[ -d "/root/.acme.sh/${currentHost}_ecc" ]] && [[ -f "/root/.acme.sh/${currentHost}_ecc/${currentHost}.key" ]] && [[ -f "/root/.acme.sh/${currentHost}_ecc/${currentHost}.cer" ]]
+    then
+        modifyTime=`stat /root/.acme.sh/${currentHost}_ecc/${currentHost}.key|sed -n '6,6p'|awk '{print $2" "$3" "$4" "$5}'`
+
+        modifyTime=`date +%s -d "${modifyTime}"`
+        currentTime=`date +%s`
+        stampDiff=`expr ${currentTime} - ${modifyTime}`
+        days=`expr ${stampDiff} / 86400`
+        remainingDays=`expr 90 - ${days}`
+        tlsStatus=${remainingDays}
+        if [[ ${remainingDays} -le 0 ]]
+        then
+            tlsStatus="已过期"
+        fi
+        echoContent skyBlue " ---> 证书生成日期:"`date -d @${modifyTime} +"%F %H:%M:%S"`
+        echoContent skyBlue " ---> 证书生成天数:"${days}
+        echoContent skyBlue " ---> 证书剩余天数:"${tlsStatus}
+
+        if [[ ${remainingDays} -le 1 ]]
+        then
+            echoContent yellow " ---> 重新生成证书"
+            handleNginx stop
+            sudo ~/.acme.sh/acme.sh --cron --home /root/.acme.sh
+            sudo ~/.acme.sh/acme.sh --installcert -d ${currentHost} --fullchainpath /etc/v2ray-agent/tls/${currentHost}.crt --keypath /etc/v2ray-agent/tls/${currentHost}.key --ecc >> /etc/v2ray-agent/tls/acme.log
+            handleNginx start
+
+            if [[ "${coreInstallType}" = "1" ]]
             then
-                tlsStatus="已过期"
-            fi
-            echoContent skyBlue " ---> 证书生成日期:"`date -d @${modifyTime} +"%F %H:%M:%S"`
-            echoContent skyBlue " ---> 证书生成天数:"${days}
-            echoContent skyBlue " ---> 证书剩余天数:"${tlsStatus}
-            if [[ ${remainingDays} -le 1 ]]
+                handleXray stop
+                handleXray start
+            elif [[ "${coreInstallType}" = "2" || "${coreInstallType}" = "3" ]]
             then
-                echoContent yellow " ---> 重新生成证书"
-                handleNginx stop
-                sudo ~/.acme.sh/acme.sh --installcert -d ${currentHost} --fullchainpath /etc/v2ray-agent/tls/${currentHost}.crt --keypath /etc/v2ray-agent/tls/${currentHost}.key --ecc >> /etc/v2ray-agent/tls/acme.log
-                handleNginx start
-            else
-                echoContent green " ---> 证书有效"
+                handleV2Ray stop
+                handleV2Ray start
             fi
+
         else
-            echoContent red " ---> 未安装"
+            echoContent green " ---> 证书有效"
         fi
     else
         echoContent red " ---> 未安装"
@@ -910,11 +840,12 @@ renewalTLS(){
 }
 # 查看TLS证书的状态
 checkTLStatus(){
-    if [[ ! -z "${currentHost}" ]]
+
+    if [[ ! -z "$1" ]]
     then
-        if [[ -d "/root/.acme.sh/${currentHost}_ecc" ]] && [[ -f "/root/.acme.sh/${currentHost}_ecc/${currentHost}.key" ]] && [[ -f "/root/.acme.sh/${currentHost}_ecc/${currentHost}.cer" ]]
+        if [[ -d "/root/.acme.sh/$1_ecc" ]] && [[ -f "/root/.acme.sh/$1_ecc/$1.key" ]] && [[ -f "/root/.acme.sh/$1_ecc/$1.cer" ]]
         then
-            modifyTime=`stat /root/.acme.sh/${currentHost}_ecc/${currentHost}.key|sed -n '6,6p'|awk '{print $2" "$3" "$4" "$5}'`
+            modifyTime=`stat /root/.acme.sh/$1_ecc/$1.key|sed -n '6,6p'|awk '{print $2" "$3" "$4" "$5}'`
 
             modifyTime=`date +%s -d "${modifyTime}"`
             currentTime=`date +%s`
@@ -1511,7 +1442,7 @@ handleXray(){
     then
         if [[ -z `ps -ef|grep -v grep|grep xray` ]] && [[ "$1" = "start" ]]
         then
-            /usr/bin/xray/xray -config /etc/v2ray-agent/xray/02_VLESS_TCP_inbounds.json & > /dev/null 2>&1
+            /etc/v2ray-agent/xray/xray -config /etc/v2ray-agent/xray/02_VLESS_TCP_inbounds.json & > /dev/null 2>&1
         elif [[ ! -z `ps -ef|grep -v grep|grep xray` ]] && [[ "$1" = "stop" ]]
         then
             ps -ef|grep -v grep|grep xray|awk '{print $2}'|xargs kill -9
@@ -3303,6 +3234,13 @@ coreVersionManageMenu(){
         v2rayVersionManageMenu 1
     fi
 }
+# 定时任务检查证书
+cronRenewTLS(){
+    if [[ "$1" = "renewalTLS" ]]
+    then
+        renewalTLS
+    fi
+}
 # 主菜单
 menu(){
     cd
@@ -3332,6 +3270,7 @@ menu(){
     echoContent red "=============================================================="
     mkdirTools
     aliasInstall
+    cronRenewTLS
     read -p "请选择:" selectInstallType
      case ${selectInstallType} in
         1)
