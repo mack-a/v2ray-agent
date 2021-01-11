@@ -6,7 +6,7 @@ checkSystem(){
 	if [[ ! -z `find /etc -name "redhat-release"` ]] || [[ ! -z `cat /proc/version | grep -i "centos" | grep -v grep ` ]]
 	then
 	    centosVersion=`rpm -q centos-release|awk -F "[-]" '{print $3}'|awk -F "[.]" '{print $1}'`
-	    if [[ -z "${centosVersion}" ]] && [[ `cat /etc/centos-release|grep "release 8"` ]]
+	    if [[ -z "${centosVersion}" ]] && [[ ! -z `cat /etc/centos-release|grep "release 8"` ]]
 	    then
             centosVersion=8
 	    fi
@@ -453,7 +453,6 @@ installTools(){
     then
         echoContent green " ---> 安装semanage"
         ${installType} bash-completion > /dev/null 2>&1
-        echoContent red policyCoreUtils:${policyCoreUtils}
         if [[ ! -z "${policyCoreUtils}" ]]
         then
             ${installType} ${policyCoreUtils} > /dev/null 2>&1
@@ -2184,13 +2183,27 @@ defaultBase64Code(){
     local add=$6
     if [[ "${type}" = "vlesstcp" ]]
     then
-        echoContent yellow " ---> 通用格式(VLESS+TCP+TLS/XTLS)"
         local VLESSID=`echo ${id}|awk -F "[\"]" '{print $2}'`
         local VLESSEmail=`echo ${ps}|awk -F "[\"]" '{print $2}'`
-        echoContent green "    vless://${VLESSID}@${host}:${port}?security=xtls&encryption=none&host=${host}&headerType=none&type=tcp&flow=xtls-rprx-splice#${VLESSEmail}\n"
+        if [[ "${coreInstallType}" = "1" ]]
+        then
+            echoContent yellow " ---> 通用格式(VLESS+TCP+TLS/xtls-rprx-direct)"
+            echoContent green "    vless://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&flow=xtls-rprx-direct#${VLESSEmail}\n"
+            echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS/xtls-rprx-direct)"
+            echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${VLESSID}%40${host}%3A${port}%3F${encryption}%3Dnone%26security%3Dxtls%26type%3Dtcp%26${host}%3D${host}%26headerType%3Dnone%26flow%3Dxtls-rprx-direct%23${VLESSEmail}\n"
 
-        echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS/XTLS)"
-        echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3a%2f%2f${VLESSID}%40${host}%3a${port}%3fsecurity%3dxtls%26encryption%3dnone%26host%3d${host}%26headerType%3dnone%26type%3dtcp%26flow%3dxtls%2drprx%2dsplice%23${VLESSEmail}\n"
+            echoContent yellow " ---> 通用格式(VLESS+TCP+TLS/xtls-rprx-splice)"
+            echoContent green "    vless://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&flow=xtls-rprx-splice#${VLESSEmail}\n"
+            echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS/xtls-rprx-splice)"
+            echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${VLESSID}%40${host}%3A${port}%3F${encryption}%3Dnone%26security%3Dxtls%26type%3Dtcp%26${host}%3D${host}%26headerType%3Dnone%26flow%3Dxtls-rprx-splice%23${VLESSEmail}\n"
+
+        elif [[ "${coreInstallType}" = "2" || "${coreInstallType}" = "3" ]]
+        then
+            echoContent yellow " ---> 通用格式(VLESS+TCP+TLS)"
+            echoContent green "    vless://${VLESSID}@${host}:${port}?security=tls&encryption=none&host=${host}&headerType=none&type=tcp#${VLESSEmail}\n"
+            echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS)"
+            echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3a%2f%2f${VLESSID}%40${host}%3a${port}%3fsecurity%3dtls%26encryption%3dnone%26host%3d${host}%26headerType%3dnone%26type%3dtcp%23${VLESSEmail}\n"
+        fi
 
     elif [[ "${type}" = "vmessws" ]]
     then
@@ -2213,15 +2226,17 @@ defaultBase64Code(){
         echoContent green "    vmess://${qrCodeBase64Default}\n"
         echoContent yellow " ---> 二维码 vmess(VMess+TCP+TLS)"
         echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vmess://${qrCodeBase64Default}\n"
+
     elif [[ "${type}" = "vlessws" ]]
     then
         local VLESSID=`echo ${id}|awk -F "[\"]" '{print $2}'`
         local VLESSEmail=`echo ${ps}|awk -F "[\"]" '{print $2}'`
         echoContent yellow " ---> 通用格式(VLESS+WS+TLS)"
-        echoContent green "    vless://${VLESSID}@${host}:${port}?path=%2f${path}&security=tls&encryption=none%26host=${host}&type=ws#${VLESSEmail}\n"
+        echoContent green "    vless://${VLESSID}@${add}:${port}?encryption=none&security=tls&type=ws&host=${host}&path=%2f${path}#${VLESSEmail}\n"
 
         echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS/XTLS)"
-        echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3a%2f%2f${VLESSID}%40${host}%3a${port}%3fpath%3d%2f${path}%26security%3dtls%26encryption%3dnone%26host%3d${host}%26type%3dws%23${VLESSEmail}"
+        echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${VLESSID}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dws%26host%3D${host}%26path%3D%252f${path}%23${VLESSEmail}"
+
     elif [[ "${type}" = "trojan" ]]
     then
         # URLEncode
@@ -2618,12 +2633,13 @@ addUser(){
     # 兼容v2ray-core
     if [[ "${coreInstallType}" = "2" ]]
     then
-        users=`echo ${users}|sed 's/"flow":"xtls-rprx-direct",//g'`
+        users=`echo ${users}|sed 's/"flow":"xtls-rprx-direct",/"alterId":1,/g'`
     fi
 
     if [[ ! -z `echo ${currentInstallProtocolType} | grep 0` ]]
     then
-        local vlessTcpResult=`cat ${configPath}02_VLESS_TCP_inbounds.json|jq -r '.inbounds[0].settings.clients += ['${users}']'`
+        local vlessUsers=`echo ${users}|sed 's/"alterId":1,//g'`
+        local vlessTcpResult=`cat ${configPath}02_VLESS_TCP_inbounds.json|jq -r '.inbounds[0].settings.clients += ['${vlessUsers}']'`
         echo ${vlessTcpResult} | jq . > ${configPath}02_VLESS_TCP_inbounds.json
     fi
 
@@ -2631,7 +2647,8 @@ addUser(){
 
     if [[ ! -z `echo ${currentInstallProtocolType} | grep 1` ]]
     then
-        local vlessWsResult=`cat ${configPath}03_VLESS_WS_inbounds.json|jq -r '.inbounds[0].settings.clients += ['${users}']'`
+        local vlessUsers=`echo ${users}|sed 's/"alterId":1,//g'`
+        local vlessWsResult=`cat ${configPath}03_VLESS_WS_inbounds.json|jq -r '.inbounds[0].settings.clients += ['${vlessUsers}']'`
         echo ${vlessWsResult}|jq . > ${configPath}03_VLESS_WS_inbounds.json
     fi
 
@@ -3246,7 +3263,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.2.19"
+    echoContent green "当前版本：v2.2.21"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
