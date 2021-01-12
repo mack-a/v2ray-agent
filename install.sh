@@ -108,6 +108,9 @@ initVar(){
     # pingIPv6 pingIPv4
     pingIPv4=
     pingIPv6=
+
+    # 集成更新证书逻辑不再使用单独的脚本--RenewTLS
+    renewTLS=$1
 }
 
 # 检测安装方式
@@ -256,7 +259,7 @@ cleanUp(){
     fi
 }
 
-initVar
+initVar $1
 checkSystem
 readInstallType
 readInstallProtocolType
@@ -629,7 +632,7 @@ checkIP(){
 }
 # 安装TLS
 installTLS(){
-    echoContent skyBlue "\n进度  $1/${totalProgress} : 申请TLS证书"
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 申请TLS证书\n"
     local tlsDomain=${domain}
     if [[ ! -z "${currentHost}" ]]
     then
@@ -639,7 +642,7 @@ installTLS(){
         tlsDomain=${domain}
     fi
     # 重构安装tls
-    if [[ -z `ls /etc/v2ray-agent/tls|grep ${tlsDomain}.crt` && -z `ls /etc/v2ray-agent/tls|grep ${tlsDomain}.key` ]] || [[ -d "/root/.acme.sh/${tlsDomain}_ecc" && ! -f "/root/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && ! -f "/root/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]]
+    if [[ -d "/root/.acme.sh/${tlsDomain}_ecc" && ! -f "/root/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && ! -f "/root/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]]
     then
         echoContent green " ---> 安装TLS证书"
         if [[ ! -z "${pingIPv6}" ]]
@@ -660,23 +663,31 @@ installTLS(){
             exit 0
         fi
         echoContent green " ---> TLS生成成功"
-
     elif [[ -d "/root/.acme.sh/${tlsDomain}_ecc" && -f "/root/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && -f "/root/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]]
     then
+        # 存在证书 但是脚本目录未安装
         echoContent green " ---> 检测到证书"
         checkTLStatus ${tlsDomain}
-        echoContent yellow " ---> 如未过期请选择[n]"
-        read -p "是否重新生成？[y/n]:" reInstallStatus
-        if [[ "${reInstallStatus}" = "y" ]]
+        if [[ "${tlsStatus}" = "已过期" ]]
         then
-            rm -rf /etc/v2ray-agent/tls/*
-            if [[ "${tlsStatus}" = "已过期" ]]
-            then
-                rm -rf /root/.acme.sh/${tlsDomain}_ecc/*
-            fi
-
+            rm -rf /root/.acme.sh/${tlsDomain}_ecc/*
             installTLS $1
+        else
+            echoContent green " ---> 证书有效"
+            if [[ -z `ls /etc/v2ray-agent/tls|grep ${tlsDomain}.crt` || -z `ls /etc/v2ray-agent/tls|grep ${tlsDomain}.key` ]]
+            then
+                sudo ~/.acme.sh/acme.sh --installcert -d ${tlsDomain} --fullchainpath /etc/v2ray-agent/tls/${tlsDomain}.crt --keypath /etc/v2ray-agent/tls/${tlsDomain}.key --ecc >/dev/null
+            else
+                echoContent yellow " ---> 如未过期请选择[n]\n"
+                read -p "是否重新安装？[y/n]:" reInstallStatus
+                if [[ "${reInstallStatus}" = "y" ]]
+                then
+                    rm -rf /etc/v2ray-agent/tls/*
+                    installTLS $1
+                fi
+            fi
         fi
+
     fi
 }
 # 配置伪装博客
@@ -772,9 +783,14 @@ handleNginx(){
 # 定时任务更新tls证书
 installCronTLS(){
     echoContent skyBlue "\n进度  $1/${totalProgress} : 添加定时维护证书"
-    if [[ -z `crontab -l|grep -v grep|grep 'reloadInstallTLS'` ]]
+    if [[ -z `crontab -l|grep -v grep|grep '/etc/v2ray-agent/install.sh'` ]]
     then
-        crontab -l >> /etc/v2ray-agent/backup_crontab.cron
+        crontab -l > /etc/v2ray-agent/backup_crontab.cron
+        if [[ ! -z `cat /etc/v2ray-agent/backup_crontab.cron|grep /etc/v2ray-agent/reloadInstallTLS.sh` ]]
+        then
+            sed -i "s/30 1 \\* \\* \\* \\/bin\\/bash \\/etc\\/v2ray-agent\\/reloadInstallTLS.sh//g" `grep "30 1 \\* \\* \\* /bin/bash /etc/v2ray-agent/reloadInstallTLS.sh" -rl /etc/v2ray-agent/backup_crontab.cron`
+        fi
+
         # 定时任务
         echo "30 1 * * * /bin/bash /etc/v2ray-agent/install.sh RenewTLS" >> /etc/v2ray-agent/backup_crontab.cron
         crontab /etc/v2ray-agent/backup_crontab.cron
@@ -796,7 +812,7 @@ renewalTLS(){
 
     if [[ -d "/root/.acme.sh/${currentHost}_ecc" ]] && [[ -f "/root/.acme.sh/${currentHost}_ecc/${currentHost}.key" ]] && [[ -f "/root/.acme.sh/${currentHost}_ecc/${currentHost}.cer" ]]
     then
-        modifyTime=`stat /root/.acme.sh/${currentHost}_ecc/${currentHost}.key|sed -n '6,6p'|awk '{print $2" "$3" "$4" "$5}'`
+        modifyTime=`stat /root/.acme.sh/${currentHost}_ecc/${currentHost}.key|sed -n '7,6p'|awk '{print $2" "$3" "$4" "$5}'`
 
         modifyTime=`date +%s -d "${modifyTime}"`
         currentTime=`date +%s`
@@ -844,7 +860,7 @@ checkTLStatus(){
     then
         if [[ -d "/root/.acme.sh/$1_ecc" ]] && [[ -f "/root/.acme.sh/$1_ecc/$1.key" ]] && [[ -f "/root/.acme.sh/$1_ecc/$1.cer" ]]
         then
-            modifyTime=`stat /root/.acme.sh/$1_ecc/$1.key|sed -n '6,6p'|awk '{print $2" "$3" "$4" "$5}'`
+            modifyTime=`stat /root/.acme.sh/$1_ecc/$1.key|sed -n '7,6p'|awk '{print $2" "$3" "$4" "$5}'`
 
             modifyTime=`date +%s -d "${modifyTime}"`
             currentTime=`date +%s`
@@ -3253,9 +3269,10 @@ coreVersionManageMenu(){
 }
 # 定时任务检查证书
 cronRenewTLS(){
-    if [[ "$1" = "renewalTLS" ]]
+    if [[ "${renewTLS}" = "RenewTLS" ]]
     then
         renewalTLS
+        exit 0;
     fi
 }
 # 主菜单
@@ -3263,7 +3280,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.2.21"
+    echoContent green "当前版本：v2.2.22"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
@@ -3278,8 +3295,8 @@ menu(){
     echoContent yellow "8.ipv6人机验证"
     echoContent skyBlue "-------------------------版本管理-----------------------------"
     echoContent yellow "9.core版本管理"
-    echoContent yellow "10.升级Trojan-Go"
-    echoContent yellow "11.升级脚本"
+    echoContent yellow "10.更新Trojan-Go"
+    echoContent yellow "11.更新脚本"
     echoContent yellow "12.安装BBR"
     echoContent skyBlue "-------------------------脚本管理-----------------------------"
     echoContent yellow "13.查看日志"
@@ -3287,7 +3304,6 @@ menu(){
     echoContent red "=============================================================="
     mkdirTools
     aliasInstall
-    cronRenewTLS
     read -p "请选择:" selectInstallType
      case ${selectInstallType} in
         1)
@@ -3334,4 +3350,5 @@ menu(){
         ;;
     esac
 }
+cronRenewTLS
 menu
