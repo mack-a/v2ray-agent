@@ -641,8 +641,9 @@ installTLS(){
     then
         tlsDomain=${domain}
     fi
-    # 重构安装tls
-    if [[ -d "/root/.acme.sh/${tlsDomain}_ecc" && ! -f "/root/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && ! -f "/root/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]]
+    # 安装tls
+
+    if [[ -d "/root/.acme.sh" && ! -f "/root/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && ! -f "/root/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]]
     then
         echoContent green " ---> 安装TLS证书"
         if [[ ! -z "${pingIPv6}" ]]
@@ -687,7 +688,9 @@ installTLS(){
                 fi
             fi
         fi
-
+    else
+        echoContent yellow " ---> 未安装acme.sh"
+        exit 0;
     fi
 }
 # 配置伪装博客
