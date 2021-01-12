@@ -641,32 +641,11 @@ installTLS(){
     then
         tlsDomain=${domain}
     fi
+
     # 安装tls
-
-    if [[ -d "/root/.acme.sh" && ! -f "/root/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && ! -f "/root/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]]
+    if [[ -f "/etc/v2ray-agent/tls/${tlsDomain}.crt" && -f "/etc/v2ray-agent/tls/${tlsDomain}.key" ]] || [[ -d "/root/.acme.sh/${tlsDomain}_ecc" && -f "/root/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && -f "/root/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]]
     then
-        echoContent green " ---> 安装TLS证书"
-        if [[ ! -z "${pingIPv6}" ]]
-        then
-            sudo ~/.acme.sh/acme.sh --issue -d ${tlsDomain} --standalone -k ec-256 --listen-v6 >/dev/null
-        else
-            sudo ~/.acme.sh/acme.sh --issue -d ${tlsDomain} --standalone -k ec-256 >/dev/null
-        fi
-
-        sudo ~/.acme.sh/acme.sh --installcert -d ${tlsDomain} --fullchainpath /etc/v2ray-agent/tls/${tlsDomain}.crt --keypath /etc/v2ray-agent/tls/${tlsDomain}.key --ecc >/dev/null
-        if [[ -z `cat /etc/v2ray-agent/tls/${tlsDomain}.crt` ]]
-        then
-            echoContent red " ---> TLS安装失败，请检查acme日志"
-            exit 0
-        elif [[ -z `cat /etc/v2ray-agent/tls/${tlsDomain}.key` ]]
-        then
-            echoContent red " ---> TLS安装失败，请检查acme日志"
-            exit 0
-        fi
-        echoContent green " ---> TLS生成成功"
-    elif [[ -d "/root/.acme.sh/${tlsDomain}_ecc" && -f "/root/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && -f "/root/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]]
-    then
-        # 存在证书 但是脚本目录未安装
+        # 存在证书
         echoContent green " ---> 检测到证书"
         checkTLStatus ${tlsDomain}
         if [[ "${tlsStatus}" = "已过期" ]]
@@ -688,6 +667,27 @@ installTLS(){
                 fi
             fi
         fi
+    elif [[ -d "/root/.acme.sh" && ! -f "/root/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && ! -f "/root/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]]
+    then
+        echoContent green " ---> 安装TLS证书"
+        if [[ ! -z "${pingIPv6}" ]]
+        then
+            sudo ~/.acme.sh/acme.sh --issue -d ${tlsDomain} --standalone -k ec-256 --listen-v6 >/dev/null
+        else
+            sudo ~/.acme.sh/acme.sh --issue -d ${tlsDomain} --standalone -k ec-256 >/dev/null
+        fi
+
+        sudo ~/.acme.sh/acme.sh --installcert -d ${tlsDomain} --fullchainpath /etc/v2ray-agent/tls/${tlsDomain}.crt --keypath /etc/v2ray-agent/tls/${tlsDomain}.key --ecc >/dev/null
+        if [[ -z `cat /etc/v2ray-agent/tls/${tlsDomain}.crt` ]]
+        then
+            echoContent red " ---> TLS安装失败，请检查acme日志"
+            exit 0
+        elif [[ -z `cat /etc/v2ray-agent/tls/${tlsDomain}.key` ]]
+        then
+            echoContent red " ---> TLS安装失败，请检查acme日志"
+            exit 0
+        fi
+        echoContent green " ---> TLS生成成功"
     else
         echoContent yellow " ---> 未安装acme.sh"
         exit 0;
@@ -3283,7 +3283,7 @@ menu(){
     cd
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.2.23"
+    echoContent green "当前版本：v2.2.24"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：七合一共存脚本"
     echoContent red "=============================================================="
