@@ -307,7 +307,6 @@ installTools() {
 		elif [[ "${centosVersion}" == "8" ]]; then
 			nginxEpel="http://nginx.org/packages/centos/8/x86_64/RPMS/nginx-1.18.0-1.el8.ngx.x86_64.rpm"
 			policyCoreUtils="policycoreutils-python-utils-2.9-9.el8.noarch"
-			# rpm -ivh ${nginxEpel} > /etc/v2ray-agent/error.log 2>&1
 		fi
 
 		# yum-utils
@@ -325,8 +324,8 @@ installTools() {
 		dpkg --configure -a
 	fi
 
-	if ps -ef | grep -q apt; then
-		ps -ef | grep -v grep | grep apt | awk '{print $2}' | xargs kill -9
+	if pgrep -f apt; then
+		pgrep -f apt | xargs kill -9
 	fi
 
 	echoContent green " ---> 检查、安装更新【新机器会很慢，耐心等待】"
@@ -1246,7 +1245,7 @@ EOF
 # 操作V2Ray
 handleV2Ray() {
 	# shellcheck disable=SC2010
-	if find /bin /usr/bin | grep -q systemctl && ls /etc/systemd/system/*v2ray* | grep -q v2ray.service; then
+	if find /bin /usr/bin | grep -q systemctl && ls /etc/systemd/system/ | grep -q v2ray.service; then
 		if [[ -z "$(pgrep -f v2ray/v2ray)" ]] && [[ "$1" == "start" ]]; then
 			systemctl start v2ray.service
 		elif [[ -z "$(pgrep -f v2ray/v2ray)" ]] && [[ "$1" == "stop" ]]; then
@@ -1264,7 +1263,7 @@ handleV2Ray() {
 			exit 0
 		fi
 	elif [[ "$1" == "stop" ]]; then
-		if ! ps -ef | grep -q "v2ray/v2ray"; then
+		if ! pgrep -f "v2ray/v2ray"; then
 			echoContent green " ---> V2Ray关闭成功"
 		else
 			echoContent red "V2Ray关闭失败"
@@ -1286,7 +1285,7 @@ handleXray() {
 	sleep 0.5
 
 	if [[ "$1" == "start" ]]; then
-		if ps -ef | grep -q "xray/xray"; then
+		if pgrep -f "xray/xray"; then
 			echoContent green " ---> Xray启动成功"
 		else
 			echoContent red "xray启动失败"
@@ -1294,7 +1293,7 @@ handleXray() {
 			exit 0
 		fi
 	elif [[ "$1" == "stop" ]]; then
-		if ps -ef | !grep -q "xray/xray"; then
+		if ! pgrep -f "xray/xray"; then
 			echoContent green " ---> Xray关闭成功"
 		else
 			echoContent red "xray关闭失败"
