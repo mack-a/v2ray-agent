@@ -858,7 +858,7 @@ installXray() {
 # 安装Trojan-go
 installTrojanGo() {
 	echoContent skyBlue "\n进度  $1/${totalProgress} : 安装Trojan-Go"
-	if find /etc/v2ray-agent/trojan/ | grep -q trojan-go; then
+	if ! find /etc/v2ray-agent/trojan/ | grep -q trojan-go; then
 		version=$(curl -s https://github.com/p4gefau1t/trojan-go/releases | grep /trojan-go/releases/tag/ | head -1 | awk -F "[/]" '{print $6}' | awk -F "[>]" '{print $2}' | awk -F "[<]" '{print $1}')
 		echoContent green " ---> Trojan-Go版本:${version}"
 		if wget --help | grep -q show-progress; then
