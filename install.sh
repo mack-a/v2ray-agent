@@ -9,12 +9,12 @@ checkSystem() {
 		if [[ -z "${centosVersion}" ]] && grep </etc/centos-release "release 8"; then
 			centosVersion=8
 		fi
-
 		release="centos"
 		installType='yum -y install'
 		# removeType='yum -y remove'
 		upgrade="yum update -y --skip-broken"
-	elif grep </etc/issue -q "debian" || grep </proc/version -q "debian"; then
+
+	elif grep </etc/issue -q "debian" && [[ -f "/etc/issue" ]] || grep </etc/issue -q "debian" && [[ -f "/proc/version" ]]; then
 		if grep </etc/issue -i "8"; then
 			debianVersion=8
 		fi
@@ -22,12 +22,14 @@ checkSystem() {
 		installType='apt -y install'
 		upgrade="apt update -y"
 		# removeType='apt -y autoremove'
-	elif grep </etc/issue -q "ubuntu" || grep /proc/version -q "ubuntu"; then
+
+	elif grep </etc/issue -q "ubuntu" && [[ -f "/etc/issue" ]] || grep </etc/issue -q "ubuntu" && [[ -f "/proc/version" ]]; then
 		release="ubuntu"
 		installType='apt-get -y install'
 		upgrade="apt-get update -y"
 		# removeType='apt-get --purge remove'
 	fi
+
 	if [[ -z ${release} ]]; then
 		echoContent red "本脚本不支持此系统，请将下方日志反馈给开发者"
 		cat /etc/issue
