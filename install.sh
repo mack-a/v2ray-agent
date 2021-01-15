@@ -163,7 +163,7 @@ readInstallProtocolType() {
 		if echo ${row} | grep -q VMess_WS_inbounds; then
 			currentInstallProtocolType=${currentInstallProtocolType}'3'
 		fi
-	done < <(find ${configPath}/*inbounds.json* | awk -F "[.]" '{print $1}')
+	done < <(ls ${configPath} | grep inbounds.json | awk -F "[.]" '{print $1}')
 
 	if [[ -f "/etc/v2ray-agent/trojan/trojan-go" ]] && [[ -f "/etc/v2ray-agent/trojan/config_full.json" ]]; then
 		currentInstallProtocolType=${currentInstallProtocolType}'4'
@@ -594,16 +594,16 @@ installTLS() {
 	elif [[ -d "$HOME/.acme.sh" && ! -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && ! -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]]; then
 		echoContent green " ---> 安装TLS证书"
 		if [[ -n "${pingIPv6}" ]]; then
-			sudo $HOME/.acme.sh/acme.sh --issue -d ${tlsDomain} --standalone -k ec-256 --listen-v6 >/dev/null
+			sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --listen-v6 >/dev/null
 		else
-			sudo $HOME/.acme.sh/acme.sh --issue -d ${tlsDomain} --standalone -k ec-256 >/dev/null
+			sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 >/dev/null
 		fi
 
-		sudo $HOME/.acme.sh/acme.sh --installcert -d ${tlsDomain} --fullchainpath /etc/v2ray-agent/tls/${tlsDomain}.crt --keypath /etc/v2ray-agent/tls/${tlsDomain}.key --ecc >/dev/null
-		if [[ -z $(cat /etc/v2ray-agent/tls/${tlsDomain}.crt) ]]; then
+		sudo "$HOME/.acme.sh/acme.sh" --installcert -d "${tlsDomain}" --fullchainpath "/etc/v2ray-agent/tls/${tlsDomain}.crt" --keypath "/etc/v2ray-agent/tls/${tlsDomain}.key" --ecc >/dev/null
+		if [[ -z $(cat "/etc/v2ray-agent/tls/${tlsDomain}.crt") ]]; then
 			echoContent red " ---> TLS安装失败，请检查acme日志"
 			exit 0
-		elif [[ -z $(cat /etc/v2ray-agent/tls/${tlsDomain}.key) ]]; then
+		elif [[ -z $(cat "/etc/v2ray-agent/tls/${tlsDomain}.key") ]]; then
 			echoContent red " ---> TLS安装失败，请检查acme日志"
 			exit 0
 		fi
@@ -679,18 +679,18 @@ nginxBlog() {
 # 操作Nginx
 handleNginx() {
 
-	if ! ps -ef | grep -q nginx && [[ "$1" == "start" ]]; then
+	if [[ -z $(pgrep -f "nginx") ]] && [[ "$1" == "start" ]]; then
 		nginx
 		sleep 0.5
 		if ! ps -ef | grep -v grep | grep -q nginx; then
 			echoContent red " ---> Nginx启动失败，请检查日志"
 			exit 0
 		fi
-	elif [[ "$1" == "stop" ]] && ps -ef | grep -q nginx; then
+	elif [[ "$1" == "stop" ]] && [[ -n $(pgrep -f "nginx") ]]; then
 		nginx -s stop >/dev/null 2>&1
 		sleep 0.5
-		if ps -ef | grep -v grep | grep nginx; then
-			ps -ef | grep -v grep | grep nginx | awk '{print $2}' | xargs kill -9
+		if [[ -n $(pgrep -f "nginx") ]]; then
+			pgrep -f "nginx" | xargs kill -9
 		fi
 	fi
 }
@@ -797,9 +797,9 @@ installV2Ray() {
 
 		echoContent green " ---> v2ray-core版本:${version}"
 		if wget --help | grep -q show-progress; then
-			wget -c -q --show-progress -P /etc/v2ray-agent/v2ray/ https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip
+			wget -c -q --show-progress -P /etc/v2ray-agent/v2ray/ "https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip"
 		else
-			wget -c -P /etc/v2ray-agent/v2ray/ https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip >/dev/null 2>&1
+			wget -c -P /etc/v2ray-agent/v2ray/ "https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip" >/dev/null 2>&1
 		fi
 
 		unzip -o /etc/v2ray-agent/v2ray/v2ray-linux-64.zip -d /etc/v2ray-agent/v2ray >/dev/null
@@ -832,7 +832,7 @@ installXray() {
 
 		echoContent green " ---> Xray-core版本:${version}"
 		if wget --help | grep -q show-progress; then
-			wget -c -q --show-progress -P "/etc/v2ray-agent/xray/ https://github.com/XTLS/Xray-core/releases/download/${version}/Xray-linux-64.zip"
+			wget -c -q --show-progress -P /etc/v2ray-agent/xray/ "https://github.com/XTLS/Xray-core/releases/download/${version}/Xray-linux-64.zip"
 		else
 			wget -c -P /etc/v2ray-agent/xray/ "https://github.com/XTLS/Xray-core/releases/download/${version}/Xray-linux-64.zip" >/dev/null 2>&1
 		fi
@@ -958,7 +958,7 @@ updateV2Ray() {
 		echoContent green " ---> v2ray-core版本:${version}"
 
 		if wget --help | grep -q show-progress; then
-			wget -c -q --show-progress -P "/etc/v2ray-agent/v2ray/ https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip"
+			wget -c -q --show-progress -P /etc/v2ray-agent/v2ray/ "https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip"
 		else
 			wget -c -P "/etc/v2ray-agent/v2ray/ https://github.com/v2fly/v2ray-core/releases/download/${version}/v2ray-linux-64.zip" >/dev/null 2>&1
 		fi
@@ -1031,10 +1031,10 @@ updateXray() {
 
 		echoContent green " ---> Xray-core版本:${version}"
 
-		if [[ -n $(wget --help | grep show-progress) ]]; then
-			wget -c -q --show-progress -P /etc/v2ray-agent/xray/ https://github.com/XTLS/Xray-core/releases/download/${version}/Xray-linux-64.zip
+		if wget --help | grep -q show-progress; then
+			wget -c -q --show-progress -P /etc/v2ray-agent/xray/ "https://github.com/XTLS/Xray-core/releases/download/${version}/Xray-linux-64.zip"
 		else
-			wget -c -P /etc/v2ray-agent/xray/ https://github.com/XTLS/Xray-core/releases/download/${version}/Xray-linux-64.zip >/dev/null 2>&1
+			wget -c -P /etc/v2ray-agent/xray/ "https://github.com/XTLS/Xray-core/releases/download/${version}/Xray-linux-64.zip" >/dev/null 2>&1
 		fi
 
 		unzip -o /etc/v2ray-agent/xray/Xray-linux-64.zip -d /etc/v2ray-agent/xray >/dev/null
@@ -1096,9 +1096,9 @@ updateTrojanGo() {
 		version=$(curl -s https://github.com/p4gefau1t/trojan-go/releases | grep /trojan-go/releases/tag/ | head -1 | awk -F "[/]" '{print $6}' | awk -F "[>]" '{print $2}' | awk -F "[<]" '{print $1}')
 		echoContent green " ---> Trojan-Go版本:${version}"
 		if [[ -n $(wget --help | grep show-progress) ]]; then
-			wget -c -q --show-progress -P /etc/v2ray-agent/trojan/ https://github.com/p4gefau1t/trojan-go/releases/download/${version}/trojan-go-linux-amd64.zip
+			wget -c -q --show-progress -P /etc/v2ray-agent/trojan/ "https://github.com/p4gefau1t/trojan-go/releases/download/${version}/trojan-go-linux-amd64.zip"
 		else
-			wget -c -P /etc/v2ray-agent/trojan/ https://github.com/p4gefau1t/trojan-go/releases/download/${version}/trojan-go-linux-amd64.zip >/dev/null 2>&1
+			wget -c -P /etc/v2ray-agent/trojan/ "https://github.com/p4gefau1t/trojan-go/releases/download/${version}/trojan-go-linux-amd64.zip" >/dev/null 2>&1
 		fi
 		unzip -o /etc/v2ray-agent/trojan/trojan-go-linux-amd64.zip -d /etc/v2ray-agent/trojan >/dev/null
 		rm -rf /etc/v2ray-agent/trojan/trojan-go-linux-amd64.zip
@@ -2059,50 +2059,52 @@ showAccounts() {
 	readConfigHostPathUUID
 	readInstallProtocolType
 	echoContent skyBlue "\n进度 $1/${totalProgress} : 账号"
-
+	local show
 	# VLESS TCP
-	if [[ -n "${configPath}" ]] && echo "${currentInstallProtocolType}" | grep -q 0 || [[ -z "${currentInstallProtocolType}" ]]; then
-		echoContent skyBlue "\n===================== VLESS TCP TLS/XTLS-direct/XTLS-splice ======================\n"
+	if [[ -n "${configPath}" ]]; then
+		show=1
+		if echo "${currentInstallProtocolType}" | grep -q 0 || [[ -z "${currentInstallProtocolType}" ]]; then
+			echoContent skyBlue "\n===================== VLESS TCP TLS/XTLS-direct/XTLS-splice ======================\n"
 
-		# cat ${configPath}02_VLESS_TCP_inbounds.json | jq .inbounds[0].settings.clients | jq -c '.[]'
-		jq .inbounds[0].settings.clients ${configPath}02_VLESS_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
-			defaultBase64Code vlesstcp $(echo "${user}" | jq .email) $(echo "${user}" | jq .id) "${currentHost}:${currentPort}" ${currentHost}
-		done
-	fi
+			# cat ${configPath}02_VLESS_TCP_inbounds.json | jq .inbounds[0].settings.clients | jq -c '.[]'
+			jq .inbounds[0].settings.clients ${configPath}02_VLESS_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
+				defaultBase64Code vlesstcp $(echo "${user}" | jq .email) $(echo "${user}" | jq .id) "${currentHost}:${currentPort}" ${currentHost}
+			done
+		fi
 
-	# VLESS WS
-	if [[ -n "${configPath}" ]] && echo ${currentInstallProtocolType} | grep -q 1 || [[ -z "${currentInstallProtocolType}" ]]; then
-		echoContent skyBlue "\n================================ VLESS WS TLS CDN ================================\n"
+		# VLESS WS
+		if echo ${currentInstallProtocolType} | grep -q 1 || [[ -z "${currentInstallProtocolType}" ]]; then
+			echoContent skyBlue "\n================================ VLESS WS TLS CDN ================================\n"
 
-		# cat ${configPath}03_VLESS_WS_inbounds.json | jq .inbounds[0].settings.clients | jq -c '.[]'
-		jq .inbounds[0].settings.clients ${configPath}03_VLESS_WS_inbounds.json | jq -c '.[]' | while read -r user; do
-			defaultBase64Code vlessws $(echo "${user}" | jq .email) $(echo "${user}" | jq .id) "${currentHost}:${currentPort}" "${currentPath}ws" ${currentAdd}
-		done
-	fi
+			# cat ${configPath}03_VLESS_WS_inbounds.json | jq .inbounds[0].settings.clients | jq -c '.[]'
+			jq .inbounds[0].settings.clients ${configPath}03_VLESS_WS_inbounds.json | jq -c '.[]' | while read -r user; do
+				defaultBase64Code vlessws $(echo "${user}" | jq .email) $(echo "${user}" | jq .id) "${currentHost}:${currentPort}" "${currentPath}ws" ${currentAdd}
+			done
+		fi
 
-	# VMess TCP
-	if [[ -n "${configPath}" ]] && echo ${currentInstallProtocolType} | grep -q 2 || [[ -z "${currentInstallProtocolType}" ]]; then
-		echoContent skyBlue "\n================================= VMess TCP TLS  =================================\n"
+		# VMess TCP
+		if echo ${currentInstallProtocolType} | grep -q 2 || [[ -z "${currentInstallProtocolType}" ]]; then
+			echoContent skyBlue "\n================================= VMess TCP TLS  =================================\n"
 
-		# cat ${configPath}04_VMess_TCP_inbounds.json | jq .inbounds[0].settings.clients | jq -c '.[]'
-		jq .inbounds[0].settings.clients ${configPath}04_VMess_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
-			defaultBase64Code vmesstcp $(echo "${user}" | jq .email) $(echo "${user}" | jq .id) "${currentHost}:${currentPort}" "${currentPath}tcp" "${currentHost}"
-		done
-	fi
+			# cat ${configPath}04_VMess_TCP_inbounds.json | jq .inbounds[0].settings.clients | jq -c '.[]'
+			jq .inbounds[0].settings.clients ${configPath}04_VMess_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
+				defaultBase64Code vmesstcp $(echo "${user}" | jq .email) $(echo "${user}" | jq .id) "${currentHost}:${currentPort}" "${currentPath}tcp" "${currentHost}"
+			done
+		fi
 
-	# VMess WS
-	if [[ -n "${configPath}" ]] && echo ${currentInstallProtocolType} | grep -q 3 || [[ -z "${currentInstallProtocolType}" ]]; then
-		echoContent skyBlue "\n================================ VMess WS TLS CDN ================================\n"
-
-		# cat ${configPath}05_VMess_WS_inbounds.json | jq .inbounds[0].settings.clients | jq -c '.[]'
-		jq .inbounds[0].settings.clients ${configPath}05_VMess_WS_inbounds.json | jq -c '.[]' | while read -r user; do
-			defaultBase64Code vmessws $(echo "${user}" | jq .email) $(echo "${user}" | jq .id) "${currentHost}:${currentPort}" "${currentPath}vws" ${currentAdd}
-		done
+		# VMess WS
+		if echo ${currentInstallProtocolType} | grep -q 3 || [[ -z "${currentInstallProtocolType}" ]]; then
+			echoContent skyBlue "\n================================ VMess WS TLS CDN ================================\n"
+			# cat ${configPath}05_VMess_WS_inbounds.json | jq .inbounds[0].settings.clients | jq -c '.[]'
+			jq .inbounds[0].settings.clients ${configPath}05_VMess_WS_inbounds.json | jq -c '.[]' | while read -r user; do
+				defaultBase64Code vmessws $(echo "${user}" | jq .email) $(echo "${user}" | jq .id) "${currentHost}:${currentPort}" "${currentPath}vws" ${currentAdd}
+			done
+		fi
 	fi
 
 	# trojan-go
 	if [[ -d "/etc/v2ray-agent/" ]] && [[ -d "/etc/v2ray-agent/trojan/" ]] && [[ -f "/etc/v2ray-agent/trojan/config_full.json" ]]; then
-		showStatus=true
+		show=1
 		# local trojanUUID=`cat /etc/v2ray-agent/trojan/config_full.json |jq .password[0]|awk -F '["]' '{print $2}'`
 		local trojanGoPath=$(jq .websocket.path /etc/v2ray-agent/trojan/config_full.json | awk -F '["]' '{print $2}')
 		local trojanGoAdd=$(jq .websocket.add /etc/v2ray-agent/trojan/config_full.json | awk -F '["]' '{print $2}')
@@ -2128,7 +2130,9 @@ showAccounts() {
 
 		done
 	fi
-
+	if [[ -z ${show} ]]; then
+		echoContent red " ---> 未安装"
+	fi
 }
 
 # 更新伪装站
@@ -2147,14 +2151,14 @@ updateNginxBlog() {
 		rm -rf /usr/share/nginx/html
 
 		if wget --help | grep -q show-progress; then
-			wget -c -q --show-progress -P /usr/share/nginx https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${selectInstallNginxBlogType}.zip >/dev/null
+			wget -c -q --show-progress -P /usr/share/nginx "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${selectInstallNginxBlogType}.zip" >/dev/null
 		else
-			wget -c -P --show-progress -P /usr/share/nginx https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${selectInstallNginxBlogType}.zip >/dev/null
+			wget -c -P --show-progress -P /usr/share/nginx "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${selectInstallNginxBlogType}.zip" >/dev/null
 		fi
 
 		unzip -o "/usr/share/nginx/html${selectInstallNginxBlogType}.zip" -d /usr/share/nginx/html >/dev/null
 		rm -f "/usr/share/nginx/html${selectInstallNginxBlogType}.zip*"
-		echoContent green " ---> 更换伪装博客成功"
+		echoContent green " ---> 更换伪站成功"
 	else
 		echoContent red " ---> 选择错误，请重新选择"
 		updateNginxBlog
