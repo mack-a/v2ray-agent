@@ -581,7 +581,7 @@ installTLS() {
 		else
 			echoContent green " ---> 证书有效"
 
-			if ls /etc/v2ray-agent/tls/ | grep -q "${tlsDomain}.crt" || ls /etc/v2ray-agent/tls/ | grep -q "${tlsDomain}.key"; then
+			if ! ls /etc/v2ray-agent/tls/ | grep -q "${tlsDomain}.crt" || ! ls /etc/v2ray-agent/tls/ | grep -q "${tlsDomain}.key"; then
 				sudo "$HOME/.acme.sh/acme.sh" --installcert -d "${tlsDomain}" --fullchainpath "/etc/v2ray-agent/tls/${tlsDomain}.crt" --keypath "/etc/v2ray-agent/tls/${tlsDomain}.key" --ecc >/dev/null
 			else
 				echoContent yellow " ---> 如未过期请选择[n]\n"
