@@ -2724,7 +2724,6 @@ customV2RayInstall() {
 	if [[ -z ${selectCustomInstallType} ]]; then
 		selectCustomInstallType=0
 	fi
-	echoContent red selectCustomInstallType:${selectCustomInstallType}
 	if [[ "${selectCustomInstallType}" =~ ^[0-4]+$ ]]; then
 		cleanUp xrayClean
 		totalProgress=17
@@ -2735,7 +2734,7 @@ customV2RayInstall() {
 		handleNginx stop
 		initNginxConfig 4
 		# 随机path
-		if ${selectCustomInstallType} | grep -q 1 || echo ${selectCustomInstallType} | grep -q 3 || echo ${selectCustomInstallType} | grep -q 4; then
+		if echo ${selectCustomInstallType} | grep -q 1 || echo ${selectCustomInstallType} | grep -q 3 || echo ${selectCustomInstallType} | grep -q 4; then
 			randomPathFunction 5
 			customCDNIP 6
 		fi
