@@ -334,33 +334,34 @@ installTools() {
 	if [[ "${release}" == "centos" ]]; then
 		rm -rf /var/run/yum.pid
 	fi
+	#	[[ -z `find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin |grep -v grep|grep -w curl` ]]
 
-	if ! find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin | grep -q wget; then
+	if ! find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin | grep -q -w wget; then
 		echoContent green " ---> 安装wget"
 		${installType} wget >/dev/null 2>&1
 	fi
 
-	if ! find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin | grep -q curl; then
+	if ! find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin | grep -q -w curl; then
 		echoContent green " ---> 安装curl"
 		${installType} curl >/dev/null 2>&1
 	fi
 
-	if ! find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin | grep -q unzip; then
+	if ! find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin | grep -q -w unzip; then
 		echoContent green " ---> 安装unzip"
 		${installType} unzip >/dev/null 2>&1
 	fi
 
-	if ! find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin | grep -q socat; then
+	if ! find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin | grep -q -w socat; then
 		echoContent green " ---> 安装socat"
 		${installType} socat >/dev/null 2>&1
 	fi
 
-	if ! find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin | grep -q tar; then
+	if ! find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin | grep -q -w tar; then
 		echoContent green " ---> 安装tar"
 		${installType} tar >/dev/null 2>&1
 	fi
 
-	if ! find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin | grep -q cron; then
+	if ! find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin | grep -q -w cron; then
 		echoContent green " ---> 安装crontabs"
 		if [[ "${release}" == "ubuntu" ]] || [[ "${release}" == "debian" ]]; then
 			${installType} cron >/dev/null 2>&1
@@ -368,22 +369,22 @@ installTools() {
 			${installType} crontabs >/dev/null 2>&1
 		fi
 	fi
-	if ! find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin | grep -q jq; then
+	if ! find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin | grep -q -w jq; then
 		echoContent green " ---> 安装jq"
 		${installType} jq >/dev/null 2>&1
 	fi
 
-	if ! find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin | grep -q binutils; then
+	if ! find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin | grep -q -w binutils; then
 		echoContent green " ---> 安装binutils"
 		${installType} binutils >/dev/null 2>&1
 	fi
 
-	if ! find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin | grep -q ping6; then
+	if ! find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin | grep -q -w ping6; then
 		echoContent green " ---> 安装ping6"
 		${installType} inetutils-ping >/dev/null 2>&1
 	fi
 
-	if ! find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin | grep -q nginx; then
+	if ! find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin | grep -q -w nginx; then
 		echoContent green " ---> 安装nginx"
 		if [[ "${centosVersion}" == "8" ]]; then
 			rpm -ivh ${nginxEpel} >/etc/v2ray-agent/error.log 2>&1
@@ -397,7 +398,7 @@ installTools() {
 		fi
 	fi
 
-	if ! find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin | grep -q semanage; then
+	if ! find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin | grep -q -w semanage; then
 		echoContent green " ---> 安装semanage"
 		${installType} bash-completion >/dev/null 2>&1
 		if [[ -n "${policyCoreUtils}" ]]; then
@@ -409,7 +410,7 @@ installTools() {
 		fi
 	fi
 
-	if ! find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin | grep -q sudo; then
+	if ! find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin | grep -q -w sudo; then
 		echoContent green " ---> 安装sudo"
 		${installType} sudo >/dev/null 2>&1
 	fi
