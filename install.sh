@@ -324,7 +324,7 @@ installTools() {
 		dpkg --configure -a
 	fi
 
-	if pgrep -f apt; then
+	if [[ -n $(pgrep -f "apt") ]]; then
 		pgrep -f apt | xargs kill -9
 	fi
 
@@ -787,11 +787,6 @@ checkTLStatus() {
 installV2Ray() {
 	readInstallType
 	echoContent skyBlue "\n进度  $1/${totalProgress} : 安装V2Ray"
-	# 首先要卸载掉其余途径安装的V2Ray
-	if [[ -n $(ps -ef | grep -v grep | grep v2ray) ]] && [[ -z $(ps -ef | grep -v grep | grep v2ray | grep v2ray-agent) ]]; then
-		ps -ef | grep -v grep | grep v2ray | awk '{print $8}' | xargs rm -f
-		ps -ef | grep -v grep | grep v2ray | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1
-	fi
 
 	if [[ "${coreInstallType}" != "2" && "${coreInstallType}" != "3" ]]; then
 		if [[ "${selectCoreType}" == "2" ]]; then
@@ -837,9 +832,9 @@ installXray() {
 
 		echoContent green " ---> Xray-core版本:${version}"
 		if wget --help | grep -q show-progress; then
-			wget -c -q --show-progress -P /etc/v2ray-agent/xray/ https://github.com/XTLS/Xray-core/releases/download/${version}/Xray-linux-64.zip
+			wget -c -q --show-progress -P "/etc/v2ray-agent/xray/ https://github.com/XTLS/Xray-core/releases/download/${version}/Xray-linux-64.zip"
 		else
-			wget -c -P /etc/v2ray-agent/xray/ https://github.com/XTLS/Xray-core/releases/download/${version}/Xray-linux-64.zip >/dev/null 2>&1
+			wget -c -P /etc/v2ray-agent/xray/ "https://github.com/XTLS/Xray-core/releases/download/${version}/Xray-linux-64.zip" >/dev/null 2>&1
 		fi
 
 		unzip -o /etc/v2ray-agent/xray/Xray-linux-64.zip -d /etc/v2ray-agent/xray >/dev/null
@@ -858,13 +853,14 @@ installXray() {
 # 安装Trojan-go
 installTrojanGo() {
 	echoContent skyBlue "\n进度  $1/${totalProgress} : 安装Trojan-Go"
-	if ! find /etc/v2ray-agent/trojan/ | grep -q trojan-go; then
+
+	if ! ls /etc/v2ray-agent/trojan/ | grep -q trojan-go; then
 		version=$(curl -s https://github.com/p4gefau1t/trojan-go/releases | grep /trojan-go/releases/tag/ | head -1 | awk -F "[/]" '{print $6}' | awk -F "[>]" '{print $2}' | awk -F "[<]" '{print $1}')
 		echoContent green " ---> Trojan-Go版本:${version}"
 		if wget --help | grep -q show-progress; then
-			wget -c -q --show-progress -P /etc/v2ray-agent/trojan/ https://github.com/p4gefau1t/trojan-go/releases/download/${version}/trojan-go-linux-amd64.zip
+			wget -c -q --show-progress -P /etc/v2ray-agent/trojan/ "https://github.com/p4gefau1t/trojan-go/releases/download/${version}/trojan-go-linux-amd64.zip"
 		else
-			wget -c -P /etc/v2ray-agent/trojan/ https://github.com/p4gefau1t/trojan-go/releases/download/${version}/trojan-go-linux-amd64.zip >/dev/null 2>&1
+			wget -c -P /etc/v2ray-agent/trojan/ "https://github.com/p4gefau1t/trojan-go/releases/download/${version}/trojan-go-linux-amd64.zip" >/dev/null 2>&1
 		fi
 		unzip -o /etc/v2ray-agent/trojan/trojan-go-linux-amd64.zip -d /etc/v2ray-agent/trojan >/dev/null
 		rm -rf /etc/v2ray-agent/trojan/trojan-go-linux-amd64.zip
@@ -874,7 +870,7 @@ installTrojanGo() {
 		read -r -p "是否重新安装？[y/n]:" reInstallTrojanStatus
 		if [[ "${reInstallTrojanStatus}" == "y" ]]; then
 			rm -rf /etc/v2ray-agent/trojan/trojan-go*
-			installTrojanGo $1
+			installTrojanGo "$1"
 		fi
 	fi
 }
@@ -1246,16 +1242,16 @@ EOF
 handleV2Ray() {
 	# shellcheck disable=SC2010
 	if find /bin /usr/bin | grep -q systemctl && ls /etc/systemd/system/ | grep -q v2ray.service; then
-		if [[ -z "$(pgrep -f v2ray/v2ray)" ]] && [[ "$1" == "start" ]]; then
+		if [[ -z $(pgrep -f "v2ray/v2ray") ]] && [[ "$1" == "start" ]]; then
 			systemctl start v2ray.service
-		elif [[ -z "$(pgrep -f v2ray/v2ray)" ]] && [[ "$1" == "stop" ]]; then
+		elif [[ -n $(pgrep -f "v2ray/v2ray") ]] && [[ "$1" == "stop" ]]; then
 			systemctl stop v2ray.service
 		fi
 	fi
 	sleep 0.5
 
 	if [[ "$1" == "start" ]]; then
-		if pgrep -f "v2ray/v2ray"; then
+		if [[ -n $(pgrep -f "v2ray/v2ray") ]]; then
 			echoContent green " ---> V2Ray启动成功"
 		else
 			echoContent red "V2Ray启动失败"
@@ -1263,7 +1259,7 @@ handleV2Ray() {
 			exit 0
 		fi
 	elif [[ "$1" == "stop" ]]; then
-		if ! pgrep -f "v2ray/v2ray"; then
+		if [[ -z $(pgrep -f "v2ray/v2ray") ]]; then
 			echoContent green " ---> V2Ray关闭成功"
 		else
 			echoContent red "V2Ray关闭失败"
@@ -1275,9 +1271,9 @@ handleV2Ray() {
 # 操作xray
 handleXray() {
 	if [[ -n $(find /bin /usr/bin -name "systemctl") ]] && ls /etc/systemd/system/ | grep -q xray.service; then
-		if ps -ef | !grep -q "xray/xray" && [[ "$1" == "start" ]]; then
+		if [[ -z $(pgrep -f "xray/xray") ]] && [[ "$1" == "start" ]]; then
 			systemctl start xray.service
-		elif ps -ef | grep -q "xray/xray" && [[ "$1" == "stop" ]]; then
+		elif [[ -n $(pgrep -f "xray/xray") ]] && [[ "$1" == "stop" ]]; then
 			systemctl stop xray.service
 		fi
 	fi
@@ -1285,7 +1281,7 @@ handleXray() {
 	sleep 0.5
 
 	if [[ "$1" == "start" ]]; then
-		if pgrep -f "xray/xray"; then
+		if [[ -n $(pgrep -f "xray/xray") ]]; then
 			echoContent green " ---> Xray启动成功"
 		else
 			echoContent red "xray启动失败"
@@ -1293,7 +1289,7 @@ handleXray() {
 			exit 0
 		fi
 	elif [[ "$1" == "stop" ]]; then
-		if ! pgrep -f "xray/xray"; then
+		if [[ -z $(pgrep -f "xray/xray") ]]; then
 			echoContent green " ---> Xray关闭成功"
 		else
 			echoContent red "xray关闭失败"
@@ -1306,16 +1302,16 @@ handleXray() {
 # 操作Trojan-Go
 handleTrojanGo() {
 	if [[ -n $(find /bin /usr/bin -name "systemctl") ]] && ls /etc/systemd/system/ | grep -q trojan-go.service; then
-		if ps -ef | !grep -q trojan-go && [[ "$1" == "start" ]]; then
+		if [[ -z $(pgrep -f "trojan-go") ]] && [[ "$1" == "start" ]]; then
 			systemctl start trojan-go.service
-		elif ps -ef | grep -q trojan-go && [[ "$1" == "stop" ]]; then
+		elif [[ -n $(pgrep -f "trojan-go") ]] && [[ "$1" == "stop" ]]; then
 			systemctl stop trojan-go.service
 		fi
 	fi
 
 	sleep 0.5
 	if [[ "$1" == "start" ]]; then
-		if ps -ef | grep -q trojan-go; then
+		if [[ -n $(pgrep -f "trojan-go") ]]; then
 			echoContent green " ---> Trojan-Go启动成功"
 		else
 			echoContent red "Trojan-Go启动失败"
@@ -1323,7 +1319,7 @@ handleTrojanGo() {
 			exit 0
 		fi
 	elif [[ "$1" == "stop" ]]; then
-		if ps -ef | !grep -q trojan-go; then
+		if [[ -z $(pgrep -f "trojan-go") ]]; then
 			echoContent green " ---> Trojan-Go关闭成功"
 		else
 			echoContent red "Trojan-Go关闭失败"
@@ -2002,8 +1998,10 @@ defaultBase64Code() {
 		fi
 
 	elif [[ "${type}" == "vmessws" ]]; then
+
 		qrCodeBase64Default=$(echo -n '{"port":"'${port}'","ps":'${ps}',"tls":"tls","id":'"${id}"',"aid":"1","v":"2","host":"'${host}'","type":"none","path":"/'${path}'","net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}' | sed 's#/#\\\/#g' | base64)
 		qrCodeBase64Default=$(echo ${qrCodeBase64Default} | sed 's/ //g')
+
 		echoContent yellow " ---> 通用json(VMess+WS+TLS)"
 		echoContent green '    {"port":"'${port}'","ps":'${ps}',"tls":"tls","id":'"${id}"',"aid":"1","v":"2","host":"'${host}'","type":"none","path":"/'${path}'","net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}\n'
 		echoContent yellow " ---> 通用vmess(VMess+WS+TLS)链接"
@@ -2012,8 +2010,10 @@ defaultBase64Code() {
 		echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vmess://${qrCodeBase64Default}\n"
 
 	elif [[ "${type}" == "vmesstcp" ]]; then
+
 		qrCodeBase64Default=$(echo -n '{"port":"'${port}'","ps":'${ps}',"tls":"tls","id":'"${id}"',"aid":"1","v":"2","host":"'${host}'","type":"http","path":"/'${path}'","net":"tcp","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'","obfs":"http","obfsParam":"'${host}'"}' | sed 's#/#\\\/#g' | base64)
-		qrCodeBase64Default=$(echo "${qrCodeBase64Default}" | sed 's/ //g')
+		qrCodeBase64Default=$(echo ${qrCodeBase64Default} | sed 's/ //g')
+
 		echoContent yellow " ---> 通用json(VMess+TCP+TLS)"
 		echoContent green '    {"port":"'${port}'","ps":'${ps}',"tls":"tls","id":'"${id}"',"aid":"1","v":"2","host":"'${host}'","type":"http","path":"/'${path}'","net":"tcp","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'","obfs":"http","obfsParam":"'${host}'"}\n'
 		echoContent yellow " ---> 通用vmess(VMess+TCP+TLS)链接"
@@ -2065,7 +2065,7 @@ showAccounts() {
 		echoContent skyBlue "\n===================== VLESS TCP TLS/XTLS-direct/XTLS-splice ======================\n"
 
 		# cat ${configPath}02_VLESS_TCP_inbounds.json | jq .inbounds[0].settings.clients | jq -c '.[]'
-		jq .inbounds[0].settings.clients[] ${configPath}02_VLESS_TCP_inbounds.json | while read -r user; do
+		jq .inbounds[0].settings.clients ${configPath}02_VLESS_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
 			defaultBase64Code vlesstcp $(echo "${user}" | jq .email) $(echo "${user}" | jq .id) "${currentHost}:${currentPort}" ${currentHost}
 		done
 	fi
@@ -2075,7 +2075,7 @@ showAccounts() {
 		echoContent skyBlue "\n================================ VLESS WS TLS CDN ================================\n"
 
 		# cat ${configPath}03_VLESS_WS_inbounds.json | jq .inbounds[0].settings.clients | jq -c '.[]'
-		jq .inbounds[0].settings.clients[] ${configPath}03_VLESS_WS_inbounds.json | while read -r user; do
+		jq .inbounds[0].settings.clients ${configPath}03_VLESS_WS_inbounds.json | jq -c '.[]' | while read -r user; do
 			defaultBase64Code vlessws $(echo "${user}" | jq .email) $(echo "${user}" | jq .id) "${currentHost}:${currentPort}" "${currentPath}ws" ${currentAdd}
 		done
 	fi
@@ -2085,7 +2085,7 @@ showAccounts() {
 		echoContent skyBlue "\n================================= VMess TCP TLS  =================================\n"
 
 		# cat ${configPath}04_VMess_TCP_inbounds.json | jq .inbounds[0].settings.clients | jq -c '.[]'
-		jq .inbounds[0].settings.clients[] | while read -r user; do
+		jq .inbounds[0].settings.clients ${configPath}04_VMess_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
 			defaultBase64Code vmesstcp $(echo "${user}" | jq .email) $(echo "${user}" | jq .id) "${currentHost}:${currentPort}" "${currentPath}tcp" "${currentHost}"
 		done
 	fi
@@ -2095,7 +2095,7 @@ showAccounts() {
 		echoContent skyBlue "\n================================ VMess WS TLS CDN ================================\n"
 
 		# cat ${configPath}05_VMess_WS_inbounds.json | jq .inbounds[0].settings.clients | jq -c '.[]'
-		jq .inbounds[0].settings.clients[] ${configPath}05_VMess_WS_inbounds.json | while read -r user; do
+		jq .inbounds[0].settings.clients ${configPath}05_VMess_WS_inbounds.json | jq -c '.[]' | while read -r user; do
 			defaultBase64Code vmessws $(echo "${user}" | jq .email) $(echo "${user}" | jq .id) "${currentHost}:${currentPort}" "${currentPath}vws" ${currentAdd}
 		done
 	fi
@@ -2171,7 +2171,7 @@ unInstall() {
 	fi
 
 	handleNginx stop
-	if ps -ef | !grep -q nginx; then
+	if [[ -z $(pgrep -f "nginx") ]]; then
 		echoContent green " ---> 停止Nginx成功"
 	fi
 
