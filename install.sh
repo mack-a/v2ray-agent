@@ -1136,13 +1136,17 @@ updateTrojanGo() {
 
 # 验证整个服务是否可用
 checkGFWStatue() {
+	readInstallType
 	echoContent skyBlue "\n进度 $1/${totalProgress} : 验证服务启动状态"
-	if ps -ef | grep -q v2ray; then
+	if [[ "${coreInstallType}" == "1" ]] && [[ -n $(pgrep -f xray/xray) ]]; then
+		echoContent green " ---> 服务启动成功"
+	elif [[ "${coreInstallType}" == "2" || "${coreInstallType}" == "3" ]] && [[ -n $(pgrep -f v2ray/v2ray) ]]; then
 		echoContent green " ---> 服务启动成功"
 	else
 		echoContent red " ---> 服务启动失败，请检查终端是否有日志打印"
 		exit 0
 	fi
+
 }
 
 # V2Ray开机自启
@@ -1823,7 +1827,7 @@ EOF
 	fi
 
 	# VMess_WS
-	if [[ -n $(echo ${selectCustomInstallType} | grep 3) || "$1" == "all" ]]; then
+	if echo "${selectCustomInstallType}" | grep -q 3 || [[ "$1" == "all" ]]; then
 		fallbacksList=${fallbacksList}',{"path":"/'${customPath}'vws","dest":31299,"xver":1}'
 		cat <<EOF >/etc/v2ray-agent/xray/conf/05_VMess_WS_inbounds.json
 {
@@ -2110,8 +2114,10 @@ showAccounts() {
 	if [[ -d "/etc/v2ray-agent/" ]] && [[ -d "/etc/v2ray-agent/trojan/" ]] && [[ -f "/etc/v2ray-agent/trojan/config_full.json" ]]; then
 		show=1
 		# local trojanUUID=`cat /etc/v2ray-agent/trojan/config_full.json |jq .password[0]|awk -F '["]' '{print $2}'`
-		local trojanGoPath=$(jq .websocket.path /etc/v2ray-agent/trojan/config_full.json | awk -F '["]' '{print $2}')
-		local trojanGoAdd=$(jq .websocket.add /etc/v2ray-agent/trojan/config_full.json | awk -F '["]' '{print $2}')
+		local trojanGoPath
+		trojanGoPath=$(jq .websocket.path /etc/v2ray-agent/trojan/config_full.json | awk -F '["]' '{print $2}')
+		local trojanGoAdd
+		trojanGoAdd=$(jq .websocket.add /etc/v2ray-agent/trojan/config_full.json | awk -F '["]' '{print $2}')
 		echoContent skyBlue "\n==================================  Trojan TLS  ==================================\n"
 		# cat /etc/v2ray-agent/trojan/config_full.json | jq .password
 		jq .password /etc/v2ray-agent/trojan/config_full.json | while read -r user; do
@@ -2397,7 +2403,8 @@ addUser() {
 	if [[ -n $(echo ${currentInstallProtocolType} | grep 0) ]]; then
 		#  | sed 's/"alterId":1,//g')
 		local vlessUsers="${users/"alterId":1,//}"
-		local vlessTcpResult=$(jq -r '.inbounds[0].settings.clients += ['${vlessUsers}']' ${configPath}02_VLESS_TCP_inbounds.json)
+		local vlessTcpResult
+		vlessTcpResult=$(jq -r '.inbounds[0].settings.clients += ['${vlessUsers}']' ${configPath}02_VLESS_TCP_inbounds.json)
 		echo "${vlessTcpResult}" | jq . >${configPath}02_VLESS_TCP_inbounds.json
 	fi
 
@@ -2405,17 +2412,20 @@ addUser() {
 
 	if echo ${currentInstallProtocolType} | grep -q 1; then
 		local vlessUsers="${users//"alterId":1,/}"
-		local vlessWsResult=$(jq -r '.inbounds[0].settings.clients += ['${vlessUsers}']' ${configPath}03_VLESS_WS_inbounds.json)
+		local vlessWsResult
+		vlessWsResult=$(jq -r '.inbounds[0].settings.clients += ['${vlessUsers}']' ${configPath}03_VLESS_WS_inbounds.json)
 		echo "${vlessWsResult}" | jq . >${configPath}03_VLESS_WS_inbounds.json
 	fi
 
 	if echo ${currentInstallProtocolType} | grep -q 2; then
-		local vmessTcpResult=$(jq -r '.inbounds[0].settings.clients += ['${users}']' ${configPath}04_VMess_TCP_inbounds.json)
+		local vmessTcpResult
+		vmessTcpResult=$(jq -r '.inbounds[0].settings.clients += ['${users}']' ${configPath}04_VMess_TCP_inbounds.json)
 		echo "${vmessTcpResult}" | jq . >${configPath}04_VMess_TCP_inbounds.json
 	fi
 
 	if echo ${currentInstallProtocolType} | grep -q 3; then
-		local vmessWsResult=$(jq -r '.inbounds[0].settings.clients += ['${users}']' ${configPath}05_VMess_WS_inbounds.json)
+		local vmessWsResult
+		vmessWsResult=$(jq -r '.inbounds[0].settings.clients += ['${users}']' ${configPath}05_VMess_WS_inbounds.json)
 		echo "${vmessWsResult}" | jq . >${configPath}05_VMess_WS_inbounds.json
 	fi
 
@@ -2798,7 +2808,7 @@ customXrayInstall() {
 		handleNginx stop
 		initNginxConfig 4
 		# 随机path
-		if echo ${selectCustomInstallType} | grep -q 1 || echo ${selectCustomInstallType} | grep -q 3 || echo ${selectCustomInstallType} | grep -q 4; then
+		if echo "${selectCustomInstallType}" | grep -q 1 || echo "${selectCustomInstallType}" | grep -q 3 || echo "${selectCustomInstallType}" | grep -q 4; then
 			randomPathFunction 5
 			customCDNIP 6
 		fi
