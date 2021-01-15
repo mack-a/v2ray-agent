@@ -31,7 +31,7 @@ checkSystem() {
 	fi
 
 	if [[ -z ${release} ]]; then
-		echoContent red "本脚本不支持此系统，请将下方日志反馈给开发者"
+		echo "本脚本不支持此系统，请将下方日志反馈给开发者"
 		cat /etc/issue
 		cat /proc/version
 		exit 0
