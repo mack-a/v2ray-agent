@@ -33,7 +33,7 @@
 - 支持[Xray-core[XTLS]](https://github.com/XTLS/Xray-core)、v2ray-core [XTLS]、v2ray-core
 - 支持不同核心之间的配置文件互相读取。
 - 支持 VLESS/VMess/trojan/trojan-go-->ws的协议
-- 支持Debian、Ubuntu、Centos，支持主流的cpu架构。**不建议使用Centos以及低版本的系统**
+- 支持Debian、Ubuntu、Centos，支持主流的cpu架构。**不建议使用Centos以及低版本的系统，2.3.x后不再支持Centos6**
 - 支持个性化安装。
 - 不需要卸载就可以重装任何组合。卸载脚本时，是完全卸载无残留。
 - 支持纯ipv6，ipv6[注意事项](https://github.com/mack-a/v2ray-agent/blob/master/documents/ipv6_help.md)
@@ -97,16 +97,19 @@
 ## 安装脚本
 
 - Latest release
+
 ```
 wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh" && chmod 700 /root/install.sh && /root/install.sh
 ```
 
 - v2.2.24
+
 ```
 wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/9ae23c13a56460d8c14f27c8eb65efc73b173f46/install.sh" && chmod 700 /root/install.sh && /root/install.sh
 ```
 
 - v2.1.27
+
 ```
 wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/3f8ea0aa364ae2e1e407056074c11b448396261f/install.sh" && chmod 700 /root/install.sh && /root/install.sh
 ```
