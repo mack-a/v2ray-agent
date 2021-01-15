@@ -479,6 +479,7 @@ initTLSNginxConfig() {
 		checkIP
 		# 测试nginx
 		echoContent yellow "\n检查Nginx是否正常访问"
+		sleep 0.5
 		domainResult=$(curl -s "${domain}/test" | grep fjkvymb6len)
 		if [[ -n ${domainResult} ]]; then
 			handleNginx stop
