@@ -3,7 +3,7 @@
 # -------------------------------------------------------------
 # 检查系统
 checkSystem() {
-	if [[ -n $(find /etc -name "redhat-release") ]] || grep </proc/version -q "centos"; then
+	if [[ -n $(find /etc -name "redhat-release") ]] || grep </proc/version -q -i "centos"; then
 		centosVersion=$(rpm -q centos-release | awk -F "[-]" '{print $3}' | awk -F "[.]" '{print $1}')
 
 		if [[ -z "${centosVersion}" ]] && grep </etc/centos-release "release 8"; then
@@ -14,7 +14,7 @@ checkSystem() {
 		# removeType='yum -y remove'
 		upgrade="yum update -y --skip-broken"
 
-	elif grep </etc/issue -q "debian" && [[ -f "/etc/issue" ]] || grep </etc/issue -q "debian" && [[ -f "/proc/version" ]]; then
+	elif grep </etc/issue -q -i "debian" && [[ -f "/etc/issue" ]] || grep </etc/issue -q -i "debian" && [[ -f "/proc/version" ]]; then
 		if grep </etc/issue -i "8"; then
 			debianVersion=8
 		fi
@@ -23,7 +23,7 @@ checkSystem() {
 		upgrade="apt update -y"
 		# removeType='apt -y autoremove'
 
-	elif grep </etc/issue -q "ubuntu" && [[ -f "/etc/issue" ]] || grep </etc/issue -q "ubuntu" && [[ -f "/proc/version" ]]; then
+	elif grep </etc/issue -q -i "ubuntu" && [[ -f "/etc/issue" ]] || grep </etc/issue -q -i "ubuntu" && [[ -f "/proc/version" ]]; then
 		release="ubuntu"
 		installType='apt-get -y install'
 		upgrade="apt-get update -y"
