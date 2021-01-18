@@ -2992,6 +2992,26 @@ cronRenewTLS() {
 		exit 0
 	fi
 }
+# 账号管理
+manageAccount() {
+	echoContent skyBlue "\n功能 1/${totalProgress} : 账号管理"
+	echoContent red "\n=============================================================="
+	echoContent yellow "1.查看账号"
+	echoContent yellow "2.订阅管理"
+	echoContent red "=============================================================="
+	read -r -p "请输入:" manageAccountStatus
+	if [[ "${manageAccountStatus}" == "1" ]]; then
+		showAccounts 1
+	elif [[ "${manageAccountStatus}" == "2" ]]; then
+		subscribe 1
+	else
+		echoContent red " ---> 输入错误"
+	fi
+}
+# 订阅
+subscribe() {
+	echo
+}
 # 主菜单
 menu() {
 	cd "$HOME" || exit
@@ -3004,7 +3024,7 @@ menu() {
 	echoContent yellow "1.安装"
 	echoContent yellow "2.任意组合安装"
 	echoContent skyBlue "-------------------------工具管理-----------------------------"
-	echoContent yellow "3.查看账号"
+	echoContent yellow "3.账号管理"
 	echoContent yellow "4.更换伪装站"
 	echoContent yellow "5.更新证书"
 	echoContent yellow "6.更换CDN节点"
@@ -3030,7 +3050,7 @@ menu() {
 		selectCoreInstall
 		;;
 	3)
-		showAccounts 1
+		manageAccount 1
 		;;
 	4)
 		updateNginxBlog 1
