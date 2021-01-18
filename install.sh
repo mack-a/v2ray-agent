@@ -509,8 +509,11 @@ EOF
         listen 31300;
         server_name ${domain};
         root /usr/share/nginx/html;
+        location /s/ {
+        	alias /etc/v2ray-agent/s/;
+        }
         # location / {
-        #     add_header Strict-Transport-Security "max-age=63072000" always;
+        #   add_header Strict-Transport-Security "max-age=63072000" always;
         # }
 #       location ~ /.well-known {allow all;}
 #       location /test {return 200 'fjkvymb6len';}
@@ -522,6 +525,9 @@ EOF
             listen 31300;
             server_name ${domain};
             root /usr/share/nginx/html;
+            location /s/ {
+        		alias /etc/v2ray-agent/s/;
+        	}
             location / {
                 add_header Strict-Transport-Security "max-age=63072000" always;
             }
@@ -2990,7 +2996,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.3.1"
+	echoContent green "当前版本：v2.3.2"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本"
 	echoContent red "=============================================================="
