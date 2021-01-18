@@ -273,6 +273,7 @@ echoContent() {
 # 初始化安装目录
 mkdirTools() {
 	mkdir -p /etc/v2ray-agent/tls
+	mkdir -p /etc/v2ray-agent/subscribe
 	mkdir -p /etc/v2ray-agent/v2ray/conf
 	mkdir -p /etc/v2ray-agent/xray/conf
 	mkdir -p /etc/v2ray-agent/trojan
@@ -510,7 +511,7 @@ EOF
         server_name ${domain};
         root /usr/share/nginx/html;
         location /s/ {
-        	alias /etc/v2ray-agent/s/;
+        	alias /etc/v2ray-agent/subscribe/;
         }
         # location / {
         #   add_header Strict-Transport-Security "max-age=63072000" always;
@@ -526,7 +527,7 @@ EOF
             server_name ${domain};
             root /usr/share/nginx/html;
             location /s/ {
-        		alias /etc/v2ray-agent/s/;
+        		alias /etc/v2ray-agent/subscribe/;
         	}
             location / {
                 add_header Strict-Transport-Security "max-age=63072000" always;
