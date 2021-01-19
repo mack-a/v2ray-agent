@@ -2077,7 +2077,7 @@ EOF
 		echoContent green "    vless://${VLESSID}@${add}:${port}?encryption=none&security=tls&type=ws&host=${host}&path=%2f${path}#${VLESSEmail}\n"
 
 		echoContent yellow " ---> 格式化明文(VLESS+WS+TLS)"
-		echoContent green "    协议类型：VLESS，地址：${add}，伪装域名/SNI：${host}，端口：${port}，用户ID：${VLESSID}，安全：tls，传输方式：ws，地址:/${path}，账户名:${VLESSEmail}\n"
+		echoContent green "    协议类型：VLESS，地址：${add}，伪装域名/SNI：${host}，端口：${port}，用户ID：${VLESSID}，安全：tls，传输方式：ws，路径:/${path}，账户名:${VLESSEmail}\n"
 
 		cat <<EOF >>/etc/v2ray-agent/subscribe/${subAccount}
 vless://${VLESSID}@${add}:${port}?encryption=none&security=tls&type=ws&host=${host}&path=%2f${path}#${VLESSEmail}
