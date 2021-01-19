@@ -499,6 +499,7 @@ EOF
         server_name ${domain};
         root /usr/share/nginx/html;
         location /s/ {
+        	add_header Content-Type text/plain;
         	alias /etc/v2ray-agent/subscribe/;
         }
         # location / {
@@ -515,6 +516,7 @@ EOF
             server_name ${domain};
             root /usr/share/nginx/html;
             location /s/ {
+            	add_header Content-Type text/plain;
         		alias /etc/v2ray-agent/subscribe/;
         	}
             location / {
