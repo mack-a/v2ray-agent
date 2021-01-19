@@ -2000,6 +2000,9 @@ defaultBase64Code() {
 			echoContent yellow " ---> 通用格式(VLESS+TCP+TLS/xtls-rprx-direct)"
 			echoContent green "    vless://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&flow=xtls-rprx-direct#${VLESSEmail}\n"
 
+			echoContent yellow " ---> 格式化明文(VLESS+TCP+TLS/xtls-rprx-direct)"
+			echoContent green "协议类型：VLESS，地址：${host}，端口：${port}，用户ID：${VLESSID}，安全：xtls，传输方式：tcp，flow：xtls-rprx-direct，账户名:${VLESSEmail}\n"
+
 			cat <<EOF >>"/etc/v2ray-agent/subscribe/${subAccount}"
 vless://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&flow=xtls-rprx-direct#${VLESSEmail}
 EOF
@@ -2008,6 +2011,9 @@ EOF
 
 			echoContent yellow " ---> 通用格式(VLESS+TCP+TLS/xtls-rprx-splice)"
 			echoContent green "    vless://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&flow=xtls-rprx-splice#${VLESSEmail}\n"
+
+			echoContent yellow " ---> 格式化明文(VLESS+TCP+TLS/xtls-rprx-splice)"
+			echoContent green "    协议类型：VLESS，地址：${host}，端口：${port}，用户ID：${VLESSID}，安全：xtls，传输方式：tcp，flow：xtls-rprx-splice，账户名:${VLESSEmail}\n"
 
 			cat <<EOF >>/etc/v2ray-agent/subscribe/${subAccount}
 vless://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&flow=xtls-rprx-splice#${VLESSEmail}
@@ -2018,6 +2024,9 @@ EOF
 		elif [[ "${coreInstallType}" == "2" || "${coreInstallType}" == "3" ]]; then
 			echoContent yellow " ---> 通用格式(VLESS+TCP+TLS)"
 			echoContent green "    vless://${VLESSID}@${host}:${port}?security=tls&encryption=none&host=${host}&headerType=none&type=tcp#${VLESSEmail}\n"
+
+			echoContent yellow " ---> 格式化明文(VLESS+TCP+TLS/xtls-rprx-splice)"
+			echoContent green "    协议类型：VLESS，地址：${host}，端口：${port}，用户ID：${VLESSID}，安全：tls，传输方式：tcp，账户名:${VLESSEmail}\n"
 
 			cat <<EOF >>/etc/v2ray-agent/subscribe/${subAccount}
 vless://${VLESSID}@${host}:${port}?security=tls&encryption=none&host=${host}&headerType=none&type=tcp#${VLESSEmail}
@@ -2066,6 +2075,9 @@ EOF
 
 		echoContent yellow " ---> 通用格式(VLESS+WS+TLS)"
 		echoContent green "    vless://${VLESSID}@${add}:${port}?encryption=none&security=tls&type=ws&host=${host}&path=%2f${path}#${VLESSEmail}\n"
+
+		echoContent yellow " ---> 格式化明文(VLESS+WS+TLS)"
+		echoContent green "    协议类型：VLESS，地址：${add}，伪装域名/SNI：${host}，端口：${port}，用户ID：${VLESSID}，安全：tls，传输方式：ws，地址:/${path}，账户名:${VLESSEmail}\n"
 
 		cat <<EOF >>/etc/v2ray-agent/subscribe/${subAccount}
 vless://${VLESSID}@${add}:${port}?encryption=none&security=tls&type=ws&host=${host}&path=%2f${path}#${VLESSEmail}
