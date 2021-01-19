@@ -422,23 +422,11 @@ installTools() {
 	if [[ ! -d "$HOME/.acme.sh" ]] || [[ -d "$HOME/.acme.sh" && -z $(find "$HOME/.acme.sh/acme.sh") ]]; then
 		echoContent green " ---> 安装acme.sh"
 		curl -s https://get.acme.sh | sh >/etc/v2ray-agent/tls/acme.log
-		if [[ -d "$HOME/.acme.sh" ]] && [[ -z $(find "$HOME/.acme.sh/acme.sh") ]]; then
+		if [[ ! -d "$HOME/.acme.sh" ]] || [[ -z $(find "$HOME/.acme.sh/acme.sh") ]]; then
 			echoContent red "  acme安装失败--->"
 			echoContent yellow "错误排查："
 			echoContent red "  1.获取Github文件失败，请等待Gitub恢复后尝试，恢复进度可查看 [https://www.githubstatus.com/]"
 			echoContent red "  2.acme.sh脚本出现bug，可查看[https://github.com/acmesh-official/acme.sh] issues"
-			exit 0
-		fi
-	fi
-	if [[ -d "$HOME/.acme.sh" ]] && [[ -z $(find $HOME/.acme.sh/ -name "acme.sh") ]]; then
-		echoContent green " ---> 安装acme.sh"
-		curl -s https://get.acme.sh | sh >/etc/v2ray-agent/tls/acme.log
-		if [[ -d "$HOME/.acme.sh" ]] && [[ -z $(find "$HOME/.acme.sh/acme.sh") ]]; then
-			echoContent red "  acme安装失败--->"
-			echoContent yellow "错误排查："
-			echoContent red "  1.获取Github文件失败，请等待GitHub恢复后尝试，恢复进度可查看 [https://www.githubstatus.com/]"
-			echoContent red "  2.acme.sh脚本出现bug，可查看[https://github.com/acmesh-official/acme.sh] issues"
-			echoContent red "  3.反馈给开发者[私聊：https://t.me/mack_a] 或 [提issues]"
 			exit 0
 		fi
 	fi
