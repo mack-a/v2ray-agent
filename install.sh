@@ -387,6 +387,11 @@ installTools() {
 		${installType} inetutils-ping >/dev/null 2>&1
 	fi
 
+	if ! find /usr/bin /usr/sbin | grep -q -w qrencode; then
+		echoContent green " ---> 安装qrencode"
+		${installType} qrencode >/dev/null 2>&1
+	fi
+
 	if ! find /usr/bin /usr/sbin | grep -q -w nginx; then
 		echoContent green " ---> 安装nginx"
 		if [[ "${centosVersion}" == "8" ]]; then
@@ -1646,6 +1651,8 @@ initXrayConfig() {
 		read -r -p "读取到上次安装记录，是否使用上次安装时的UUID ？[y/n]:" historyUUIDStatus
 		if [[ "${historyUUIDStatus}" == "y" ]]; then
 			uuid=${currentUUID}
+		else
+			uuid=$(/etc/v2ray-agent/xray/xray uuid)
 		fi
 	else
 		uuid=$(/etc/v2ray-agent/xray/xray uuid)
@@ -3054,10 +3061,10 @@ subscribe() {
 			ls /etc/v2ray-agent/subscribe | while read -r email; do
 				local base64Result=$(base64 -w 0 /etc/v2ray-agent/subscribe/${email})
 				echo ${base64Result} >"/etc/v2ray-agent/subscribe/${email}"
-				echoContent skyBlue "-------------------------备注----------------------------------"
 				echoContent skyBlue "--------------------------------------------------------------"
 				echoContent yellow "email：$(echo "${email}" | awk -F "[_]" '{print $1}')"
 				echoContent yellow "url：https://${currentHost}/s/${email}"
+				echo "https://${currentHost}/s/${email}" | qrencode -s 10 -m 1 -t UTF8
 				echoContent skyBlue "--------------------------------------------------------------"
 			done
 		fi
