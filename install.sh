@@ -1350,10 +1350,13 @@ initV2RayConfig() {
 		read -r -p "读取到上次安装记录，是否使用上次安装时的UUID ？[y/n]:" historyUUIDStatus
 		if [[ "${historyUUIDStatus}" == "y" ]]; then
 			uuid=${currentUUID}
+		else
+			uuid=$(/etc/v2ray-agent/v2ray/v2ctl uuid)
 		fi
 	else
 		uuid=$(/etc/v2ray-agent/v2ray/v2ctl uuid)
 	fi
+
 	if [[ -z "${uuid}" ]]; then
 		echoContent red "\n ---> uuid读取错误，重新生成"
 		uuid=$(/etc/v2ray-agent/v2ray/v2ctl uuid)
@@ -1987,11 +1990,12 @@ defaultBase64Code() {
 
 	local path=$5
 	local add=$6
-	local subAccount=${currentHost}_${id}
-	echoContent red ${subAccount}
-	echo >"/etc/v2ray-agent/subscribe/${subAccount}"
+
+	local subAccount=${currentHost}_${id//\"/}
 
 	if [[ "${type}" == "vlesstcp" ]]; then
+		local VLESSID
+		VLESSID=${id//\"/}
 		local VLESSEmail
 		VLESSEmail=$(echo "${ps}" | awk -F "[\"]" '{print $2}')
 
@@ -1999,15 +2003,18 @@ defaultBase64Code() {
 			echoContent yellow " ---> 通用格式(VLESS+TCP+TLS/xtls-rprx-direct)"
 			echoContent green "    vless://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&flow=xtls-rprx-direct#${VLESSEmail}\n"
 
-			printf "vless://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&flow=xtls-rprx-direct#${VLESSEmail}" >>"/etc/v2ray-agent/subscribe/${subAccount}"
-
+			cat <<EOF >>"/etc/v2ray-agent/subscribe/${subAccount}"
+vless://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&flow=xtls-rprx-direct#${VLESSEmail}
+EOF
 			echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS/xtls-rprx-direct)"
 			echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${VLESSID}%40${host}%3A${port}%3F${encryption}%3Dnone%26security%3Dxtls%26type%3Dtcp%26${host}%3D${host}%26headerType%3Dnone%26flow%3Dxtls-rprx-direct%23${VLESSEmail}\n"
 
 			echoContent yellow " ---> 通用格式(VLESS+TCP+TLS/xtls-rprx-splice)"
 			echoContent green "    vless://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&flow=xtls-rprx-splice#${VLESSEmail}\n"
-			printf "vless://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&flow=xtls-rprx-splice#${VLESSEmail}" >>"/etc/v2ray-agent/subscribe/${subAccount}"
 
+			cat <<EOF >>/etc/v2ray-agent/subscribe/${subAccount}
+vless://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&flow=xtls-rprx-splice#${VLESSEmail}
+EOF
 			echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS/xtls-rprx-splice)"
 			echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${VLESSID}%40${host}%3A${port}%3F${encryption}%3Dnone%26security%3Dxtls%26type%3Dtcp%26${host}%3D${host}%26headerType%3Dnone%26flow%3Dxtls-rprx-splice%23${VLESSEmail}\n"
 
@@ -2015,8 +2022,9 @@ defaultBase64Code() {
 			echoContent yellow " ---> 通用格式(VLESS+TCP+TLS)"
 			echoContent green "    vless://${VLESSID}@${host}:${port}?security=tls&encryption=none&host=${host}&headerType=none&type=tcp#${VLESSEmail}\n"
 
-			printf "vless://${VLESSID}@${host}:${port}?security=tls&encryption=none&host=${host}&headerType=none&type=tcp#${VLESSEmail}" >>"/etc/v2ray-agent/subscribe/${subAccount}"
-
+			cat <<EOF >>/etc/v2ray-agent/subscribe/${subAccount}
+vless://${VLESSID}@${host}:${port}?security=tls&encryption=none&host=${host}&headerType=none&type=tcp#${VLESSEmail}
+EOF
 			echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS)"
 			echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3a%2f%2f${VLESSID}%40${host}%3a${port}%3fsecurity%3dtls%26encryption%3dnone%26host%3d${host}%26headerType%3dnone%26type%3dtcp%23${VLESSEmail}\n"
 		fi
@@ -2031,7 +2039,10 @@ defaultBase64Code() {
 		echoContent yellow " ---> 通用vmess(VMess+WS+TLS)链接"
 		echoContent green "    vmess://${qrCodeBase64Default}\n"
 		echoContent yellow " ---> 二维码 vmess(VMess+WS+TLS)"
-		printf "vmess://${qrCodeBase64Default}" >>"/etc/v2ray-agent/subscribe/${subAccount}"
+
+		cat <<EOF >>/etc/v2ray-agent/subscribe/${subAccount}
+vmess://${qrCodeBase64Default}
+EOF
 		echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vmess://${qrCodeBase64Default}\n"
 
 	elif [[ "${type}" == "vmesstcp" ]]; then
@@ -2044,8 +2055,9 @@ defaultBase64Code() {
 		echoContent yellow " ---> 通用vmess(VMess+TCP+TLS)链接"
 		echoContent green "    vmess://${qrCodeBase64Default}\n"
 
-		printf "vmess://${qrCodeBase64Default}" >>"/etc/v2ray-agent/subscribe/${subAccount}"
-
+		cat <<EOF >>/etc/v2ray-agent/subscribe/${subAccount}
+vmess://${qrCodeBase64Default}
+EOF
 		echoContent yellow " ---> 二维码 vmess(VMess+TCP+TLS)"
 		echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vmess://${qrCodeBase64Default}\n"
 
@@ -2058,7 +2070,9 @@ defaultBase64Code() {
 		echoContent yellow " ---> 通用格式(VLESS+WS+TLS)"
 		echoContent green "    vless://${VLESSID}@${add}:${port}?encryption=none&security=tls&type=ws&host=${host}&path=%2f${path}#${VLESSEmail}\n"
 
-		printf "vless://${VLESSID}@${add}:${port}?encryption=none&security=tls&type=ws&host=${host}&path=%2f${path}#${VLESSEmail}" >>"/etc/v2ray-agent/subscribe/${subAccount}"
+		cat <<EOF >>/etc/v2ray-agent/subscribe/${subAccount}
+vless://${VLESSID}@${add}:${port}?encryption=none&security=tls&type=ws&host=${host}&path=%2f${path}#${VLESSEmail}
+EOF
 
 		echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS/XTLS)"
 		echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${VLESSID}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dws%26host%3D${host}%26path%3D%252f${path}%23${VLESSEmail}"
@@ -2068,8 +2082,9 @@ defaultBase64Code() {
 		echoContent yellow " ---> Trojan(TLS)"
 		echoContent green "    trojan://${id}@${host}:${port}?peer=${host}&sni=${host}\n"
 
-		printf "trojan://${id}@${host}:${port}?peer=${host}&sni=${host}" >>"/etc/v2ray-agent/subscribe/${subAccount}"
-
+		cat <<EOF >>/etc/v2ray-agent/subscribe/${subAccount}
+trojan://${id}@${host}:${port}?peer=${host}&sni=${host}#${host}_trojan
+EOF
 		echoContent yellow " ---> 二维码 Trojan(TLS)"
 		echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${host}%3a${port}%3fpeer%3d${host}%26sni%3d${host}%23${host}_trojan\n"
 
@@ -2078,18 +2093,22 @@ defaultBase64Code() {
 		echoContent yellow " ---> Trojan-Go(WS+TLS) Shadowrocket"
 		echoContent green "    trojan://${id}@${add}:${port}?allowInsecure=0&&peer=${host}&sni=${host}&plugin=obfs-local;obfs=websocket;obfs-host=${host};obfs-uri=${path}#${host}_trojan_ws\n"
 
-		printf "trojan://${id}@${add}:${port}?allowInsecure=0&&peer=${host}&sni=${host}&plugin=obfs-local;obfs=websocket;obfs-host=${host};obfs-uri=${path}#${host}_trojan_ws" >>"/etc/v2ray-agent/subscribe/${subAccount}"
-
+		cat <<EOF >>/etc/v2ray-agent/subscribe/${subAccount}
+trojan://${id}@${add}:${port}?allowInsecure=0&&peer=${host}&sni=${host}&plugin=obfs-local;obfs=websocket;obfs-host=${host};obfs-uri=${path}#${host}_trojan_ws
+EOF
 		echoContent yellow " ---> 二维码 Trojan-Go(WS+TLS) Shadowrocket"
 		echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${add}%3a${port}%3fallowInsecure%3d0%26peer%3d${host}%26plugin%3dobfs-local%3bobfs%3dwebsocket%3bobfs-host%3d${host}%3bobfs-uri%3d${path}%23${host}_trojan_ws\n"
 
 		path=$(echo "${path}" | awk -F "[/]" '{print $2}')
 		echoContent yellow " ---> Trojan-Go(WS+TLS) QV2ray"
-		printf "trojan-go://${id}@${add}:${port}?sni=${host}&type=ws&host=${host}&path=%2F${path}#${host}_trojan_ws" >>"/etc/v2ray-agent/subscribe/${subAccount}"
+
+		cat <<EOF >>/etc/v2ray-agent/subscribe/${subAccount}
+trojan-go://${id}@${add}:${port}?sni=${host}&type=ws&host=${host}&path=%2F${path}#${host}_trojan_ws
+EOF
+
 		echoContent green "    trojan-go://${id}@${add}:${port}?sni=${host}&type=ws&host=${host}&path=%2F${path}#${host}_trojan_ws\n"
 	fi
 }
-
 # 账号
 showAccounts() {
 	readInstallType
@@ -2379,6 +2398,7 @@ customUserEmail() {
 
 # 添加用户
 addUser() {
+	echoContent yellow "添加新用户后，需要重新查看订阅"
 	read -r -p "请输入要添加的用户数量：" userNum
 	echo
 	if [[ -z ${userNum} || ${userNum} -le 0 ]]; then
@@ -3031,14 +3051,28 @@ manageAccount() {
 		echoContent red " ---> 输入错误"
 	fi
 }
+
 # 订阅
 subscribe() {
-	if [[ -n $(ls /etc/v2ray-agent/subscribe) ]]; then
-		ls /etc/v2ray-agent/subscribe | while read -r email; do
-			echoContent yellow "${email}:" echoContent green "https://${currentHost}/s/${email}"
-		done
+	if [[ -n "${configPath}" ]]; then
+		echoContent skyBlue "-------------------------备注----------------------------------"
+		echoContent yellow "1.查看订阅时会重新生成订阅"
+		echoContent yellow "2.每次添加、删除账号需要重新查看订阅"
+		rm -rf /etc/v2ray-agent/subscribe/*
+		showAccounts >/dev/null
+		if [[ -n $(ls /etc/v2ray-agent/subscribe) ]]; then
+			ls /etc/v2ray-agent/subscribe | while read -r email; do
+				local base64Result=$(base64 -w 0 /etc/v2ray-agent/subscribe/${email})
+				echo ${base64Result} >"/etc/v2ray-agent/subscribe/${email}"
+				echoContent skyBlue "-------------------------备注----------------------------------"
+				echoContent skyBlue "--------------------------------------------------------------"
+				echoContent yellow "email：$(echo "${email}" | awk -F "[_]" '{print $1}')"
+				echoContent yellow "url：https://${currentHost}/s/${email}"
+				echoContent skyBlue "--------------------------------------------------------------"
+			done
+		fi
 	else
-		echoContent red " ---> 暂未生成"
+		echoContent red " ---> 未安装"
 	fi
 }
 
