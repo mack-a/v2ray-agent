@@ -539,7 +539,7 @@ EOF
 checkIP() {
 	echoContent skyBlue " ---> 检查ipv4中"
 	pingIP=$(ping -c 1 -W 1000 ${domain} | sed '1{s/[^(]*(//;s/).*//;q;}')
-	if [[ -z "${pingIP}" ]]; then
+	if [[ -z $(echo "${pingIP}" | awk -F "[.]" '{print $4}') ]]; then
 		echoContent skyBlue " ---> 检查ipv6中"
 		pingIP=$(ping6 -c 1 ${domain} | sed '1{s/[^(]*(//;s/).*//;q;}')
 		pingIPv6=${pingIP}
