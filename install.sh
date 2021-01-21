@@ -574,7 +574,8 @@ installTLS() {
 		echoContent green " ---> 检测到证书"
 		checkTLStatus "${tlsDomain}"
 		if [[ "${tlsStatus}" == "已过期" ]]; then
-			rm -rf "$HOME/.acme.sh/${tlsDomain}_ecc/*"
+			rm -rf $HOME/.acme.sh/${tlsDomain}_ecc/*
+			rm -rf /etc/v2ray-agent/tls/${tlsDomain}*
 			installTLS "$1"
 		else
 			echoContent green " ---> 证书有效"
@@ -3084,7 +3085,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.3.5"
+	echoContent green "当前版本：v2.3.6"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本"
 	echoContent red "=============================================================="
