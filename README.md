@@ -1,4 +1,5 @@
 # v2ray-agent
+
 > [感谢 JetBrains 提供的非商业开源软件开发授权](https://www.jetbrains.com/?from=v2ray-agent)
 
 > [Thanks for non-commercial open source development authorization by JetBrains](https://www.jetbrains.com/?from=v2ray-agent)
@@ -28,6 +29,7 @@
 - 具体请[点击查看](https://github.com/mack-a/v2ray-agent/issues/32)，使用脚本前必读
 
 # 1.七合一共存脚本+伪装博客
+
 - 如果没有使用过Cloudflare[点击这里](https://github.com/mack-a/v2ray-agent/blob/master/documents/cloudflare_init.md)查看入门教程
 
 ## 特性
@@ -71,6 +73,8 @@
 
 ## 注意事项
 
+- 使用纯净系统安装，如使用其他脚本安装过，请重新build系统在安装。
+- **为了节约双方时间，反馈请带上详细截图，无截图issues会被直接关闭。**
 - 修改Cloudflare->SSL/TLS->Overview->Full
 - Cloudflare ---> A记录解析的云朵必须为灰色
 - wget: command not found [**这里需要自己手动安装下wget**]

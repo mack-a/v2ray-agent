@@ -591,7 +591,7 @@ installTLS() {
 				fi
 			fi
 		fi
-	elif [[ -d "$HOME/.acme.sh" && ! -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && ! -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]]; then
+	elif [[ -d "$HOME/.acme.sh" ]] && [[ ! -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" || ! -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" ]]; then
 		echoContent green " ---> 安装TLS证书"
 		if [[ -n "${pingIPv6}" ]]; then
 			sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --listen-v6 >/dev/null
