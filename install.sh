@@ -274,6 +274,7 @@ echoContent() {
 mkdirTools() {
 	mkdir -p /etc/v2ray-agent/tls
 	mkdir -p /etc/v2ray-agent/subscribe
+	mkdir -p /etc/v2ray-agent/subscribe_tmp
 	mkdir -p /etc/v2ray-agent/v2ray/conf
 	mkdir -p /etc/v2ray-agent/xray/conf
 	mkdir -p /etc/v2ray-agent/trojan
@@ -1996,7 +1997,7 @@ defaultBase64Code() {
 
 			echoContent yellow " ---> 格式化明文(VLESS+TCP+TLS/xtls-rprx-direct)"
 			echoContent green "协议类型：VLESS，地址：${host}，端口：${port}，用户ID：${VLESSID}，安全：xtls，传输方式：tcp，flow：xtls-rprx-direct，账户名:${VLESSEmail}\n"
-			cat <<EOF >>"/etc/v2ray-agent/subscribe/${subAccount}"
+			cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
 vless://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&flow=xtls-rprx-direct#${VLESSEmail}
 EOF
 			echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS/xtls-rprx-direct)"
@@ -2009,8 +2010,7 @@ EOF
 
 			echoContent yellow " ---> 格式化明文(VLESS+TCP+TLS/xtls-rprx-splice)"
 			echoContent green "    协议类型：VLESS，地址：${host}，端口：${port}，用户ID：${VLESSID}，安全：xtls，传输方式：tcp，flow：xtls-rprx-splice，账户名:${VLESSEmail}\n"
-
-			cat <<EOF >>"/etc/v2ray-agent/subscribe/${subAccount}"
+			cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
 vless://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&flow=xtls-rprx-splice#${VLESSEmail}
 EOF
 			echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS/xtls-rprx-splice)"
@@ -2023,7 +2023,7 @@ EOF
 			echoContent yellow " ---> 格式化明文(VLESS+TCP+TLS/xtls-rprx-splice)"
 			echoContent green "    协议类型：VLESS，地址：${host}，端口：${port}，用户ID：${VLESSID}，安全：tls，传输方式：tcp，账户名:${VLESSEmail}\n"
 
-			cat <<EOF >>"/etc/v2ray-agent/subscribe/${subAccount}"
+			cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
 vless://${VLESSID}@${host}:${port}?security=tls&encryption=none&host=${host}&headerType=none&type=tcp#${VLESSEmail}
 EOF
 			echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS)"
@@ -2041,7 +2041,7 @@ EOF
 		echoContent green "    vmess://${qrCodeBase64Default}\n"
 		echoContent yellow " ---> 二维码 vmess(VMess+WS+TLS)"
 
-		cat <<EOF >>"/etc/v2ray-agent/subscribe/${subAccount}"
+		cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
 vmess://${qrCodeBase64Default}
 EOF
 		echoContent green "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vmess://${qrCodeBase64Default}\n"
@@ -2056,7 +2056,7 @@ EOF
 		echoContent yellow " ---> 通用vmess(VMess+TCP+TLS)链接"
 		echoContent green "    vmess://${qrCodeBase64Default}\n"
 
-		cat <<EOF >>"/etc/v2ray-agent/subscribe/${subAccount}"
+		cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
 vmess://${qrCodeBase64Default}
 EOF
 		echoContent yellow " ---> 二维码 vmess(VMess+TCP+TLS)"
@@ -2074,7 +2074,7 @@ EOF
 		echoContent yellow " ---> 格式化明文(VLESS+WS+TLS)"
 		echoContent green "    协议类型：VLESS，地址：${add}，伪装域名/SNI：${host}，端口：${port}，用户ID：${VLESSID}，安全：tls，传输方式：ws，路径:/${path}，账户名:${VLESSEmail}\n"
 
-		cat <<EOF >>"/etc/v2ray-agent/subscribe/${subAccount}"
+		cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
 vless://${VLESSID}@${add}:${port}?encryption=none&security=tls&type=ws&host=${host}&path=%2f${path}#${VLESSEmail}
 EOF
 
@@ -2086,7 +2086,7 @@ EOF
 		echoContent yellow " ---> Trojan(TLS)"
 		echoContent green "    trojan://${id}@${host}:${port}?peer=${host}&sni=${host}\n"
 
-		cat <<EOF >>"/etc/v2ray-agent/subscribe/${subAccount}"
+		cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
 trojan://${id}@${host}:${port}?peer=${host}&sni=${host}#${host}_trojan
 EOF
 		echoContent yellow " ---> 二维码 Trojan(TLS)"
@@ -2097,7 +2097,7 @@ EOF
 		echoContent yellow " ---> Trojan-Go(WS+TLS) Shadowrocket"
 		echoContent green "    trojan://${id}@${add}:${port}?allowInsecure=0&&peer=${host}&sni=${host}&plugin=obfs-local;obfs=websocket;obfs-host=${host};obfs-uri=${path}#${host}_trojan_ws\n"
 
-		cat <<EOF >>"/etc/v2ray-agent/subscribe/${subAccount}"
+		cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
 trojan://${id}@${add}:${port}?allowInsecure=0&&peer=${host}&sni=${host}&plugin=obfs-local;obfs=websocket;obfs-host=${host};obfs-uri=${path}#${host}_trojan_ws
 EOF
 		echoContent yellow " ---> 二维码 Trojan-Go(WS+TLS) Shadowrocket"
@@ -2106,7 +2106,7 @@ EOF
 		path=$(echo "${path}" | awk -F "[/]" '{print $2}')
 		echoContent yellow " ---> Trojan-Go(WS+TLS) QV2ray"
 
-		cat <<EOF >>"/etc/v2ray-agent/subscribe/${subAccount}"
+		cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
 trojan-go://${id}@${add}:${port}?sni=${host}&type=ws&host=${host}&path=%2F${path}#${host}_trojan_ws
 EOF
 
@@ -2205,19 +2205,33 @@ updateNginxBlog() {
 	echoContent yellow "2.下雪动画用户注册登录模版"
 	echoContent yellow "3.物流大数据服务平台模版"
 	echoContent yellow "4.植物花卉模版"
+	echoContent yellow "5.解锁加密的音乐文件模版[https://github.com/ix64/unlock-music/]"
 	echoContent red "=============================================================="
 	read -r -p "请选择：" selectInstallNginxBlogType
 
-	if [[ "${selectInstallNginxBlogType}" =~ ^[1-4]$ ]]; then
+	if [[ "${selectInstallNginxBlogType}" =~ ^[1-5]$ ]]; then
 		rm -rf /usr/share/nginx/html
 
 		if wget --help | grep -q show-progress; then
-			wget -c -q --show-progress -P /usr/share/nginx "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${selectInstallNginxBlogType}.zip" >/dev/null
+			if [[ "${selectInstallNginxBlogType}" == "5" ]]; then
+				wget -c -q --show-progress -P /usr/share/nginx -O "/usr/share/nginx/html${selectInstallNginxBlogType}.zip" "https://github.com/ix64/unlock-music/releases/download/v1.7.2/modern.zip" >/dev/null
+			else
+				wget -c -q --show-progress -P /usr/share/nginx "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${selectInstallNginxBlogType}.zip" >/dev/null
+			fi
+
 		else
-			wget -c -P --show-progress -P /usr/share/nginx "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${selectInstallNginxBlogType}.zip" >/dev/null
+			if [[ "${selectInstallNginxBlogType}" == "5" ]]; then
+				wget -c -P /usr/share/nginx -O "/usr/share/nginx/html${selectInstallNginxBlogType}.zip" "https://github.com/ix64/unlock-music/releases/download/v1.7.2/modern.zip" >/dev/null
+			else
+				wget -c -P /usr/share/nginx "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${selectInstallNginxBlogType}.zip" >/dev/null
+			fi
+
 		fi
 
 		unzip -o "/usr/share/nginx/html${selectInstallNginxBlogType}.zip" -d /usr/share/nginx/html >/dev/null
+		if [[ "${selectInstallNginxBlogType}" == "5" ]]; then
+			mv /usr/share/nginx/html/dist/* /usr/share/nginx/html
+		fi
 		rm -f "/usr/share/nginx/html${selectInstallNginxBlogType}.zip*"
 		echoContent green " ---> 更换伪站成功"
 	else
@@ -3063,7 +3077,10 @@ subscribe() {
 		echoContent yellow "1.查看订阅时会重新生成订阅"
 		echoContent yellow "2.每次添加、删除账号需要重新查看订阅"
 		rm -rf /etc/v2ray-agent/subscribe/*
+		rm -rf /etc/v2ray-agent/subscribe_tmp/*
 		showAccounts >/dev/null
+		mv /etc/v2ray-agent/subscribe_tmp/* /etc/v2ray-agent/subscribe/
+
 		if [[ -n $(ls /etc/v2ray-agent/subscribe) ]]; then
 			ls /etc/v2ray-agent/subscribe | while read -r email; do
 				local base64Result=$(base64 -w 0 /etc/v2ray-agent/subscribe/${email})
@@ -3086,7 +3103,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.3.8"
+	echoContent green "当前版本：v2.3.9"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本"
 	echoContent red "=============================================================="
