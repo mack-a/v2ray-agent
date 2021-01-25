@@ -1,8 +1,7 @@
 ---
-name: bug反馈 about: bug反馈 title: ''
+name: bug反馈 about: bug反馈 title: 'bug反馈'
 labels: ''
 assignees: ''
-
 ---
 
 > 请仔细填写每一项，并回复自己详细的错误信息
@@ -24,7 +23,8 @@ assignees: ''
 - 否
 
 **4.直接安装失败的错误内容或者截图**
-- 
+
+-
 
 **5.系统版本【例：Centos8】**
 > 最新版本脚本不支持Centos6
@@ -33,6 +33,7 @@ assignees: ''
 - 否
 
 **6.脚本版本**
+
 - 
 
 **7.安装类型**
@@ -44,6 +45,7 @@ assignees: ''
 - Xray-core【version】
 
 **9.出现问题的协议类型**
+
 - 
 
 **10.尝试重装后是否100%复现**
