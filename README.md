@@ -24,13 +24,9 @@
 
 * * *
 
-## 关于v2ray-core即将移除XTLS，未来的脚本修改说明
-
-- 具体请[点击查看](https://github.com/mack-a/v2ray-agent/issues/32)，使用脚本前必读
-
 # 1.七合一共存脚本+伪装博客
 
-- 如果没有使用过Cloudflare[点击这里](https://github.com/mack-a/v2ray-agent/blob/master/documents/cloudflare_init.md)查看入门教程
+- [Cloudflare入门教程](https://github.com/mack-a/v2ray-agent/blob/master/documents/cloudflare_init.md)
 
 ## 特性
 
@@ -39,20 +35,20 @@
 - 支持 VLESS/VMess/trojan/trojan-go-->ws的协议
 - 支持Debian、Ubuntu、Centos，支持主流的cpu架构。**不建议使用Centos以及低版本的系统，2.3.x后不再支持Centos6**
 - 支持个性化安装。
-- 不需要卸载就可以重装任何组合。卸载脚本时，是完全卸载无残留。
-- 支持纯ipv6，ipv6[注意事项](https://github.com/mack-a/v2ray-agent/blob/master/documents/ipv6_help.md)
-- 支持ipv6人机验证 **需自己申请IPv6隧道，不建议使用自带的IPv6**
+- 无需卸载即可安装、重装任意组合。卸载脚本时无多余文件残留。
+- 支持纯ipv6，[ipv6注意事项](https://github.com/mack-a/v2ray-agent/blob/master/documents/ipv6_help.md)
+- 支持利用ipv6排除Google的人机验证，**需自己申请IPv6隧道，不建议使用自带的IPv6**
 - [支持自定义证书安装](https://github.com/mack-a/v2ray-agent/blob/master/documents/install_tls.md)
 
-## 组合方式
+## 支持的安装类型
 
 - VLESS+TCP+TLS
 - VLESS+TCP+xtls-rprx-direct【**推荐**】
-- VLESS+WS+TLS
+- VLESS+WS+TLS【支持CDN、ipv6】
 - VMess+TCP+TLS
-- VMess+WS+TLS
+- VMess+WS+TLS【支持CDN、ipv6】
 - Trojan【**推荐**】
-- Trojan-Go+WS
+- Trojan-Go+WS【支持CDN、不支持ipv6】
 
 ## 线路推荐
 
@@ -60,9 +56,13 @@
 - 2.上海CN2+HK
 - 3.上海联通+台湾TFN
 - 4.上海联通+Vultr东京
-- 5.广移/珠移+HKIX/CMI
+- 5.广移/珠移+HKIX/CMI/NTT
 - 6.苏日IPLC+日本/美国
 - 7.莞港IPLC+HK
+- 8.广移/CN2+Cloudflare+全球
+- 9.广移/CN2+香港AZ+全球
+- 10.北联+西伯利亚、伯力ttk/RT
+- 11.CN2+HE
 
 ## 组合推荐
 
@@ -73,20 +73,18 @@
 
 ## 注意事项
 
-- 使用纯净系统安装，如使用其他脚本安装过，请重新build系统在安装。
-- **为了节约双方时间，反馈请带上详细截图或者按照模版规范，无截图或者不按照规范的issue会被直接关闭。**
 - 修改Cloudflare->SSL/TLS->Overview->Full
 - Cloudflare ---> A记录解析的云朵必须为灰色
+- 使用纯净系统安装，如使用其他脚本安装过，请重新build系统再安装。
 - wget: command not found [**这里需要自己手动安装下wget**]
   ，如未使用过Linux，[点击查看](https://github.com/mack-a/v2ray-agent/tree/master/documents/install_tools.md)安装教程
-- 脚本安装路径[**/etc/v2ray-agent**]
 - 不支持非root账户
-- 现在脚本进入相对稳定的时期，如果有功能不完善的地方，请提issues。
 - **~~脚本默认屏蔽BT【已失效】~~**
 - **中间的版本号升级意味可能不兼容之前安装的内容，如果不是追新用户或者必须升级的版本请谨慎升级。** 例如 2.2.\*，不兼容2.1.\*
 - **建议纯净系统**
 - **如发现Nginx启动问题，请先卸载掉自编译的nginx或者重新build系统**
 - **如果脚本显示安装TLS成功，并且想要重装或者使用不同的组合，请不要卸载脚本再安装，如果重复多次这样的操作则会导致ip、域名被拉黑无法申请TLS。**
+- **为了节约时间，反馈请带上详细截图或者按照模版规范，无截图或者不按照规范的issue会被直接关闭**
 
 ## 脚本目录
 
@@ -101,6 +99,8 @@
 ## [常见脚本错误处理](https://github.com/mack-a/v2ray-agent/blob/master/documents/shell_error.md)
 
 ## 安装脚本
+
+> 支持快捷方式启动，安装完毕后，shell输入[**vasma**]即可打开脚本，脚本执行路径[**/etc/v2ray-agent/install.sh**]
 
 - Latest release
 
@@ -121,7 +121,6 @@ wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-
 ```
 
 - 示例图
-- 支持快捷方式启动，安装完毕后，shell输入[**vasma**]即可打开脚本，脚本执行路径[**/etc/v2ray-agent/install.sh**]
 
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/install.jpg" width=700>
 
