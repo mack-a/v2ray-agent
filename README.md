@@ -75,15 +75,13 @@
 
 - 修改Cloudflare->SSL/TLS->Overview->Full
 - Cloudflare ---> A记录解析的云朵必须为灰色
-- 使用纯净系统安装，如使用其他脚本安装过，请重新build系统再安装。
+- **使用纯净系统安装，如使用其他脚本安装过，请重新build系统再安装**
 - wget: command not found [**这里需要自己手动安装下wget**]
   ，如未使用过Linux，[点击查看](https://github.com/mack-a/v2ray-agent/tree/master/documents/install_tools.md)安装教程
 - 不支持非root账户
 - **~~脚本默认屏蔽BT【已失效】~~**
 - **中间的版本号升级意味可能不兼容之前安装的内容，如果不是追新用户或者必须升级的版本请谨慎升级。** 例如 2.2.\*，不兼容2.1.\*
-- **建议纯净系统**
-- **如发现Nginx启动问题，请先卸载掉自编译的nginx或者重新build系统**
-- **如果脚本显示安装TLS成功，并且想要重装或者使用不同的组合，请不要卸载脚本再安装，如果重复多次这样的操作则会导致ip、域名被拉黑无法申请TLS。**
+- **如发现Nginx相关问题，请卸载掉自编译的nginx或者重新build系统**
 - **为了节约时间，反馈请带上详细截图或者按照模版规范，无截图或者不按照规范的issue会被直接关闭**
 
 ## 脚本目录
@@ -100,7 +98,7 @@
 
 ## 安装脚本
 
-> 支持快捷方式启动，安装完毕后，shell输入[**vasma**]即可打开脚本，脚本执行路径[**/etc/v2ray-agent/install.sh**]
+- 支持快捷方式启动，安装完毕后，shell输入[**vasma**]即可打开脚本，脚本执行路径[**/etc/v2ray-agent/install.sh**]
 
 - Latest release
 
