@@ -2205,27 +2205,18 @@ updateNginxBlog() {
 	echoContent yellow "2.下雪动画用户注册登录模版"
 	echoContent yellow "3.物流大数据服务平台模版"
 	echoContent yellow "4.植物花卉模版"
-	echoContent yellow "5.解锁加密的音乐文件模版[https://github.com/ix64/unlock-music/]"
+	echoContent yellow "5.解锁加密的音乐文件模版[https://github.com/ix64/unlock-music]"
+	echoContent yellow "6.mikutap[https://github.com/HFIProgramming/mikutap]"
 	echoContent red "=============================================================="
 	read -r -p "请选择：" selectInstallNginxBlogType
 
-	if [[ "${selectInstallNginxBlogType}" =~ ^[1-5]$ ]]; then
+	if [[ "${selectInstallNginxBlogType}" =~ ^[1-6]$ ]]; then
 		rm -rf /usr/share/nginx/html
 
 		if wget --help | grep -q show-progress; then
-			if [[ "${selectInstallNginxBlogType}" == "5" ]]; then
-				wget -c -q --show-progress -P /usr/share/nginx -O "/usr/share/nginx/html${selectInstallNginxBlogType}.zip" "https://github.com/ix64/unlock-music/releases/download/v1.7.2/modern.zip" >/dev/null
-			else
-				wget -c -q --show-progress -P /usr/share/nginx "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${selectInstallNginxBlogType}.zip" >/dev/null
-			fi
-
+			wget -c -q --show-progress -P /usr/share/nginx "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${selectInstallNginxBlogType}.zip" >/dev/null
 		else
-			if [[ "${selectInstallNginxBlogType}" == "5" ]]; then
-				wget -c -P /usr/share/nginx -O "/usr/share/nginx/html${selectInstallNginxBlogType}.zip" "https://github.com/ix64/unlock-music/releases/download/v1.7.2/modern.zip" >/dev/null
-			else
-				wget -c -P /usr/share/nginx "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${selectInstallNginxBlogType}.zip" >/dev/null
-			fi
-
+			wget -c -P /usr/share/nginx "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${selectInstallNginxBlogType}.zip" >/dev/null
 		fi
 
 		unzip -o "/usr/share/nginx/html${selectInstallNginxBlogType}.zip" -d /usr/share/nginx/html >/dev/null
@@ -2523,7 +2514,7 @@ removeUser() {
 		if [[ $(jq -r '.inbounds[0].settings.clients|length' ${configPath}02_VLESS_TCP_inbounds.json) -lt ${delUserIndex} ]]; then
 			echoContent red " ---> 选择错误"
 		else
-			delUserIndex=$(("${delUserIndex}" - 1))
+			delUserIndex=$((${delUserIndex} - 1))
 			local vlessTcpResult
 			vlessTcpResult=$(jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])' ${configPath}02_VLESS_TCP_inbounds.json)
 			echo "${vlessTcpResult}" | jq . >${configPath}02_VLESS_TCP_inbounds.json
@@ -3057,16 +3048,23 @@ cronRenewTLS() {
 manageAccount() {
 	echoContent skyBlue "\n功能 1/${totalProgress} : 账号管理"
 	echoContent red "\n=============================================================="
+	echoContent yellow "# 每次删除、添加账号后，需要重新查看订阅生成订阅\n"
 	echoContent yellow "1.查看账号"
 	echoContent yellow "2.查看订阅"
+	echoContent yellow "3.添加用户"
+	echoContent yellow "4.删除用户"
 	echoContent red "=============================================================="
 	read -r -p "请输入:" manageAccountStatus
 	if [[ "${manageAccountStatus}" == "1" ]]; then
 		showAccounts 1
 	elif [[ "${manageAccountStatus}" == "2" ]]; then
 		subscribe 1
+	elif [[ "${manageAccountStatus}" == "3" ]]; then
+		addUser
+	elif [[ "${manageAccountStatus}" == "4" ]]; then
+		removeUser
 	else
-		echoContent red " ---> 输入错误"
+		echoContent red " ---> 选择错误"
 	fi
 }
 
@@ -3074,8 +3072,8 @@ manageAccount() {
 subscribe() {
 	if [[ -n "${configPath}" ]]; then
 		echoContent skyBlue "-------------------------备注----------------------------------"
-		echoContent yellow "1.查看订阅时会重新生成订阅"
-		echoContent yellow "2.每次添加、删除账号需要重新查看订阅"
+		echoContent yellow "# 查看订阅时会重新生成订阅"
+		echoContent yellow "# 每次添加、删除账号需要重新查看订阅"
 		rm -rf /etc/v2ray-agent/subscribe/*
 		rm -rf /etc/v2ray-agent/subscribe_tmp/*
 		showAccounts >/dev/null
@@ -3103,7 +3101,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.3.9"
+	echoContent green "当前版本：v2.3.10"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本"
 	echoContent red "=============================================================="
@@ -3114,16 +3112,15 @@ menu() {
 	echoContent yellow "4.更换伪装站"
 	echoContent yellow "5.更新证书"
 	echoContent yellow "6.更换CDN节点"
-	echoContent yellow "7.多用户管理"
-	echoContent yellow "8.ipv6人机验证"
+	echoContent yellow "7.ipv6人机验证"
 	echoContent skyBlue "-------------------------版本管理-----------------------------"
-	echoContent yellow "9.core版本管理"
-	echoContent yellow "10.更新Trojan-Go"
-	echoContent yellow "11.更新脚本"
-	echoContent yellow "12.安装BBR"
+	echoContent yellow "8.core版本管理"
+	echoContent yellow "9.更新Trojan-Go"
+	echoContent yellow "10.更新脚本"
+	echoContent yellow "11.安装BBR"
 	echoContent skyBlue "-------------------------脚本管理-----------------------------"
-	echoContent yellow "13.查看日志"
-	echoContent yellow "14.卸载脚本"
+	echoContent yellow "12.查看日志"
+	echoContent yellow "13.卸载脚本"
 	echoContent red "=============================================================="
 	mkdirTools
 	aliasInstall
@@ -3148,27 +3145,24 @@ menu() {
 		updateV2RayCDN 1
 		;;
 	7)
-		manageUser 1
-		;;
-	8)
 		ipv6HumanVerification
 		;;
-	9)
+	8)
 		coreVersionManageMenu 1
 		;;
-	10)
+	9)
 		updateTrojanGo 1
 		;;
-	11)
+	10)
 		updateV2RayAgent 1
 		;;
-	12)
+	11)
 		bbrInstall
 		;;
-	13)
+	12)
 		checkLog 1
 		;;
-	14)
+	13)
 		unInstall 1
 		;;
 	esac
