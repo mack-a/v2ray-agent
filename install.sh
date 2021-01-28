@@ -2220,9 +2220,6 @@ updateNginxBlog() {
 		fi
 
 		unzip -o "/usr/share/nginx/html${selectInstallNginxBlogType}.zip" -d /usr/share/nginx/html >/dev/null
-		if [[ "${selectInstallNginxBlogType}" == "5" ]]; then
-			mv /usr/share/nginx/html/dist/* /usr/share/nginx/html
-		fi
 		rm -f "/usr/share/nginx/html${selectInstallNginxBlogType}.zip*"
 		echoContent green " ---> 更换伪站成功"
 	else
@@ -3101,7 +3098,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.3.10"
+	echoContent green "当前版本：v2.3.11"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本"
 	echoContent red "=============================================================="
