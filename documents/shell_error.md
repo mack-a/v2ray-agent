@@ -19,7 +19,7 @@ nameserver 8.8.4.4
 ```
 
 ## 3.生成证书失败
-- 请更换Debian或者Ubuntu，或者拿着vps来私聊作者。
+- 请更换Debian或者Ubuntu
 
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/shell_error_02.jpg" width=700>
 
