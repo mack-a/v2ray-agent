@@ -699,18 +699,20 @@ handleNginx() {
 # 定时任务更新tls证书
 installCronTLS() {
 	echoContent skyBlue "\n进度  $1/${totalProgress} : 添加定时维护证书"
-	if crontab -l | grep -v grep | grep -q '/etc/v2ray-agent/install.sh'; then
+	if ! crontab -l | grep -v grep | grep -q '/etc/v2ray-agent/install.sh'; then
 		crontab -l >/etc/v2ray-agent/backup_crontab.cron
 		if grep </etc/v2ray-agent/backup_crontab.cron -q /etc/v2ray-agent/reloadInstallTLS.sh; then
 			sed -i "s/30 1 \\* \\* \\* \\/bin\\/bash \\/etc\\/v2ray-agent\\/reloadInstallTLS.sh//g" $(grep "30 1 \* \* \* /bin/bash /etc/v2ray-agent/reloadInstallTLS.sh" -rl /etc/v2ray-agent/backup_crontab.cron)
 		fi
-
 		# 定时任务
 		echo "30 1 * * * /bin/bash /etc/v2ray-agent/install.sh RenewTLS" >>/etc/v2ray-agent/backup_crontab.cron
 		crontab /etc/v2ray-agent/backup_crontab.cron
 	fi
 
 	if [[ -n $(crontab -l | grep -v grep | grep '/etc/v2ray-agent/install.sh') ]]; then
+		local cronResult=$(cat /etc/v2ray-agent/backup_crontab.cron|uniq)
+		echo "${cronResult}" > /etc/v2ray-agent/backup_crontab.cron
+		crontab /etc/v2ray-agent/backup_crontab.cron
 		echoContent green " ---> 添加定时维护证书成功"
 	else
 		echo "30 1 * * * /bin/bash /etc/v2ray-agent/install.sh RenewTLS" >>/etc/v2ray-agent/backup_crontab.cron
@@ -3098,7 +3100,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.3.13"
+	echoContent green "当前版本：v2.3.14"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本"
 	echoContent red "=============================================================="
