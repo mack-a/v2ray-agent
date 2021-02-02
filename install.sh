@@ -925,14 +925,14 @@ xrayVersionManageMenu() {
 	if [[ "${selectXrayType}" == "1" ]]; then
 		updateXray
 	elif [[ "${selectXrayType}" == "2" ]]; then
-		echoContent yellow "\n1.由于Xray-core频繁更新，只可以回退最近的一个版本"
+		echoContent yellow "\n1.由于Xray-core频繁更新，只可以回退最近的两个版本"
 		echoContent yellow "2.不保证回退后一定可以正常使用"
 		echoContent yellow "3.如果回退的版本不支持当前的config，则会无法连接，谨慎操作"
 		echoContent skyBlue "------------------------Version-------------------------------"
-		curl -s https://github.com/XTLS/Xray-core/releases | grep /XTLS/Xray-core/releases/tag/ | head -3 | awk '{print $3}' | awk -F "[<]" '{print $1}' | tail -n 1 | awk '{print ""NR""":"$0}'
+		curl -s https://github.com/XTLS/Xray-core/releases | grep /XTLS/Xray-core/releases/tag/ | head -3 | awk -F "[X][r][a][y][-][c][o][r][e][ ]" '{print $2}' | awk -F "[<]" '{print $1}' | tail -n 2 | awk '{print ""NR""":"$0}'
 		echoContent skyBlue "--------------------------------------------------------------"
 		read -r -p "请输入要回退的版本：" selectXrayVersionType
-		version=$(curl -s https://github.com/XTLS/Xray-core/releases | grep /XTLS/Xray-core/releases/tag/ | head -3 | awk '{print $3}' | awk -F "[<]" '{print $1}' | tail -n 1 | awk '{print ""NR""":"$0}' | grep "${selectXrayVersionType}:" | awk -F "[:]" '{print $2}')
+		version=$(curl -s https://github.com/XTLS/Xray-core/releases | grep /XTLS/Xray-core/releases/tag/ | head -3 | awk -F "[X][r][a][y][-][c][o][r][e][ ]" '{print $2}' | awk -F "[<]" '{print $1}' | tail -n 2 | awk '{print ""NR""":"$0}' | grep "${selectXrayVersionType}:" | awk -F "[:]" '{print $2}')
 		if [[ -n "${version}" ]]; then
 			updateXray "${version}"
 		else
@@ -3098,7 +3098,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.3.11"
+	echoContent green "当前版本：v2.3.12"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本"
 	echoContent red "=============================================================="
@@ -3114,7 +3114,7 @@ menu() {
 	echoContent yellow "8.core版本管理"
 	echoContent yellow "9.更新Trojan-Go"
 	echoContent yellow "10.更新脚本"
-	echoContent yellow "11.安装BBR"
+	echoContent yellow "11.安装BBR、DD脚本"
 	echoContent skyBlue "-------------------------脚本管理-----------------------------"
 	echoContent yellow "12.查看日志"
 	echoContent yellow "13.卸载脚本"
