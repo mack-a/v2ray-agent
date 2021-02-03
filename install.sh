@@ -710,8 +710,10 @@ installCronTLS() {
 	fi
 
 	if [[ -n $(crontab -l | grep -v grep | grep '/etc/v2ray-agent/install.sh') ]]; then
-		local cronResult=$(cat /etc/v2ray-agent/backup_crontab.cron|uniq)
-		echo "${cronResult}" > /etc/v2ray-agent/backup_crontab.cron
+
+		crontab -l | uniq | awk '/./ {print}' >>/etc/v2ray-agent/backup_crontab.cron
+		local crontabResult=$(cat /etc/v2ray-agent/backup_crontab.cron | uniq | awk '/./ {print}')
+		echo "${crontabResult}" >/etc/v2ray-agent/backup_crontab.cron
 		crontab /etc/v2ray-agent/backup_crontab.cron
 		echoContent green " ---> 添加定时维护证书成功"
 	else
@@ -2557,8 +2559,19 @@ removeUser() {
 # 更新脚本
 updateV2RayAgent() {
 	echoContent skyBlue "\n进度  $1/${totalProgress} : 更新v2ray-agent脚本"
-	wget -P /etc/v2ray-agent/ -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh" && chmod 700 /etc/v2ray-agent/install.sh
-	echoContent skyBlue " ---> 更新完毕，请手动执行[vasma]打开脚本\n"
+	if wget --help | grep -q show-progress; then
+		wget -c -q --show-progress -P /etc/v2ray-agent/ -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh"
+	else
+		wget -c -q -P /etc/v2ray-agent/ -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh"
+	fi
+
+	sudo chmod 700 /etc/v2ray-agent/install.sh
+	local version=$(cat /etc/v2ray-agent/install.sh | grep '当前版本：v' | awk -F "[v]" '{print $2}' | tail -n +2 | head -n 1 | awk -F "[\"]" '{print $1}')
+
+	echoContent green "\n ---> 更新完毕"
+	echoContent yellow " ---> 请手动执行[vasma]打开脚本"
+	echoContent green " ---> 当前版本:${version}\n"
+	exit 0
 }
 
 # 安装BBR
@@ -3100,7 +3113,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.3.14"
+	echoContent green "当前版本：v2.3.15"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本"
 	echoContent red "=============================================================="
