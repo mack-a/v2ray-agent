@@ -833,7 +833,7 @@ installXray() {
 	echoContent skyBlue "\n进度  $1/${totalProgress} : 安装Xray"
 
 	if [[ "${coreInstallType}" != "1" ]]; then
-		version=$(curl -s https://github.com/XTLS/Xray-core/releases | grep /XTLS/Xray-core/releases/tag/ | head -1 | awk '{print $3}' | awk -F "[<]" '{print $1}')
+		version=$(curl -s https://github.com/XTLS/Xray-core/releases | grep /XTLS/Xray-core/releases/tag/ |grep "Xray-core v" | head -1 | awk '{print $3}' | awk -F "[<]" '{print $1}')
 
 		echoContent green " ---> Xray-core版本:${version}"
 		if wget --help | grep -q show-progress; then
@@ -933,10 +933,10 @@ xrayVersionManageMenu() {
 		echoContent yellow "2.不保证回退后一定可以正常使用"
 		echoContent yellow "3.如果回退的版本不支持当前的config，则会无法连接，谨慎操作"
 		echoContent skyBlue "------------------------Version-------------------------------"
-		curl -s https://github.com/XTLS/Xray-core/releases | grep /XTLS/Xray-core/releases/tag/ | head -5 | awk -F "[X][r][a][y][-][c][o][r][e][ ]" '{print $2}' | awk -F "[<]" '{print $1}' | tail -n 5 | awk '{print ""NR""":"$0}'
+		curl -s https://github.com/XTLS/Xray-core/releases | grep /XTLS/Xray-core/releases/tag/ |grep "Xray-core v" | head -5 | awk -F "[X][r][a][y][-][c][o][r][e][ ]" '{print $2}' | awk -F "[<]" '{print $1}' | tail -n 5 | awk '{print ""NR""":"$0}'
 		echoContent skyBlue "--------------------------------------------------------------"
 		read -r -p "请输入要回退的版本：" selectXrayVersionType
-		version=$(curl -s https://github.com/XTLS/Xray-core/releases | grep /XTLS/Xray-core/releases/tag/ | head -5 | awk -F "[X][r][a][y][-][c][o][r][e][ ]" '{print $2}' | awk -F "[<]" '{print $1}' | tail -n 5 | awk '{print ""NR""":"$0}' | grep "${selectXrayVersionType}:" | awk -F "[:]" '{print $2}')
+		version=$(curl -s https://github.com/XTLS/Xray-core/releases | grep /XTLS/Xray-core/releases/tag/ |grep "Xray-core v" | head -5 | awk -F "[X][r][a][y][-][c][o][r][e][ ]" '{print $2}' | awk -F "[<]" '{print $1}' | tail -n 5 | awk '{print ""NR""":"$0}' | grep "${selectXrayVersionType}:" | awk -F "[:]" '{print $2}')
 		if [[ -n "${version}" ]]; then
 			updateXray "${version}"
 		else
@@ -1031,7 +1031,7 @@ updateXray() {
 		if [[ -n "$1" ]]; then
 			version=$1
 		else
-			version=$(curl -s https://github.com/XTLS/Xray-core/releases | grep /XTLS/Xray-core/releases/tag/ | head -1 | awk '{print $3}' | awk -F "[<]" '{print $1}')
+			version=$(curl -s https://github.com/XTLS/Xray-core/releases | grep /XTLS/Xray-core/releases/tag/ |grep "Xray-core v" | head -1 | awk '{print $3}' | awk -F "[<]" '{print $1}')
 		fi
 
 		echoContent green " ---> Xray-core版本:${version}"
@@ -1053,7 +1053,7 @@ updateXray() {
 		if [[ -n "$1" ]]; then
 			version=$1
 		else
-			version=$(curl -s https://github.com/XTLS/Xray-core/releases | grep /XTLS/Xray-core/releases/tag/ | head -1 | awk '{print $3}' | awk -F "[<]" '{print $1}')
+			version=$(curl -s https://github.com/XTLS/Xray-core/releases | grep /XTLS/Xray-core/releases/tag/ |grep "Xray-core v" | head -1 | awk '{print $3}' | awk -F "[<]" '{print $1}')
 		fi
 
 		if [[ -n "$1" ]]; then
@@ -3113,7 +3113,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.3.15"
+	echoContent green "当前版本：v2.3.16"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本"
 	echoContent red "=============================================================="
