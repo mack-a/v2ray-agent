@@ -80,11 +80,11 @@
 - wget: command not found [**这里需要自己手动安装下wget**]
   ，如未使用过Linux，[点击查看](https://github.com/mack-a/v2ray-agent/tree/master/documents/install_tools.md)安装教程
 - 不支持非root账户
-- **~~脚本默认屏蔽BT【已失效】~~**
 - **中间的版本号升级意味可能不兼容之前安装的内容，如果不是追新用户或者必须升级的版本请谨慎升级。** 例如 2.2.\*，不兼容2.1.\*
 - **如发现Nginx相关问题，请卸载掉自编译的nginx或者重新build系统**
 - **为了节约时间，反馈请带上详细截图或者按照模版规范，无截图或者不按照规范的issue会被直接关闭**
 - **不建议GCP用户使用**
+- **不建议使用Centos以及低版本的系统，2.3.x后不再支持Centos6**
 
 ## 脚本目录
 
@@ -102,19 +102,19 @@
 
 - 支持快捷方式启动，安装完毕后，shell输入[**vasma**]即可打开脚本，脚本执行路径[**/etc/v2ray-agent/install.sh**]
 
-- Latest release
+- 最新版
 
 ```
 wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh" && chmod 700 /root/install.sh && /root/install.sh
 ```
 
-- v2.2.24
+- 稳定-v2.2.24
 
 ```
 wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/9ae23c13a56460d8c14f27c8eb65efc73b173f46/install.sh" && chmod 700 /root/install.sh && /root/install.sh
 ```
 
-- v2.1.27
+- 稳定-v2.1.27
 
 ```
 wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/3f8ea0aa364ae2e1e407056074c11b448396261f/install.sh" && chmod 700 /root/install.sh && /root/install.sh

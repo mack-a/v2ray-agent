@@ -1414,18 +1414,18 @@ EOF
 }
 EOF
 	fi
-
-	cat <<EOF >/etc/v2ray-agent/v2ray/conf/10_bt_outbounds.json
-{
-    "outbounds": [
-        {
-          "protocol": "blackhole",
-          "settings": {},
-          "tag": "blocked"
-        }
-    ]
-}
-EOF
+# 取消BT
+#	cat <<EOF >/etc/v2ray-agent/v2ray/conf/10_bt_outbounds.json
+#{
+#    "outbounds": [
+#        {
+#          "protocol": "blackhole",
+#          "settings": {},
+#          "tag": "blocked"
+#        }
+#    ]
+#}
+#EOF
 
 	# dns
 	cat <<EOF >/etc/v2ray-agent/v2ray/conf/11_dns.json
@@ -1723,17 +1723,18 @@ EOF
 EOF
 	fi
 
-	cat <<EOF >/etc/v2ray-agent/xray/conf/10_bt_outbounds.json
-{
-    "outbounds": [
-        {
-          "protocol": "blackhole",
-          "settings": {},
-          "tag": "blocked"
-        }
-    ]
-}
-EOF
+# 取消BT
+#	cat <<EOF >/etc/v2ray-agent/xray/conf/10_bt_outbounds.json
+#{
+#    "outbounds": [
+#        {
+#          "protocol": "blackhole",
+#          "settings": {},
+#          "tag": "blocked"
+#        }
+#    ]
+#}
+#EOF
 
 	# dns
 	cat <<EOF >/etc/v2ray-agent/xray/conf/11_dns.json
@@ -3113,7 +3114,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.3.16"
+	echoContent green "当前版本：v2.3.17"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本"
 	echoContent red "=============================================================="
