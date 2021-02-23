@@ -12,11 +12,12 @@
 # Catalog
 
 - [1.Installation Script](#1vlesstcptlsvlesswstlsvmesstcptlsvmesswstlstrojan-伪装博客-五合一共存脚本)
-    * [Combination method](#Combination method)
-    * [Combination recommendation](#Combination recommendation)
-    * [Characteristics](#Characteristics)
-    * [Cautions](#Cautions)
-    * [Installation Script](#Installation Script)
+    * [Characteristics](#characteristics)
+    * [architecture](#architecture)
+    * [Line recommendation(China)](#line-recommendationchina)
+    * [Combination recommendation](#combination-recommendation)
+    * [Cautions](#cautions)
+    * [Usage](#usage)
 
 * * *
 
@@ -36,7 +37,7 @@
 - Support for human verification using IPv6 to exclude Google,**You need to apply for IPv6 tunnel by yourself, it is not recommended to use the IPv6 that comes with the vps**
 - [Support custom certificate installation](https://github.com/mack-a/v2ray-agent/blob/master/documents/install_tls.md)
 
-## Supported installation types
+## Architecture
 
 - VLESS+TCP+TLS
 - VLESS+TCP+xtls-rprx-direct【**Recommended**】
@@ -46,7 +47,7 @@
 - Trojan【**Recommended**】
 - Trojan-Go+WS【Support CDN、不支持IPv6】
 
-## Line recommendation
+## Line recommendation(China)
 
 - 1.GIA
 - 2.Shanghai CN2+HK
@@ -76,9 +77,11 @@
 - wget: command not found [**Here you need to manually install the wget yourself**]
   ，If you have not used Linux，[Click to view](https://github.com/mack-a/v2ray-agent/tree/master/documents/install_tools.md)Installation Tutorial
 - Non-root accounts are not supported
-- **The version number upgrade in the middle means that it may not be compatible with the previously installed content, so please upgrade carefully if you are not chasing new users or must upgrade the version. ** For example, 2.2.\*, not compatible with 2.1.\*
+- **The version number upgrade in the middle means that it may not be compatible with the previously installed content, so please upgrade carefully if you are not chasing new users or must upgrade the
+  version. ** For example, 2.2.\*, not compatible with 2.1.\*
 - **If you find Nginx-related problems, please uninstall the self-compiled nginx or re-build the system**
-- **In order to save time, feedback please bring detailed screenshots or in accordance with the template specifications, no screenshots or not in accordance with the specifications of the issue will be directly closed**
+- **In order to save time, feedback please bring detailed screenshots or in accordance with the template specifications, no screenshots or not in accordance with the specifications of the issue will
+  be directly closed**
 - **Not recommended for GCP users**
 - **Centos and lower versions are not recommended, Centos6 is no longer supported after 2.3.x**
 
@@ -94,7 +97,7 @@
 
 ## [Common script errors handling](https://github.com/mack-a/v2ray-agent/blob/master/documents/shell_error.md)
 
-## Installation Script
+## Usage
 
 - Support shortcut start, after installation, shell input [**vasma**] to open the script, script execution path [**/etc/v2ray-agent/install.sh**]
 
