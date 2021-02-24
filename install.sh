@@ -833,7 +833,7 @@ installXray() {
 	echoContent skyBlue "\n进度  $1/${totalProgress} : 安装Xray"
 
 	if [[ "${coreInstallType}" != "1" ]]; then
-		version=$(curl -s https://github.com/XTLS/Xray-core/releases | grep /XTLS/Xray-core/releases/tag/ |grep "Xray-core v" | head -1 | awk '{print $3}' | awk -F "[<]" '{print $1}')
+		version=$(curl -s https://github.com/XTLS/Xray-core/releases | grep /XTLS/Xray-core/releases/tag/ | grep "Xray-core v" | head -1 | awk '{print $3}' | awk -F "[<]" '{print $1}')
 
 		echoContent green " ---> Xray-core版本:${version}"
 		if wget --help | grep -q show-progress; then
@@ -933,10 +933,10 @@ xrayVersionManageMenu() {
 		echoContent yellow "2.不保证回退后一定可以正常使用"
 		echoContent yellow "3.如果回退的版本不支持当前的config，则会无法连接，谨慎操作"
 		echoContent skyBlue "------------------------Version-------------------------------"
-		curl -s https://github.com/XTLS/Xray-core/releases | grep /XTLS/Xray-core/releases/tag/ |grep "Xray-core v" | head -5 | awk -F "[X][r][a][y][-][c][o][r][e][ ]" '{print $2}' | awk -F "[<]" '{print $1}' | tail -n 5 | awk '{print ""NR""":"$0}'
+		curl -s https://github.com/XTLS/Xray-core/releases | grep /XTLS/Xray-core/releases/tag/ | grep "Xray-core v" | head -5 | awk -F "[X][r][a][y][-][c][o][r][e][ ]" '{print $2}' | awk -F "[<]" '{print $1}' | tail -n 5 | awk '{print ""NR""":"$0}'
 		echoContent skyBlue "--------------------------------------------------------------"
 		read -r -p "请输入要回退的版本：" selectXrayVersionType
-		version=$(curl -s https://github.com/XTLS/Xray-core/releases | grep /XTLS/Xray-core/releases/tag/ |grep "Xray-core v" | head -5 | awk -F "[X][r][a][y][-][c][o][r][e][ ]" '{print $2}' | awk -F "[<]" '{print $1}' | tail -n 5 | awk '{print ""NR""":"$0}' | grep "${selectXrayVersionType}:" | awk -F "[:]" '{print $2}')
+		version=$(curl -s https://github.com/XTLS/Xray-core/releases | grep /XTLS/Xray-core/releases/tag/ | grep "Xray-core v" | head -5 | awk -F "[X][r][a][y][-][c][o][r][e][ ]" '{print $2}' | awk -F "[<]" '{print $1}' | tail -n 5 | awk '{print ""NR""":"$0}' | grep "${selectXrayVersionType}:" | awk -F "[:]" '{print $2}')
 		if [[ -n "${version}" ]]; then
 			updateXray "${version}"
 		else
@@ -1031,7 +1031,7 @@ updateXray() {
 		if [[ -n "$1" ]]; then
 			version=$1
 		else
-			version=$(curl -s https://github.com/XTLS/Xray-core/releases | grep /XTLS/Xray-core/releases/tag/ |grep "Xray-core v" | head -1 | awk '{print $3}' | awk -F "[<]" '{print $1}')
+			version=$(curl -s https://github.com/XTLS/Xray-core/releases | grep /XTLS/Xray-core/releases/tag/ | grep "Xray-core v" | head -1 | awk '{print $3}' | awk -F "[<]" '{print $1}')
 		fi
 
 		echoContent green " ---> Xray-core版本:${version}"
@@ -1053,7 +1053,7 @@ updateXray() {
 		if [[ -n "$1" ]]; then
 			version=$1
 		else
-			version=$(curl -s https://github.com/XTLS/Xray-core/releases | grep /XTLS/Xray-core/releases/tag/ |grep "Xray-core v" | head -1 | awk '{print $3}' | awk -F "[<]" '{print $1}')
+			version=$(curl -s https://github.com/XTLS/Xray-core/releases | grep /XTLS/Xray-core/releases/tag/ | grep "Xray-core v" | head -1 | awk '{print $3}' | awk -F "[<]" '{print $1}')
 		fi
 
 		if [[ -n "$1" ]]; then
@@ -1414,28 +1414,24 @@ EOF
 }
 EOF
 	fi
-# 取消BT
-#	cat <<EOF >/etc/v2ray-agent/v2ray/conf/10_bt_outbounds.json
-#{
-#    "outbounds": [
-#        {
-#          "protocol": "blackhole",
-#          "settings": {},
-#          "tag": "blocked"
-#        }
-#    ]
-#}
-#EOF
+	# 取消BT
+	#	cat <<EOF >/etc/v2ray-agent/v2ray/conf/10_bt_outbounds.json
+	#{
+	#    "outbounds": [
+	#        {
+	#          "protocol": "blackhole",
+	#          "settings": {},
+	#          "tag": "blocked"
+	#        }
+	#    ]
+	#}
+	#EOF
 
 	# dns
 	cat <<EOF >/etc/v2ray-agent/v2ray/conf/11_dns.json
 {
     "dns": {
         "servers": [
-          "74.82.42.42",
-          "8.8.8.8",
-          "8.8.4.4",
-          "1.1.1.1",
           "localhost"
         ]
   }
@@ -1723,28 +1719,24 @@ EOF
 EOF
 	fi
 
-# 取消BT
-#	cat <<EOF >/etc/v2ray-agent/xray/conf/10_bt_outbounds.json
-#{
-#    "outbounds": [
-#        {
-#          "protocol": "blackhole",
-#          "settings": {},
-#          "tag": "blocked"
-#        }
-#    ]
-#}
-#EOF
+	# 取消BT
+	#	cat <<EOF >/etc/v2ray-agent/xray/conf/10_bt_outbounds.json
+	#{
+	#    "outbounds": [
+	#        {
+	#          "protocol": "blackhole",
+	#          "settings": {},
+	#          "tag": "blocked"
+	#        }
+	#    ]
+	#}
+	#EOF
 
 	# dns
 	cat <<EOF >/etc/v2ray-agent/xray/conf/11_dns.json
 {
     "dns": {
         "servers": [
-          "74.82.42.42",
-          "8.8.8.8",
-          "8.8.4.4",
-          "1.1.1.1",
           "localhost"
         ]
   }
@@ -2408,6 +2400,7 @@ customUserEmail() {
 
 # 添加用户
 addUser() {
+
 	echoContent yellow "添加新用户后，需要重新查看订阅"
 	read -r -p "请输入要添加的用户数量：" userNum
 	echo
@@ -2425,13 +2418,13 @@ addUser() {
 	fi
 
 	while [[ ${userNum} -gt 0 ]]; do
+
 		((userNum--)) || true
 		if [[ -n "${currentCustomUUID}" ]]; then
 			uuid=${currentCustomUUID}
 		else
 			uuid=$(${ctlPath} uuid)
 		fi
-
 		if [[ -n "${currentCustomEmail}" ]]; then
 			email=${currentCustomEmail}
 		else
@@ -2439,6 +2432,7 @@ addUser() {
 		fi
 
 		if [[ ${userNum} == 0 ]]; then
+
 			users=${users}{\"id\":\"${uuid}\",\"flow\":\"xtls-rprx-direct\",\"email\":\"${email}\"}
 
 			if echo ${currentInstallProtocolType} | grep -q 4; then
@@ -2451,8 +2445,8 @@ addUser() {
 				trojanGoUsers=${trojanGoUsers}\"${uuid}\",
 			fi
 		fi
-
 	done
+
 	# 兼容v2ray-core
 	if [[ "${coreInstallType}" == "2" ]]; then
 		#  | sed 's/"flow":"xtls-rprx-direct",/"alterId":1,/g')
@@ -2789,6 +2783,131 @@ EOF
 	fi
 }
 
+# 流媒体工具箱
+streamingToolbox() {
+	echoContent skyBlue "\n功能 1/${totalProgress} : 流媒体工具箱"
+	echoContent red "\n=============================================================="
+	echoContent yellow "1.Netflix检测"
+	echoContent yellow "2.DNS解锁Netflix"
+	read -r -p "请选择:" selectType
+
+	case ${selectType} in
+	1)
+		checkNetflix
+		;;
+	2)
+		dnsUnlockNetflix
+		;;
+	esac
+}
+
+# 检查 vps是否支持Netflix
+checkNetflix() {
+	echoContent red "\n注意事项"
+	echoContent yellow " 1.只可检测vps是否支持Netflix"
+	echoContent yellow " 2.无法检测代理配置dns解锁后是否支持Netflix"
+	echoContent yellow " 3.可检测vps配置dns解锁后是否支持Netflix\n"
+	echoContent skyBlue " ---> 检测中"
+	netflixResult=$(curl -s -m 2 https://www.netflix.com | grep "Not Available")
+	if [[ -n ${netflixResult} ]]; then
+		echoContent red " ---> Netflix不可用"
+		exit
+	fi
+	echoContent skyBlue " ---> 检测绝命毒师是否可以播放"
+	result=$(curl -s -m 2 https://www.netflix.com/title/70143836 | grep "page-404")
+	if [[ -n ${result} ]]; then
+		echoContent green " ---> 仅可看自制剧"
+		exit
+	fi
+	echoContent green " ---> Netflix解锁"
+	exit
+}
+
+# dns解锁Netflix
+dnsUnlockNetflix() {
+	echoContent skyBlue "\n功能 1/${totalProgress} : DNS解锁Netflix"
+	echoContent red "\n=============================================================="
+	echoContent yellow "1.添加"
+	echoContent yellow "2.卸载"
+	read -r -p "请选择:" selectType
+
+	case ${selectType} in
+	1)
+		setUnlockDNS
+		;;
+	2)
+		removeUnlockDNS
+		;;
+	esac
+}
+
+# 设置dns
+setUnlockDNS() {
+	read -r -p "请输入解锁Netflix的DNS:" setDNS
+	if [[ -n ${setDNS} ]]; then
+		cat <<EOF >${configPath}/11_dns.json
+{
+	"dns": {
+		"servers": [
+			{
+				"address": "${setDNS}",
+				"port": 53,
+				"domains": [
+					"domain:netflix.com",
+					"domain:netflix.net",
+					"domain:nflximg.net",
+					"domain:nflxvideo.net",
+					"domain:nflxso.net",
+					"domain:nflxext.com"
+				]
+			},
+		"localhost"
+		]
+	}
+}
+EOF
+		if [[ "${coreInstallType}" == "1" ]]; then
+			handleXray stop
+			handleXray start
+
+		elif [[ "${coreInstallType}" == "2" || "${coreInstallType}" == "3" ]]; then
+			handleV2Ray stop
+			handleV2Ray start
+		fi
+		echoContent green "\n ---> DNS解锁添加成功，该设置对Trojan-Go无效"
+		echoContent yellow "\n ---> 如还无法观看可以尝试以下两种方案"
+		echoContent yellow " 1.重启vps"
+		echoContent yellow " 2.卸载dns解锁后，修改本地的[/etc/resolv.conf]DNS设置并重启vps\n"
+	else
+		echoContent red " ---> dns不可为空"
+	fi
+	exit
+}
+
+# 移除Netflix解锁
+removeUnlockDNS() {
+	cat <<EOF >${configPath}/11_dns.json
+{
+	"dns": {
+		"servers": [
+			"localhost"
+		]
+	}
+}
+EOF
+	if [[ "${coreInstallType}" == "1" ]]; then
+		handleXray stop
+		handleXray start
+
+	elif [[ "${coreInstallType}" == "2" || "${coreInstallType}" == "3" ]]; then
+		handleV2Ray stop
+		handleV2Ray start
+	fi
+
+	echoContent green " ---> 卸载成功"
+
+	exit
+}
 # v2ray-core个性化安装
 customV2RayInstall() {
 	echoContent skyBlue "\n========================个性化安装============================"
@@ -3114,7 +3233,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.3.17"
+	echoContent green "当前版本：v2.3.18"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本"
 	echoContent red "=============================================================="
@@ -3126,14 +3245,15 @@ menu() {
 	echoContent yellow "5.更新证书"
 	echoContent yellow "6.更换CDN节点"
 	echoContent yellow "7.ipv6人机验证"
+	echoContent yellow "8.流媒体工具"
 	echoContent skyBlue "-------------------------版本管理-----------------------------"
-	echoContent yellow "8.core版本管理"
-	echoContent yellow "9.更新Trojan-Go"
-	echoContent yellow "10.更新脚本"
-	echoContent yellow "11.安装BBR、DD脚本"
+	echoContent yellow "9.core版本管理"
+	echoContent yellow "10.更新Trojan-Go"
+	echoContent yellow "11.更新脚本"
+	echoContent yellow "12.安装BBR、DD脚本"
 	echoContent skyBlue "-------------------------脚本管理-----------------------------"
-	echoContent yellow "12.查看日志"
-	echoContent yellow "13.卸载脚本"
+	echoContent yellow "13.查看日志"
+	echoContent yellow "14.卸载脚本"
 	echoContent red "=============================================================="
 	mkdirTools
 	aliasInstall
@@ -3161,21 +3281,24 @@ menu() {
 		ipv6HumanVerification
 		;;
 	8)
-		coreVersionManageMenu 1
+		streamingToolbox 1
 		;;
 	9)
-		updateTrojanGo 1
+		coreVersionManageMenu 1
 		;;
 	10)
-		updateV2RayAgent 1
+		updateTrojanGo 1
 		;;
 	11)
-		bbrInstall
+		updateV2RayAgent 1
 		;;
 	12)
-		checkLog 1
+		bbrInstall
 		;;
 	13)
+		checkLog 1
+		;;
+	14)
 		unInstall 1
 		;;
 	esac
