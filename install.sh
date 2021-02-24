@@ -2813,6 +2813,13 @@ checkNetflix() {
 		echoContent red " ---> Netflix不可用"
 		exit
 	fi
+
+	netflixResult=$(curl -s -m 2 https://www.netflix.com | grep "NSEZ-403")
+	if [[ -n ${netflixResult} ]]; then
+		echoContent red " ---> Netflix不可用"
+		exit
+	fi
+
 	echoContent skyBlue " ---> 检测绝命毒师是否可以播放"
 	result=$(curl -s -m 2 https://www.netflix.com/title/70143836 | grep "page-404")
 	if [[ -n ${result} ]]; then
@@ -3233,7 +3240,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.3.18"
+	echoContent green "当前版本：v2.3.19"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本"
 	echoContent red "=============================================================="
