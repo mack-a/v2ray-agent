@@ -187,7 +187,7 @@ readConfigHostPathUUID() {
 		# jq .inbounds[0].settings.fallbacks.[].path ${configPath}02_VLESS_TCP_inbounds.json| awk -F "[\"][/]" '{print $2}' | awk -F "[\"]" '{print $1}' | tail -n +2 | head -n 1
 
 		if [[ -n "${path}" ]]; then
-			if [[ "${path:0-3}" == "vws" ]]; then
+			if [[ "${path:0-3}" == "vws" && ${#path} -gt 6 ]]; then
 				currentPath=$(echo "${path}" | awk -F "[v][w][s]" '{print $1}')
 			elif [[ "${path:0-2}" == "ws" ]]; then
 				currentPath=$(echo "${path}" | awk -F "[w][s]" '{print $1}')
@@ -3240,7 +3240,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.3.19"
+	echoContent green "当前版本：v2.3.20"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本"
 	echoContent red "=============================================================="
