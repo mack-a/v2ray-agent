@@ -26,7 +26,7 @@
 - 支持Linux、Windows、Android
 - 下面提供的ip，不一定适合所有人，建议使用下方的工具找到最适合自己的CDN ip。
 ```
-https://github.com/badafans/better-cloudflare-ip
+https://github.com/XIU2/CloudflareSpeedTest
 ```
 
 # 智能解析DNS对应的IP[CNAME效果]
