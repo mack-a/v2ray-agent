@@ -2465,20 +2465,25 @@ addUser() {
 
 	if echo ${currentInstallProtocolType} | grep -q 1; then
 		local vlessUsers="${users//\,\"alterId\":1/}"
+		vlessUsers="${vlessUsers//\"flow\":\"xtls-rprx-direct\"\,/}"
 		local vlessWsResult
 		vlessWsResult=$(jq -r '.inbounds[0].settings.clients += ['${vlessUsers}']' ${configPath}03_VLESS_WS_inbounds.json)
 		echo "${vlessWsResult}" | jq . >${configPath}03_VLESS_WS_inbounds.json
 	fi
 
 	if echo ${currentInstallProtocolType} | grep -q 2; then
+		local vmessUsers="${users//\"flow\":\"xtls-rprx-direct\"\,/}"
+
 		local vmessTcpResult
-		vmessTcpResult=$(jq -r '.inbounds[0].settings.clients += ['${users}']' ${configPath}04_VMess_TCP_inbounds.json)
+		vmessTcpResult=$(jq -r '.inbounds[0].settings.clients += ['${vmessUsers}']' ${configPath}04_VMess_TCP_inbounds.json)
 		echo "${vmessTcpResult}" | jq . >${configPath}04_VMess_TCP_inbounds.json
 	fi
 
 	if echo ${currentInstallProtocolType} | grep -q 3; then
+		local vmessUsers="${users//\"flow\":\"xtls-rprx-direct\"\,/}"
+
 		local vmessWsResult
-		vmessWsResult=$(jq -r '.inbounds[0].settings.clients += ['${users}']' ${configPath}05_VMess_WS_inbounds.json)
+		vmessWsResult=$(jq -r '.inbounds[0].settings.clients += ['${vmessUsers}']' ${configPath}05_VMess_WS_inbounds.json)
 		echo "${vmessWsResult}" | jq . >${configPath}05_VMess_WS_inbounds.json
 	fi
 
