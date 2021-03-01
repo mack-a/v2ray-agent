@@ -25,7 +25,18 @@
     * [11.BBR、DD脚本](#11bbr-dd脚本)
     * [12.查看日志](#12查看日志)
     * [13.卸载脚本](#13卸载脚本)
-- [3.答疑](#3答疑)
+- [3.脚本常用命令](#3脚本常用命令)
+    * [1.启动脚本](#1启动脚本)
+    * [2.服务管理](#2服务管理)
+        + [1.Xray-core、v2ray-core、trojan-go](#1xray-core-v2ray-core-trojan-go)
+        + [2.Nginx](#2nginx)
+- [4.常见错误处理](#5常见错误处理)
+    * [1.输入域名后卡住](#1输入域名后卡住)
+    * [2.下载脚本失败](#2下载脚本失败)
+    * [3.生成证书失败](#3生成证书失败)
+    * [4.Debian8启动nginx失败](#4debian8启动nginx失败)
+        + [解决方法一](#解决方法一)
+- [5.答疑](#4答疑)
     * [1.哪一种线路是最好的？](#1哪一种线路是最好的)
     * [2.是否支持流量统计？](#2是否支持流量统计)
     * [3.流控[xtls-rprx-direct、xtls-rprx-splice]答疑](#3流控xtls-rprx-directxtls-rprx-splice答疑)
@@ -150,7 +161,122 @@ echo "alias abc=vasma" >> ~/.bashrc & source ~/.bashrc
 
 - 卸载后会保留acme目录的证书文件防止下次安装时重新签发，签发多次后在一段时间内就不可以签发
 
-# 3.答疑
+# 3.脚本常用命令
+
+## 1.启动脚本
+
+```
+vasma
+```
+
+## 2.服务管理
+
+### 1.Xray-core、v2ray-core、trojan-go
+
+- 启动
+
+```
+# xray
+systemctl start xray
+
+# v2ray
+systemctl start v2ray
+
+# trojan-go
+systemctl start trojan-go
+```
+
+- 重启
+
+```
+# xray
+systemctl restart xray
+
+# v2ray
+systemctl restart v2ray
+
+# trojan-go
+systemctl restart trojan-go
+```
+
+-关闭
+
+```
+# xray
+systemctl stop xray
+
+# v2ray
+systemctl stop v2ray
+
+# trojan-go
+systemctl stop trojan-go
+```
+
+### 2.Nginx
+
+- 启动
+
+````
+nginx
+````
+
+- 重启
+
+```
+nginx -s reload
+```
+
+- 关闭
+
+```
+nginx -s stop
+```
+
+# 5.常见错误处理
+
+## 1.输入域名后卡住
+
+```
+# 请手动打开icmp
+```
+
+## 2.下载脚本失败
+
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/shell_error_01.jpg" width=700>
+
+- 需要手动更改dns
+
+```
+# 文件位置
+/etc/resolv.conf
+
+# 文件内容
+nameserver 8.8.8.8
+nameserver 1.1.1.1
+nameserver 8.8.4.4
+```
+
+## 3.生成证书失败
+
+- 请更换Debian或者Ubuntu
+
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/shell_error_02.jpg" width=700>
+
+## 4.Debian8启动nginx失败
+
+### 解决方法一
+
+- 手动删除add_header选项
+
+```
+vim /etc/nginx/conf.d/alone.conf
+# 删除下方代码
+location / {
+            add_header Strict-Transport-Security "max-age=63072000" always;
+}
+```
+
+# 4.答疑
 
 ## 1.哪一种线路是最好的？
 
