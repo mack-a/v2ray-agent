@@ -95,7 +95,7 @@ echo "alias abc=vasma" >> ~/.bashrc & source ~/.bashrc
 - [任意组合安装]可以安装 VLESS/VMess/Trojan三种协议
 - 采用VLESS回落，所以0是必须安装的，也是默认安装的，不管选择哪一个种安装内容都会安装0。
 - 支持VLESS+TLS/XTLS+TCP、VLESS+TLS+WS[CDN]、VMess+TLS+TCP、VMess+TLS+WS[CDN]、Trojan、Trojan+WS[CDN]
-- 支持WS的支持Cloudflare
+- 支持WS传输类型的才支持Cloudflare
 
 ## 2.账号管理
 
@@ -199,7 +199,7 @@ systemctl restart v2ray
 systemctl restart trojan-go
 ```
 
--关闭
+- 关闭
 
 ```
 # xray
