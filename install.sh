@@ -2559,6 +2559,7 @@ removeUser() {
 # 更新脚本
 updateV2RayAgent() {
 	echoContent skyBlue "\n进度  $1/${totalProgress} : 更新v2ray-agent脚本"
+	rm -rf /etc/v2ray-agent/install.sh
 	if wget --help | grep -q show-progress; then
 		wget -c -q --show-progress -P /etc/v2ray-agent/ -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh"
 	else
@@ -2571,6 +2572,9 @@ updateV2RayAgent() {
 	echoContent green "\n ---> 更新完毕"
 	echoContent yellow " ---> 请手动执行[vasma]打开脚本"
 	echoContent green " ---> 当前版本:${version}\n"
+	echoContent yellow "如更新不成功，请手动执行下面命令\n"
+	echoContent skyBlue "wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh" && chmod 700 /root/install.sh && /root/install.sh"
+	echo
 	exit 0
 }
 
@@ -3245,7 +3249,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.3.21"
+	echoContent green "当前版本：v2.3.22"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本"
 	echoContent red "=============================================================="
