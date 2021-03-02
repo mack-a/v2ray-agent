@@ -299,3 +299,7 @@ location / {
 ## 5.智能DNS的作用
 
 - [具体详解请查看此文章](https://github.com/mack-a/v2ray-agent/blob/master/documents/optimize_V2Ray.md)
+
+## 6.VLESS+WS+TLS、VMess+WS+TLS，如果套CF，开启CF的小云朵了，那么如果把域名给换成优选IP的话 小云朵需要关闭不?
+
+- [任何情况下都不需要开启云朵](https://github.com/mack-a/v2ray-agent/blob/master/documents/optimize_V2Ray.md)
