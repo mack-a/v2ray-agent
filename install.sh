@@ -1923,10 +1923,6 @@ initTrojanGoConfig() {
         "${uuid}"
     ],
     "dns":[
-        "74.82.42.42",
-        "8.8.8.8",
-        "8.8.4.4",
-        "1.1.1.1",
         "localhost"
     ],
     "transport_plugin":{
