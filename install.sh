@@ -2763,6 +2763,7 @@ streamingToolbox() {
 	echoContent red "\n=============================================================="
 	echoContent yellow "1.Netflix检测"
 	echoContent yellow "2.任意门落地机解锁Netflix"
+	echoContent yellow "3.DNS解锁Netflix"
 	read -r -p "请选择:" selectType
 
 	case ${selectType} in
@@ -2771,6 +2772,9 @@ streamingToolbox() {
 		;;
 	2)
 		dokodemoDoorUnblockNetflix
+		;;
+	3)
+		dnsUnlockNetflix
 		;;
 	esac
 
@@ -2996,6 +3000,102 @@ checkNetflix() {
 	echoContent green " ---> Netflix解锁"
 	exit
 }
+
+# dns解锁Netflix
+dnsUnlockNetflix() {
+	echoContent skyBlue "\n功能 1/${totalProgress} : DNS解锁Netflix"
+	echoContent red "\n=============================================================="
+	echoContent yellow "1.添加"
+	echoContent yellow "2.卸载"
+	read -r -p "请选择:" selectType
+
+	case ${selectType} in
+	1)
+		setUnlockDNS
+		;;
+	2)
+		removeUnlockDNS
+		;;
+	esac
+}
+
+# 设置dns
+setUnlockDNS() {
+	read -r -p "请输入解锁Netflix的DNS:" setDNS
+	if [[ -n ${setDNS} ]]; then
+		cat <<EOF >${configPath}/11_dns.json
+{
+	"dns": {
+		"servers": [
+			{
+				"address": "${setDNS}",
+				"port": 53,
+				"domains": [
+					"geosite:netflix",
+					"geosite:bahamut",
+					"geosite:hulu",
+					"geosite:hbo",
+					"geosite:disney",
+					"geosite:bbc",
+					"geosite:4chan",
+					"geosite:fox",
+					"geosite:abema",
+					"geosite:dmm",
+					"geosite:niconico",
+					"geosite:pixiv",
+					"geosite:bilibili",
+					"geosite:viu",
+					"geosite:pixiv",
+				]
+			},
+		"localhost"
+		]
+	}
+}
+EOF
+		if [[ "${coreInstallType}" == "1" ]]; then
+			handleXray stop
+			handleXray start
+
+		elif [[ "${coreInstallType}" == "2" || "${coreInstallType}" == "3" ]]; then
+			handleV2Ray stop
+			handleV2Ray start
+		fi
+		echoContent green "\n ---> DNS解锁添加成功，该设置对Trojan-Go无效"
+		echoContent yellow "\n ---> 如还无法观看可以尝试以下两种方案"
+		echoContent yellow " 1.重启vps"
+		echoContent yellow " 2.卸载dns解锁后，修改本地的[/etc/resolv.conf]DNS设置并重启vps\n"
+	else
+		echoContent red " ---> dns不可为空"
+	fi
+	exit
+}
+
+# 移除Netflix解锁
+removeUnlockDNS() {
+	cat <<EOF >${configPath}/11_dns.json
+{
+	"dns": {
+		"servers": [
+			"localhost"
+		]
+	}
+}
+EOF
+	if [[ "${coreInstallType}" == "1" ]]; then
+		handleXray stop
+		handleXray start
+
+	elif [[ "${coreInstallType}" == "2" || "${coreInstallType}" == "3" ]]; then
+		handleV2Ray stop
+		handleV2Ray start
+	fi
+
+	echoContent green " ---> 卸载成功"
+
+	exit
+}
+
 # v2ray-core个性化安装
 customV2RayInstall() {
 	echoContent skyBlue "\n========================个性化安装============================"
@@ -3321,7 +3421,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.3.24"
+	echoContent green "当前版本：v2.3.25"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本"
 	echoContent red "=============================================================="
