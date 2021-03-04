@@ -39,7 +39,7 @@
 - 支持Debian、Ubuntu、Centos，支持主流的cpu架构。**不建议使用Centos以及低版本的系统，2.3.x后不再支持Centos6**
 - 支持个性化安装
 - 支持多用户管理
-- 支持Netflix检测、支持DNS流媒体解锁
+- 支持Netflix检测、支持DNS流媒体解锁、支持任意门解锁Netflix
 - 无需卸载即可安装、重装任意组合。卸载脚本时无多余文件残留
 - 支持纯IPv6，[IPv6注意事项](https://github.com/mack-a/v2ray-agent/blob/master/documents/IPv6_help.md)
 - 支持利用IPv6排除Google的人机验证，**需自己申请IPv6隧道，不建议使用自带的IPv6**

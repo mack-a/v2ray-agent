@@ -1450,6 +1450,7 @@ EOF
   "port": 31297,
   "listen": "127.0.0.1",
   "protocol": "vless",
+  "tag":"VLESSWS",
   "settings": {
     "clients": [
       {
@@ -1755,6 +1756,7 @@ EOF
   "port": 31297,
   "listen": "127.0.0.1",
   "protocol": "vless",
+  "tag":"VLESSWS",
   "settings": {
     "clients": [
       {
@@ -2870,7 +2872,7 @@ EOF
 setDokodemoDoorUnblockNetflixInbounds() {
 	read -r -p "请输入允许访问该解锁Netflix vps的IP:" setIP
 	if [[ -n "${setIP}" ]]; then
-		cat <<EOF >${configPath}/10_netflix_inbounds.json
+		cat <<EOF >${configPath}/01_netflix_inbounds.json
 {
   "inbounds": [
     {
@@ -2940,7 +2942,7 @@ EOF
 
 # 移除任意门解锁Netflix
 removeDokodemoDoorUnblockNetflix() {
-	rm -rf ${configPath}/10_netflix_*.json
+	rm -rf ${configPath}/*_netflix_*.json
 	cat <<EOF >${configPath}/09_routing.json
 {
     "routing":{
@@ -3421,7 +3423,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.3.25"
+	echoContent green "当前版本：v2.3.26"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本"
 	echoContent red "=============================================================="
