@@ -138,7 +138,7 @@ echo "alias abc=vasma" >> ~/.bashrc & source ~/.bashrc
 ## 7.流媒体工具
 
 - 支持检测是否解锁Netflix
-- 支持DNS流媒体解锁，需自行购买流媒体解锁DNS
+- [支持任意门解锁流媒体](https://github.com/mack-a/v2ray-agent/blob/master/documents/netflix/dokodemo-unblock_netflix.md)
 
 ## 8.core版本管理
 

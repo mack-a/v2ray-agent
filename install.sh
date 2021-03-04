@@ -750,13 +750,7 @@ renewalTLS() {
 			sudo "$HOME/.acme.sh/acme.sh" --installcert -d "${currentHost}" --fullchainpath /etc/v2ray-agent/tls/"${currentHost}.crt" --keypath /etc/v2ray-agent/tls/"${currentHost}.key" --ecc | sudo tee -a /etc/v2ray-agent/tls/acme.log
 			handleNginx start
 
-			if [[ "${coreInstallType}" == "1" ]]; then
-				handleXray stop
-				handleXray start
-			elif [[ "${coreInstallType}" == "2" || "${coreInstallType}" == "3" ]]; then
-				handleV2Ray stop
-				handleV2Ray start
-			fi
+			reloadCore
 
 		else
 			echoContent green " ---> 证书有效"
@@ -2293,13 +2287,7 @@ updateV2RayCDN() {
 			# if [[ $(grep <./02_VLESS_TCP_inbounds.json add | awk -F '["]' '{print $4}') == "${setDomain}" ]]
 			if [[ $(grep <${configPath}02_VLESS_TCP_inbounds.json add | awk -F '["]' '{print $4}') == "${setDomain}" ]]; then
 				echoContent green " ---> CDN修改成功"
-				if [[ "${coreInstallType}" == "1" ]]; then
-					handleXray stop
-					handleXray start
-				elif [[ "${coreInstallType}" == "2" || "${coreInstallType}" == "3" ]]; then
-					handleV2Ray stop
-					handleV2Ray start
-				fi
+				reloadCore
 
 			else
 				echoContent red " ---> 修改CDN失败"
@@ -2491,13 +2479,7 @@ addUser() {
 		handleTrojanGo start
 	fi
 
-	if [[ "${coreInstallType}" == "1" ]]; then
-		handleXray stop
-		handleXray start
-	elif [[ "${coreInstallType}" == "2" || "${coreInstallType}" == "3" ]]; then
-		handleV2Ray stop
-		handleV2Ray start
-	fi
+	reloadCore
 	echoContent green " ---> 添加完成"
 	showAccounts 1
 }
@@ -2543,13 +2525,7 @@ removeUser() {
 			handleTrojanGo stop
 			handleTrojanGo start
 		fi
-		if [[ "${coreInstallType}" == "1" ]]; then
-			handleXray stop
-			handleXray start
-		elif [[ "${coreInstallType}" == "2" || "${coreInstallType}" == "3" ]]; then
-			handleV2Ray stop
-			handleV2Ray start
-		fi
+		reloadCore
 	fi
 }
 # 更新脚本
@@ -2778,14 +2754,7 @@ EOF
 		exit
 	fi
 
-	if [[ "${coreInstallType}" == "1" ]]; then
-		handleXray stop
-		handleXray start
-
-	elif [[ "${coreInstallType}" == "2" || "${coreInstallType}" == "3" ]]; then
-		handleV2Ray stop
-		handleV2Ray start
-	fi
+	reloadCore
 }
 
 # 流媒体工具箱
@@ -2793,7 +2762,7 @@ streamingToolbox() {
 	echoContent skyBlue "\n功能 1/${totalProgress} : 流媒体工具箱"
 	echoContent red "\n=============================================================="
 	echoContent yellow "1.Netflix检测"
-	echoContent yellow "2.DNS解锁Netflix"
+	echoContent yellow "2.任意门落地机解锁Netflix"
 	read -r -p "请选择:" selectType
 
 	case ${selectType} in
@@ -2801,9 +2770,202 @@ streamingToolbox() {
 		checkNetflix
 		;;
 	2)
-		dnsUnlockNetflix
+		dokodemoDoorUnblockNetflix
 		;;
 	esac
+
+}
+
+# 任意门解锁netflix
+dokodemoDoorUnblockNetflix() {
+	echoContent skyBlue "\n功能 1/${totalProgress} : 任意门落地机解锁Netflix"
+	echoContent red "\n=============================================================="
+	echoContent yellow "# 注意事项"
+	echoContent yellow "任意门解锁详解，请查看此文章[https://github.com/mack-a/v2ray-agent/blob/master/documents/netflix/dokodemo-unblock_netflix.md]\n"
+
+	echoContent yellow "1.添加出站"
+	echoContent yellow "2.添加入站"
+	echoContent yellow "3.卸载"
+	read -r -p "请选择:" selectType
+
+	case ${selectType} in
+	1)
+		setDokodemoDoorUnblockNetflixOutbounds
+		;;
+	2)
+		setDokodemoDoorUnblockNetflixInbounds
+		;;
+	3)
+		removeDokodemoDoorUnblockNetflix
+		;;
+	esac
+}
+
+# 设置任意门解锁Netflix【出站】
+setDokodemoDoorUnblockNetflixOutbounds() {
+	read -r -p "请输入解锁Netflix vps的IP:" setIP
+	if [[ -n "${setIP}" ]]; then
+		cat <<EOF >${configPath}/10_netflix_outbounds.json
+{
+  "outbounds": [
+    {
+      "tag": "netflix-80",
+      "protocol": "freedom",
+      "settings": {
+        "domainStrategy": "AsIs",
+        "redirect": "${setIP}:22387"
+      }
+    },
+    {
+      "tag": "netflix-443",
+      "protocol": "freedom",
+      "settings": {
+        "domainStrategy": "AsIs",
+        "redirect": "${setIP}:22388"
+      }
+    }
+  ]
+}
+EOF
+		cat <<EOF >${configPath}/09_routing.json
+{
+  "routing": {
+    "domainStrategy": "AsIs",
+    "rules": [
+      {
+        "type": "field",
+        "port": 80,
+        "domain": [
+          "ip.sb",
+          "geosite:netflix"
+        ],
+        "outboundTag": "netflix-80"
+      },
+      {
+        "type": "field",
+        "port": 443,
+        "domain": [
+          "ip.sb",
+          "geosite:netflix"
+        ],
+        "outboundTag": "netflix-443"
+      }
+    ]
+  }
+}
+EOF
+		reloadCore
+		echoContent green " ---> 添加Netflix出战解锁成功"
+		echoContent yellow " ---> 不支持trojan的相关节点"
+		exit
+	fi
+	echoContent red " ---> ip不可为空"
+}
+
+# 设置任意门解锁Netflix【入站】
+setDokodemoDoorUnblockNetflixInbounds() {
+	read -r -p "请输入允许访问该解锁Netflix vps的IP:" setIP
+	if [[ -n "${setIP}" ]]; then
+		cat <<EOF >${configPath}/10_netflix_inbounds.json
+{
+  "inbounds": [
+    {
+      "listen": "0.0.0.0",
+      "port": 22387,
+      "protocol": "dokodemo-door",
+      "settings": {
+        "address": "0.0.0.0",
+        "port": 80,
+        "network": "tcp",
+        "followRedirect": false
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http"
+        ]
+      },
+      "tag": "unblock-80"
+    },
+    {
+      "listen": "0.0.0.0",
+      "port": 22388,
+      "protocol": "dokodemo-door",
+      "settings": {
+        "address": "0.0.0.0",
+        "port": 443,
+        "network": "tcp",
+        "followRedirect": false
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "tls"
+        ]
+      },
+      "tag": "unblock-443"
+    }
+  ]
+}
+EOF
+
+		cat <<EOF >${configPath}/09_routing.json
+{
+  "routing": {
+    "rules": [
+      {
+        "ip": "${setIP}",
+        "type": "field",
+        "inboundTag": [
+          "unblock-80",
+          "unblock-443"
+        ],
+        "outboundTag": "direct"
+      }
+    ]
+  }
+}
+EOF
+		reloadCore
+		echoContent green " ---> 添加落地机入站解锁Netflix成功"
+		echoContent yellow " ---> 不支持trojan的相关节点"
+		exit
+	fi
+	echoContent red " ---> ip不可为空"
+}
+
+# 移除任意门解锁Netflix
+removeDokodemoDoorUnblockNetflix() {
+	rm -rf ${configPath}/10_netflix_*.json
+	cat <<EOF >${configPath}/09_routing.json
+{
+    "routing":{
+        "domainStrategy": "AsIs",
+        "rules": [
+          {
+            "type": "field",
+            "protocol": [
+              "bittorrent"
+            ],
+            "outboundTag": "blocked"
+          }
+        ]
+  }
+}
+EOF
+	reloadCore
+	echoContent green " ---> 卸载成功"
+}
+
+# 重启核心
+reloadCore() {
+	if [[ "${coreInstallType}" == "1" ]]; then
+		handleXray stop
+		handleXray start
+	elif [[ "${coreInstallType}" == "2" || "${coreInstallType}" == "3" ]]; then
+		handleV2Ray stop
+		handleV2Ray start
+	fi
 }
 
 # 检查 vps是否支持Netflix
@@ -2832,92 +2994,6 @@ checkNetflix() {
 		exit
 	fi
 	echoContent green " ---> Netflix解锁"
-	exit
-}
-
-# dns解锁Netflix
-dnsUnlockNetflix() {
-	echoContent skyBlue "\n功能 1/${totalProgress} : DNS解锁Netflix"
-	echoContent red "\n=============================================================="
-	echoContent yellow "1.添加"
-	echoContent yellow "2.卸载"
-	read -r -p "请选择:" selectType
-
-	case ${selectType} in
-	1)
-		setUnlockDNS
-		;;
-	2)
-		removeUnlockDNS
-		;;
-	esac
-}
-
-# 设置dns
-setUnlockDNS() {
-	read -r -p "请输入解锁Netflix的DNS:" setDNS
-	if [[ -n ${setDNS} ]]; then
-		cat <<EOF >${configPath}/11_dns.json
-{
-	"dns": {
-		"servers": [
-			{
-				"address": "${setDNS}",
-				"port": 53,
-				"domains": [
-					"domain:netflix.com",
-					"domain:netflix.net",
-					"domain:nflximg.net",
-					"domain:nflxvideo.net",
-					"domain:nflxso.net",
-					"domain:nflxext.com"
-				]
-			},
-		"localhost"
-		]
-	}
-}
-EOF
-		if [[ "${coreInstallType}" == "1" ]]; then
-			handleXray stop
-			handleXray start
-
-		elif [[ "${coreInstallType}" == "2" || "${coreInstallType}" == "3" ]]; then
-			handleV2Ray stop
-			handleV2Ray start
-		fi
-		echoContent green "\n ---> DNS解锁添加成功，该设置对Trojan-Go无效"
-		echoContent yellow "\n ---> 如还无法观看可以尝试以下两种方案"
-		echoContent yellow " 1.重启vps"
-		echoContent yellow " 2.卸载dns解锁后，修改本地的[/etc/resolv.conf]DNS设置并重启vps\n"
-	else
-		echoContent red " ---> dns不可为空"
-	fi
-	exit
-}
-
-# 移除Netflix解锁
-removeUnlockDNS() {
-	cat <<EOF >${configPath}/11_dns.json
-{
-	"dns": {
-		"servers": [
-			"localhost"
-		]
-	}
-}
-EOF
-	if [[ "${coreInstallType}" == "1" ]]; then
-		handleXray stop
-		handleXray start
-
-	elif [[ "${coreInstallType}" == "2" || "${coreInstallType}" == "3" ]]; then
-		handleV2Ray stop
-		handleV2Ray start
-	fi
-
-	echoContent green " ---> 卸载成功"
-
 	exit
 }
 # v2ray-core个性化安装
@@ -3245,7 +3321,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.3.23"
+	echoContent green "当前版本：v2.3.24"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本"
 	echoContent red "=============================================================="
