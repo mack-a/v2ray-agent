@@ -1942,12 +1942,12 @@ EOF
 customCDNIP() {
 	echoContent skyBlue "\n进度 $1/${totalProgress} : 添加DNS智能解析"
 	echoContent yellow "\n 移动:104.19.45.117"
-	echoContent yellow " 联通:amp.cloudflare.com"
+	echoContent yellow " 联通:www.cloudflare.com"
 	echoContent yellow " 电信:www.digitalocean.com"
 	echoContent skyBlue "----------------------------"
 	read -r -p '是否使用？[y/n]:' dnsProxy
 	if [[ "${dnsProxy}" == "y" ]]; then
-		add="domain08.qiu4.ml"
+		add="www.cloudflare.com"
 		echoContent green "\n ---> 使用成功"
 	else
 		add="${domain}"
@@ -2262,8 +2262,8 @@ updateV2RayCDN() {
 	if [[ -n ${currentAdd} ]]; then
 		echoContent red "=============================================================="
 		echoContent yellow "1.CNAME www.digitalocean.com"
-		echoContent yellow "2.CNAME amp.cloudflare.com"
-		echoContent yellow "3.CNAME domain08.qiu4.ml"
+		echoContent yellow "2.CNAME www.cloudflare.com"
+		echoContent yellow "3.CNAME www.cloudflare.com"
 		echoContent yellow "4.手动输入"
 		echoContent red "=============================================================="
 		read -r -p "请选择:" selectCDNType
@@ -2272,10 +2272,10 @@ updateV2RayCDN() {
 			setDomain="www.digitalocean.com"
 			;;
 		2)
-			setDomain="amp.cloudflare.com"
+			setDomain="www.cloudflare.com"
 			;;
 		3)
-			setDomain="domain08.qiu4.ml"
+			setDomain="www.cloudflare.com"
 			;;
 		4)
 			read -r -p "请输入想要自定义CDN IP或者域名:" setDomain
