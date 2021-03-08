@@ -450,12 +450,12 @@ initTLSNginxConfig() {
 			echoContent yellow "\n ---> 域名：${domain}"
 		else
 			echo
-			echoContent yellow "请输入要配置的域名 例：blog.v2ray-agent.com --->"
+			echoContent yellow "请输入要配置的域名 例：www.v2ray-agent.com --->"
 			read -r -p "域名:" domain
 		fi
 	else
 		echo
-		echoContent yellow "请输入要配置的域名 例：blog.v2ray-agent.com --->"
+		echoContent yellow "请输入要配置的域名 例：www.v2ray-agent.com --->"
 		read -r -p "域名:" domain
 	fi
 
@@ -539,14 +539,15 @@ EOF
 # 检查ip
 checkIP() {
 	echoContent skyBlue " ---> 检查ipv4中"
-	pingIP=$(ping -c 1 -W 1000 ${domain} | sed '2{s/[^(]*(//;s/).*//;q;}' | sed -n '$p')
-	if [[ -z $(echo "${pingIP}" | awk -F "[.]" '{print $4}') ]]; then
+	local pingIP=$(curl -s -H 'accept:application/dns-json' 'https://cloudflare-dns.com/dns-query?name='${domain}'&type=A' | jq .Answer[0].data | awk -F '["]' '{print $2}')
+
+	if [[ -z "${pingIP}" ]]; then
 		echoContent skyBlue " ---> 检查ipv6中"
-		pingIP=$(ping6 -c 1 ${domain} | sed '2{s/[^(]*(//;s/).*//;q;}' | sed -n '$p')
+		pingIP=$(curl -s -H 'accept:application/dns-json' 'https://cloudflare-dns.com/dns-query?name='${domain}'&type=AAAA' | jq .Answer[0].data | awk -F '["]' '{print $2}')
 		pingIPv6=${pingIP}
 	fi
 
-	if [[ -n "${pingIP}" ]]; then # && [[ `echo ${pingIP}|grep '^\([1-9]\|[1-9][0-9]\|1[0-9][0-9]\|2[0-4][0-9]\|25[0-5]\)\.\([0-9]\|[1-9][0-9]\|1[0-9][0-9]\|2[0-4][0-9]\|25[0-5]\)\.\([0-9]\|[1-9][0-9]\|1[0-9][0-9]\|2[0-4][0-9]\|25[0-5]\)\.\([0-9]\|[1-9][0-9]\|1[0-9][0-9]\|2[0-4][0-9]\|25[0-5]\)$'` ]]
+	if [[ -n "${pingIP}" ]]; then
 		echo
 		read -r -p "当前域名的IP为 [${pingIP}]，是否正确[y/n]？" domainStatus
 		if [[ "${domainStatus}" == "y" ]]; then
@@ -3422,7 +3423,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.3.27"
+	echoContent green "当前版本：v2.3.28"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本"
 	echoContent red "=============================================================="
