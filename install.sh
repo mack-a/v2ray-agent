@@ -1363,23 +1363,6 @@ initV2RayConfig() {
   }
 }
 EOF
-	# routing
-	cat <<EOF >/etc/v2ray-agent/v2ray/conf/09_routing.json
-{
-    "routing":{
-        "domainStrategy": "AsIs",
-        "rules": [
-          {
-            "type": "field",
-            "protocol": [
-              "bittorrent"
-            ],
-            "outboundTag": "blocked"
-          }
-        ]
-  }
-}
-EOF
 	# outbounds
 	if [[ -n "${pingIPv6}" ]]; then
 		cat <<EOF >/etc/v2ray-agent/v2ray/conf/10_ipv6_outbounds.json
@@ -1664,23 +1647,6 @@ initXrayConfig() {
   "log": {
     "error": "/etc/v2ray-agent/xray/xray_error.log",
     "loglevel": "warning"
-  }
-}
-EOF
-	# routing
-	cat <<EOF >/etc/v2ray-agent/xray/conf/09_routing.json
-{
-    "routing":{
-        "domainStrategy": "AsIs",
-        "rules": [
-          {
-            "type": "field",
-            "protocol": [
-              "bittorrent"
-            ],
-            "outboundTag": "blocked"
-          }
-        ]
   }
 }
 EOF
@@ -2679,13 +2645,6 @@ ipv6HumanVerification() {
         "rules": [
           {
             "type": "field",
-            "protocol": [
-              "bittorrent"
-            ],
-            "outboundTag": "blocked"
-          },
-          {
-            "type": "field",
             "domain": [
               "domain:google.com",
               "domain:google.com.hk"
@@ -2720,22 +2679,7 @@ EOF
 		echoContent green " ---> 人机验证修改成功"
 
 	elif [[ "${ipv6Status}" == "2" ]]; then
-		cat <<EOF >${configPath}09_routing.json
-{
-    "routing":{
-        "domainStrategy": "AsIs",
-        "rules": [
-          {
-            "type": "field",
-            "protocol": [
-              "bittorrent"
-            ],
-            "outboundTag": "blocked"
-          }
-        ]
-  }
-}
-EOF
+		rm -rf ${configPath}09_routing.json
 
 		cat <<EOF >${configPath}10_ipv4_outbounds.json
 {
@@ -2944,22 +2888,8 @@ EOF
 # 移除任意门解锁Netflix
 removeDokodemoDoorUnblockNetflix() {
 	rm -rf ${configPath}/*_netflix_*.json
-	cat <<EOF >${configPath}/09_routing.json
-{
-    "routing":{
-        "domainStrategy": "AsIs",
-        "rules": [
-          {
-            "type": "field",
-            "protocol": [
-              "bittorrent"
-            ],
-            "outboundTag": "blocked"
-          }
-        ]
-  }
-}
-EOF
+	rm -rf ${configPath}/09_routing.json
+
 	reloadCore
 	echoContent green " ---> 卸载成功"
 }
@@ -3423,7 +3353,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.3.28"
+	echoContent green "当前版本：v2.3.29"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本"
 	echoContent red "=============================================================="
