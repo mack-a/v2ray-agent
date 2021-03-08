@@ -539,11 +539,11 @@ EOF
 # 检查ip
 checkIP() {
 	echoContent skyBlue " ---> 检查ipv4中"
-	local pingIP=$(curl -s -H 'accept:application/dns-json' 'https://cloudflare-dns.com/dns-query?name='${domain}'&type=A' | jq .Answer[0].data | awk -F '["]' '{print $2}')
+	local pingIP=$(curl -s -H 'accept:application/dns-json' 'https://cloudflare-dns.com/dns-query?name='${domain}'&type=A' | jq --raw-output .Answer[0].data)
 
 	if [[ -z "${pingIP}" ]]; then
 		echoContent skyBlue " ---> 检查ipv6中"
-		pingIP=$(curl -s -H 'accept:application/dns-json' 'https://cloudflare-dns.com/dns-query?name='${domain}'&type=AAAA' | jq .Answer[0].data | awk -F '["]' '{print $2}')
+		pingIP=$(curl -s -H 'accept:application/dns-json' 'https://cloudflare-dns.com/dns-query?name='${domain}'&type=AAAA' | jq --raw-output .Answer[0].data)
 		pingIPv6=${pingIP}
 	fi
 
