@@ -543,7 +543,7 @@ checkIP() {
 
 	if [[ -z "${pingIP}" ]]; then
 		echoContent skyBlue " ---> 检查ipv6中"
-		pingIP=$(curl -s -H 'accept:application/dns-json' 'https://cloudflare-dns.com/dns-query?name='${domain}'&type=AAAA' | jq -r ".Answer|.[]|select(.type==1)|.data")
+		pingIP=$(curl -s -H 'accept:application/dns-json' 'https://cloudflare-dns.com/dns-query?name='${domain}'&type=AAAA' | jq -r ".Answer|.[]|select(.type==28)|.data")
 		pingIPv6=${pingIP}
 	fi
 
