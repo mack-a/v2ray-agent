@@ -539,11 +539,11 @@ EOF
 # 检查ip
 checkIP() {
 	echoContent skyBlue " ---> 检查ipv4中"
-	local pingIP=$(curl -s -H 'accept:application/dns-json' 'https://cloudflare-dns.com/dns-query?name='${domain}'&type=A' | jq -r .Answer[0].data)
+	local pingIP=$(curl -s -H 'accept:application/dns-json' 'https://cloudflare-dns.com/dns-query?name='${domain}'&type=A' | jq -r ".Answer|.[]|select(.type==1)|.data")
 
 	if [[ -z "${pingIP}" ]]; then
 		echoContent skyBlue " ---> 检查ipv6中"
-		pingIP=$(curl -s -H 'accept:application/dns-json' 'https://cloudflare-dns.com/dns-query?name='${domain}'&type=AAAA' | jq -r .Answer[0].data)
+		pingIP=$(curl -s -H 'accept:application/dns-json' 'https://cloudflare-dns.com/dns-query?name='${domain}'&type=AAAA' | jq -r ".Answer|.[]|select(.type==1)|.data")
 		pingIPv6=${pingIP}
 	fi
 
@@ -2230,7 +2230,7 @@ updateV2RayCDN() {
 		echoContent red "=============================================================="
 		echoContent yellow "1.CNAME www.digitalocean.com"
 		echoContent yellow "2.CNAME www.cloudflare.com"
-		echoContent yellow "3.CNAME www.cloudflare.com"
+		echoContent yellow "3.CNAME hostmonit.com"
 		echoContent yellow "4.手动输入"
 		echoContent red "=============================================================="
 		read -r -p "请选择:" selectCDNType
@@ -2242,7 +2242,7 @@ updateV2RayCDN() {
 			setDomain="www.cloudflare.com"
 			;;
 		3)
-			setDomain="www.cloudflare.com"
+			setDomain="hostmonit.com"
 			;;
 		4)
 			read -r -p "请输入想要自定义CDN IP或者域名:" setDomain
@@ -3353,7 +3353,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.3.29"
+	echoContent green "当前版本：v2.3.30"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本"
 	echoContent red "=============================================================="
