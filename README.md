@@ -40,7 +40,8 @@
 - 支持个性化安装
 - 支持多用户管理
 - 支持Netflix检测、支持DNS流媒体解锁、支持任意门解锁Netflix
-- 无需卸载即可安装、重装任意组合。卸载脚本时无多余文件残留
+- 无需卸载即可安装、重装任意组合
+- 支持卸载时保留Nginx、tls证书。如果acme.sh申请的证书有效的情况下，不会重新签发。
 - 支持纯IPv6，[IPv6注意事项](https://github.com/mack-a/v2ray-agent/blob/master/documents/IPv6_help.md)
 - 支持利用IPv6排除Google的人机验证，**需自己申请IPv6隧道，不建议使用自带的IPv6**
 - [支持自定义证书安装](https://github.com/mack-a/v2ray-agent/blob/master/documents/install_tls.md)
@@ -79,8 +80,8 @@
 
 ## 注意事项
 
-- 修改Cloudflare->SSL/TLS->Overview->Full
-- Cloudflare ---> A记录解析的云朵必须为灰色
+- **修改Cloudflare->SSL/TLS->Overview->Full**
+- **Cloudflare ---> A记录解析的云朵必须为灰色**
 - **使用纯净系统安装，如使用其他脚本安装过，请重新build系统再安装**
 - wget: command not found [**这里需要自己手动安装下wget**]
   ，如未使用过Linux，[点击查看](https://github.com/mack-a/v2ray-agent/tree/master/documents/install_tools.md)安装教程
@@ -105,19 +106,19 @@
 
 - 支持快捷方式启动，安装完毕后，shell输入[**vasma**]即可打开脚本，脚本执行路径[**/etc/v2ray-agent/install.sh**]
 
-- 最新版
+- Latest Version
 
 ```
 wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh" && chmod 700 /root/install.sh && /root/install.sh
 ```
 
-- 稳定-v2.2.24
+- Stable-v2.2.24
 
 ```
 wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/9ae23c13a56460d8c14f27c8eb65efc73b173f46/install.sh" && chmod 700 /root/install.sh && /root/install.sh
 ```
 
-- 稳定-v2.1.27
+- Stable-v2.1.27
 
 ```
 wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/3f8ea0aa364ae2e1e407056074c11b448396261f/install.sh" && chmod 700 /root/install.sh && /root/install.sh
