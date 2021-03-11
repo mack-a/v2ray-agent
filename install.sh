@@ -273,6 +273,7 @@ echoContent() {
 # 初始化安装目录
 mkdirTools() {
 	mkdir -p /etc/v2ray-agent/tls
+	mkdir -p /etc/v2ray-agent/mtg
 	mkdir -p /etc/v2ray-agent/subscribe
 	mkdir -p /etc/v2ray-agent/subscribe_tmp
 	mkdir -p /etc/v2ray-agent/v2ray/conf
@@ -1303,6 +1304,36 @@ handleXray() {
 	fi
 }
 
+# 操作MTG
+handleMTG() {
+	if [[ -n $(find /bin /usr/bin -name "systemctl") ]] && ls /etc/systemd/system/ | grep -q xray.service; then
+		if [[ -z $(pgrep -f "mtg/mtg") ]] && [[ "$1" == "start" ]]; then
+			systemctl start mtg.service
+		elif [[ -n $(pgrep -f "mtg/mtg") ]] && [[ "$1" == "stop" ]]; then
+			systemctl stop mtg.service
+		fi
+	fi
+
+	sleep 0.5
+
+	if [[ "$1" == "start" ]]; then
+		if [[ -n $(pgrep -f "mtg/mtg") ]]; then
+			echoContent green " ---> mtg启动成功"
+		else
+			echoContent red "mtg启动失败"
+			echoContent red "执行 [ps -ef|grep mtg] 查看日志"
+			exit 0
+		fi
+	elif [[ "$1" == "stop" ]]; then
+		if [[ -z $(pgrep -f "mtg/mtg") ]]; then
+			echoContent green " ---> mtg关闭成功"
+		else
+			echoContent red "mtg关闭失败"
+			echoContent red "请手动执行【ps -ef|grep -v grep|grep mtg|awk '{print \$2}'|xargs kill -9】"
+			exit 0
+		fi
+	fi
+}
 # 操作Trojan-Go
 handleTrojanGo() {
 	if [[ -n $(find /bin /usr/bin -name "systemctl") ]] && ls /etc/systemd/system/ | grep -q trojan-go.service; then
@@ -3348,6 +3379,68 @@ subscribe() {
 	fi
 }
 
+# 安装MT
+setMTG() {
+	if [[ -z "${configPath}" ]]; then
+		echoContent red " ---> 未安装，请使用脚本安装"
+		menu
+		exit
+	fi
+
+	echoContent skyBlue "\n功能 1/${totalProgress} : 设置MTProxy"
+	echoContent skyBlue "-------------------------备注----------------------------------"
+	echoContent yellow "# 使用MTProxy有被阻断的风险，请熟知其中的风险"
+	echoContent yellow "# 如果同时使用trojan-go，可能会影响trojan的使用效率\n"
+	echoContent skyBlue " ---> 下载MTG"
+	installMTG
+	echoContent skyBlue " ---> 生成 MTProxy Fake TLS "
+	initMTGSecret
+	echoContent skyBlue " ---> 安装MTG开机自启"
+	installMTGService
+	handleMTG start
+}
+
+# 安装MTG
+installMTG() {
+	local version=$(curl -s https://github.com/9seconds/mtg/releases | grep /9seconds/mtg/releases/tag/ | head -1 | awk -F '["][>]' '{print $2}' | awk -F '[<]' '{print $1}')
+	echo version:${version}
+	if wget --help | grep -q show-progress; then
+		wget -c -q --show-progress -P /etc/v2ray-agent/mtg/ "https://github.com/9seconds/mtg/releases/download/${version}/mtg-linux-amd64"
+	else
+		wget -c -P /etc/v2ray-agent/mtg/ "https://github.com/9seconds/mtg/releases/download/${version}/mtg-linux-amd64" >/dev/null 2>&1
+	fi
+	mv /etc/v2ray-agent/mtg/mtg-linux-amd64 /etc/v2ray-agent/mtg/mtg
+	chmod 655 /etc/v2ray-agent/mtg/mtg
+}
+
+# 安装MTG Service
+installMTGService() {
+
+	cat <<EOF >/etc/systemd/system/mtg.service
+[Unit]
+Description=MTG - Bullshit-free MTPROTO proxy for Telegram
+Documentation=https://github.com/9seconds/mtg
+After=network.target nss-lookup.target
+Wants=network-online.target
+[Service]
+Type=simple
+User=root
+ExecStart=/etc/v2ray-agent/mtg/mtg run $(cat /etc/v2ray-agent/mtg/config) --bind 127.0.0.1:31276
+Restart=on-failure
+RestartSec=10
+RestartPreventExitStatus=23
+[Install]
+WantedBy=multi-user.target
+EOF
+	systemctl daemon-reload
+	systemctl enable nginx
+}
+
+# 初始化MTG secret
+initMTGSecret() {
+	/etc/v2ray-agent/mtg/mtg generate-secret -c blog.mmackamtggtm.com tls >/etc/v2ray-agent/mtg/config
+}
+
 # 主菜单
 menu() {
 	cd "$HOME" || exit
@@ -3366,14 +3459,15 @@ menu() {
 	echoContent yellow "6.更换CDN节点"
 	echoContent yellow "7.ipv6人机验证"
 	echoContent yellow "8.流媒体工具"
+	echoContent yellow "9.设置MTProxy"
 	echoContent skyBlue "-------------------------版本管理-----------------------------"
-	echoContent yellow "9.core版本管理"
-	echoContent yellow "10.更新Trojan-Go"
-	echoContent yellow "11.更新脚本"
-	echoContent yellow "12.安装BBR、DD脚本"
+	echoContent yellow "10.core版本管理"
+	echoContent yellow "11.更新Trojan-Go"
+	echoContent yellow "12.更新脚本"
+	echoContent yellow "13.安装BBR、DD脚本"
 	echoContent skyBlue "-------------------------脚本管理-----------------------------"
-	echoContent yellow "13.查看日志"
-	echoContent yellow "14.卸载脚本"
+	echoContent yellow "14.查看日志"
+	echoContent yellow "15.卸载脚本"
 	echoContent red "=============================================================="
 	mkdirTools
 	aliasInstall
@@ -3404,21 +3498,24 @@ menu() {
 		streamingToolbox 1
 		;;
 	9)
-		coreVersionManageMenu 1
+		setMTG 1
 		;;
 	10)
-		updateTrojanGo 1
+		coreVersionManageMenu 1
 		;;
 	11)
-		updateV2RayAgent 1
+		updateTrojanGo 1
 		;;
 	12)
-		bbrInstall
+		updateV2RayAgent 1
 		;;
 	13)
-		checkLog 1
+		bbrInstall
 		;;
 	14)
+		checkLog 1
+		;;
+	15)
 		unInstall 1
 		;;
 	esac
