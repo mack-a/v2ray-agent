@@ -2910,7 +2910,7 @@ EOF
 EOF
 		reloadCore
 		echoContent green " ---> 添加落地机入站解锁Netflix成功"
-		echoContent yellow " ---> 不支持trojan的相关节点"
+		echoContent yellow " ---> trojan的相关节点不支持此操作"
 		exit
 	fi
 	echoContent red " ---> ip不可为空"
@@ -3389,17 +3389,87 @@ setMTG() {
 
 	echoContent skyBlue "\n功能 1/${totalProgress} : 设置MTProxy"
 	echoContent skyBlue "-------------------------备注----------------------------------"
-	echoContent yellow "# 使用MTProxy有被阻断的风险，请熟知其中的风险"
+	echoContent yellow "# 使用MTPROTO有被阻断的风险，请熟知其中的风险"
 	echoContent yellow "# 如果同时使用trojan-go，可能会影响trojan的使用效率\n"
 	echoContent skyBlue " ---> 下载MTG"
 	installMTG
-	echoContent skyBlue " ---> 生成 MTProxy Fake TLS "
+	echoContent skyBlue " ---> 生成 MTPROTO Fake TLS "
 	initMTGSecret
 	echoContent skyBlue " ---> 安装MTG开机自启"
 	installMTGService
 	handleMTG start
 }
 
+# 安装MTG Trojan任意门
+installMTGTrojanDokoDemo() {
+
+	cat <<EOF >${configPath}/01_mtg_inbounds.json
+{
+  "inbounds": [
+    {
+      "listen": "127.0.0.1",
+      "port": 31301,
+      "protocol": "dokodemo-door",
+      "settings": {
+      	"address": "127.0.0.1",
+	 	"port": 31296,
+	 	"network": "tcp",
+	 	"followRedirect": false
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "tls"
+        ]
+      },
+      "tag": "mtg-inbounds"
+    }
+  ]
+}
+EOF
+	# 替换VLESS tcp 31296为31301
+
+	cat <<EOF >${configPath}/09_routing.json
+{
+  "routing": {
+    "domainStrategy": "AsIs",
+    "rules": [
+      {
+        "type": "field",
+        "domain": [
+        	"blog.mmackamtggtm.com"
+        ],
+        "outboundTag": "mtg-out",
+        "inboundTag":"mtg-inbounds"
+      }
+    ]
+  }
+}
+EOF
+
+	cat <<EOF >${configPath}/10_ipv4_outbounds.json
+{
+"outbounds": [
+	{
+	  "protocol": "freedom",
+	  "settings": {
+		"domainStrategy": "UseIPv4"
+	  },
+	  "tag": "IPv4-out"
+	},
+	{
+		"protocol": "freedom",
+	  	"settings": {
+			"domainStrategy": "UseIPv4"
+	  	},
+	  	"redirect":"127.0.0.1:31276",
+	  	"tag": "mtg-out"
+	}
+]
+}
+EOF
+
+}
 # 安装MTG
 installMTG() {
 	local version=$(curl -s https://github.com/9seconds/mtg/releases | grep /9seconds/mtg/releases/tag/ | head -1 | awk -F '["][>]' '{print $2}' | awk -F '[<]' '{print $1}')
@@ -3439,6 +3509,7 @@ EOF
 # 初始化MTG secret
 initMTGSecret() {
 	/etc/v2ray-agent/mtg/mtg generate-secret -c blog.mmackamtggtm.com tls >/etc/v2ray-agent/mtg/config
+	# /etc/v2ray-agent/mtg/mtg generate-secret -c kf.qq.com tls
 }
 
 # 主菜单
