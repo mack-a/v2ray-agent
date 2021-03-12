@@ -2221,7 +2221,7 @@ unInstall() {
 	if [[ "${unInstallStatus}" != "y" ]]; then
 		echoContent green " ---> 放弃卸载"
 		menu
-		exit
+		exit 0
 	fi
 
 	handleNginx stop
@@ -2351,7 +2351,7 @@ customUUID() {
 			if [[ -f "/tmp/v2ray-agent" && -n $(cat /tmp/v2ray-agent) ]]; then
 				echoContent red " ---> UUID不可重复"
 				rm /tmp/v2ray-agent
-				exit
+				exit 0
 			fi
 		fi
 	fi
@@ -2376,7 +2376,7 @@ customUserEmail() {
 			if [[ -f "/tmp/v2ray-agent" && -n $(cat /tmp/v2ray-agent) ]]; then
 				echoContent red " ---> email不可重复"
 				rm /tmp/v2ray-agent
-				exit
+				exit 0
 			fi
 		fi
 	fi
@@ -2390,7 +2390,7 @@ addUser() {
 	echo
 	if [[ -z ${userNum} || ${userNum} -le 0 ]]; then
 		echoContent red " ---> 输入有误，请重新输入"
-		exit
+		exit 0
 	fi
 
 	# 生成用户
@@ -2553,8 +2553,8 @@ updateV2RayAgent() {
 # 安装BBR
 bbrInstall() {
 	echoContent red "\n=============================================================="
-	echoContent green "BBR脚本用的[ylx2016]的成熟作品，地址[https://github.com/ylx2016/Linux-NetSpeed]，请熟知"
-	echoContent yellow "1.安装【推荐原版BBR+FQ】"
+	echoContent green "BBR、DD脚本用的[ylx2016]的成熟作品，地址[https://github.com/ylx2016/Linux-NetSpeed]，请熟知"
+	echoContent yellow "1.安装脚本【推荐原版BBR+FQ】"
 	echoContent yellow "2.回退主目录"
 	echoContent red "=============================================================="
 	read -r -p "请选择：" installBBRStatus
@@ -2650,7 +2650,7 @@ checkIPv6() {
 	pingIPv6=$(ping6 -c 1 www.google.com | sed '2{s/[^(]*(//;s/).*//;q;}' | tail -n +2)
 	if [[ -z "${pingIPv6}" ]]; then
 		echoContent red " ---> 不支持ipv6"
-		exit
+		exit 0
 	fi
 }
 
@@ -2659,7 +2659,7 @@ ipv6HumanVerification() {
 	if [[ -z "${configPath}" ]]; then
 		echoContent red " ---> 未安装，请使用脚本安装"
 		menu
-		exit
+		exit 0
 	fi
 
 	checkIPv6
@@ -2729,7 +2729,7 @@ EOF
 	else
 		echoContent red " ---> 选择错误"
 		ipv6HumanVerification
-		exit
+		exit 0
 	fi
 
 	reloadCore
@@ -2839,7 +2839,7 @@ EOF
 		reloadCore
 		echoContent green " ---> 添加Netflix出战解锁成功"
 		echoContent yellow " ---> 不支持trojan的相关节点"
-		exit
+		exit 0
 	fi
 	echoContent red " ---> ip不可为空"
 }
@@ -2911,7 +2911,7 @@ EOF
 		reloadCore
 		echoContent green " ---> 添加落地机入站解锁Netflix成功"
 		echoContent yellow " ---> trojan的相关节点不支持此操作"
-		exit
+		exit 0
 	fi
 	echoContent red " ---> ip不可为空"
 }
@@ -2946,23 +2946,23 @@ checkNetflix() {
 	netflixResult=$(curl -s -m 2 https://www.netflix.com | grep "Not Available")
 	if [[ -n ${netflixResult} ]]; then
 		echoContent red " ---> Netflix不可用"
-		exit
+		exit 0
 	fi
 
 	netflixResult=$(curl -s -m 2 https://www.netflix.com | grep "NSEZ-403")
 	if [[ -n ${netflixResult} ]]; then
 		echoContent red " ---> Netflix不可用"
-		exit
+		exit 0
 	fi
 
 	echoContent skyBlue " ---> 检测绝命毒师是否可以播放"
 	result=$(curl -s -m 2 https://www.netflix.com/title/70143836 | grep "page-404")
 	if [[ -n ${result} ]]; then
 		echoContent green " ---> 仅可看自制剧"
-		exit
+		exit 0
 	fi
 	echoContent green " ---> Netflix解锁"
-	exit
+	exit 0
 }
 
 # dns解锁Netflix
@@ -3031,7 +3031,7 @@ EOF
 	else
 		echoContent red " ---> dns不可为空"
 	fi
-	exit
+	exit 0
 }
 
 # 移除Netflix解锁
@@ -3056,7 +3056,7 @@ EOF
 
 	echoContent green " ---> 卸载成功"
 
-	exit
+	exit 0
 }
 
 # v2ray-core个性化安装
@@ -3354,7 +3354,7 @@ manageAccount() {
 # 订阅
 subscribe() {
 	if [[ -n "${configPath}" ]]; then
-		echoContent skyBlue "-------------------------备注----------------------------------"
+		echoContent skyBlue "-------------------------备注---------------------------------"
 		echoContent yellow "# 查看订阅时会重新生成订阅"
 		echoContent yellow "# 每次添加、删除账号需要重新查看订阅"
 		rm -rf /etc/v2ray-agent/subscribe/*
@@ -3384,96 +3384,63 @@ setMTG() {
 	if [[ -z "${configPath}" ]]; then
 		echoContent red " ---> 未安装，请使用脚本安装"
 		menu
-		exit
+		exit 0
 	fi
-
-	echoContent skyBlue "\n功能 1/${totalProgress} : 设置MTProxy"
-	echoContent skyBlue "-------------------------备注----------------------------------"
+	echoContent skyBlue "\n功能 1/${totalProgress} : 设置MTPROTO[FAKE TLS]"
+	echoContent skyBlue "-------------------------备注---------------------------------"
 	echoContent yellow "# 使用MTPROTO有被阻断的风险，请熟知其中的风险"
-	echoContent yellow "# 如果同时使用trojan-go，可能会影响trojan的使用效率\n"
-	echoContent skyBlue " ---> 下载MTG"
-	installMTG
-	echoContent skyBlue " ---> 生成 MTPROTO Fake TLS "
-	initMTGSecret
-	echoContent skyBlue " ---> 安装MTG开机自启"
-	installMTGService
-	handleMTG start
+	echoContent yellow "# 请允许访问8443端口\n"
+	echoContent yellow "1.添加"
+	echoContent yellow "2.卸载"
+	echoContent yellow "3.查看帐号"
+	read -r -p "请选择:" setMTGStatus
+	if [[ "${setMTGStatus}" == "1" ]]; then
+		echoContent skyBlue " ---> 下载MTG"
+		installMTG
+		echoContent skyBlue " ---> 生成 MTPROTO FAKE TLS "
+		initMTGSecret
+		echoContent skyBlue " ---> 安装MTG开机自启"
+		installMTGService
+		handleMTG start
+		showMTGAccount
+	elif [[ "${setMTGStatus}" == "2" ]]; then
+		unInstallMTG
+	elif [[ "${setMTGStatus}" == "3" ]]; then
+		showMTGAccount
+	fi
+	exit 0
 }
 
-# 安装MTG Trojan任意门
-installMTGTrojanDokoDemo() {
-
-	cat <<EOF >${configPath}/01_mtg_inbounds.json
-{
-  "inbounds": [
-    {
-      "listen": "127.0.0.1",
-      "port": 31301,
-      "protocol": "dokodemo-door",
-      "settings": {
-      	"address": "127.0.0.1",
-	 	"port": 31296,
-	 	"network": "tcp",
-	 	"followRedirect": false
-      },
-      "sniffing": {
-        "enabled": true,
-        "destOverride": [
-          "tls"
-        ]
-      },
-      "tag": "mtg-inbounds"
-    }
-  ]
+# 卸载MTG
+unInstallMTG() {
+	if [[ -z "${coreInstallType}" ]]; then
+		echoContent red "\n ---> 没有检测到安装目录，请执行脚本安装内容"
+		menu
+		exit 0
+	fi
+	handleMTG stop
+	rm -rf /etc/v2ray-agent/mtg/*
+	rm /etc/systemd/system/mtg.service
+	echoContent green " ---> 卸载完成"
+	exit 0
 }
-EOF
-	# 替换VLESS tcp 31296为31301
 
-	cat <<EOF >${configPath}/09_routing.json
-{
-  "routing": {
-    "domainStrategy": "AsIs",
-    "rules": [
-      {
-        "type": "field",
-        "domain": [
-        	"blog.mmackamtggtm.com"
-        ],
-        "outboundTag": "mtg-out",
-        "inboundTag":"mtg-inbounds"
-      }
-    ]
-  }
-}
-EOF
-
-	cat <<EOF >${configPath}/10_ipv4_outbounds.json
-{
-"outbounds": [
-	{
-	  "protocol": "freedom",
-	  "settings": {
-		"domainStrategy": "UseIPv4"
-	  },
-	  "tag": "IPv4-out"
-	},
-	{
-		"protocol": "freedom",
-	  	"settings": {
-			"domainStrategy": "UseIPv4"
-	  	},
-	  	"redirect":"127.0.0.1:31276",
-	  	"tag": "mtg-out"
-	}
-]
-}
-EOF
-
+# 查看MTG帐号信息
+showMTGAccount() {
+	local ip=$(curl -s https://api.ip.sb/ip --ipv4)
+	if [[ -z ${ip} ]]; then
+		ip=$(curl -s ipinfo.io/ip --ipv4)
+		if [[ -z ${ip} ]]; then
+			echoContent red " ---> ip获取失败，请手动输入"
+		fi
+	fi
+	echoContent skyBlue "========================= TG链接 =============================\n"
+	echoContent green "  tg://proxy?server=${ip}&port=8443&secret=$(cat /etc/v2ray-agent/mtg/config)\n"
+	exit 0
 }
 # 安装MTG
 installMTG() {
 	local version=$(curl -s https://github.com/9seconds/mtg/releases | grep /9seconds/mtg/releases/tag/ | head -1 | awk -F '["][>]' '{print $2}' | awk -F '[<]' '{print $1}')
-	echo version:${version}
 	if wget --help | grep -q show-progress; then
 		wget -c -q --show-progress -P /etc/v2ray-agent/mtg/ "https://github.com/9seconds/mtg/releases/download/${version}/mtg-linux-amd64"
 	else
@@ -3495,7 +3462,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=root
-ExecStart=/etc/v2ray-agent/mtg/mtg run $(cat /etc/v2ray-agent/mtg/config) --bind 127.0.0.1:31276
+ExecStart=/etc/v2ray-agent/mtg/mtg run $(cat /etc/v2ray-agent/mtg/config) --bind 0.0.0.0:8443
 Restart=on-failure
 RestartSec=10
 RestartPreventExitStatus=23
@@ -3509,7 +3476,6 @@ EOF
 # 初始化MTG secret
 initMTGSecret() {
 	/etc/v2ray-agent/mtg/mtg generate-secret -c blog.mmackamtggtm.com tls >/etc/v2ray-agent/mtg/config
-	# /etc/v2ray-agent/mtg/mtg generate-secret -c kf.qq.com tls
 }
 
 # 主菜单
@@ -3517,7 +3483,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.3.30"
+	echoContent green "当前版本：v2.4.1"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本"
 	echoContent red "=============================================================="
@@ -3530,7 +3496,7 @@ menu() {
 	echoContent yellow "6.更换CDN节点"
 	echoContent yellow "7.ipv6人机验证"
 	echoContent yellow "8.流媒体工具"
-	echoContent yellow "9.设置MTProxy"
+	echoContent yellow "9.设置MTPROTO"
 	echoContent skyBlue "-------------------------版本管理-----------------------------"
 	echoContent yellow "10.core版本管理"
 	echoContent yellow "11.更新Trojan-Go"

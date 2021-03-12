@@ -40,7 +40,9 @@ https://github.com/badafans/better-cloudflare-ip
 - domain08.mqcjuc.ml是本项目提供的智能解析IP
 - www.cloudflare.com、www.digitalocean.com 这两个则是使用Cloudflare的服务的域名，他会根据本地运营商的不同，来分配不同的ip。
 
-域名|移动|联通|电信 -|-|-|- domain08.mqcjuc.ml|104.19.41.56|www.cloudflare.com|www.digitalocean.com
+域名|移动|联通|电信 
+-|-|-|- 
+domain08.mqcjuc.ml|104.19.41.56|www.cloudflare.com|www.digitalocean.com
 www.cloudflare.com|xx|xx|xx
 www.digitalocean.com|xx|xx|xx
 
