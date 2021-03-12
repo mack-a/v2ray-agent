@@ -2231,8 +2231,14 @@ unInstall() {
 
 	handleV2Ray stop
 	handleTrojanGo stop
+	handleMTG stop
+
 	rm -rf /etc/systemd/system/v2ray.service
 	echoContent green " ---> 删除V2Ray开机自启完成"
+
+	rm -rf /etc/systemd/system/mtg.service
+	echoContent green " ---> 删除MTG开机自启完成"
+
 	rm -rf /etc/systemd/system/trojan-go.service
 	echoContent green " ---> 删除Trojan-Go开机自启完成"
 	rm -rf /tmp/v2ray-agent-tls/*
@@ -3381,11 +3387,6 @@ subscribe() {
 
 # 安装MT
 setMTG() {
-	if [[ -z "${configPath}" ]]; then
-		echoContent red " ---> 未安装，请使用脚本安装"
-		menu
-		exit 0
-	fi
 	echoContent skyBlue "\n功能 1/${totalProgress} : 设置MTPROTO[FAKE TLS]"
 	echoContent skyBlue "-------------------------备注---------------------------------"
 	echoContent yellow "# 使用MTPROTO有被阻断的风险，请熟知其中的风险"
@@ -3413,8 +3414,8 @@ setMTG() {
 
 # 卸载MTG
 unInstallMTG() {
-	if [[ -z "${coreInstallType}" ]]; then
-		echoContent red "\n ---> 没有检测到安装目录，请执行脚本安装内容"
+	if [[ ! -f "/etc/v2ray-agent/mtg/mtg" ]]; then
+		echoContent red "\n ---> 没有检测到MTG"
 		menu
 		exit 0
 	fi
@@ -3483,7 +3484,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.1"
+	echoContent green "当前版本：v2.4.2"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本"
 	echoContent red "=============================================================="
