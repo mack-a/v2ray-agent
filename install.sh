@@ -3403,7 +3403,6 @@ setMTG() {
 # 安装MTG
 installMTG() {
 	local version=$(curl -s https://github.com/9seconds/mtg/releases | grep /9seconds/mtg/releases/tag/ | head -1 | awk -F '["][>]' '{print $2}' | awk -F '[<]' '{print $1}')
-	echo version:${version}
 	if wget --help | grep -q show-progress; then
 		wget -c -q --show-progress -P /etc/v2ray-agent/mtg/ "https://github.com/9seconds/mtg/releases/download/${version}/mtg-linux-amd64"
 	else
