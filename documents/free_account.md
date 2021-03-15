@@ -1,1 +1,2 @@
-- 为规范使用[请加入TG群回复[/free]](https://t.me/technologyshare)获取
+- ~~为规范使用请加入TG群回复[/free]获取~~
+- 服务器已到期
