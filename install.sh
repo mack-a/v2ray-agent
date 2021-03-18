@@ -2793,9 +2793,16 @@ dokodemoDoorUnblockNetflix() {
 setDokodemoDoorUnblockNetflixOutbounds() {
 	read -r -p "请输入解锁Netflix vps的IP:" setIP
 	if [[ -n "${setIP}" ]]; then
-		cat <<EOF >${configPath}/10_netflix_outbounds.json
+		cat <<EOF >${configPath}/10_ipv4_outbounds.json
 {
   "outbounds": [
+  	{
+	  "protocol": "freedom",
+	  "settings": {
+		"domainStrategy": "UseIPv4"
+	  },
+	  "tag": "IPv4-out"
+	},
     {
       "tag": "netflix-80",
       "protocol": "freedom",
@@ -2924,7 +2931,21 @@ EOF
 
 # 移除任意门解锁Netflix
 removeDokodemoDoorUnblockNetflix() {
-	rm -rf ${configPath}/*_netflix_*.json
+
+	cat <<EOF >${configPath}/10_ipv4_outbounds.json
+{
+  "outbounds": [
+    {
+	  "protocol": "freedom",
+	  "settings": {
+		"domainStrategy": "UseIPv4"
+	  },
+	  "tag": "IPv4-out"
+	}
+  ]
+}
+EOF
+
 	rm -rf ${configPath}/09_routing.json
 
 	reloadCore
@@ -3484,7 +3505,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.3"
+	echoContent green "当前版本：v2.4.4"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本"
 	echoContent red "=============================================================="
