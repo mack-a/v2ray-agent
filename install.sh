@@ -730,7 +730,7 @@ renewalTLS() {
 	echoContent skyBlue "\n进度  1/1 : 更新证书"
 
 	if [[ -d "$HOME/.acme.sh/${currentHost}_ecc" ]] && [[ -f "$HOME/.acme.sh/${currentHost}_ecc/${currentHost}.key" ]] && [[ -f "$HOME/.acme.sh/${currentHost}_ecc/${currentHost}.cer" ]]; then
-		modifyTime=$(stat $HOME/.acme.sh/${currentHost}_ecc/${currentHost}.key | sed -n '7,6p' | awk '{print $2" "$3" "$4" "$5}')
+		modifyTime=$(stat $HOME/.acme.sh/${currentHost}_ecc/${currentHost}.cer | sed -n '7,6p' | awk '{print $2" "$3" "$4" "$5}')
 
 		modifyTime=$(date +%s -d "${modifyTime}")
 		currentTime=$(date +%s)
@@ -3505,7 +3505,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.4"
+	echoContent green "当前版本：v2.4.5"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本"
 	echoContent red "=============================================================="
