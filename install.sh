@@ -1253,7 +1253,7 @@ handleV2Ray() {
 			systemctl stop v2ray.service
 		fi
 	fi
-	sleep 0.5
+	sleep 0.8
 
 	if [[ "$1" == "start" ]]; then
 		if [[ -n $(pgrep -f "v2ray/v2ray") ]]; then
@@ -1283,7 +1283,7 @@ handleXray() {
 		fi
 	fi
 
-	sleep 0.5
+	sleep 0.8
 
 	if [[ "$1" == "start" ]]; then
 		if [[ -n $(pgrep -f "xray/xray") ]]; then
@@ -1363,10 +1363,21 @@ handleTrojanGo() {
 		fi
 	fi
 }
+
 # 初始化V2Ray 配置文件
 initV2RayConfig() {
 	echoContent skyBlue "\n进度 $2/${totalProgress} : 初始化V2Ray配置"
-	if [[ -n "${currentUUID}" ]]; then
+	echo
+	read -r -p "是否自定义UUID ？[y/n]:" customUUIDStatus
+	echo
+	if [[ "${customUUIDStatus}" == "y" ]]; then
+		read -r -p "请输入合法的UUID:" currentCustomUUID
+		if [[ -n "${currentCustomUUID}" ]]; then
+			uuid=${currentCustomUUID}
+		fi
+	fi
+
+	if [[ -n "${currentUUID}" && -z "${uuid}" ]]; then
 		echo
 		read -r -p "读取到上次安装记录，是否使用上次安装时的UUID ？[y/n]:" historyUUIDStatus
 		if [[ "${historyUUIDStatus}" == "y" ]]; then
@@ -1374,7 +1385,7 @@ initV2RayConfig() {
 		else
 			uuid=$(/etc/v2ray-agent/v2ray/v2ctl uuid)
 		fi
-	else
+	elif [[ -z "${uuid}" ]]; then
 		uuid=$(/etc/v2ray-agent/v2ray/v2ctl uuid)
 	fi
 
@@ -1652,7 +1663,18 @@ EOF
 # 初始化Xray 配置文件
 initXrayConfig() {
 	echoContent skyBlue "\n进度 $2/${totalProgress} : 初始化Xray配置"
-	if [[ -n "${currentUUID}" ]]; then
+	echo
+	read -r -p "是否自定义UUID ？[y/n]:" customUUIDStatus
+	echo
+
+	if [[ "${customUUIDStatus}" == "y" ]]; then
+		read -r -p "请输入合法的UUID:" currentCustomUUID
+		if [[ -n "${currentCustomUUID}" ]]; then
+			uuid=${currentCustomUUID}
+		fi
+	fi
+
+	if [[ -n "${currentUUID}" && -z "${uuid}" ]]; then
 		echo
 		read -r -p "读取到上次安装记录，是否使用上次安装时的UUID ？[y/n]:" historyUUIDStatus
 		if [[ "${historyUUIDStatus}" == "y" ]]; then
@@ -1660,9 +1682,10 @@ initXrayConfig() {
 		else
 			uuid=$(/etc/v2ray-agent/xray/xray uuid)
 		fi
-	else
+	elif [[ -z "${uuid}" ]]; then
 		uuid=$(/etc/v2ray-agent/xray/xray uuid)
 	fi
+
 	if [[ -z "${uuid}" ]]; then
 		echoContent red "\n ---> uuid读取错误，重新生成"
 		uuid=$(/etc/v2ray-agent/xray/xray uuid)
@@ -2182,6 +2205,11 @@ showAccounts() {
 		echoContent red " ---> 未安装"
 	fi
 }
+
+# 状态展示
+#showInstallStatus() {
+#
+#}
 
 # 更新伪装站
 updateNginxBlog() {
@@ -3505,7 +3533,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.4"
+	echoContent green "当前版本：v2.4.5"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本"
 	echoContent red "=============================================================="
