@@ -214,6 +214,55 @@ readConfigHostPathUUID() {
 	fi
 }
 
+# 状态展示
+showInstallStatus() {
+	if [[ -n "${coreInstallType}" ]]; then
+		if [[ "${coreInstallType}" == 1 ]]; then
+			if [[ -n $(pgrep -f xray/xray) ]]; then
+				echoContent yellow "核心：Xray-core[运行中]"
+			else
+				echoContent yellow "核心：Xray-core[未运行]"
+			fi
+
+		elif [[ "${coreInstallType}" == 2 || "${coreInstallType}" == 3 ]]; then
+			if [[ -n $(pgrep -f v2ray/v2ray) ]]; then
+				echoContent yellow "核心：v2ray-core[运行中]"
+			else
+				echoContent yellow "核心：v2ray-core[未运行]"
+			fi
+		fi
+		# 读取协议类型
+		readInstallProtocolType
+
+		if [[ -n ${currentInstallProtocolType} ]]; then
+			echoContent yellow "已安装协议：\c"
+		fi
+		if echo ${currentInstallProtocolType} | grep -q 0; then
+			if [[ "${coreInstallType}" == 2 ]]; then
+				echoContent yellow "VLESS+TCP[TLS] \c"
+			else
+				echoContent yellow "VLESS+TCP[TLS/XTLS] \c"
+			fi
+		fi
+
+		if echo ${currentInstallProtocolType} | grep -q 1; then
+			echoContent yellow "VLESS+WS[TLS] \c"
+		fi
+
+		if echo ${currentInstallProtocolType} | grep -q 2; then
+			echoContent yellow "VMess+TCP[TLS] \c"
+		fi
+
+		if echo ${currentInstallProtocolType} | grep -q 3; then
+			echoContent yellow "VMess+WS[TLS] \c"
+		fi
+
+		if echo ${currentInstallProtocolType} | grep -q 4; then
+			echoContent yellow "Trojan+TCP/WS[TLS]"
+		fi
+	fi
+}
+
 # 清理旧残留
 cleanUp() {
 	if [[ "$1" == "v2rayClean" ]]; then
@@ -704,8 +753,8 @@ installCronTLS() {
 	crontab -l >/etc/v2ray-agent/backup_crontab.cron
 	sed '/v2ray-agent/d;/acme.sh/d' /etc/v2ray-agent/backup_crontab.cron >/etc/v2ray-agent/backup_crontab.cron
 	echo "30 1 * * * /bin/bash /etc/v2ray-agent/install.sh RenewTLS" >>/etc/v2ray-agent/backup_crontab.cron
-    crontab /etc/v2ray-agent/backup_crontab.cron
-    echoContent green " ---> 添加定时维护证书成功"
+	crontab /etc/v2ray-agent/backup_crontab.cron
+	echoContent green " ---> 添加定时维护证书成功"
 }
 
 # 更新证书
@@ -2189,11 +2238,6 @@ showAccounts() {
 	fi
 }
 
-# 状态展示
-#showInstallStatus() {
-#
-#}
-
 # 更新伪装站
 updateNginxBlog() {
 	echoContent skyBlue "\n进度 $1/${totalProgress} : 更换伪装站点"
@@ -3516,11 +3560,17 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.6"
+	echoContent green "当前版本：v2.4.7"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本"
+	showInstallStatus
 	echoContent red "=============================================================="
-	echoContent yellow "1.安装"
+	if [[ -n "${coreInstallType}" ]]; then
+		echoContent yellow "1.重新安装"
+	else
+		echoContent yellow "1.安装"
+	fi
+
 	echoContent yellow "2.任意组合安装"
 	echoContent skyBlue "-------------------------工具管理-----------------------------"
 	echoContent yellow "3.账号管理"
