@@ -95,8 +95,8 @@
 
 ## 脚本目录
 
-- v2ray-core 【**/etc/v2ray-agent/v2ray**】
-- Xray-core 【**/etc/v2ray-agent/xray**】
+- v2ray-core 【**/etc/v2ray-agent/v2ray、/etc/v2ray-agent/v2ray/conf**】
+- Xray-core 【**/etc/v2ray-agent/xray、/etc/v2ray-agent/xray/conf**】
 - Trojan 【**/etc/v2ray-agent/trojan**】
 - TLS证书 【**/etc/v2ray-agent/tls**】
 - Nginx配置文件 【**/etc/nginx/conf.d/alone.conf**】、Nginx伪装站点目录 【**/usr/share/nginx/html**】
