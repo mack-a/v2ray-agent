@@ -3560,7 +3560,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.7"
+	echoContent green "当前版本：v2.4.8"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本"
 	showInstallStatus
@@ -3579,7 +3579,7 @@ menu() {
 	echoContent yellow "6.更换CDN节点"
 	echoContent yellow "7.ipv6人机验证"
 	echoContent yellow "8.流媒体工具"
-	echoContent yellow "9.设置MTPROTO"
+	echoContent yellow "9.设置MTPROTO[废弃]"
 	echoContent skyBlue "-------------------------版本管理-----------------------------"
 	echoContent yellow "10.core版本管理"
 	echoContent yellow "11.更新Trojan-Go"
@@ -3617,9 +3617,9 @@ menu() {
 	8)
 		streamingToolbox 1
 		;;
-	9)
-		setMTG 1
-		;;
+		#	9)
+		#		setMTG 1
+		#		;;
 	10)
 		coreVersionManageMenu 1
 		;;
