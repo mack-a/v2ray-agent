@@ -2270,6 +2270,15 @@ updateNginxBlog() {
 	fi
 }
 
+# 更换端口
+changeCorePort(){
+	read -r -p "请输入要更换的端口号:" newPort
+	if [[ -n "${newPort}" ]]; then
+		vlessTcpResult=$(jq -r ".inbounds[0].port=${newPort}" ${configPath}/02_VLESS_TCP_inbounds.json)
+		echo "${vlessTcpResult}" | jq . >${configPath}02_VLESS_TCP_inbounds.json
+		reloadCore
+	fi
+}
 # 卸载脚本
 unInstall() {
 	read -r -p "是否确认卸载安装内容？[y/n]:" unInstallStatus
@@ -3098,14 +3107,8 @@ setUnlockDNS() {
 	}
 }
 EOF
-		if [[ "${coreInstallType}" == "1" ]]; then
-			handleXray stop
-			handleXray start
+		reloadCore
 
-		elif [[ "${coreInstallType}" == "2" || "${coreInstallType}" == "3" ]]; then
-			handleV2Ray stop
-			handleV2Ray start
-		fi
 		echoContent green "\n ---> DNS解锁添加成功，该设置对Trojan-Go无效"
 		echoContent yellow "\n ---> 如还无法观看可以尝试以下两种方案"
 		echoContent yellow " 1.重启vps"
@@ -3127,14 +3130,7 @@ removeUnlockDNS() {
 	}
 }
 EOF
-	if [[ "${coreInstallType}" == "1" ]]; then
-		handleXray stop
-		handleXray start
-
-	elif [[ "${coreInstallType}" == "2" || "${coreInstallType}" == "3" ]]; then
-		handleV2Ray stop
-		handleV2Ray start
-	fi
+	reloadCore
 
 	echoContent green " ---> 卸载成功"
 
@@ -3560,7 +3556,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.8"
+	echoContent green "当前版本：v2.4.9"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本"
 	showInstallStatus
@@ -3579,7 +3575,7 @@ menu() {
 	echoContent yellow "6.更换CDN节点"
 	echoContent yellow "7.ipv6人机验证"
 	echoContent yellow "8.流媒体工具"
-	echoContent yellow "9.设置MTPROTO[废弃]"
+	echoContent yellow "9.更换端口"
 	echoContent skyBlue "-------------------------版本管理-----------------------------"
 	echoContent yellow "10.core版本管理"
 	echoContent yellow "11.更新Trojan-Go"
@@ -3617,9 +3613,9 @@ menu() {
 	8)
 		streamingToolbox 1
 		;;
-		#	9)
-		#		setMTG 1
-		#		;;
+	9)
+		changeCorePort 1
+		;;
 	10)
 		coreVersionManageMenu 1
 		;;
