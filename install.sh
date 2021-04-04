@@ -3363,7 +3363,7 @@ xrayCoreInstall() {
 	initXrayConfig all 12
 	cleanUp v2rayDel
 	initTrojanGoConfig 13
-	#    installCronTLS 14
+	installCronTLS 14
 	nginxBlog 15
 	updateRedirectNginxConf
 	handleXray stop
@@ -3556,7 +3556,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.9"
+	echoContent green "当前版本：v2.4.10"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本"
 	showInstallStatus
