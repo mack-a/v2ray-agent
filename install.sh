@@ -74,10 +74,7 @@ initVar() {
 	# 选择的个性化安装方式
 	selectCustomInstallType=
 
-	# v2ray-core配置文件的路径
-	configPath=
-
-	# xray-core配置文件的路径
+	# v2ray-core、xray-core配置文件的路径
 	configPath=
 
 	# 配置文件的path
@@ -1432,7 +1429,7 @@ initV2RayConfig() {
 	cat <<EOF >/etc/v2ray-agent/v2ray/conf/00_log.json
 {
   "log": {
-    "error": "/etc/v2ray-agent/v2ray/v2ray_error.log",
+    "error": "/etc/v2ray-agent/v2ray/error.log",
     "loglevel": "warning"
   }
 }
@@ -1731,7 +1728,7 @@ initXrayConfig() {
 	cat <<EOF >/etc/v2ray-agent/xray/conf/00_log.json
 {
   "log": {
-    "error": "/etc/v2ray-agent/xray/xray_error.log",
+    "error": "/etc/v2ray-agent/xray/error.log",
     "loglevel": "warning"
   }
 }
@@ -2271,10 +2268,10 @@ updateNginxBlog() {
 }
 
 # 更换端口
-changeCorePort(){
+changeCorePort() {
 	read -r -p "请输入要更换的端口号:" newPort
 	if [[ -n "${newPort}" ]]; then
-		vlessTcpResult=$(jq -r ".inbounds[0].port=${newPort}" ${configPath}/02_VLESS_TCP_inbounds.json)
+		vlessTcpResult=$(jq -r ".inbounds[0].port=${newPort}" ${configPath}02_VLESS_TCP_inbounds.json)
 		echo "${vlessTcpResult}" | jq . >${configPath}02_VLESS_TCP_inbounds.json
 		reloadCore
 	fi
@@ -2637,64 +2634,58 @@ bbrInstall() {
 
 # 查看、检查日志
 checkLog() {
+	if [[ -z ${configPath} ]]; then
+		echoContent red " ---> 没有检测到安装目录，请执行脚本安装内容"
+	fi
 	echoContent skyBlue "\n功能 $1/${totalProgress} : 查看日志"
 	echoContent red "\n=============================================================="
-	local coreType=
-	if [[ "${coreInstallType}" == "1" ]]; then
-		coreType=xray/xray
-
-	elif [[ "${coreInstallType}" == "2" || "${coreInstallType}" == "3" ]]; then
-		coreType=v2ray/v2ray
-	else
-		echoContent red " ---> 没有检测到安装目录，请执行脚本安装内容"
-		menu
-		exit 0
-	fi
-
-	echoContent skyBlue "-------------------------V2Ray/Xray--------------------------------"
-	echoContent yellow "1.查看error日志"
-	echoContent yellow "2.监听error日志"
-	echoContent yellow "3.清空日志"
-	echoContent skyBlue "-----------------------Trojan-Go------------------------------"
-	echoContent yellow "4.查看Trojan-Go日志"
-	echoContent yellow "5.监听Trojan-GO日志"
-	echoContent yellow "6.清空Trojan-GO日志"
-	echoContent skyBlue "-------------------------Nginx--------------------------------"
-	echoContent yellow "7.查看Nginx日志"
-	echoContent yellow "8.清空Nginx日志"
+	echoContent yellow "# 建议仅调试打开access日志\n"
+	echoContent yellow "1.打开access日志"
+	echoContent yellow "2.关闭access日志"
+	echoContent yellow "3.监听access日志"
+	echoContent yellow "4.监听error日志"
+	echoContent yellow "5.清空日志"
 	echoContent red "=============================================================="
 
-	read -r -p "请选择：" selectLogType
-	case ${selectLogType} in
+	read -r -p "请选择：" selectAccessLogType
+	local configPathLog=${configPath//conf\//}
+
+	case ${selectAccessLogType} in
 	1)
-		cat /etc/v2ray-agent/xray/xray_error.log
+		cat <<EOF >${configPath}00_log.json
+{
+  "log": {
+  	"access":"${configPathLog}access.log",
+    "error": "${configPathLog}error.log",
+    "loglevel": "warning"
+  }
+}
+
+EOF
+		reloadCore
 		;;
 	2)
-		tail -f /etc/v2ray-agent/xray/xray_error.log
+		cat <<EOF >${configPath}00_log.json
+{
+  "log": {
+    "error": "${configPathLog}error.log",
+    "loglevel": "warning"
+  }
+}
+EOF
+		reloadCore
 		;;
 	3)
-		echo '' >/etc/v2ray-agent/xray/xray_error.log
-		echoContent green " ---> 清空完毕"
+		tail -f ${configPathLog}access.log
 		;;
 	4)
-		cat /etc/v2ray-agent/trojan/trojan.log
+		tail -f ${configPathLog}error.log
 		;;
 	5)
-		tail -f /etc/v2ray-agent/trojan/trojan.log
-		;;
-	6)
-		echo '' >/etc/v2ray-agent/trojan/trojan.log
-		echoContent green " ---> 清空完毕"
-		;;
-	7)
-		cat /var/log/nginx/access.log
-		;;
-	8)
-		echo '' >/var/log/nginx/access.log
+		echo >${configPathLog}access.log
+		echo >${configPathLog}error.log
 		;;
 	esac
-	sleep 1
-	menu
 }
 
 # 脚本快捷方式
@@ -2857,7 +2848,7 @@ dokodemoDoorUnblockNetflix() {
 setDokodemoDoorUnblockNetflixOutbounds() {
 	read -r -p "请输入解锁Netflix vps的IP:" setIP
 	if [[ -n "${setIP}" ]]; then
-		cat <<EOF >${configPath}/10_ipv4_outbounds.json
+		cat <<EOF >${configPath}10_ipv4_outbounds.json
 {
   "outbounds": [
   	{
@@ -2886,7 +2877,7 @@ setDokodemoDoorUnblockNetflixOutbounds() {
   ]
 }
 EOF
-		cat <<EOF >${configPath}/09_routing.json
+		cat <<EOF >${configPath}09_routing.json
 {
   "routing": {
     "domainStrategy": "AsIs",
@@ -2925,7 +2916,7 @@ EOF
 setDokodemoDoorUnblockNetflixInbounds() {
 	read -r -p "请输入允许访问该解锁Netflix vps的IP:" setIP
 	if [[ -n "${setIP}" ]]; then
-		cat <<EOF >${configPath}/01_netflix_inbounds.json
+		cat <<EOF >${configPath}01_netflix_inbounds.json
 {
   "inbounds": [
     {
@@ -2968,7 +2959,7 @@ setDokodemoDoorUnblockNetflixInbounds() {
 }
 EOF
 
-		cat <<EOF >${configPath}/09_routing.json
+		cat <<EOF >${configPath}09_routing.json
 {
   "routing": {
     "rules": [
@@ -2996,7 +2987,7 @@ EOF
 # 移除任意门解锁Netflix
 removeDokodemoDoorUnblockNetflix() {
 
-	cat <<EOF >${configPath}/10_ipv4_outbounds.json
+	cat <<EOF >${configPath}10_ipv4_outbounds.json
 {
   "outbounds": [
     {
@@ -3010,7 +3001,7 @@ removeDokodemoDoorUnblockNetflix() {
 }
 EOF
 
-	rm -rf ${configPath}/09_routing.json
+	rm -rf ${configPath}09_routing.json
 
 	reloadCore
 	echoContent green " ---> 卸载成功"
@@ -3078,7 +3069,7 @@ dnsUnlockNetflix() {
 setUnlockDNS() {
 	read -r -p "请输入解锁Netflix的DNS:" setDNS
 	if [[ -n ${setDNS} ]]; then
-		cat <<EOF >${configPath}/11_dns.json
+		cat <<EOF >${configPath}11_dns.json
 {
 	"dns": {
 		"servers": [
@@ -3121,7 +3112,7 @@ EOF
 
 # 移除Netflix解锁
 removeUnlockDNS() {
-	cat <<EOF >${configPath}/11_dns.json
+	cat <<EOF >${configPath}11_dns.json
 {
 	"dns": {
 		"servers": [
@@ -3556,7 +3547,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.10"
+	echoContent green "当前版本：v2.4.11"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本"
 	showInstallStatus
