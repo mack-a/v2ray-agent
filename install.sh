@@ -216,16 +216,16 @@ showInstallStatus() {
 	if [[ -n "${coreInstallType}" ]]; then
 		if [[ "${coreInstallType}" == 1 ]]; then
 			if [[ -n $(pgrep -f xray/xray) ]]; then
-				echoContent yellow "核心：Xray-core[运行中]"
+				echoContent yellow "\n核心：Xray-core[运行中]"
 			else
-				echoContent yellow "核心：Xray-core[未运行]"
+				echoContent yellow "\n核心：Xray-core[未运行]"
 			fi
 
 		elif [[ "${coreInstallType}" == 2 || "${coreInstallType}" == 3 ]]; then
 			if [[ -n $(pgrep -f v2ray/v2ray) ]]; then
-				echoContent yellow "核心：v2ray-core[运行中]"
+				echoContent yellow "\n核心：v2ray-core[运行中]"
 			else
-				echoContent yellow "核心：v2ray-core[未运行]"
+				echoContent yellow "\n核心：v2ray-core[未运行]"
 			fi
 		fi
 		# 读取协议类型
@@ -255,7 +255,7 @@ showInstallStatus() {
 		fi
 
 		if echo ${currentInstallProtocolType} | grep -q 4; then
-			echoContent yellow "Trojan+TCP/WS[TLS]"
+			echoContent yellow "Trojan+TCP/WS[TLS]\c"
 		fi
 	fi
 }
@@ -732,7 +732,8 @@ handleNginx() {
 		nginx
 		sleep 0.5
 		if ! ps -ef | grep -v grep | grep -q nginx; then
-			echoContent red " ---> Nginx启动失败，请检查日志"
+			echoContent red " ---> Nginx启动失败"
+			echoContent red " ---> 请手动尝试安装nginx后，再次执行脚本"
 			exit 0
 		fi
 	elif [[ "$1" == "stop" ]] && [[ -n $(pgrep -f "nginx") ]]; then
@@ -3549,9 +3550,9 @@ menu() {
 	echoContent green "作者：mack-a"
 	echoContent green "当前版本：v2.4.11"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
-	echoContent green "描述：七合一共存脚本"
+	echoContent green "描述：七合一共存脚本\c"
 	showInstallStatus
-	echoContent red "=============================================================="
+	echoContent red "\n=============================================================="
 	if [[ -n "${coreInstallType}" ]]; then
 		echoContent yellow "1.重新安装"
 	else
