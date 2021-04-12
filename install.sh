@@ -2664,6 +2664,7 @@ checkLog() {
 
 EOF
 		reloadCore
+		checkLog 1
 		;;
 	2)
 		cat <<EOF >${configPath}00_log.json
@@ -2717,7 +2718,7 @@ checkIPv6() {
 }
 
 # ipv6 人机验证
-ipv6HumanVerification() {
+ipv6Routing() {
 	if [[ -z "${configPath}" ]]; then
 		echoContent red " ---> 未安装，请使用脚本安装"
 		menu
@@ -2725,12 +2726,23 @@ ipv6HumanVerification() {
 	fi
 
 	checkIPv6
-	echoContent skyBlue "\n功能 1/${totalProgress} : ipv6人机验证"
+	echoContent skyBlue "\n功能 1/${totalProgress} : IPv6分流"
 	echoContent red "\n=============================================================="
-	echoContent yellow "1.添加"
-	echoContent yellow "2.卸载"
+	echoContent yellow "1.添加域名"
+	echoContent yellow "2.卸载IPv6分流"
+	echoContent red "=============================================================="
 	read -r -p "请选择:" ipv6Status
 	if [[ "${ipv6Status}" == "1" ]]; then
+		echoContent red "=============================================================="
+		echoContent yellow "# 注意事项\n"
+		echoContent yellow "1.规则仅支持预定义域名列表[https://github.com/v2fly/domain-list-community]"
+		echoContent yellow "2.详细文档[https://www.v2fly.org/config/routing.html]"
+		echoContent yellow "3.如内核启动失败请检查域名后重新添加域名"
+		echoContent yellow "4.不允许有特殊字符，注意逗号的格式"
+		echoContent yellow "5.每次添加都是重新添加，不会保留上次域名"
+		echoContent yellow "6.录入示例:google,youtube,facebook\n"
+		read -r -p "请按照上面示例录入域名：" domainList
+
 		cat <<EOF >${configPath}09_routing.json
 {
     "routing":{
@@ -2739,10 +2751,9 @@ ipv6HumanVerification() {
           {
             "type": "field",
             "domain": [
-              "domain:google.com",
-              "domain:google.com.hk"
+            	"geosite:${domainList//,/\",\"geosite:}"
             ],
-            "outboundTag": "IP6-out"
+            "outboundTag": "IPv6-out"
           }
         ]
   }
@@ -2764,12 +2775,12 @@ EOF
       "settings": {
         "domainStrategy": "UseIPv6"
       },
-      "tag": "IP6-out"
+      "tag": "IPv6-out"
     }
   ]
 }
 EOF
-		echoContent green " ---> 人机验证修改成功"
+		echoContent green " ---> 添加成功"
 
 	elif [[ "${ipv6Status}" == "2" ]]; then
 		rm -rf ${configPath}09_routing.json
@@ -3548,7 +3559,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.11"
+	echoContent green "当前版本：v2.4.12"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本\c"
 	showInstallStatus
@@ -3565,7 +3576,7 @@ menu() {
 	echoContent yellow "4.更换伪装站"
 	echoContent yellow "5.更新证书"
 	echoContent yellow "6.更换CDN节点"
-	echoContent yellow "7.ipv6人机验证"
+	echoContent yellow "7.IPv6分流"
 	echoContent yellow "8.流媒体工具"
 	echoContent yellow "9.更换端口"
 	echoContent skyBlue "-------------------------版本管理-----------------------------"
@@ -3600,7 +3611,7 @@ menu() {
 		updateV2RayCDN 1
 		;;
 	7)
-		ipv6HumanVerification
+		ipv6Routing 1
 		;;
 	8)
 		streamingToolbox 1
