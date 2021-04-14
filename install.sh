@@ -2268,12 +2268,43 @@ updateNginxBlog() {
 	fi
 }
 
-# 更换端口
-changeCorePort() {
-	read -r -p "请输入要更换的端口号:" newPort
+# 添加新端口
+addCorePort() {
+	echoContent skyBlue "\n功能 1/${totalProgress} : 添加新端口"
+	echoContent red "\n=============================================================="
+	echoContent yellow "# 注意事项\n"
+	echoContent yellow "1.只允许添加443之外的一个端口"
+	echoContent yellow "2.不影响443端口的使用"
+	echoContent yellow "3.查看帐号时，只会展示默认端口443的帐号\n"
+	read -r -p "请输入端口号：" newPort
 	if [[ -n "${newPort}" ]]; then
-		vlessTcpResult=$(jq -r ".inbounds[0].port=${newPort}" ${configPath}02_VLESS_TCP_inbounds.json)
-		echo "${vlessTcpResult}" | jq . >${configPath}02_VLESS_TCP_inbounds.json
+
+		cat <<EOF >${configPath}02_dokodemodoor_inbounds.json
+{
+  "inbounds": [
+    {
+      "listen": "0.0.0.0",
+      "port": ${newPort},
+      "protocol": "dokodemo-door",
+      "settings": {
+        "address": "127.0.0.1",
+        "port": 443,
+        "network": "tcp",
+        "followRedirect": false
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+        	"http",
+          	"tls"
+        ]
+      },
+      "tag": "dokodemo-door-newPort"
+    }
+  ]
+}
+EOF
+		echoContent green " ---> 添加成功"
 		reloadCore
 	fi
 }
@@ -3559,7 +3590,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.12"
+	echoContent green "当前版本：v2.4.13"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本\c"
 	showInstallStatus
@@ -3578,7 +3609,7 @@ menu() {
 	echoContent yellow "6.更换CDN节点"
 	echoContent yellow "7.IPv6分流"
 	echoContent yellow "8.流媒体工具"
-	echoContent yellow "9.更换端口"
+	echoContent yellow "9.添加新端口"
 	echoContent skyBlue "-------------------------版本管理-----------------------------"
 	echoContent yellow "10.core版本管理"
 	echoContent yellow "11.更新Trojan-Go"
@@ -3617,7 +3648,7 @@ menu() {
 		streamingToolbox 1
 		;;
 	9)
-		changeCorePort 1
+		addCorePort 1
 		;;
 	10)
 		coreVersionManageMenu 1
