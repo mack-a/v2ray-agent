@@ -2275,7 +2275,8 @@ addCorePort() {
 	echoContent yellow "# 注意事项\n"
 	echoContent yellow "1.只允许添加443之外的一个端口"
 	echoContent yellow "2.不影响443端口的使用"
-	echoContent yellow "3.查看帐号时，只会展示默认端口443的帐号\n"
+	echoContent yellow "3.查看帐号时，只会展示默认端口443的帐号"
+	echoContent yellow "4.再次添加时会替换之前添加的端口\n"
 	read -r -p "请输入端口号：" newPort
 	if [[ -n "${newPort}" ]]; then
 
