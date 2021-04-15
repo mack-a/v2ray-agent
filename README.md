@@ -94,11 +94,47 @@
 
 ## 脚本目录
 
-- v2ray-core 【**/etc/v2ray-agent/v2ray、/etc/v2ray-agent/v2ray/conf**】
-- Xray-core 【**/etc/v2ray-agent/xray、/etc/v2ray-agent/xray/conf**】
-- Trojan 【**/etc/v2ray-agent/trojan**】
-- TLS证书 【**/etc/v2ray-agent/tls**】
-- Nginx配置文件 【**/etc/nginx/conf.d/alone.conf**】、Nginx伪装站点目录 【**/usr/share/nginx/html**】
+### Xray-core
+- 主目录
+```
+/etc/v2ray-agent/xray
+```
+- 配置文件目录
+```
+/etc/v2ray-agent/xray/conf
+```
+
+### v2ray-core
+- 主目录
+```
+/etc/v2ray-agent/v2ray
+```
+- 配置文件目录
+```
+/etc/v2ray-agent/v2ray/conf
+```
+
+### Trojan
+- 目录
+```
+/etc/v2ray-agent/trojan
+```
+
+### TLS证书
+- 目录
+```
+/etc/v2ray-agent/tls
+```
+
+### Nginx
+- Nginx配置文件
+```
+/etc/nginx/conf.d/alone.conf
+```
+- Nginx伪装站点目录
+```
+/usr/share/nginx/html
+```
 
 ## [脚本功能详解、错误处理、常用命令](https://github.com/mack-a/v2ray-agent/blob/master/documents/how_to_use.md)
 

@@ -2276,11 +2276,16 @@ addCorePort() {
 	echoContent yellow "1.只允许添加443之外的一个端口"
 	echoContent yellow "2.不影响443端口的使用"
 	echoContent yellow "3.查看帐号时，只会展示默认端口443的帐号"
-	echoContent yellow "4.再次添加时会替换之前添加的端口\n"
-	read -r -p "请输入端口号：" newPort
-	if [[ -n "${newPort}" ]]; then
-
-		cat <<EOF >${configPath}02_dokodemodoor_inbounds.json
+	echoContent yellow "4.再次添加时会替换之前添加的端口"
+	echoContent red "=============================================================="
+	echoContent yellow "1.添加端口"
+	echoContent yellow "2.卸载"
+	echoContent red "=============================================================="
+	read -r -p "请选择：" selectNewPortType
+	if [[ "${selectNewPortType}" == "1" ]]; then
+		read -r -p "请输入端口号：" newPort
+		if [[ -n "${newPort}" ]]; then
+			cat <<EOF >${configPath}02_dokodemodoor_inbounds.json
 {
   "inbounds": [
     {
@@ -2305,9 +2310,15 @@ addCorePort() {
   ]
 }
 EOF
-		echoContent green " ---> 添加成功"
+			echoContent green " ---> 添加成功"
+			reloadCore
+		fi
+	elif [[ "${selectNewPortType}" == "2" ]]; then
+		rm ${configPath}02_dokodemodoor_inbounds.json
+		echoContent green " ---> 卸载完成"
 		reloadCore
 	fi
+
 }
 # 卸载脚本
 unInstall() {
@@ -3591,7 +3602,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.13"
+	echoContent green "当前版本：v2.4.15"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本\c"
 	showInstallStatus
