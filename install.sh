@@ -2681,14 +2681,24 @@ checkLog() {
 	if [[ -z ${configPath} ]]; then
 		echoContent red " ---> 没有检测到安装目录，请执行脚本安装内容"
 	fi
+	local logStatus=false
+	if [[ -n $(cat ${configPath}00_log.json|grep access) ]];then
+		logStatus=true
+	fi
+
 	echoContent skyBlue "\n功能 $1/${totalProgress} : 查看日志"
 	echoContent red "\n=============================================================="
 	echoContent yellow "# 建议仅调试打开access日志\n"
-	echoContent yellow "1.打开access日志"
-	echoContent yellow "2.关闭access日志"
-	echoContent yellow "3.监听access日志"
-	echoContent yellow "4.监听error日志"
-	echoContent yellow "5.清空日志"
+
+	if [[ "${logStatus}" == "false" ]];then
+		echoContent yellow "1.打开access日志"
+	else
+		echoContent yellow "1.关闭access日志"
+	fi
+
+	echoContent yellow "2.监听access日志"
+	echoContent yellow "3.监听error日志"
+	echoContent yellow "4.清空日志"
 	echoContent red "=============================================================="
 
 	read -r -p "请选择：" selectAccessLogType
@@ -2696,7 +2706,8 @@ checkLog() {
 
 	case ${selectAccessLogType} in
 	1)
-		cat <<EOF >${configPath}00_log.json
+		if [[ "${logStatus}" == "false" ]];then
+			cat <<EOF >${configPath}00_log.json
 {
   "log": {
   	"access":"${configPathLog}access.log",
@@ -2704,13 +2715,9 @@ checkLog() {
     "loglevel": "warning"
   }
 }
-
 EOF
-		reloadCore
-		checkLog 1
-		;;
-	2)
-		cat <<EOF >${configPath}00_log.json
+		elif [[ "${logStatus}" == "true" ]];then
+			cat <<EOF >${configPath}00_log.json
 {
   "log": {
     "error": "${configPathLog}error.log",
@@ -2718,15 +2725,17 @@ EOF
   }
 }
 EOF
+		fi
 		reloadCore
+		checkLog 1
 		;;
-	3)
+	2)
 		tail -f ${configPathLog}access.log
 		;;
-	4)
+	3)
 		tail -f ${configPathLog}error.log
 		;;
-	5)
+	4)
 		echo >${configPathLog}access.log
 		echo >${configPathLog}error.log
 		;;
@@ -3602,7 +3611,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.14"
+	echoContent green "当前版本：v2.4.15"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本\c"
 	showInstallStatus
