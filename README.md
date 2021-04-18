@@ -43,7 +43,9 @@
 - 无需卸载即可安装、重装任意组合
 - 支持卸载时保留Nginx、tls证书。如果acme.sh申请的证书有效的情况下，不会重新签发。
 - 支持纯IPv6，[IPv6注意事项](https://github.com/mack-a/v2ray-agent/blob/master/documents/IPv6_help.md)
-- 支持利用IPv6排除Google的人机验证，**需自己申请IPv6隧道，不建议使用自带的IPv6**
+- 支持IPv6分流
+- 支持日志管理
+- 支持多端口配置
 - [支持自定义证书安装](https://github.com/mack-a/v2ray-agent/blob/master/documents/install_tls.md)
 
 ## 支持的安装类型
@@ -70,6 +72,8 @@
 - 10.北联+西伯利亚、伯力ttk/RT
 - 11.CN2+HE
 - 12.电信+台湾远传电信
+- 13.CN2+JP NTT
+- 14.中转+cloudflare+落地机【可拉全球】
 
 ## 组合推荐
 
