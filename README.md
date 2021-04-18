@@ -136,7 +136,7 @@
 /usr/share/nginx/html
 ```
 
-## [脚本功能详解、错误处理、常用命令](https://github.com/mack-a/v2ray-agent/blob/master/documents/how_to_use.md)
+## [脚本指南](https://github.com/mack-a/v2ray-agent/blob/master/documents/how_to_use.md)
 
 ## 安装脚本
 
