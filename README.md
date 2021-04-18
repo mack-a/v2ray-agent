@@ -91,6 +91,7 @@
 - **为了节约时间，反馈请带上详细截图或者按照模版规范，无截图或者不按照规范的issue会被直接关闭**
 - **不建议GCP用户使用**
 - **不建议使用Centos以及低版本的系统，2.3.x后不再支持Centos6**
+- **[如有使用不明白的地方请先查看脚本使用指南](https://github.com/mack-a/v2ray-agent/blob/master/documents/how_to_use.md)**
 
 ## 脚本目录
 
@@ -136,7 +137,7 @@
 /usr/share/nginx/html
 ```
 
-## [脚本指南](https://github.com/mack-a/v2ray-agent/blob/master/documents/how_to_use.md)
+## [脚本使用指南](https://github.com/mack-a/v2ray-agent/blob/master/documents/how_to_use.md)
 
 ## 安装脚本
 
