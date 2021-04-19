@@ -181,13 +181,13 @@ wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-
 wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/3f8ea0aa364ae2e1e407056074c11b448396261f/install.sh" && chmod 700 /root/install.sh && /root/install.sh
 ```
 
-- 示例图
-
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/install.jpg" width=700>
-
 # 捐赠
 
 - [您可以通过虚拟币向我捐赠](https://github.com/mack-a/v2ray-agent/blob/master/documents/donation.md)
+
+# 示例图
+
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/install.jpg" width=700>
 
 # 许可证
 
