@@ -917,6 +917,9 @@ v2rayVersionManageMenu() {
 	echoContent red "\n=============================================================="
 	echoContent yellow "1.升级"
 	echoContent yellow "2.回退"
+	echoContent yellow "3.关闭v2ray-core"
+	echoContent yellow "4.打开v2ray-core"
+	echoContent yellow "5.重启v2ray-core"
 	echoContent red "=============================================================="
 	read -r -p "请选择：" selectV2RayType
 	if [[ "${selectV2RayType}" == "1" ]]; then
@@ -936,6 +939,12 @@ v2rayVersionManageMenu() {
 			echoContent red "\n ---> 输入有误，请重新输入"
 			v2rayVersionManageMenu 1
 		fi
+	elif [[ "${selectXrayType}" == "3" ]]; then
+		handleV2Ray stop
+	elif [[ "${selectXrayType}" == "4" ]]; then
+		handleV2Ray start
+	elif [[ "${selectXrayType}" == "5" ]]; then
+		reloadCore
 	fi
 }
 
@@ -950,6 +959,9 @@ xrayVersionManageMenu() {
 	echoContent red "\n=============================================================="
 	echoContent yellow "1.升级"
 	echoContent yellow "2.回退"
+	echoContent yellow "3.关闭Xray-core"
+	echoContent yellow "4.打开Xray-core"
+	echoContent yellow "5.重启Xray-core"
 	echoContent red "=============================================================="
 	read -r -p "请选择：" selectXrayType
 	if [[ "${selectXrayType}" == "1" ]]; then
@@ -969,6 +981,12 @@ xrayVersionManageMenu() {
 			echoContent red "\n ---> 输入有误，请重新输入"
 			xrayVersionManageMenu 1
 		fi
+	elif [[ "${selectXrayType}" == "3" ]]; then
+		handleXray stop
+	elif [[ "${selectXrayType}" == "4" ]]; then
+		handleXray start
+	elif [[ "${selectXrayType}" == "5" ]]; then
+		reloadCore
 	fi
 
 }
@@ -2273,19 +2291,17 @@ addCorePort() {
 	echoContent skyBlue "\n功能 1/${totalProgress} : 添加新端口"
 	echoContent red "\n=============================================================="
 	echoContent yellow "# 注意事项\n"
-	echoContent yellow "1.只允许添加443之外的一个端口"
-	echoContent yellow "2.不影响443端口的使用"
-	echoContent yellow "3.查看帐号时，只会展示默认端口443的帐号"
-	echoContent yellow "4.再次添加时会替换之前添加的端口"
-	echoContent red "=============================================================="
+	echoContent yellow "不影响443端口的使用"
+	echoContent yellow "查看帐号时，只会展示默认端口443的帐号\n"
+
 	echoContent yellow "1.添加端口"
-	echoContent yellow "2.卸载"
+	echoContent yellow "2.删除端口"
 	echoContent red "=============================================================="
 	read -r -p "请选择：" selectNewPortType
 	if [[ "${selectNewPortType}" == "1" ]]; then
 		read -r -p "请输入端口号：" newPort
 		if [[ -n "${newPort}" ]]; then
-			cat <<EOF >${configPath}02_dokodemodoor_inbounds.json
+			cat <<EOF >${configPath}02_dokodemodoor_inbounds_${newPort}.json
 {
   "inbounds": [
     {
@@ -2305,7 +2321,7 @@ addCorePort() {
           	"tls"
         ]
       },
-      "tag": "dokodemo-door-newPort"
+      "tag": "dokodemo-door-newPort-${newPort}"
     }
   ]
 }
@@ -2314,12 +2330,21 @@ EOF
 			reloadCore
 		fi
 	elif [[ "${selectNewPortType}" == "2" ]]; then
-		rm ${configPath}02_dokodemodoor_inbounds.json
-		echoContent green " ---> 卸载完成"
-		reloadCore
-	fi
+		echoContent yellow "编号:端口"
+		ls ${configPath} | grep dokodemodoor | awk -F "[_]" '{print $4}' | awk -F "[.]" '{print ""NR""":"$1}'
+		read -r -p "请输入要删除的端口编号：" portIndex
 
+		local dokoConfig=$(ls ${configPath} | grep dokodemodoor | awk '{print ""NR""":"$1}' | grep ${portIndex}":")
+		if [[ -n "${dokoConfig}" ]]; then
+			rm ${configPath}/$(echo "${dokoConfig}" | awk -F "[:]" '{print $2}')
+			reloadCore
+		else
+			echoContent yellow "\n ---> 编号输入错误，请重新选择"
+			addCorePort
+		fi
+	fi
 }
+
 # 卸载脚本
 unInstall() {
 	read -r -p "是否确认卸载安装内容？[y/n]:" unInstallStatus
