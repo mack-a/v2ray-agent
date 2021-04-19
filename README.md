@@ -100,43 +100,59 @@
 ## 脚本目录
 
 ### Xray-core
+
 - 主目录
+
 ```
 /etc/v2ray-agent/xray
 ```
+
 - 配置文件目录
+
 ```
 /etc/v2ray-agent/xray/conf
 ```
 
 ### v2ray-core
+
 - 主目录
+
 ```
 /etc/v2ray-agent/v2ray
 ```
+
 - 配置文件目录
+
 ```
 /etc/v2ray-agent/v2ray/conf
 ```
 
 ### Trojan
+
 - 目录
+
 ```
 /etc/v2ray-agent/trojan
 ```
 
 ### TLS证书
+
 - 目录
+
 ```
 /etc/v2ray-agent/tls
 ```
 
 ### Nginx
+
 - Nginx配置文件
+
 ```
 /etc/nginx/conf.d/alone.conf
 ```
+
 - Nginx伪装站点目录
+
 ```
 /usr/share/nginx/html
 ```
@@ -168,6 +184,10 @@ wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-
 - 示例图
 
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/install.jpg" width=700>
+
+# 捐赠
+
+- [您可以通过虚拟币向我捐赠](https://github.com/mack-a/v2ray-agent/blob/master/documents/donation.md)
 
 # 许可证
 
