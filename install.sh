@@ -2330,7 +2330,7 @@ EOF
 			reloadCore
 		fi
 	elif [[ "${selectNewPortType}" == "2" ]]; then
-		echoContent yellow "编号:端口"
+
 		ls ${configPath} | grep dokodemodoor | awk -F "[_]" '{print $4}' | awk -F "[.]" '{print ""NR""":"$1}'
 		read -r -p "请输入要删除的端口编号：" portIndex
 
@@ -3636,7 +3636,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.15"
+	echoContent green "当前版本：v2.4.16"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：七合一共存脚本\c"
 	showInstallStatus
