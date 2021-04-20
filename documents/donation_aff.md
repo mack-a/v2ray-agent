@@ -33,7 +33,11 @@ https://app.cloudcone.com/?ref=6758
 - vultr
 
 ```
+# 邀请链接
 https://www.vultr.com/?ref=8851883
+
+# 首月100刀
+https://www.vultr.com/?ref=8851953-6G
 ```
 
 此厂商vps仅推荐日本东京和New York，日本东京为NTT线路，可以使用上海CN2、上海联通拉，New York推荐的理由则是比较便宜。使用我的AFF注册首月赠送100刀。不要使用黑卡或者第三方购买，vultr收不到钱会被封号。
