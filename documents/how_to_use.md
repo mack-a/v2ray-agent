@@ -22,47 +22,50 @@
 - v2ray-core[XTLS]
 
 最后一个支持xtls的v2ray-core版本
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/01.png" width=300>
+
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/01.png" width=700>
 
 ### 2.检测域名的ip
 
 这里会先检测IPv4后检测IPv6
 
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/02.png" width=300>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/02.png" width=700>
 
 ### 3.申请TLS证书
 
 1.首次签发证书会自动签发。 2.如果使用acme.sh申请过证书，这里会直接使用而不会重复签发，如果在【是否重新安装】选择y，则会把证书重新安装一遍不是重新签发。
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/03.png" width=300>
+
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/03.png" width=700>
 
 ### 4.生成随机路径
 
 这里会先读取上次安装时路径，如果没有读取到则会手动输入或者随机路径
 
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/04.png" width=300>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/04.png" width=700>
 
 ### 5.安装Xray/v2ray
 
 根据选择的内核进行安装，如果安装过则会提示是否更新或者升级
 
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/05.png" width=300>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/05.png" width=700>
 
 ### 6.安装Trojan-Go
 
 如果安装时选择安装trojan协议或者全部安装，则这里会自动安装trojan-go核心，与上面相同如果安装过则会提示是否更新或者升级。
 
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/06.png" width=300>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/06.png" width=700>
 
 ### 7.添加智能DNS智能解析
 
 如果选择y，则查看帐号的时候 address是优选后的域名解析，则会出现address是脚本提供的域名，伪装域名或SNI或peer则是个人的域名，详情原理解析请查看[此文章](https://github.com/mack-a/v2ray-agent/blob/master/documents/optimize_V2Ray.md)，仅支持ws的传输方式
 
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/07.png" width=300>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/07.png" width=700>
 
 ### 8.初始化xray/v2ray配置文件
 
 这里会提供自定义uuid的入口，如果不提供自定义的uuid则会尝试读取上次安装时的uuid，如果以上都没读取到会随机生成uuid。
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/08.png" width=300>
+
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/08.png" width=700>
 
 ### 9.定时任务维护证书
 
@@ -72,7 +75,7 @@
 
 会检测上次是否安装了伪装站点，如检测不到会自动安装默认的伪装站点，如果后续不满意可以使用脚本提供的伪站更换或自定义伪站
 
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/08.png" width=300>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/08.png" width=700>
 
 ### 11.完成
 
@@ -89,12 +92,14 @@
 ### 2.添加用户/删除用户
 
 脚本支持多用户管理，如果添加用户后相应的订阅也就产生多个
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/11.png" width=300>
+
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/11.png" width=700>
 
 ### 3.更换伪站点
 
 脚本提供了多个可供更换的伪站
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/10.png" width=300>
+
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/10.png" width=700>
 
 ### 4.修改CDN节点
 
@@ -110,23 +115,27 @@
 - 任意门落地机解锁Netflix
 
 [详情请查看此文章](https://github.com/mack-a/v2ray-agent/blob/master/documents/netflix/dokodemo-unblock_netflix.md)
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/12.png" width=300>
+
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/12.png" width=700>
 
 - DNS解锁流媒体
 一般购买的DNS流媒体解锁支持解锁的流媒体相对较多，支持解锁以下网站
 ```
 netflix、bahamut、hulu、hbo、disney、bbc、4chan、fox、abema、dmm、niconico、pixiv、bilibili、viu
 ```
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/13.png" width=300>
+
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/13.png" width=700>
 
 
 ### 7.添加新端口
 不影响443端口的使用，查看帐号时仅展示443端口的帐号，支持多个端口的添加和删除。
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/14.png" width=300>
+
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/14.png" width=700>
 
 ### 8.core管理
 支持核心的升级、回退、重启、打开、关闭，仅限xray、v2ray
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/15.png" width=300>
+
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/15.png" width=700>
 
 
 ### 9.安装BBR、DD脚本
@@ -134,13 +143,14 @@ netflix、bahamut、hulu、hbo、disney、bbc、4chan、fox、abema、dmm、nico
 
 ### 10.查看日志
 默认关闭access日志，如果想要调试则需要打开。此日志会产生大量的访问记录，建议调试完后关闭。
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/16.png" width=300>
+
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/16.png" width=700>
 
 ### 11.卸载脚本
 
 卸载脚本时会删除脚本产生的数据文件以及脚本本身，但是不会删除安装的linux命令，比如curl、wget、nginx等，会将当前安装的证书备份到【/tmp/v2ray-agent-tls】，重启后此文件消失。
 
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/17.png" width=300>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/17.png" width=700>
 
 # 3.常见错误处理
 
