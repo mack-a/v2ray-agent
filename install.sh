@@ -752,7 +752,7 @@ installCronTLS() {
 	sed '/v2ray-agent/d;/acme.sh/d' /etc/v2ray-agent/backup_crontab.cron >/etc/v2ray-agent/backup_crontab.cron
 	echo "30 1 * * * /bin/bash /etc/v2ray-agent/install.sh RenewTLS" >>/etc/v2ray-agent/backup_crontab.cron
 	crontab /etc/v2ray-agent/backup_crontab.cron
-	echoContent green " ---> 添加定时维护证书成功"
+	echoContent green "\n ---> 添加定时维护证书成功"
 }
 
 # 更新证书
@@ -2361,13 +2361,13 @@ unInstall() {
 
 	handleV2Ray stop
 	handleTrojanGo stop
-	handleMTG stop
+	#	handleMTG stop
 
 	rm -rf /etc/systemd/system/v2ray.service
 	echoContent green " ---> 删除V2Ray开机自启完成"
 
-	rm -rf /etc/systemd/system/mtg.service
-	echoContent green " ---> 删除MTG开机自启完成"
+	#	rm -rf /etc/systemd/system/mtg.service
+	#	echoContent green " ---> 删除MTG开机自启完成"
 
 	rm -rf /etc/systemd/system/trojan-go.service
 	echoContent green " ---> 删除Trojan-Go开机自启完成"
@@ -2384,7 +2384,7 @@ unInstall() {
 	rm -rf /usr/bin/vasma
 	rm -rf /usr/sbin/vasma
 	echoContent green " ---> 卸载快捷方式完成"
-	echoContent green " ---> 卸载v2ray-agent完成"
+	echoContent green " ---> 卸载v2ray-agent脚本完成"
 }
 
 # 修改V2Ray CDN节点
@@ -2707,15 +2707,15 @@ checkLog() {
 		echoContent red " ---> 没有检测到安装目录，请执行脚本安装内容"
 	fi
 	local logStatus=false
-	if [[ -n $(cat ${configPath}00_log.json|grep access) ]];then
+	if [[ -n $(cat ${configPath}00_log.json | grep access) ]]; then
 		logStatus=true
 	fi
 
 	echoContent skyBlue "\n功能 $1/${totalProgress} : 查看日志"
 	echoContent red "\n=============================================================="
-	echoContent yellow "# 建议仅调试打开access日志\n"
+	echoContent yellow "# 建议仅调试时打开access日志\n"
 
-	if [[ "${logStatus}" == "false" ]];then
+	if [[ "${logStatus}" == "false" ]]; then
 		echoContent yellow "1.打开access日志"
 	else
 		echoContent yellow "1.关闭access日志"
@@ -2731,7 +2731,7 @@ checkLog() {
 
 	case ${selectAccessLogType} in
 	1)
-		if [[ "${logStatus}" == "false" ]];then
+		if [[ "${logStatus}" == "false" ]]; then
 			cat <<EOF >${configPath}00_log.json
 {
   "log": {
@@ -2741,7 +2741,7 @@ checkLog() {
   }
 }
 EOF
-		elif [[ "${logStatus}" == "true" ]];then
+		elif [[ "${logStatus}" == "true" ]]; then
 			cat <<EOF >${configPath}00_log.json
 {
   "log": {
@@ -2891,7 +2891,7 @@ streamingToolbox() {
 	echoContent red "\n=============================================================="
 	echoContent yellow "1.Netflix检测"
 	echoContent yellow "2.任意门落地机解锁Netflix"
-	echoContent yellow "3.DNS解锁Netflix"
+	echoContent yellow "3.DNS解锁流媒体\n"
 	read -r -p "请选择:" selectType
 
 	case ${selectType} in
@@ -3657,7 +3657,7 @@ menu() {
 	echoContent yellow "8.流媒体工具"
 	echoContent yellow "9.添加新端口"
 	echoContent skyBlue "-------------------------版本管理-----------------------------"
-	echoContent yellow "10.core版本管理"
+	echoContent yellow "10.core管理"
 	echoContent yellow "11.更新Trojan-Go"
 	echoContent yellow "12.更新脚本"
 	echoContent yellow "13.安装BBR、DD脚本"

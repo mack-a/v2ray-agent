@@ -181,9 +181,11 @@ wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-
 wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/3f8ea0aa364ae2e1e407056074c11b448396261f/install.sh" && chmod 700 /root/install.sh && /root/install.sh
 ```
 
-##  捐赠
+## 捐赠
 
-- [您可以通过虚拟币向我捐赠](https://github.com/mack-a/v2ray-agent/blob/master/documents/donation.md)
+[您可以使用我的AFF进行购买VPS捐赠](https://github.com/mack-a/v2ray-agent/blob/master/documents/donation_aff.md)
+
+[支持通过虚拟币向我捐赠](https://github.com/mack-a/v2ray-agent/blob/master/documents/donation.md)
 
 # 示例图
 
