@@ -747,7 +747,7 @@ handleNginx() {
 
 # 定时任务更新tls证书
 installCronTLS() {
-	echoContent skyBlue "\n进度  $1/${totalProgress} : 添加定时维护证书"
+	echoContent skyBlue "\n进度 $1/${totalProgress} : 添加定时维护证书"
 	crontab -l >/etc/v2ray-agent/backup_crontab.cron
 	sed '/v2ray-agent/d;/acme.sh/d' /etc/v2ray-agent/backup_crontab.cron >/etc/v2ray-agent/backup_crontab.cron
 	echo "30 1 * * * /bin/bash /etc/v2ray-agent/install.sh RenewTLS" >>/etc/v2ray-agent/backup_crontab.cron
