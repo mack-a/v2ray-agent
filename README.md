@@ -52,6 +52,7 @@
 
 - VLESS+TCP+TLS
 - VLESS+TCP+xtls-rprx-direct【**推荐**】
+- VLESS+gRPC+TLS【支持CDN、IPv6】
 - VLESS+WS+TLS【支持CDN、IPv6】
 - VMess+TCP+TLS
 - VMess+WS+TLS【支持CDN、IPv6】
