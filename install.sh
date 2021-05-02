@@ -2314,7 +2314,7 @@ showAccounts() {
 		fi
 		# VLESS grpc
 		if echo ${currentInstallProtocolType} | grep -q 5 || [[ -z "${currentInstallProtocolType}" ]]; then
-			echoContent skyBlue "\n================================ VLESS gRPC TLS CDN ================================\n"
+			echoContent skyBlue "\n=============================== VLESS gRPC TLS CDN ===============================\n"
 			local serviceName=$(jq -r .inbounds[0].streamSettings.grpcSettings.serviceName ${configPath}06_VLESS_gRPC_inbounds.json)
 			jq .inbounds[0].settings.clients ${configPath}06_VLESS_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
 				defaultBase64Code vlessgrpc $(echo "${user}" | jq .email) $(echo "${user}" | jq .id) "${currentHost}:${currentPort}" ${serviceName} ${currentAdd}
@@ -2394,8 +2394,11 @@ addCorePort() {
 	echoContent skyBlue "\n功能 1/${totalProgress} : 添加新端口"
 	echoContent red "\n=============================================================="
 	echoContent yellow "# 注意事项\n"
+	echoContent yellow "支持批量添加"
 	echoContent yellow "不影响443端口的使用"
-	echoContent yellow "查看帐号时，只会展示默认端口443的帐号\n"
+	echoContent yellow "查看帐号时，只会展示默认端口443的帐号"
+	echoContent yellow "不允许有特殊字符，注意逗号的格式"
+	echoContent yellow "录入示例:2053,2083,2087\n"
 
 	echoContent yellow "1.添加端口"
 	echoContent yellow "2.删除端口"
@@ -2404,12 +2407,14 @@ addCorePort() {
 	if [[ "${selectNewPortType}" == "1" ]]; then
 		read -r -p "请输入端口号：" newPort
 		if [[ -n "${newPort}" ]]; then
-			cat <<EOF >${configPath}02_dokodemodoor_inbounds_${newPort}.json
+
+			while read -r port; do
+				cat <<EOF >${configPath}02_dokodemodoor_inbounds_${port}.json
 {
   "inbounds": [
     {
       "listen": "0.0.0.0",
-      "port": ${newPort},
+      "port": ${port},
       "protocol": "dokodemo-door",
       "settings": {
         "address": "127.0.0.1",
@@ -2424,11 +2429,14 @@ addCorePort() {
           	"tls"
         ]
       },
-      "tag": "dokodemo-door-newPort-${newPort}"
+      "tag": "dokodemo-door-newPort-${port}"
     }
   ]
 }
 EOF
+			done < <(echo "${newPort}" | tr ',' '\n')
+
+
 			echoContent green " ---> 添加成功"
 			reloadCore
 		fi
@@ -3740,7 +3748,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.18"
+	echoContent green "当前版本：v2.4.19"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
