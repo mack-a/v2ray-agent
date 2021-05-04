@@ -42,7 +42,7 @@
 - 支持Netflix检测、支持DNS流媒体解锁、支持任意门解锁Netflix
 - 无需卸载即可安装、重装任意组合
 - 支持卸载时保留Nginx、tls证书。如果acme.sh申请的证书有效的情况下，不会重新签发。
-- 支持纯IPv6，[IPv6注意事项](https://github.com/mack-a/v2ray-agent/blob/master/documents/IPv6_help.md)
+- 支持纯IPv6，[IPv6注意事项](https://github.com/mack-a/v2ray-agent/blob/master/documents/ipv6_help.md)
 - 支持IPv6分流
 - 支持日志管理
 - 支持多端口配置
