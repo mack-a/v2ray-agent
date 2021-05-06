@@ -557,6 +557,18 @@ updateRedirectNginxConf() {
 			return 403;
 	}
 EOF
+	if  [[ "${coreInstallType}" == "1" ]] && [[ -n $(echo ${selectCustomInstallType} | grep 5) || -z "${selectCustomInstallType}" ]];then
+		cat <<EOF >>/etc/nginx/conf.d/alone.conf
+			server {
+		        listen 31302 http2;
+		        server_name ${domain};
+		        root /usr/share/nginx/html;
+				location /${currentPath}grpc {
+		            grpc_pass grpc://127.0.0.1:31301;
+		        }
+			}
+EOF
+	fi
 
 	if [[ "${debianVersion}" == "8" ]]; then
 		cat <<EOF >>/etc/nginx/conf.d/alone.conf
@@ -1971,7 +1983,7 @@ EOF
 	fi
 
 	if echo "${selectCustomInstallType}" | grep -q 5 || [[ "$1" == "all" ]]; then
-		fallbacksList=${fallbacksList}',{"alpn":"h2","dest":31301,"xver":0}'
+		fallbacksList=${fallbacksList}',{"alpn":"h2","dest":31302,"xver":0}'
 		cat <<EOF >/etc/v2ray-agent/xray/conf/06_VLESS_gRPC_inbounds.json
 {
     "inbounds":[
@@ -3753,7 +3765,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.20"
+	echoContent green "当前版本：v2.4.21"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
