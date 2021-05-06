@@ -551,24 +551,29 @@ updateRedirectNginxConf() {
         # shellcheck disable=SC2154
         return 301 https://${domain}$request_uri;
     }
+    server {
+			listen 31300;
+			server_name _;
+			return 403;
+	}
 EOF
 
 	if [[ "${debianVersion}" == "8" ]]; then
 		cat <<EOF >>/etc/nginx/conf.d/alone.conf
         server {
-        listen 31300;
-        server_name ${domain};
-        root /usr/share/nginx/html;
-        location /s/ {
-        	add_header Content-Type text/plain;
-        	alias /etc/v2ray-agent/subscribe/;
-        }
-        # location / {
-        #   add_header Strict-Transport-Security "max-age=63072000" always;
-        # }
-#       location ~ /.well-known {allow all;}
-#       location /test {return 200 'fjkvymb6len';}
-    }
+			listen 31300;
+			server_name ${domain};
+			root /usr/share/nginx/html;
+			location /s/ {
+				add_header Content-Type text/plain;
+				alias /etc/v2ray-agent/subscribe/;
+			}
+			# location / {
+			#   add_header Strict-Transport-Security "max-age=63072000" always;
+			# }
+			# location ~ /.well-known {allow all;}
+			# location /test {return 200 'fjkvymb6len';}
+    	}
 EOF
 	else
 		cat <<EOF >>/etc/nginx/conf.d/alone.conf
@@ -583,8 +588,8 @@ EOF
             location / {
                 add_header Strict-Transport-Security "max-age=63072000" always;
             }
-    #       location ~ /.well-known {allow all;}
-    #       location /test {return 200 'fjkvymb6len';}
+			# location ~ /.well-known {allow all;}
+			# location /test {return 200 'fjkvymb6len';}
         }
 EOF
 	fi
@@ -3748,7 +3753,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.19"
+	echoContent green "当前版本：v2.4.20"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
