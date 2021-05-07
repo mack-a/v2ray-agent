@@ -549,8 +549,8 @@ EOF
 		sudo yum-config-manager --enable nginx-mainline
 	fi
 	${installType} nginx >/dev/null 2>&1
-	systemctl daemon-reload >/dev/null 2>&1
-	systemctl enable nginx >/dev/null 2>&1
+	systemctl daemon-reload
+	systemctl enable nginx
 }
 
 # 初始化Nginx申请证书配置
@@ -617,54 +617,33 @@ updateRedirectNginxConf() {
 			return 403;
 	}
 EOF
-	if [[ "${coreInstallType}" == "1" ]] && [[ -n $(echo ${selectCustomInstallType} | grep 5) || -z "${selectCustomInstallType}" ]]; then
+	if [[ "${selectCoreType}" == "1" ]] && [[ -n $(echo ${selectCustomInstallType} | grep 5) || -z ${selectCustomInstallType} ]]; then
 		cat <<EOF >>/etc/nginx/conf.d/alone.conf
-			server {
-		        listen 31302 http2;
-		        server_name ${domain};
-		        root /usr/share/nginx/html;
-				location /${currentPath}grpc {
-		            grpc_pass grpc://127.0.0.1:31301;
-		        }
-			}
+server {
+	listen 31302 http2;
+	server_name ${domain};
+	root /usr/share/nginx/html;
+	location /${currentPath}grpc {
+		grpc_pass grpc://127.0.0.1:31301;
+	}
+}
 EOF
 	fi
 
-	if [[ "${debianVersion}" == "8" ]]; then
 		cat <<EOF >>/etc/nginx/conf.d/alone.conf
-        server {
-			listen 31300;
-			server_name ${domain};
-			root /usr/share/nginx/html;
-			location /s/ {
-				add_header Content-Type text/plain;
-				alias /etc/v2ray-agent/subscribe/;
-			}
-			# location / {
-			#   add_header Strict-Transport-Security "max-age=63072000" always;
-			# }
-			# location ~ /.well-known {allow all;}
-			# location /test {return 200 'fjkvymb6len';}
-    	}
+server {
+	listen 31300;
+	server_name ${domain};
+	root /usr/share/nginx/html;
+	location /s/ {
+		add_header Content-Type text/plain;
+		alias /etc/v2ray-agent/subscribe/;
+	}
+	location / {
+		add_header Strict-Transport-Security "max-age=63072000" always;
+	}
+}
 EOF
-	else
-		cat <<EOF >>/etc/nginx/conf.d/alone.conf
-        server {
-            listen 31300;
-            server_name ${domain};
-            root /usr/share/nginx/html;
-            location /s/ {
-            	add_header Content-Type text/plain;
-        		alias /etc/v2ray-agent/subscribe/;
-        	}
-            location / {
-                add_header Strict-Transport-Security "max-age=63072000" always;
-            }
-			# location ~ /.well-known {allow all;}
-			# location /test {return 200 'fjkvymb6len';}
-        }
-EOF
-	fi
 
 }
 
@@ -3823,7 +3802,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.22"
+	echoContent green "当前版本：v2.4.23"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
