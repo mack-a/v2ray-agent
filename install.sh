@@ -4,6 +4,8 @@
 # 检查系统
 checkSystem() {
 	if [[ -n $(find /etc -name "redhat-release") ]] || grep </proc/version -q -i "centos"; then
+		mkdir -p /etc/yum.repos.d
+
 		centosVersion=$(rpm -q centos-release | awk -F "[-]" '{print $3}' | awk -F "[.]" '{print $1}')
 
 		if [[ -z "${centosVersion}" ]] && grep </etc/centos-release "release 8"; then
@@ -327,7 +329,7 @@ echoContent() {
 # 初始化安装目录
 mkdirTools() {
 	mkdir -p /etc/v2ray-agent/tls
-	mkdir -p /etc/v2ray-agent/mtg
+	# mkdir -p /etc/v2ray-agent/mtg
 	mkdir -p /etc/v2ray-agent/subscribe
 	mkdir -p /etc/v2ray-agent/subscribe_tmp
 	mkdir -p /etc/v2ray-agent/v2ray/conf
@@ -340,44 +342,44 @@ mkdirTools() {
 # 安装工具包
 installTools() {
 	echoContent skyBlue "\n进度  $1/${totalProgress} : 安装工具"
-	if [[ "${release}" == "centos" ]]; then
-		echoContent green " ---> 检查安装jq、nginx epel源、yum-utils、semanage"
-		# jq epel源
-		if [[ -z $(command -v jq) ]]; then
-			rpm -ivh http://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm >/dev/null 2>&1
-		fi
-
-		nginxEpel=""
-		if rpm -qa | grep -q nginx; then
-			local nginxVersion
-			nginxVersion=$(rpm -qa | grep -v grep | grep nginx | head -1 | awk -F '[-]' '{print $2}')
-			if [[ $(echo "${nginxVersion}" | awk -F '[.]' '{print $1}') -le 1 ]] && [[ $(echo "${nginxVersion}" | awk -F '[.]' '{print $2}') -le 17 ]]; then
-				rpm -qa | grep -v grep | grep nginx | xargs rpm -e >/dev/null 2>&1
-			fi
-		fi
-
-		if [[ "${centosVersion}" == "6" ]]; then
-			nginxEpel="http://nginx.org/packages/centos/6/x86_64/RPMS/nginx-1.18.0-1.el6.ngx.x86_64.rpm"
-			rpm -ivh ${nginxEpel} >/etc/v2ray-agent/error.log 2>&1
-		elif [[ "${centosVersion}" == "7" ]]; then
-			nginxEpel="http://nginx.org/packages/centos/7/noarch/RPMS/nginx-release-centos-7-0.el7.ngx.noarch.rpm"
-			policyCoreUtils="policycoreutils-python.x86_64"
-			rpm -ivh ${nginxEpel} >/etc/v2ray-agent/error.log 2>&1
-		elif [[ "${centosVersion}" == "8" ]]; then
-			nginxEpel="http://nginx.org/packages/centos/8/x86_64/RPMS/nginx-1.18.0-1.el8.ngx.x86_64.rpm"
-			policyCoreUtils="policycoreutils-python-utils-2.9-9.el8.noarch"
-		fi
-
-		# yum-utils
-		if [[ "${centosVersion}" == "8" ]]; then
-			upgrade="yum update -y --skip-broken --nobest"
-			installType="yum -y install --nobest"
-			${installType} yum-utils >/etc/v2ray-agent/error.log 2>&1
-		else
-			${installType} yum-utils >/etc/v2ray-agent/error.log 2>&1
-		fi
-
-	fi
+	#	if [[ "${release}" == "centos" ]]; then
+	#		echoContent green " ---> 检查安装jq、nginx epel源、yum-utils、semanage"
+	#		# jq epel源
+	#		if [[ -z $(command -v jq) ]]; then
+	#			rpm -ivh http://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm >/dev/null 2>&1
+	#		fi
+	#
+	#		nginxEpel=""
+	#		if rpm -qa | grep -q nginx; then
+	#			local nginxVersion
+	#			nginxVersion=$(rpm -qa | grep -v grep | grep nginx | head -1 | awk -F '[-]' '{print $2}')
+	#			if [[ $(echo "${nginxVersion}" | awk -F '[.]' '{print $1}') -le 1 ]] && [[ $(echo "${nginxVersion}" | awk -F '[.]' '{print $2}') -le 17 ]]; then
+	#				rpm -qa | grep -v grep | grep nginx | xargs rpm -e >/dev/null 2>&1
+	#			fi
+	#		fi
+	#
+	#		if [[ "${centosVersion}" == "6" ]]; then
+	#			nginxEpel="http://nginx.org/packages/centos/6/x86_64/RPMS/nginx-1.18.0-1.el6.ngx.x86_64.rpm"
+	#			rpm -ivh ${nginxEpel} >/etc/v2ray-agent/error.log 2>&1
+	#		elif [[ "${centosVersion}" == "7" ]]; then
+	#			nginxEpel="http://nginx.org/packages/centos/7/noarch/RPMS/nginx-release-centos-7-0.el7.ngx.noarch.rpm"
+	#			policyCoreUtils="policycoreutils-python.x86_64"
+	#			rpm -ivh ${nginxEpel} >/etc/v2ray-agent/error.log 2>&1
+	#		elif [[ "${centosVersion}" == "8" ]]; then
+	#			nginxEpel="http://nginx.org/packages/centos/8/x86_64/RPMS/nginx-1.18.0-1.el8.ngx.x86_64.rpm"
+	#			policyCoreUtils="policycoreutils-python-utils-2.9-9.el8.noarch"
+	#		fi
+	#
+	#		# yum-utils
+	#		if [[ "${centosVersion}" == "8" ]]; then
+	#			upgrade="yum update -y --skip-broken --nobest"
+	#			installType="yum -y install --nobest"
+	#			${installType} yum-utils >/etc/v2ray-agent/error.log 2>&1
+	#		else
+	#			${installType} yum-utils >/etc/v2ray-agent/error.log 2>&1
+	#		fi
+	#
+	#	fi
 	# 修复ubuntu个别系统问题
 	if [[ "${release}" == "ubuntu" ]]; then
 		dpkg --configure -a
@@ -387,12 +389,13 @@ installTools() {
 		pgrep -f apt | xargs kill -9
 	fi
 
-	echoContent green " ---> 检查、安装更新【新机器会很慢，耐心等待】"
+	echoContent green " ---> 检查、安装更新【新机器会很慢，如长时间无反应，请手动停止后重新执行】"
 
-	${upgrade} >/dev/null
+	${upgrade} >/dev/null 2>&1
 	if [[ "${release}" == "centos" ]]; then
 		rm -rf /var/run/yum.pid
 	fi
+
 	#	[[ -z `find /usr/bin /usr/sbin |grep -v grep|grep -w curl` ]]
 
 	if ! find /usr/bin /usr/sbin | grep -q -w wget; then
@@ -450,17 +453,23 @@ installTools() {
 
 	if ! find /usr/bin /usr/sbin | grep -q -w nginx; then
 		echoContent green " ---> 安装nginx"
-		if [[ "${centosVersion}" == "8" ]]; then
-			rpm -ivh ${nginxEpel} >/etc/v2ray-agent/error.log 2>&1
-		else
-			${installType} nginx >/dev/null 2>&1
-		fi
-
-		if [[ -n "${centosVersion}" ]]; then
-			systemctl daemon-reload
-			systemctl enable nginx
-		fi
+		installNginxTools
 	fi
+
+	#	if ! find /usr/bin /usr/sbin | grep -q -w nginx; then
+	#		echoContent green " ---> 安装nginx"
+	#		if [[ "${centosVersion}" == "8" ]]; then
+	#			rpm -ivh ${nginxEpel} >/etc/v2ray-agent/error.log 2>&1
+	#		else
+	#			installNginxTools
+	#			# ${installType} nginx >/dev/null 2>&1
+	#		fi
+	#
+	#		if [[ -n "${centosVersion}" ]]; then
+	#			systemctl daemon-reload
+	#			systemctl enable nginx
+	#		fi
+	#	fi
 
 	if ! find /usr/bin /usr/sbin | grep -q -w semanage; then
 		echoContent green " ---> 安装semanage"
@@ -491,6 +500,57 @@ installTools() {
 			exit 0
 		fi
 	fi
+}
+
+# 安装Nginx
+installNginxTools() {
+
+	if [[ "${release}" == "debian" ]]; then
+		# 卸载原有Nginx
+		# sudo apt remove nginx nginx-common nginx-full -y >/dev/null
+		sudo apt install gnupg2 ca-certificates lsb-release -y >/dev/null 2>&1
+		echo "deb http://nginx.org/packages/mainline/debian $(lsb_release -cs) nginx" | sudo tee /etc/apt/sources.list.d/nginx.list >/dev/null 2>&1
+		echo -e "Package: *\nPin: origin nginx.org\nPin: release o=nginx\nPin-Priority: 900\n" | sudo tee /etc/apt/preferences.d/99nginx >/dev/null 2>&1
+		curl -o /tmp/nginx_signing.key https://nginx.org/keys/nginx_signing.key >/dev/null 2>&1
+		# gpg --dry-run --quiet --import --import-options import-show /tmp/nginx_signing.key
+		sudo mv /tmp/nginx_signing.key /etc/apt/trusted.gpg.d/nginx_signing.asc
+		sudo apt update >/dev/null 2>&1
+
+	elif [[ "${release}" == "ubuntu" ]]; then
+		# 卸载原有Nginx
+		# sudo apt remove nginx nginx-common nginx-full -y >/dev/null
+		sudo apt install gnupg2 ca-certificates lsb-release -y >/dev/null 2>&1
+		echo "deb http://nginx.org/packages/mainline/ubuntu $(lsb_release -cs) nginx" | sudo tee /etc/apt/sources.list.d/nginx.list >/dev/null 2>&1
+		echo -e "Package: *\nPin: origin nginx.org\nPin: release o=nginx\nPin-Priority: 900\n" | sudo tee /etc/apt/preferences.d/99nginx >/dev/null 2>&1
+		curl -o /tmp/nginx_signing.key https://nginx.org/keys/nginx_signing.key >/dev/null 2>&1
+		# gpg --dry-run --quiet --import --import-options import-show /tmp/nginx_signing.key
+		sudo mv /tmp/nginx_signing.key /etc/apt/trusted.gpg.d/nginx_signing.asc
+		sudo apt update >/dev/null 2>&1
+
+	elif [[ "${release}" == "centos" ]]; then
+		${installType} yum-utils >/dev/null 2>&1
+		cat <<EOF >/etc/yum.repos.d/nginx.repo
+[nginx-stable]
+name=nginx stable repo
+baseurl=http://nginx.org/packages/centos/\$releasever/\$basearch/
+gpgcheck=1
+enabled=1
+gpgkey=https://nginx.org/keys/nginx_signing.key
+module_hotfixes=true
+
+[nginx-mainline]
+name=nginx mainline repo
+baseurl=http://nginx.org/packages/mainline/centos/\$releasever/\$basearch/
+gpgcheck=1
+enabled=0
+gpgkey=https://nginx.org/keys/nginx_signing.key
+module_hotfixes=true
+EOF
+		sudo yum-config-manager --enable nginx-mainline
+	fi
+	${installType} nginx >/dev/null 2>&1
+	systemctl daemon-reload >/dev/null 2>&1
+	systemctl enable nginx >/dev/null 2>&1
 }
 
 # 初始化Nginx申请证书配置
@@ -557,7 +617,7 @@ updateRedirectNginxConf() {
 			return 403;
 	}
 EOF
-	if  [[ "${coreInstallType}" == "1" ]] && [[ -n $(echo ${selectCustomInstallType} | grep 5) || -z "${selectCustomInstallType}" ]];then
+	if [[ "${coreInstallType}" == "1" ]] && [[ -n $(echo ${selectCustomInstallType} | grep 5) || -z "${selectCustomInstallType}" ]]; then
 		cat <<EOF >>/etc/nginx/conf.d/alone.conf
 			server {
 		        listen 31302 http2;
@@ -2242,8 +2302,9 @@ EOF
 		echoContent yellow " ---> 二维码 VLESS(VLESS+gRPC+TLS)"
 		echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${VLESSID}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dgrpc%26host%3D${host}%26path%3D${path}%23${VLESSEmail}"
 
-
-	elif [[ "${type}" == "trojan" ]]; then
+	elif
+		[[ "${type}" == "trojan" ]]
+	then
 		# URLEncode
 		echoContent yellow " ---> Trojan(TLS)"
 		echoContent green "    trojan://${id}@${host}:${port}?peer=${host}&sni=${host}\n"
@@ -2452,7 +2513,6 @@ addCorePort() {
 }
 EOF
 			done < <(echo "${newPort}" | tr ',' '\n')
-
 
 			echoContent green " ---> 添加成功"
 			reloadCore
@@ -3765,7 +3825,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.21"
+	echoContent green "当前版本：v2.4.22"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
