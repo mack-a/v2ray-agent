@@ -2302,9 +2302,7 @@ EOF
 		echoContent yellow " ---> 二维码 VLESS(VLESS+gRPC+TLS)"
 		echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${VLESSID}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dgrpc%26host%3D${host}%26path%3D${path}%23${VLESSEmail}"
 
-	elif
-		[[ "${type}" == "trojan" ]]
-	then
+	elif [[ "${type}" == "trojan" ]]; then
 		# URLEncode
 		echoContent yellow " ---> Trojan(TLS)"
 		echoContent green "    trojan://${id}@${host}:${port}?peer=${host}&sni=${host}\n"
