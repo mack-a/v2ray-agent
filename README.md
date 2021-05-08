@@ -98,6 +98,7 @@
 - **不建议使用Centos以及低版本的系统，2.3.x后不再支持Centos6**
 - **[如有使用不明白的地方请先查看脚本使用指南](https://github.com/mack-a/v2ray-agent/blob/master/documents/how_to_use.md)**
 - **Oracle vps有一个额外的防火墙，需要手动设置**
+- **如果使用gRPC通过cloudflare转发,需要在cloudflare设置允许gRPC，cloudflare Network->gRPC**
 
 ## 脚本目录
 
