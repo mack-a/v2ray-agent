@@ -1,7 +1,7 @@
 ---
 name: bug反馈 
 about: 请按照模版提交 
-title: '未处理'
+title: ''
 labels: '未处理'
 assignees: ''
 
