@@ -32,7 +32,7 @@ https://www.vultr.com/?ref=8851883
 https://www.vultr.com/?ref=8851953-6G
 ```
 
-此厂商vps仅推荐日本东京和New York，日本东京为NTT线路，可以使用上海CN2、上海联通拉，New York推荐的理由则是比较便宜。使用我的AFF注册首月赠送100刀。不要使用黑卡或者第三方购买，vultr收不到钱会被封号。 此vps我用的比较多，一般是上海联通+vultr JP，然后再配合家宽vps任意门解锁流媒体。
+此厂商vps仅推荐日本东京和New York，日本东京为NTT线路，可以使用上海CN2、上海联通拉，New York推荐的理由则是比较便宜。使用我的AFF注册首月赠送100刀。 此vps我用的比较多，一般是上海联通+vultr JP，然后再配合家宽vps任意门解锁流媒体。
 
 
 - kuaichedao
@@ -64,3 +64,26 @@ https://idc.wiki/lndex.php?productid=1900
 [200Mbps] 常州三线 (联通出口)	0.0600/GB
 [500Mbps] 上海CN2 (联通入口/UDP不) 0.1000/GB
 ```
+
+- gigsgigscloud
+```
+# VDS - HK, SG, US  折扣码 14% 
+PRYVK24PNTZG
+
+# SimpleCloud- HKG , V, K, K-GLOBAL  折扣码 14% 
+XYZ56ZC2FUIV
+
+# CLOUDLET V,K. Japan 折扣码 14% 
+KFP0J45UP0QU
+
+# SimpleCloud- US, LAX, V, XD 折扣码 14% 
+HQ6XCT0N3G1J
+
+# CLOUDLET K+, SG, MY  折扣码 14% 
+39T6LCGTAPO5
+
+# aff 
+https://clientarea.gigsgigscloud.com/?affid=3361
+```
+
+CLOUDLET V【Premium China Route】 代表的大陆优化线路，相对比较贵。CLOUDLET K+【Standard China Route】 代表的对大陆优化比较一般。其余的则完全没有额外优化。
