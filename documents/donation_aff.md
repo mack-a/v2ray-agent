@@ -1,4 +1,4 @@
-- 搬瓦工
+### 搬瓦工
 
 ```
 https://bandwagonhost.com/aff.php?aff=64917
@@ -6,7 +6,7 @@ https://bandwagonhost.com/aff.php?aff=64917
 
 稳定大厂，不管是限量版GIA还是日本软银都抢爆。
 
-- centerhop
+### centerhop
 
 ```
 https://my.centerhop.com/aff.php?aff=190
@@ -14,7 +14,7 @@ https://my.centerhop.com/aff.php?aff=190
 
 此厂商vps 2刀/月，新加坡vps，支持解锁新加坡区Netflix，不适合直连，适合使用上海CN2拉。
 
-- BGP Shop【dns流媒体解锁】
+### BGP Shop【dns流媒体解锁】
 
 ```
 https://shop.bgp.sh/aff.php?aff=154
@@ -22,7 +22,7 @@ https://shop.bgp.sh/aff.php?aff=154
 
 此厂商主要售卖流媒体解锁，流媒体解锁类型为dns解锁，可以使用脚本的流媒体工具中dns解锁进行配置，流媒体支持的比较多，包含动画疯、Netflix、HBO等，每月是10RMB/月。
 
-- vultr
+### vultr
 
 ```
 # 邀请链接
@@ -35,7 +35,7 @@ https://www.vultr.com/?ref=8851953-6G
 此厂商vps仅推荐日本东京和New York，日本东京为NTT线路，可以使用上海CN2、上海联通拉，New York推荐的理由则是比较便宜。使用我的AFF注册首月赠送100刀。 此vps我用的比较多，一般是上海联通+vultr JP，然后再配合家宽vps任意门解锁流媒体。
 
 
-- kuaichedao
+### kuaichedao
 
 ```
 https://kuaichedao.co/aff.php?aff=181
@@ -45,7 +45,8 @@ https://kuaichedao.co/aff.php?aff=181
 
 支持NTT、TATA、PCCWG上游比较多，可以用广移/CN2/珠移拉，也支持PCCWG，HKIX，网络10Gbps。
 
-- idc.wiki
+
+### idc.wiki
 
 ```
 https://idc.wiki/lndex.php?productid=1900
@@ -65,7 +66,7 @@ https://idc.wiki/lndex.php?productid=1900
 [500Mbps] 上海CN2 (联通入口/UDP不) 0.1000/GB
 ```
 
-- gigsgigscloud
+### gigsgigscloud
 ```
 # VDS - HK, SG, US  折扣码 14% 
 PRYVK24PNTZG
