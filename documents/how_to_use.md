@@ -214,3 +214,64 @@ add_header Strict-Transport-Security "max-age=63072000" always;
 ## 4.VLESS+WS+TLS、VMess+WS+TLS，如果套CF，开启CF的小云朵了，那么如果把域名给换成优选IP的话 小云朵需要关闭不?
 
 - [自选ip的情况下，不需要开启云朵](https://github.com/mack-a/v2ray-agent/blob/master/documents/optimize_V2Ray.md)
+
+# 5.脚本目录
+
+## Xray-core
+
+- 主目录
+
+```
+/etc/v2ray-agent/xray
+```
+
+- 配置文件目录
+
+```
+/etc/v2ray-agent/xray/conf
+```
+
+## v2ray-core
+
+- 主目录
+
+```
+/etc/v2ray-agent/v2ray
+```
+
+- 配置文件目录
+
+```
+/etc/v2ray-agent/v2ray/conf
+```
+
+## Trojan
+
+- 目录
+
+```
+/etc/v2ray-agent/trojan
+```
+
+## TLS证书
+
+- 目录
+
+```
+/etc/v2ray-agent/tls
+```
+
+## Nginx
+
+- Nginx配置文件
+
+```
+/etc/nginx/conf.d/alone.conf
+```
+
+- Nginx伪装站点目录
+
+```
+/usr/share/nginx/html
+```
+
