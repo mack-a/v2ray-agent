@@ -77,6 +77,9 @@ https://idc.wiki/lndex.php?productid=1900
 - CLOUDLET K+【Standard China Route】 代表的对大陆优化比较一般。其余的则完全没有额外优化。
 
 ```
+# aff 
+https://clientarea.gigsgigscloud.com/?affid=3361
+
 # VDS - HK, SG, US  折扣码 14% 
 PRYVK24PNTZG
 
@@ -91,9 +94,6 @@ HQ6XCT0N3G1J
 
 # CLOUDLET K+, SG, MY  折扣码 14% 
 39T6LCGTAPO5
-
-# aff 
-https://clientarea.gigsgigscloud.com/?affid=3361
 ```
 
 
