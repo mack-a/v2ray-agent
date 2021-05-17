@@ -13,7 +13,7 @@ checkSystem() {
 		fi
 		release="centos"
 		installType='yum -y install'
-		# removeType='yum -y remove'
+		removeType='yum -y remove'
 		upgrade="yum update -y --skip-broken"
 
 	elif grep </etc/issue -q -i "debian" && [[ -f "/etc/issue" ]] || grep </etc/issue -q -i "debian" && [[ -f "/proc/version" ]]; then
@@ -23,13 +23,13 @@ checkSystem() {
 		release="debian"
 		installType='apt -y install'
 		upgrade="apt update -y"
-		# removeType='apt -y autoremove'
+		removeType='apt -y autoremove'
 
 	elif grep </etc/issue -q -i "ubuntu" && [[ -f "/etc/issue" ]] || grep </etc/issue -q -i "ubuntu" && [[ -f "/proc/version" ]]; then
 		release="ubuntu"
-		installType='apt-get -y install'
-		upgrade="apt-get update -y"
-		# removeType='apt-get --purge remove'
+		installType='apt -y install'
+		upgrade="apt update -y"
+		removeType='apt -y autoremove'
 	fi
 
 	if [[ -z ${release} ]]; then
@@ -342,44 +342,6 @@ mkdirTools() {
 # 安装工具包
 installTools() {
 	echoContent skyBlue "\n进度  $1/${totalProgress} : 安装工具"
-	#	if [[ "${release}" == "centos" ]]; then
-	#		echoContent green " ---> 检查安装jq、nginx epel源、yum-utils、semanage"
-	#		# jq epel源
-	#		if [[ -z $(command -v jq) ]]; then
-	#			rpm -ivh http://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm >/dev/null 2>&1
-	#		fi
-	#
-	#		nginxEpel=""
-	#		if rpm -qa | grep -q nginx; then
-	#			local nginxVersion
-	#			nginxVersion=$(rpm -qa | grep -v grep | grep nginx | head -1 | awk -F '[-]' '{print $2}')
-	#			if [[ $(echo "${nginxVersion}" | awk -F '[.]' '{print $1}') -le 1 ]] && [[ $(echo "${nginxVersion}" | awk -F '[.]' '{print $2}') -le 17 ]]; then
-	#				rpm -qa | grep -v grep | grep nginx | xargs rpm -e >/dev/null 2>&1
-	#			fi
-	#		fi
-	#
-	#		if [[ "${centosVersion}" == "6" ]]; then
-	#			nginxEpel="http://nginx.org/packages/centos/6/x86_64/RPMS/nginx-1.18.0-1.el6.ngx.x86_64.rpm"
-	#			rpm -ivh ${nginxEpel} >/etc/v2ray-agent/error.log 2>&1
-	#		elif [[ "${centosVersion}" == "7" ]]; then
-	#			nginxEpel="http://nginx.org/packages/centos/7/noarch/RPMS/nginx-release-centos-7-0.el7.ngx.noarch.rpm"
-	#			policyCoreUtils="policycoreutils-python.x86_64"
-	#			rpm -ivh ${nginxEpel} >/etc/v2ray-agent/error.log 2>&1
-	#		elif [[ "${centosVersion}" == "8" ]]; then
-	#			nginxEpel="http://nginx.org/packages/centos/8/x86_64/RPMS/nginx-1.18.0-1.el8.ngx.x86_64.rpm"
-	#			policyCoreUtils="policycoreutils-python-utils-2.9-9.el8.noarch"
-	#		fi
-	#
-	#		# yum-utils
-	#		if [[ "${centosVersion}" == "8" ]]; then
-	#			upgrade="yum update -y --skip-broken --nobest"
-	#			installType="yum -y install --nobest"
-	#			${installType} yum-utils >/etc/v2ray-agent/error.log 2>&1
-	#		else
-	#			${installType} yum-utils >/etc/v2ray-agent/error.log 2>&1
-	#		fi
-	#
-	#	fi
 	# 修复ubuntu个别系统问题
 	if [[ "${release}" == "ubuntu" ]]; then
 		dpkg --configure -a
@@ -451,29 +413,36 @@ installTools() {
 		${installType} qrencode >/dev/null 2>&1
 	fi
 
+	# 检测nginx版本，并提供是否卸载的选项
+
 	if ! find /usr/bin /usr/sbin | grep -q -w nginx; then
 		echoContent green " ---> 安装nginx"
 		installNginxTools
+	else
+		nginxVersion=$(nginx -v 2>&1)
+		nginxVersion=$(echo "${nginxVersion}" | awk -F "[n][g][i][n][x][/]" '{print $2}' | awk -F "[.]" '{print $2}')
+		if [[ ${nginxVersion} -lt 14 ]]; then
+			read -r -p "读取到当前的Nginx版本不支持gRPC，会导致安装失败，是否卸载Nginx后重新安装 ？[y/n]:" unInstallNginxStatus
+			if [[ "${unInstallNginxStatus}" == "y" ]]; then
+				${removeType} nginx  #>/dev/null 2>&1
+				echoContent yellow " ---> nginx卸载完成"
+				echoContent green " ---> 安装nginx"
+				installNginxTools >/dev/null 2>&1
+			else
+				exit 0
+			fi
+		fi
 	fi
-
-	#	if ! find /usr/bin /usr/sbin | grep -q -w nginx; then
-	#		echoContent green " ---> 安装nginx"
-	#		if [[ "${centosVersion}" == "8" ]]; then
-	#			rpm -ivh ${nginxEpel} >/etc/v2ray-agent/error.log 2>&1
-	#		else
-	#			installNginxTools
-	#			# ${installType} nginx >/dev/null 2>&1
-	#		fi
-	#
-	#		if [[ -n "${centosVersion}" ]]; then
-	#			systemctl daemon-reload
-	#			systemctl enable nginx
-	#		fi
-	#	fi
-
 	if ! find /usr/bin /usr/sbin | grep -q -w semanage; then
 		echoContent green " ---> 安装semanage"
 		${installType} bash-completion >/dev/null 2>&1
+
+		if [[ "${centosVersion}" == "7" ]]; then
+			policyCoreUtils="policycoreutils-python.x86_64"
+		elif [[ "${centosVersion}" == "8" ]]; then
+			policyCoreUtils="policycoreutils-python-utils-2.9-9.el8.noarch"
+		fi
+
 		if [[ -n "${policyCoreUtils}" ]]; then
 			${installType} ${policyCoreUtils} >/dev/null 2>&1
 		fi
@@ -546,7 +515,7 @@ enabled=0
 gpgkey=https://nginx.org/keys/nginx_signing.key
 module_hotfixes=true
 EOF
-		sudo yum-config-manager --enable nginx-mainline
+		sudo yum-config-manager --enable nginx-mainline >/dev/null 2>&1
 	fi
 	${installType} nginx >/dev/null 2>&1
 	systemctl daemon-reload
@@ -630,7 +599,7 @@ server {
 EOF
 	fi
 
-		cat <<EOF >>/etc/nginx/conf.d/alone.conf
+	cat <<EOF >>/etc/nginx/conf.d/alone.conf
 server {
 	listen 31300;
 	server_name ${domain};
@@ -2340,6 +2309,7 @@ showAccounts() {
 			jq .inbounds[0].settings.clients ${configPath}03_VLESS_WS_inbounds.json | jq -c '.[]' | while read -r user; do
 				local path="${currentPath}ws"
 				if [[ ${coreInstallType} == "1" ]]; then
+					echoContent yellow "Xray的0-RTT path后面会有?ed=2048，不兼容以v2ray为核心的客户端，请手动删除?ed=2048后使用"
 					path="${currentPath}ws?ed=2048"
 				fi
 				defaultBase64Code vlessws $(echo "${user}" | jq .email) $(echo "${user}" | jq .id) "${currentHost}:${currentPort}" ${path} ${currentAdd}
@@ -3802,7 +3772,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.23"
+	echoContent green "当前版本：v2.4.24"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
