@@ -356,6 +356,7 @@ installTools() {
 	${upgrade} >/dev/null 2>&1
 	if [[ "${release}" == "centos" ]]; then
 		rm -rf /var/run/yum.pid
+		${installType} epel-release >/dev/null 2>&1
 	fi
 
 	#	[[ -z `find /usr/bin /usr/sbin |grep -v grep|grep -w curl` ]]
@@ -424,7 +425,7 @@ installTools() {
 		if [[ ${nginxVersion} -lt 14 ]]; then
 			read -r -p "读取到当前的Nginx版本不支持gRPC，会导致安装失败，是否卸载Nginx后重新安装 ？[y/n]:" unInstallNginxStatus
 			if [[ "${unInstallNginxStatus}" == "y" ]]; then
-				${removeType} nginx  #>/dev/null 2>&1
+				${removeType} nginx >/dev/null 2>&1
 				echoContent yellow " ---> nginx卸载完成"
 				echoContent green " ---> 安装nginx"
 				installNginxTools >/dev/null 2>&1
@@ -3772,7 +3773,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.24"
+	echoContent green "当前版本：v2.4.25"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
