@@ -96,7 +96,7 @@
 - **如发现Nginx相关问题，请卸载掉自编译的nginx或者重新build系统**
 - **为了节约时间，反馈请带上详细截图或者按照模版规范，无截图或者不按照规范的issue会被直接关闭**
 - **不建议GCP用户使用**
-- **不建议使用Centos以及低版本的系统，2.3.x后不再支持Centos6**
+- **不建议使用Centos以及低版本的系统，2.3.x后不再支持Centos6，如果Centos安装失败，请切换至Debian10重新尝试**
 - **[如有使用不明白的地方请先查看脚本使用指南](https://github.com/mack-a/v2ray-agent/blob/master/documents/how_to_use.md)**
 - **Oracle vps有一个额外的防火墙，需要手动设置**
 - **如果使用gRPC通过cloudflare转发,需要在cloudflare设置允许gRPC，cloudflare Network->gRPC**
