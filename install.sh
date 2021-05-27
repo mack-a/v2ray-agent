@@ -601,7 +601,7 @@ updateRedirectNginxConf() {
         return 301 https://${domain}$request_uri;
     }
     server {
-			listen 31300;
+			listen 127.0.0.1:31300;
 			server_name _;
 			return 403;
 	}
@@ -609,7 +609,7 @@ EOF
 	if [[ "${selectCoreType}" == "1" ]] && [[ -n $(echo ${selectCustomInstallType} | grep 5) || -z ${selectCustomInstallType} ]]; then
 		cat <<EOF >>/etc/nginx/conf.d/alone.conf
 server {
-	listen 31302 http2;
+	listen 127.0.0.1:31302 http2;
 	server_name ${domain};
 	root /usr/share/nginx/html;
 	location /${currentPath}grpc {
@@ -621,7 +621,7 @@ EOF
 
 	cat <<EOF >>/etc/nginx/conf.d/alone.conf
 server {
-	listen 31300;
+	listen 127.0.0.1:31300;
 	server_name ${domain};
 	root /usr/share/nginx/html;
 	location /s/ {
