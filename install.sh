@@ -347,7 +347,6 @@ echoContent() {
 # 初始化安装目录
 mkdirTools() {
 	mkdir -p /etc/v2ray-agent/tls
-	# mkdir -p /etc/v2ray-agent/mtg
 	mkdir -p /etc/v2ray-agent/subscribe
 	mkdir -p /etc/v2ray-agent/subscribe_tmp
 	mkdir -p /etc/v2ray-agent/v2ray/conf
@@ -1408,36 +1407,6 @@ handleXray() {
 	fi
 }
 
-# 操作MTG
-handleMTG() {
-	if [[ -n $(find /bin /usr/bin -name "systemctl") ]] && ls /etc/systemd/system/ | grep -q xray.service; then
-		if [[ -z $(pgrep -f "mtg/mtg") ]] && [[ "$1" == "start" ]]; then
-			systemctl start mtg.service
-		elif [[ -n $(pgrep -f "mtg/mtg") ]] && [[ "$1" == "stop" ]]; then
-			systemctl stop mtg.service
-		fi
-	fi
-
-	sleep 0.5
-
-	if [[ "$1" == "start" ]]; then
-		if [[ -n $(pgrep -f "mtg/mtg") ]]; then
-			echoContent green " ---> mtg启动成功"
-		else
-			echoContent red "mtg启动失败"
-			echoContent red "执行 [ps -ef|grep mtg] 查看日志"
-			exit 0
-		fi
-	elif [[ "$1" == "stop" ]]; then
-		if [[ -z $(pgrep -f "mtg/mtg") ]]; then
-			echoContent green " ---> mtg关闭成功"
-		else
-			echoContent red "mtg关闭失败"
-			echoContent red "请手动执行【ps -ef|grep -v grep|grep mtg|awk '{print \$2}'|xargs kill -9】"
-			exit 0
-		fi
-	fi
-}
 # 操作Trojan-Go
 handleTrojanGo() {
 	if [[ -n $(find /bin /usr/bin -name "systemctl") ]] && ls /etc/systemd/system/ | grep -q trojan-go.service; then
@@ -2517,13 +2486,9 @@ unInstall() {
 
 	handleV2Ray stop
 	handleTrojanGo stop
-	#	handleMTG stop
 
 	rm -rf /etc/systemd/system/v2ray.service
 	echoContent green " ---> 删除V2Ray开机自启完成"
-
-	#	rm -rf /etc/systemd/system/mtg.service
-	#	echoContent green " ---> 删除MTG开机自启完成"
 
 	rm -rf /etc/systemd/system/trojan-go.service
 	echoContent green " ---> 删除Trojan-Go开机自启完成"
@@ -2894,7 +2859,7 @@ checkLog() {
   "log": {
   	"access":"${configPathLog}access.log",
     "error": "${configPathLog}error.log",
-    "loglevel": "warning"
+    "loglevel": "debug"
   }
 }
 EOF
@@ -3163,8 +3128,15 @@ EOF
 
 # 设置任意门解锁Netflix【入站】
 setDokodemoDoorUnblockNetflixInbounds() {
-	read -r -p "请输入允许访问该解锁Netflix vps的IP:" setIP
-	if [[ -n "${setIP}" ]]; then
+
+	echoContent skyBlue "\n功能 1/${totalProgress} : 任意门添加入站"
+	echoContent red "\n=============================================================="
+	echoContent yellow "# 注意事项\n"
+	echoContent yellow "支持批量添加"
+	echoContent yellow "不允许有特殊字符，注意逗号的格式"
+	echoContent yellow "录入示例:1.1.1.1,1.1.1.2\n"
+	read -r -p "请输入允许访问该解锁Netflix vps的IP:" setIPs
+	if [[ -n "${setIPs}" ]]; then
 		cat <<EOF >${configPath}01_netflix_inbounds.json
 {
   "inbounds": [
@@ -3208,23 +3180,63 @@ setDokodemoDoorUnblockNetflixInbounds() {
 }
 EOF
 
+	cat <<EOF >${configPath}10_ipv4_outbounds.json
+{
+  "outbounds": [
+    {
+          "protocol": "freedom",
+          "settings": {
+            "domainStrategy": "UseIPv4"
+          },
+          "tag": "IPv4-out"
+    },
+    {
+      "protocol": "blackhole",
+      "tag": "blackhole-out"
+    }
+  ]
+}
+EOF
+
 		cat <<EOF >${configPath}09_routing.json
 {
   "routing": {
     "rules": [
       {
-        "ip": "${setIP}",
+        "source": [],
         "type": "field",
         "inboundTag": [
           "unblock-80",
           "unblock-443"
         ],
         "outboundTag": "direct"
+      },
+      {
+        "domains": [
+        	"geosite:netflix"
+        ],
+        "type": "field",
+        "inboundTag": [
+          "unblock-80",
+          "unblock-443"
+        ],
+        "outboundTag": "blackhole-out"
       }
     ]
   }
 }
 EOF
+		local ips=
+		while read -r ip; do
+			if [[ -z ${ips} ]];then
+				ips=\"${ip}\"
+			else
+				ips=${ips},\"${ip}\"
+			fi
+		done< <(echo ${setIPs}|tr ',' '\n')
+
+		local routing=$(jq -r '.routing.rules[0].source += ['${ips}']' ${configPath}09_routing.json)
+		echo "${routing}" | jq . >${configPath}09_routing.json
 		reloadCore
 		echoContent green " ---> 添加落地机入站解锁Netflix成功"
 		echoContent yellow " ---> trojan的相关节点不支持此操作"
@@ -3251,6 +3263,7 @@ removeDokodemoDoorUnblockNetflix() {
 EOF
 
 	rm -rf ${configPath}09_routing.json
+	rm -rf ${configPath}01_netflix_inbounds.json
 
 	reloadCore
 	echoContent green " ---> 卸载成功"
@@ -3697,106 +3710,12 @@ subscribe() {
 	fi
 }
 
-# 安装MT
-setMTG() {
-	echoContent skyBlue "\n功能 1/${totalProgress} : 设置MTPROTO[FAKE TLS]"
-	echoContent skyBlue "-------------------------备注---------------------------------"
-	echoContent yellow "# 使用MTPROTO有被阻断的风险，请熟知其中的风险"
-	echoContent yellow "# 请允许访问8443端口\n"
-	echoContent yellow "1.添加"
-	echoContent yellow "2.卸载"
-	echoContent yellow "3.查看帐号"
-	read -r -p "请选择:" setMTGStatus
-	if [[ "${setMTGStatus}" == "1" ]]; then
-		echoContent skyBlue " ---> 下载MTG"
-		installMTG
-		echoContent skyBlue " ---> 生成 MTPROTO FAKE TLS "
-		initMTGSecret
-		echoContent skyBlue " ---> 安装MTG开机自启"
-		installMTGService
-		handleMTG start
-		showMTGAccount
-	elif [[ "${setMTGStatus}" == "2" ]]; then
-		unInstallMTG
-	elif [[ "${setMTGStatus}" == "3" ]]; then
-		showMTGAccount
-	fi
-	exit 0
-}
-
-# 卸载MTG
-unInstallMTG() {
-	if [[ ! -f "/etc/v2ray-agent/mtg/mtg" ]]; then
-		echoContent red "\n ---> 没有检测到MTG"
-		menu
-		exit 0
-	fi
-	handleMTG stop
-	rm -rf /etc/v2ray-agent/mtg/*
-	rm /etc/systemd/system/mtg.service
-	echoContent green " ---> 卸载完成"
-	exit 0
-}
-
-# 查看MTG帐号信息
-showMTGAccount() {
-	local ip=$(curl -s https://api.ip.sb/ip --ipv4)
-	if [[ -z ${ip} ]]; then
-		ip=$(curl -s ipinfo.io/ip --ipv4)
-		if [[ -z ${ip} ]]; then
-			echoContent red " ---> ip获取失败，请手动输入"
-		fi
-	fi
-	echoContent skyBlue "========================= TG链接 =============================\n"
-	echoContent green "  tg://proxy?server=${ip}&port=8443&secret=$(cat /etc/v2ray-agent/mtg/config)\n"
-	exit 0
-}
-# 安装MTG
-installMTG() {
-	local version=$(curl -s https://github.com/9seconds/mtg/releases | grep /9seconds/mtg/releases/tag/ | head -1 | awk -F '["][>]' '{print $2}' | awk -F '[<]' '{print $1}')
-	if wget --help | grep -q show-progress; then
-		wget -c -q --show-progress -P /etc/v2ray-agent/mtg/ "https://github.com/9seconds/mtg/releases/download/${version}/mtg-linux-amd64"
-	else
-		wget -c -P /etc/v2ray-agent/mtg/ "https://github.com/9seconds/mtg/releases/download/${version}/mtg-linux-amd64" >/dev/null 2>&1
-	fi
-	mv /etc/v2ray-agent/mtg/mtg-linux-amd64 /etc/v2ray-agent/mtg/mtg
-	chmod 655 /etc/v2ray-agent/mtg/mtg
-}
-
-# 安装MTG Service
-installMTGService() {
-
-	cat <<EOF >/etc/systemd/system/mtg.service
-[Unit]
-Description=MTG - Bullshit-free MTPROTO proxy for Telegram
-Documentation=https://github.com/9seconds/mtg
-After=network.target nss-lookup.target
-Wants=network-online.target
-[Service]
-Type=simple
-User=root
-ExecStart=/etc/v2ray-agent/mtg/mtg run $(cat /etc/v2ray-agent/mtg/config) --bind 0.0.0.0:8443
-Restart=on-failure
-RestartSec=10
-RestartPreventExitStatus=23
-[Install]
-WantedBy=multi-user.target
-EOF
-	systemctl daemon-reload
-	systemctl enable mtg
-}
-
-# 初始化MTG secret
-initMTGSecret() {
-	/etc/v2ray-agent/mtg/mtg generate-secret -c blog.mmackamtggtm.com tls >/etc/v2ray-agent/mtg/config
-}
-
 # 主菜单
 menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.29"
+	echoContent green "当前版本：v2.4.30"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
