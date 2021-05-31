@@ -3,15 +3,46 @@
 # -------------------------------------------------------------
 # 检查系统
 export LANG=en_US.UTF-8
+echoContent() {
+	case $1 in
+	# 红色
+	"red")
+		# shellcheck disable=SC2154
+		${echoType} "\033[31m${printN}$2 \033[0m"
+		;;
+		# 天蓝色
+	"skyBlue")
+		${echoType} "\033[1;36m${printN}$2 \033[0m"
+		;;
+		# 绿色
+	"green")
+		${echoType} "\033[32m${printN}$2 \033[0m"
+		;;
+		# 白色
+	"white")
+		${echoType} "\033[37m${printN}$2 \033[0m"
+		;;
+	"magenta")
+		${echoType} "\033[31m${printN}$2 \033[0m"
+		;;
+		# 黄色
+	"yellow")
+		${echoType} "\033[33m${printN}$2 \033[0m"
+		;;
+	esac
+}
 checkSystem() {
 	if [[ -n $(find /etc -name "redhat-release") ]] || grep </proc/version -q -i "centos"; then
 		mkdir -p /etc/yum.repos.d
 
-		centosVersion=$(rpm -q centos-release | awk -F "[-]" '{print $3}' | awk -F "[.]" '{print $1}')
+		if [[ -f "/etc/centos-release" ]];then
+			centosVersion=$(rpm -q centos-release | awk -F "[-]" '{print $3}' | awk -F "[.]" '{print $1}')
 
-		if [[ -z "${centosVersion}" ]] && grep </etc/centos-release "release 8"; then
-			centosVersion=8
+			if [[ -z "${centosVersion}" ]] && grep </etc/centos-release "release 8"; then
+				centosVersion=8
+			fi
 		fi
+
 		release="centos"
 		installType='yum -y install'
 		removeType='yum -y remove'
@@ -43,13 +74,30 @@ checkSystem() {
 
 # 检查CPU提供商
 checkCPUVendor() {
-	if [[ -n $(which lscpu) ]]; then
-		vendorID=$(lscpu | grep "Vendor ID" | grep ARM | awk '{print $3}')
-		if [[ -n ${vendorID} ]]; then
-			xrayCoreCPUVendor="Xray-linux-arm64-v8a"
-			v2rayCoreCPUVendor="v2ray-linux-arm64-v8a"
-			trojanGoCPUVendor="trojan-go-linux-armv8"
+	if [[ -n $(which uname) ]]; then
+		if [[ "$(uname)" == "Linux" ]];then
+			case "$(uname -m)" in
+			'amd64' | 'x86_64')
+				xrayCoreCPUVendor="Xray-linux-64"
+				v2rayCoreCPUVendor="v2ray-linux-64"
+				trojanGoCPUVendor="trojan-go-linux-amd64"
+			;;
+			'armv8' | 'aarch64')
+        		xrayCoreCPUVendor="Xray-linux-arm64-v8a"
+				v2rayCoreCPUVendor="v2ray-linux-arm64-v8a"
+				trojanGoCPUVendor="trojan-go-linux-armv8"
+        	;;
+			*)
+        		echo "  不支持此CPU架构--->"
+        		exit 1
+        	;;
+    		esac
 		fi
+	else
+		echoContent red "  无法识别此CPU架构，默认amd64、x86_64--->"
+		xrayCoreCPUVendor="Xray-linux-64"
+		v2rayCoreCPUVendor="v2ray-linux-64"
+		trojanGoCPUVendor="trojan-go-linux-amd64"
 	fi
 }
 
@@ -61,9 +109,9 @@ initVar() {
 	echoType='echo -e'
 
 	# 核心支持的cpu版本
-	xrayCoreCPUVendor="Xray-linux-64"
-	v2rayCoreCPUVendor="v2ray-linux-64"
-	trojanGoCPUVendor="trojan-go-linux-amd64"
+	xrayCoreCPUVendor=""
+	v2rayCoreCPUVendor=""
+	trojanGoCPUVendor=""
 	# 域名
 	domain=
 
@@ -314,35 +362,6 @@ readInstallProtocolType
 readConfigHostPathUUID
 
 # -------------------------------------------------------------
-
-echoContent() {
-	case $1 in
-	# 红色
-	"red")
-		# shellcheck disable=SC2154
-		${echoType} "\033[31m${printN}$2 \033[0m"
-		;;
-		# 天蓝色
-	"skyBlue")
-		${echoType} "\033[1;36m${printN}$2 \033[0m"
-		;;
-		# 绿色
-	"green")
-		${echoType} "\033[32m${printN}$2 \033[0m"
-		;;
-		# 白色
-	"white")
-		${echoType} "\033[37m${printN}$2 \033[0m"
-		;;
-	"magenta")
-		${echoType} "\033[31m${printN}$2 \033[0m"
-		;;
-		# 黄色
-	"yellow")
-		${echoType} "\033[33m${printN}$2 \033[0m"
-		;;
-	esac
-}
 
 # 初始化安装目录
 mkdirTools() {
@@ -3715,7 +3734,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.30"
+	echoContent green "当前版本：v2.4.31"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
