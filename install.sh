@@ -2256,13 +2256,16 @@ EOF
 		echoContent yellow " ---> 格式化明文(VLESS+gRPC+TLS)"
 		echoContent green "    协议类型：VLESS，地址：${add}，伪装域名/SNI：${host}，端口：${port}，用户ID：${VLESSID}，安全：tls，传输方式：gRPC，serviceName:${path}，账户名:${VLESSEmail}\n"
 
+		cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
+vless://${VLESSID}@${add}:${port}?encryption=none&security=tls&type=grpc&host=${host}&path=${path}#${VLESSEmail}
+EOF
 		echoContent yellow " ---> 二维码 VLESS(VLESS+gRPC+TLS)"
 		echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${VLESSID}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dgrpc%26host%3D${host}%26path%3D${path}%23${VLESSEmail}"
 
 	elif [[ "${type}" == "trojan" ]]; then
 		# URLEncode
 		echoContent yellow " ---> Trojan(TLS)"
-		echoContent green "    trojan://${id}@${host}:${port}?peer=${host}&sni=${host}\n"
+		echoContent green "    trojan://${id}@${host}:${port}?peer=${host}&sni=${host}#${host}_trojan\n"
 
 		cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
 trojan://${id}@${host}:${port}?peer=${host}&sni=${host}#${host}_trojan
@@ -2306,7 +2309,9 @@ showAccounts() {
 			echoContent skyBlue "===================== VLESS TCP TLS/XTLS-direct/XTLS-splice ======================\n"
 			# cat ${configPath}02_VLESS_TCP_inbounds.json | jq .inbounds[0].settings.clients | jq -c '.[]'
 			jq .inbounds[0].settings.clients ${configPath}02_VLESS_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
-				defaultBase64Code vlesstcp $(echo "${user}" | jq .email) $(echo "${user}" | jq .id) "${currentHost}:${currentPort}" ${currentHost}
+				echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq .email | awk -F "[\"]" '{print $2}')_$(echo "${user}" | jq .id | awk -F "[\"]" '{print $2}')"
+				echo
+				defaultBase64Code vlesstcp $(echo "${user}" | jq .email)_$(echo "${user}" | jq .id) "${currentHost}:${currentPort}" ${currentHost}
 			done
 		fi
 
@@ -2316,6 +2321,8 @@ showAccounts() {
 
 			# cat ${configPath}03_VLESS_WS_inbounds.json | jq .inbounds[0].settings.clients | jq -c '.[]'
 			jq .inbounds[0].settings.clients ${configPath}03_VLESS_WS_inbounds.json | jq -c '.[]' | while read -r user; do
+				echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq .email | awk -F "[\"]" '{print $2}')_$(echo "${user}" | jq .id | awk -F "[\"]" '{print $2}')"
+				echo
 				local path="${currentPath}ws"
 				if [[ ${coreInstallType} == "1" ]]; then
 					echoContent yellow "Xray的0-RTT path后面会有?ed=2048，不兼容以v2ray为核心的客户端，请手动删除?ed=2048后使用\n"
@@ -2331,6 +2338,8 @@ showAccounts() {
 
 			# cat ${configPath}04_VMess_TCP_inbounds.json | jq .inbounds[0].settings.clients | jq -c '.[]'
 			jq .inbounds[0].settings.clients ${configPath}04_VMess_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
+				echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq .email | awk -F "[\"]" '{print $2}')_$(echo "${user}" | jq .id | awk -F "[\"]" '{print $2}')"
+				echo
 				defaultBase64Code vmesstcp $(echo "${user}" | jq .email) $(echo "${user}" | jq .id) "${currentHost}:${currentPort}" "${currentPath}tcp" "${currentHost}"
 			done
 		fi
@@ -2343,6 +2352,8 @@ showAccounts() {
 				path="${currentPath}vws?ed=2048"
 			fi
 			jq .inbounds[0].settings.clients ${configPath}05_VMess_WS_inbounds.json | jq -c '.[]' | while read -r user; do
+				echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq .email | awk -F "[\"]" '{print $2}')_$(echo "${user}" | jq .id | awk -F "[\"]" '{print $2}')"
+				echo
 				defaultBase64Code vmessws $(echo "${user}" | jq .email) $(echo "${user}" | jq .id) "${currentHost}:${currentPort}" ${path} ${currentAdd}
 			done
 		fi
@@ -2351,6 +2362,8 @@ showAccounts() {
 			echoContent skyBlue "\n=============================== VLESS gRPC TLS CDN ===============================\n"
 			local serviceName=$(jq -r .inbounds[0].streamSettings.grpcSettings.serviceName ${configPath}06_VLESS_gRPC_inbounds.json)
 			jq .inbounds[0].settings.clients ${configPath}06_VLESS_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
+				echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq .email | awk -F "[\"]" '{print $2}')_$(echo "${user}" | jq .id | awk -F "[\"]" '{print $2}')"
+				echo
 				defaultBase64Code vlessgrpc $(echo "${user}" | jq .email) $(echo "${user}" | jq .id) "${currentHost}:${currentPort}" ${serviceName} ${currentAdd}
 			done
 		fi
@@ -2369,6 +2382,8 @@ showAccounts() {
 		jq .password /etc/v2ray-agent/trojan/config_full.json | while read -r user; do
 			trojanUUID=$(echo "${user}" | awk -F '["]' '{print $2}')
 			if [[ -n "${trojanUUID}" ]]; then
+				echoContent skyBlue " ---> 帐号：${currentHost}_trojan_${trojanUUID}\n"
+				echo
 				defaultBase64Code trojan trojan ${trojanUUID} ${currentHost}
 			fi
 		done
@@ -2381,6 +2396,8 @@ showAccounts() {
 		jq .password /etc/v2ray-agent/trojan/config_full.json | while read -r user; do
 			trojanUUID=$(echo ${user} | awk -F '["]' '{print $2}')
 			if [[ -n "${trojanUUID}" ]]; then
+				echoContent skyBlue " ---> 帐号：${trojanGoAdd}_trojan_ws_${trojanUUID}"
+				echo
 				defaultBase64Code trojangows trojan ${trojanUUID} ${currentHost} ${trojanGoPath} ${trojanGoAdd}
 			fi
 
@@ -3734,7 +3751,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.31"
+	echoContent green "当前版本：v2.4.32"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
