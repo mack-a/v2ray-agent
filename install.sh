@@ -249,19 +249,19 @@ readConfigHostPathUUID() {
 	currentAdd=
 	# 读取path
 	if [[ -n "${configPath}" ]]; then
-		local path
+		local fallback=$(jq -r -c '.inbounds[0].settings.fallbacks[]|select(.path)' ${configPath}02_VLESS_TCP_inbounds.json|head -1)
 
-		path=$(jq -r -c '.inbounds[0].settings.fallbacks[]|select(.path).path' ${configPath}02_VLESS_TCP_inbounds.json | awk -F "[/]" '{print $2}' | awk -F "[\"]" '{print $1}' | tail -n +2 | head -n 1)
-		if [[ -n "${path}" ]]; then
-			if [[ "${path:0-3}" == "vws" && ${#path} -gt 6 ]]; then
-				currentPath=$(echo "${path}" | awk -F "[v][w][s]" '{print $1}')
-			elif [[ "${path:0-2}" == "ws" ]]; then
-				currentPath=$(echo "${path}" | awk -F "[w][s]" '{print $1}')
-			elif [[ "${path:0-2}" == "tcp" ]]; then
-				currentPath=$(echo "${path}" | awk -F "[t][c][p]" '{print $1}')
-			fi
+		local path=$(echo "${fallback}"|jq -r .path|awk -F "[/]" '{print $2}')
+
+		if [[ $(echo "${fallback}"|jq -r .dest) == 31297 ]]; then
+			currentPath=$(echo "${path}" | awk -F "[w][s]" '{print $1}')
+		elif [[ $(echo "${fallback}"|jq -r .dest) == 31298 ]]; then
+			currentPath=$(echo "${path}" | awk -F "[t][c][p]" '{print $1}')
+		elif [[ $(echo "${fallback}"|jq -r .dest) == 31299 ]]; then
+			currentPath=$(echo "${path}" | awk -F "[v][w][s]" '{print $1}')
 		fi
 	fi
+
 	if [[ "${coreInstallType}" == "1" ]]; then
 		currentHost=$(jq -r .inbounds[0].streamSettings.xtlsSettings.certificates[0].certificateFile ${configPath}02_VLESS_TCP_inbounds.json | awk -F '[t][l][s][/]' '{print $2}' | awk -F '[.][c][r][t]' '{print $1}')
 		currentUUID=$(jq -r .inbounds[0].settings.clients[0].id ${configPath}02_VLESS_TCP_inbounds.json)
@@ -2255,6 +2255,9 @@ EOF
 		local VLESSEmail
 		VLESSEmail=$(echo "${ps}" | awk -F "[\"]" '{print $2}')
 
+		echoContent yellow " ---> 通用格式(VLESS+gRPC+TLS)"
+		echoContent green "    vless://${VLESSID}@${add}:${port}?encryption=none&security=tls&type=grpc&host=${host}&path=${path}#${VLESSEmail}\n"
+
 		echoContent yellow " ---> 格式化明文(VLESS+gRPC+TLS)"
 		echoContent green "    协议类型：VLESS，地址：${add}，伪装域名/SNI：${host}，端口：${port}，用户ID：${VLESSID}，安全：tls，传输方式：gRPC，serviceName:${path}，账户名:${VLESSEmail}\n"
 
@@ -3751,7 +3754,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.35"
+	echoContent green "当前版本：v2.4.36"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
