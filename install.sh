@@ -895,7 +895,8 @@ installV2Ray() {
 
 	if [[ "${coreInstallType}" != "2" && "${coreInstallType}" != "3" ]]; then
 		if [[ "${selectCoreType}" == "2" ]]; then
-			version=$(curl -s https://github.com/v2fly/v2ray-core/releases | grep /v2ray-core/releases/tag/ | head -1 | awk -F "[/]" '{print $6}' | awk -F "[>]" '{print $2}' | awk -F "[<]" '{print $1}')
+
+			version=$(curl -s https://api.github.com/repos/v2fly/v2ray-core/releases | jq -r .[].tag_name|head -1)
 		else
 			version=${v2rayCoreVersion}
 		fi
@@ -933,7 +934,8 @@ installXray() {
 	echoContent skyBlue "\n进度  $1/${totalProgress} : 安装Xray"
 
 	if [[ "${coreInstallType}" != "1" ]]; then
-		version=$(curl -s https://github.com/XTLS/Xray-core/releases | grep /XTLS/Xray-core/releases/tag/ | grep "Xray-core v" | head -1 | awk '{print $3}' | awk -F "[<]" '{print $1}')
+
+		version=$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases | jq -r .[].tag_name|head -1)
 
 		echoContent green " ---> Xray-core版本:${version}"
 		if wget --help | grep -q show-progress; then
@@ -960,7 +962,8 @@ installTrojanGo() {
 	echoContent skyBlue "\n进度  $1/${totalProgress} : 安装Trojan-Go"
 
 	if ! ls /etc/v2ray-agent/trojan/ | grep -q trojan-go; then
-		version=$(curl -s https://github.com/p4gefau1t/trojan-go/releases | grep /trojan-go/releases/tag/ | head -1 | awk -F "[/]" '{print $6}' | awk -F "[>]" '{print $2}' | awk -F "[<]" '{print $1}')
+
+		version=$(curl -s https://api.github.com/repos/p4gefau1t/trojan-go/releases | jq -r .[].tag_name|head -1)
 		echoContent green " ---> Trojan-Go版本:${version}"
 		if wget --help | grep -q show-progress; then
 			wget -c -q --show-progress -P /etc/v2ray-agent/trojan/ "https://github.com/p4gefau1t/trojan-go/releases/download/${version}/${trojanGoCPUVendor}.zip"
@@ -3751,7 +3754,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.33"
+	echoContent green "当前版本：v2.4.34"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
