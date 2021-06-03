@@ -1727,8 +1727,8 @@ EOF
         "security": "tls",
         "tlsSettings": {
           "alpn": [
-            "http/1.1",
-            "h2"
+            "h2",
+            "http/1.1"
           ],
           "certificates": [
             {
@@ -2061,8 +2061,8 @@ EOF
     "xtlsSettings": {
       "minVersion": "1.2",
       "alpn": [
-        "http/1.1",
-        "h2"
+        "h2",
+        "http/1.1"
       ],
       "certificates": [
         {
@@ -3754,7 +3754,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.36"
+	echoContent green "当前版本：v2.4.37"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
