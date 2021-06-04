@@ -774,7 +774,10 @@ randomPathFunction() {
 		if [[ -z "${customPath}" ]]; then
 			customPath=$(head -n 50 /dev/urandom | sed 's/[^a-z]//g' | strings -n 4 | tr 'A-Z' 'a-z' | head -1)
 			currentPath=${customPath:0:4}
+		else
+			currentPath=${customPath}
 		fi
+
 	fi
 	echoContent yellow "path：${customPath}"
 	echoContent skyBlue "\n----------------------------"
@@ -3762,7 +3765,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.37"
+	echoContent green "当前版本：v2.4.38"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
