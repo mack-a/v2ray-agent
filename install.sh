@@ -1681,7 +1681,7 @@ EOF
 	# VLESS gRPC
 	if echo "${selectCustomInstallType}" | grep -q 5 || [[ "$1" == "all" ]]; then
 		fallbacksList=${fallbacksList}',{"alpn":"h2","dest":31301,"xver":0}'
-		cat <<EOF >/etc/v2ray-agent/xray/conf/06_VLESS_gRPC_inbounds.json
+		cat <<EOF >/etc/v2ray-agent/v2ray/conf/06_VLESS_gRPC_inbounds.json
 {
     "inbounds":[
     {
@@ -1794,6 +1794,13 @@ EOF
 ]
 }
 EOF
+	fi
+
+	if echo "${selectCustomInstallType}" | grep -q 5 || [[ "$1" == "all" ]];then
+		echo >/dev/null
+	elif [[ -f "/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json" ]];then
+		# "h2",
+		sed -i '/\"h2\",/d' $(grep "\"h2\"," -rl /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json)
 	fi
 }
 
@@ -2091,9 +2098,9 @@ EOF
 EOF
 	if echo "${selectCustomInstallType}" | grep -q 5 || [[ "$1" == "all" ]];then
 		echo >/dev/null
-	else
+	elif [[ -f "/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json" ]];then
 		# "h2",
-		sed -i "s/\"h2\",//g" $(grep "\"h2\"," -rl ${configPath}02_VLESS_TCP_inbounds.json)
+		sed -i '/\"h2\",/d' $(grep "\"h2\"," -rl /etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json)
 	fi
 }
 
@@ -3475,12 +3482,13 @@ customV2RayInstall() {
 	echoContent yellow "2.VMess+TLS+TCP"
 	echoContent yellow "3.VMess+TLS+WS[CDN]"
 	echoContent yellow "4.Trojan、Trojan+WS[CDN]"
+	echoContent yellow "5.VLESS+TLS+gRPC[CDN]"
 	read -r -p "请选择[多选]，[例如:123]:" selectCustomInstallType
 	echoContent skyBlue "--------------------------------------------------------------"
 	if [[ -z ${selectCustomInstallType} ]]; then
 		selectCustomInstallType=0
 	fi
-	if [[ "${selectCustomInstallType}" =~ ^[0-4]+$ ]]; then
+	if [[ "${selectCustomInstallType}" =~ ^[0-5]+$ ]]; then
 		cleanUp xrayClean
 		totalProgress=17
 		installTools 1
@@ -3595,7 +3603,7 @@ selectCoreInstall() {
 	echoContent red "\n=============================================================="
 	echoContent yellow "1.Xray-core"
 	echoContent yellow "2.v2ray-core"
-	echoContent yellow "3.v2ray-core[XTLS]"
+	# echoContent yellow "3.v2ray-core[XTLS]"
 	echoContent red "=============================================================="
 	read -r -p "请选择：" selectCoreType
 	case ${selectCoreType} in
@@ -3786,7 +3794,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.41"
+	echoContent green "当前版本：v2.4.42"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
