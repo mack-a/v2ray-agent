@@ -2089,6 +2089,12 @@ EOF
 ]
 }
 EOF
+	if echo "${selectCustomInstallType}" | grep -q 5 || [[ "$1" == "all" ]];then
+		echo >/dev/null
+	else
+		# "h2",
+		sed -i "s/\"h2\",//g" $(grep "\"h2\"," -rl ${configPath}02_VLESS_TCP_inbounds.json)
+	fi
 }
 
 # 初始化Trojan-Go配置
@@ -3780,7 +3786,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.40"
+	echoContent green "当前版本：v2.4.41"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
