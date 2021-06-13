@@ -503,7 +503,7 @@ installTools() {
 
 	if [[ ! -d "$HOME/.acme.sh" ]] || [[ -d "$HOME/.acme.sh" && -z $(find "$HOME/.acme.sh/acme.sh") ]]; then
 		echoContent green " ---> 安装acme.sh"
-		curl -s https://get.acme.sh | sh >/etc/v2ray-agent/tls/acme.log
+		curl -s https://get.acme.sh | sh -s email=my@example.com >/etc/v2ray-agent/tls/acme.log
 		if [[ ! -d "$HOME/.acme.sh" ]] || [[ -z $(find "$HOME/.acme.sh/acme.sh") ]]; then
 			echoContent red "  acme安装失败--->"
 			echoContent yellow "错误排查："
@@ -2386,7 +2386,7 @@ showAccounts() {
 				defaultBase64Code vmessws $(echo "${user}" | jq .email) $(echo "${user}" | jq .id) "${currentHost}:${currentPort}" ${path} ${currentAdd}
 			done
 		fi
-		
+
 		# VLESS grpc
 		if echo ${currentInstallProtocolType} | grep -q 5 || [[ -z "${currentInstallProtocolType}" ]]; then
 			echoContent skyBlue "\n=============================== VLESS gRPC TLS CDN ===============================\n"
@@ -3794,7 +3794,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.42"
+	echoContent green "当前版本：v2.4.43"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
