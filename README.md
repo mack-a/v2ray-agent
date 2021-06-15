@@ -121,13 +121,7 @@ wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-
 
 - Stable-v2.4.16【无gRPC】
 ```
-wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/5fa84e1655ef42c472609894455f56c00a5e505b/install.sh" && chmod 700 /root/install.sh && /root/install.sh
-```
-
-- Stable-v2.2.24
-
-```
-wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/9ae23c13a56460d8c14f27c8eb65efc73b173f46/install.sh" && chmod 700 /root/install.sh && /root/install.sh
+wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/stable_v2.4.16/install.sh" && chmod 700 /root/install.sh && /root/install.sh
 ```
 
 # 示例图
