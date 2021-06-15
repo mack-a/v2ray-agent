@@ -719,9 +719,9 @@ installTLS() {
 	elif [[ -d "$HOME/.acme.sh" ]] && [[ ! -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" || ! -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" ]]; then
 		echoContent green " ---> 安装TLS证书"
 		if [[ -n "${pingIPv6}" ]]; then
-			sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --listen-v6 >/dev/null
+			sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --listen-v6 >> /etc/v2ray-agent/tls/acme.log
 		else
-			sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 >/dev/null
+			sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 >> /etc/v2ray-agent/tls/acme.log
 		fi
 
 		sudo "$HOME/.acme.sh/acme.sh" --installcert -d "${tlsDomain}" --fullchainpath "/etc/v2ray-agent/tls/${tlsDomain}.crt" --keypath "/etc/v2ray-agent/tls/${tlsDomain}.key" --ecc >/dev/null
@@ -2144,13 +2144,14 @@ EOF
 # 自定义CDN IP
 customCDNIP() {
 	echoContent skyBlue "\n进度 $1/${totalProgress} : 添加DNS智能解析"
-	echoContent yellow "\n 移动:104.19.45.117"
-	echoContent yellow " 联通:www.cloudflare.com"
+	echoContent yellow "如对CDN自选ip不了解，请选择[n]"
+	echoContent yellow "\n 移动:104.16.123.96"
+	echoContent yellow " 联通:hostmonit.com"
 	echoContent yellow " 电信:www.digitalocean.com"
 	echoContent skyBlue "----------------------------"
 	read -r -p '是否使用？[y/n]:' dnsProxy
 	if [[ "${dnsProxy}" == "y" ]]; then
-		add="www.cloudflare.com"
+		add="domain08.mqcjuc.ml"
 		echoContent green "\n ---> 使用成功"
 	else
 		add="${domain}"
@@ -2922,8 +2923,9 @@ checkLog() {
 
 	echoContent yellow "2.监听access日志"
 	echoContent yellow "3.监听error日志"
-	echoContent yellow "4.查看证书更新日志"
-	echoContent yellow "5.清空日志"
+	echoContent yellow "4.查看证书定时任务日志"
+	echoContent yellow "5.查看证书安装日志"
+	echoContent yellow "6.清空日志"
 	echoContent red "=============================================================="
 
 	read -r -p "请选择：" selectAccessLogType
@@ -2964,6 +2966,9 @@ EOF
 		tail -n 100 /etc/v2ray-agent/crontab_tls.log
 		;;
 	5)
+		tail -n 100 /etc/v2ray-agent/tls/acme.log
+		;;
+	6)
 		echo >${configPathLog}access.log
 		echo >${configPathLog}error.log
 		;;
@@ -3094,7 +3099,7 @@ streamingToolbox() {
 	echoContent red "\n=============================================================="
 	echoContent yellow "1.Netflix检测"
 	echoContent yellow "2.任意门落地机解锁Netflix"
-	echoContent yellow "3.DNS解锁流媒体\n"
+	echoContent yellow "3.DNS解锁流媒体"
 	read -r -p "请选择:" selectType
 
 	case ${selectType} in
@@ -3794,7 +3799,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.43"
+	echoContent green "当前版本：v2.4.44"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
