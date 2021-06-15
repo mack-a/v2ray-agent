@@ -1526,13 +1526,24 @@ EOF
 
 		cat <<EOF >/etc/v2ray-agent/v2ray/conf/10_ipv4_outbounds.json
 {
-    "outbounds": [
+    "outbounds":[
         {
-          "protocol": "freedom",
-          "settings": {
-            "domainStrategy": "UseIPv4"
-          },
-          "tag": "IPv4-out"
+            "protocol":"freedom",
+            "settings":{
+                "domainStrategy":"UseIPv4"
+            },
+            "tag":"IPv4-out"
+        },
+        {
+            "protocol":"freedom",
+            "settings":{
+                "domainStrategy":"UseIPv6"
+            },
+            "tag":"IPv6-out"
+        },
+        {
+            "protocol":"blackhole",
+            "tag":"blackhole-out"
         }
     ]
 }
@@ -1865,13 +1876,24 @@ EOF
 	else
 		cat <<EOF >/etc/v2ray-agent/xray/conf/10_ipv4_outbounds.json
 {
-    "outbounds": [
+    "outbounds":[
         {
-          "protocol": "freedom",
-          "settings": {
-            "domainStrategy": "UseIPv4"
-          },
-          "tag": "IPv4-out"
+            "protocol":"freedom",
+            "settings":{
+                "domainStrategy":"UseIPv4"
+            },
+            "tag":"IPv4-out"
+        },
+        {
+            "protocol":"freedom",
+            "settings":{
+                "domainStrategy":"UseIPv6"
+            },
+            "tag":"IPv6-out"
+        },
+        {
+            "protocol":"blackhole",
+            "tag":"blackhole-out"
         }
     ]
 }
@@ -3002,7 +3024,7 @@ checkIPv6() {
 	fi
 }
 
-# ipv6 人机验证
+# ipv6 分流
 ipv6Routing() {
 	if [[ -z "${configPath}" ]]; then
 		echoContent red " ---> 未安装，请使用脚本安装"
@@ -3028,7 +3050,21 @@ ipv6Routing() {
 		echoContent yellow "6.录入示例:google,youtube,facebook\n"
 		read -r -p "请按照上面示例录入域名：" domainList
 
-		cat <<EOF >${configPath}09_routing.json
+		if [[ -f "${configPath}09_routing.json" ]];then
+			local routing=
+			if grep -q "IPv6-out" ${configPath}09_routing.json;then
+				local ipv6OutIndex=$(jq .routing.rules[].outboundTag ${configPath}09_routing.json|awk '{print ""NR""":"$0}'|grep "IPv6-out"|awk -F "[:]" '{print $1}'|head -1)
+				if [[ ${ipv6OutIndex} -gt 0 ]];then
+					routing=$(jq -r 'del(.routing.rules['$(expr ${ipv6OutIndex} - 1)'])' ${configPath}09_routing.json)
+					echo "${routing}" |jq . >${configPath}09_routing.json
+				fi
+			fi
+
+			routing=$(jq -r '.routing.rules += [{"type":"field","domain":["geosite:'${domainList//,/\",\"geosite:}'"],"outboundTag":"IPv6-out"}]' ${configPath}09_routing.json)
+
+			echo "${routing}"|jq . >${configPath}09_routing.json
+		else
+			cat <<EOF >${configPath}09_routing.json
 {
     "routing":{
         "domainStrategy": "IPOnDemand",
@@ -3044,25 +3080,30 @@ ipv6Routing() {
   }
 }
 EOF
+fi
 
 		cat <<EOF >${configPath}10_ipv4_outbounds.json
 {
-  "outbounds": [
-    {
-          "protocol": "freedom",
-          "settings": {
-            "domainStrategy": "UseIPv4"
-          },
-          "tag": "IPv4-out"
-    },
-    {
-      "protocol": "freedom",
-      "settings": {
-        "domainStrategy": "UseIPv6"
-      },
-      "tag": "IPv6-out"
-    }
-  ]
+    "outbounds":[
+        {
+            "protocol":"freedom",
+            "settings":{
+                "domainStrategy":"UseIPv4"
+            },
+            "tag":"IPv4-out"
+        },
+        {
+            "protocol":"freedom",
+            "settings":{
+                "domainStrategy":"UseIPv6"
+            },
+            "tag":"IPv6-out"
+        },
+        {
+            "protocol":"blackhole",
+            "tag":"blackhole-out"
+        }
+    ]
 }
 EOF
 		echoContent green " ---> 添加成功"
@@ -3072,18 +3113,29 @@ EOF
 
 		cat <<EOF >${configPath}10_ipv4_outbounds.json
 {
-    "outbounds": [
+    "outbounds":[
         {
-          "protocol": "freedom",
-          "settings": {
-            "domainStrategy": "UseIPv4"
-          },
-          "tag": "IPv4-out"
+            "protocol":"freedom",
+            "settings":{
+                "domainStrategy":"UseIPv4"
+            },
+            "tag":"IPv4-out"
+        },
+        {
+            "protocol":"freedom",
+            "settings":{
+                "domainStrategy":"UseIPv6"
+            },
+            "tag":"IPv6-out"
+        },
+        {
+            "protocol":"blackhole",
+            "tag":"blackhole-out"
         }
     ]
 }
 EOF
-		echoContent green " ---> 人机验证卸载成功"
+		echoContent green " ---> IPv6分流卸载成功"
 	else
 		echoContent red " ---> 选择错误"
 		ipv6HumanVerification
@@ -3147,34 +3199,60 @@ setDokodemoDoorUnblockNetflixOutbounds() {
 	if [[ -n "${setIP}" ]]; then
 		cat <<EOF >${configPath}10_ipv4_outbounds.json
 {
-  "outbounds": [
-  	{
-	  "protocol": "freedom",
-	  "settings": {
-		"domainStrategy": "UseIPv4"
-	  },
-	  "tag": "IPv4-out"
-	},
-    {
-      "tag": "netflix-80",
-      "protocol": "freedom",
-      "settings": {
-        "domainStrategy": "AsIs",
-        "redirect": "${setIP}:22387"
-      }
-    },
-    {
-      "tag": "netflix-443",
-      "protocol": "freedom",
-      "settings": {
-        "domainStrategy": "AsIs",
-        "redirect": "${setIP}:22388"
-      }
-    }
-  ]
+    "outbounds":[
+        {
+            "protocol":"freedom",
+            "settings":{
+                "domainStrategy":"UseIPv4"
+            },
+            "tag":"IPv4-out"
+        },
+        {
+            "protocol":"freedom",
+            "settings":{
+                "domainStrategy":"UseIPv6"
+            },
+            "tag":"IPv6-out"
+        },
+        {
+            "protocol":"blackhole",
+            "tag":"blackhole-out"
+        },
+        {
+            "tag":"netflix-80",
+            "protocol":"freedom",
+            "settings":{
+                "domainStrategy":"AsIs",
+                "redirect":"${setIP}:22387"
+            }
+        },
+        {
+            "tag":"netflix-443",
+            "protocol":"freedom",
+            "settings":{
+                "domainStrategy":"AsIs",
+                "redirect":"${setIP}:22388"
+            }
+        }
+    ]
 }
 EOF
-		cat <<EOF >${configPath}09_routing.json
+		if [[ -f "${configPath}09_routing.json" ]] ;then
+			local routing=
+			if grep -q "netflix-" ${configPath}09_routing.json;then
+				jq .routing.rules[].outboundTag ${configPath}09_routing.json|awk '{print ""NR""":"$0}'|grep "netflix-"|awk -F "[:]" '{print $1}'| while read -r index;do
+					local netflixIndex=$(jq .routing.rules[].outboundTag ${configPath}09_routing.json|awk '{print ""NR""":"$0}'|grep "netflix-"|awk -F "[:]" '{print $1}'|head -1)
+					if [[ ${netflixIndex} -gt 0 ]];then
+						routing=$(jq -r 'del(.routing.rules['$(expr ${netflixIndex} - 1)'])' ${configPath}09_routing.json)
+						echo "${routing}" |jq . >${configPath}09_routing.json
+					fi
+				done
+			fi
+
+			local routing=$(jq -r '.routing.rules += [{"type":"field","port":80,"domain":["ip.sb","geosite:netflix"],"outboundTag":"netflix-80"},{"type":"field","port":443,"domain":["ip.sb","geosite:netflix"],"outboundTag":"netflix-443"}]' ${configPath}09_routing.json)
+			echo "${routing}"|jq . >${configPath}09_routing.json
+		else
+			cat <<EOF >${configPath}09_routing.json
 {
   "routing": {
     "domainStrategy": "AsIs",
@@ -3201,6 +3279,7 @@ EOF
   }
 }
 EOF
+		fi
 		reloadCore
 		echoContent green " ---> 添加Netflix出战解锁成功"
 		echoContent yellow " ---> 不支持trojan的相关节点"
@@ -3265,19 +3344,26 @@ EOF
 
 	cat <<EOF >${configPath}10_ipv4_outbounds.json
 {
-  "outbounds": [
-    {
-          "protocol": "freedom",
-          "settings": {
-            "domainStrategy": "UseIPv4"
-          },
-          "tag": "IPv4-out"
-    },
-    {
-      "protocol": "blackhole",
-      "tag": "blackhole-out"
-    }
-  ]
+    "outbounds":[
+        {
+            "protocol":"freedom",
+            "settings":{
+                "domainStrategy":"UseIPv4"
+            },
+            "tag":"IPv4-out"
+        },
+        {
+            "protocol":"freedom",
+            "settings":{
+                "domainStrategy":"UseIPv6"
+            },
+            "tag":"IPv6-out"
+        },
+        {
+            "protocol":"blackhole",
+            "tag":"blackhole-out"
+        }
+    ]
 }
 EOF
 
@@ -3333,15 +3419,26 @@ removeDokodemoDoorUnblockNetflix() {
 
 	cat <<EOF >${configPath}10_ipv4_outbounds.json
 {
-  "outbounds": [
-    {
-	  "protocol": "freedom",
-	  "settings": {
-		"domainStrategy": "UseIPv4"
-	  },
-	  "tag": "IPv4-out"
-	}
-  ]
+    "outbounds":[
+        {
+            "protocol":"freedom",
+            "settings":{
+                "domainStrategy":"UseIPv4"
+            },
+            "tag":"IPv4-out"
+        },
+        {
+            "protocol":"freedom",
+            "settings":{
+                "domainStrategy":"UseIPv6"
+            },
+            "tag":"IPv6-out"
+        },
+        {
+            "protocol":"blackhole",
+            "tag":"blackhole-out"
+        }
+    ]
 }
 EOF
 
@@ -3799,7 +3896,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.4.45"
+	echoContent green "当前版本：v2.5.1"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
