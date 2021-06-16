@@ -2575,7 +2575,8 @@ unInstall() {
 
 	handleV2Ray stop
 	handleTrojanGo stop
-
+	rm -rf /root/.acme.sh
+	echoContent green " ---> 删除acme.sh完成"
 	rm -rf /etc/systemd/system/v2ray.service
 	echoContent green " ---> 删除V2Ray开机自启完成"
 
@@ -3896,7 +3897,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.1"
+	echoContent green "当前版本：v2.5.2"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
