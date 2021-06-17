@@ -616,20 +616,20 @@ initTLSNginxConfig() {
 updateRedirectNginxConf() {
 
 	cat <<EOF >/etc/nginx/conf.d/alone.conf
-    server {
-        listen 80;
-        listen [::]:80;
-        server_name ${domain};
-        # shellcheck disable=SC2154
-        return 301 https://${domain}$request_uri;
-    }
-    server {
-			listen 127.0.0.1:31300;
-			server_name _;
-			return 403;
-	}
+server {
+	listen 80;
+	listen [::]:80;
+	server_name ${domain};
+	# shellcheck disable=SC2154
+	return 301 https://${domain}$request_uri;
+}
+server {
+		listen 127.0.0.1:31300;
+		server_name _;
+		return 403;
+}
 EOF
-	if [[ "${selectCoreType}" == "1" ]] && [[ -n $(echo ${selectCustomInstallType} | grep 5) || -z ${selectCustomInstallType} ]]; then
+	if echo "${selectCustomInstallType}" |grep -q 5 || [[ -z "${selectCustomInstallType}" ]]; then
 		cat <<EOF >>/etc/nginx/conf.d/alone.conf
 server {
 	listen 127.0.0.1:31302 http2;
@@ -637,6 +637,17 @@ server {
 	root /usr/share/nginx/html;
 	location /${currentPath}grpc {
 		grpc_pass grpc://127.0.0.1:31301;
+	}
+}
+EOF
+	elif ! echo "${selectCustomInstallType}" |grep -q 4; then
+
+		cat <<EOF >>/etc/nginx/conf.d/alone.conf
+server {
+	listen 127.0.0.1:31302 http2;
+	server_name ${domain};
+	root /usr/share/nginx/html;
+	location / {
 	}
 }
 EOF
@@ -694,7 +705,7 @@ installTLS() {
 	echoContent skyBlue "\n进度  $1/${totalProgress} : 申请TLS证书\n"
 	local tlsDomain=${domain}
 	# 安装tls
-	if [[ -f "/etc/v2ray-agent/tls/${tlsDomain}.crt" && -f "/etc/v2ray-agent/tls/${tlsDomain}.key" ]] || [[ -d "$HOME/.acme.sh/${tlsDomain}_ecc" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]]; then
+	if [[ -f "/etc/v2ray-agent/tls/${tlsDomain}.crt" && -f "/etc/v2ray-agent/tls/${tlsDomain}.key" && -n $(cat "/etc/v2ray-agent/tls/${tlsDomain}.crt") ]] || [[ -d "$HOME/.acme.sh/${tlsDomain}_ecc" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]]; then
 		# 存在证书
 		echoContent green " ---> 检测到证书"
 		checkTLStatus "${tlsDomain}"
@@ -705,7 +716,7 @@ installTLS() {
 		else
 			echoContent green " ---> 证书有效"
 
-			if ! ls /etc/v2ray-agent/tls/ | grep -q "${tlsDomain}.crt" || ! ls /etc/v2ray-agent/tls/ | grep -q "${tlsDomain}.key"; then
+			if ! ls /etc/v2ray-agent/tls/ | grep -q "${tlsDomain}.crt" || ! ls /etc/v2ray-agent/tls/ | grep -q "${tlsDomain}.key" || [[ -z $(cat "/etc/v2ray-agent/tls/${tlsDomain}.crt") ]]; then
 				sudo "$HOME/.acme.sh/acme.sh" --installcert -d "${tlsDomain}" --fullchainpath "/etc/v2ray-agent/tls/${tlsDomain}.crt" --keypath "/etc/v2ray-agent/tls/${tlsDomain}.key" --ecc >/dev/null
 			else
 				echoContent yellow " ---> 如未过期请选择[n]\n"
@@ -724,11 +735,12 @@ installTLS() {
 			sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 >> /etc/v2ray-agent/tls/acme.log
 		fi
 
-		sudo "$HOME/.acme.sh/acme.sh" --installcert -d "${tlsDomain}" --fullchainpath "/etc/v2ray-agent/tls/${tlsDomain}.crt" --keypath "/etc/v2ray-agent/tls/${tlsDomain}.key" --ecc >/dev/null
-		if [[ -z $(cat "/etc/v2ray-agent/tls/${tlsDomain}.crt") ]]; then
-			echoContent red " ---> TLS安装失败，请检查acme日志"
-			exit 0
-		elif [[ -z $(cat "/etc/v2ray-agent/tls/${tlsDomain}.key") ]]; then
+		if [[ -d "$HOME/.acme.sh/${tlsDomain}_ecc" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]]; then
+			sudo "$HOME/.acme.sh/acme.sh" --installcert -d "${tlsDomain}" --fullchainpath "/etc/v2ray-agent/tls/${tlsDomain}.crt" --keypath "/etc/v2ray-agent/tls/${tlsDomain}.key" --ecc >/dev/null
+		fi
+
+		if [[ ! -f "/etc/v2ray-agent/tls/${tlsDomain}.crt" || ! -f "/etc/v2ray-agent/tls/${tlsDomain}.key"  ]] || [[ -z $(cat "/etc/v2ray-agent/tls/${tlsDomain}.key") || -z $(cat "/etc/v2ray-agent/tls/${tlsDomain}.crt") ]]; then
+			tail -n 10 /etc/v2ray-agent/tls/acme.log
 			echoContent red " ---> TLS安装失败，请检查acme日志"
 			exit 0
 		fi
@@ -1574,7 +1586,7 @@ EOF
 EOF
 	# VLESS_TCP_TLS/XTLS
 	# 回落nginx
-	local fallbacksList='{"dest":31300,"xver":0}'
+	local fallbacksList='{"dest":31300,"xver":0},{"alpn":"h2","dest":31302,"xver":0}'
 
 	if echo "${selectCustomInstallType}" | grep -q 4 || [[ "$1" == "all" ]]; then
 		# 回落trojan-go
@@ -1691,7 +1703,7 @@ EOF
 	fi
 	# VLESS gRPC
 	if echo "${selectCustomInstallType}" | grep -q 5 || [[ "$1" == "all" ]]; then
-		fallbacksList=${fallbacksList}',{"alpn":"h2","dest":31301,"xver":0}'
+#		fallbacksList=${fallbacksList}',{"alpn":"h2","dest":31301,"xver":0}'
 		cat <<EOF >/etc/v2ray-agent/v2ray/conf/06_VLESS_gRPC_inbounds.json
 {
     "inbounds":[
@@ -1809,7 +1821,7 @@ EOF
 
 	if echo "${selectCustomInstallType}" | grep -q 5 || [[ "$1" == "all" ]];then
 		echo >/dev/null
-	elif [[ -f "/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json" ]];then
+	elif [[ -f "/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json" ]] && echo "${selectCustomInstallType}" | grep -q 4;then
 		# "h2",
 		sed -i '/\"h2\",/d' $(grep "\"h2\"," -rl /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json)
 	fi
@@ -1925,7 +1937,7 @@ EOF
 EOF
 	# VLESS_TCP_TLS/XTLS
 	# 回落nginx
-	local fallbacksList='{"dest":31300,"xver":0}'
+	local fallbacksList='{"dest":31300,"xver":0},{"alpn":"h2","dest":31302,"xver":0}'
 
 	if echo "${selectCustomInstallType}" | grep -q 4 || [[ "$1" == "all" ]]; then
 		# 回落trojan-go
@@ -2042,7 +2054,7 @@ EOF
 	fi
 
 	if echo "${selectCustomInstallType}" | grep -q 5 || [[ "$1" == "all" ]]; then
-		fallbacksList=${fallbacksList}',{"alpn":"h2","dest":31302,"xver":0}'
+#		fallbacksList=${fallbacksList}',{"alpn":"h2","dest":31302,"xver":0}'
 		cat <<EOF >/etc/v2ray-agent/xray/conf/06_VLESS_gRPC_inbounds.json
 {
     "inbounds":[
@@ -2120,7 +2132,7 @@ EOF
 EOF
 	if echo "${selectCustomInstallType}" | grep -q 5 || [[ "$1" == "all" ]];then
 		echo >/dev/null
-	elif [[ -f "/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json" ]];then
+	elif [[ -f "/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json" ]] && echo "${selectCustomInstallType}" | grep -q 4;then
 		# "h2",
 		sed -i '/\"h2\",/d' $(grep "\"h2\"," -rl /etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json)
 	fi
@@ -3897,7 +3909,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.2"
+	echoContent green "当前版本：v2.5.3"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
