@@ -635,6 +635,10 @@ server {
 	listen 127.0.0.1:31302 http2;
 	server_name ${domain};
 	root /usr/share/nginx/html;
+	location /s/ {
+    		add_header Content-Type text/plain;
+    		alias /etc/v2ray-agent/subscribe/;
+    }
 	location /${currentPath}grpc {
 		grpc_pass grpc://127.0.0.1:31301;
 	}
@@ -647,6 +651,10 @@ server {
 	listen 127.0.0.1:31302 http2;
 	server_name ${domain};
 	root /usr/share/nginx/html;
+	location /s/ {
+    		add_header Content-Type text/plain;
+    		alias /etc/v2ray-agent/subscribe/;
+    }
 	location / {
 	}
 }
