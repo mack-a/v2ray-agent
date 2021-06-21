@@ -565,6 +565,31 @@ EOF
 	systemctl enable nginx
 }
 
+# 安装warp
+installWarp(){
+	if [[ "${release}" == "debian" ]]; then
+		curl https://pkg.cloudflareclient.com/pubkey.gpg | sudo apt-key add - >/dev/null 2>&1
+		echo "deb http://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list >/dev/null 2>&1
+		sudo apt update >/dev/null 2>&1
+
+	elif [[ "${release}" == "ubuntu" ]]; then
+		curl https://pkg.cloudflareclient.com/pubkey.gpg | sudo apt-key add - >/dev/null 2>&1
+		echo "deb http://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list >/dev/null 2>&1
+		sudo apt update >/dev/null 2>&1
+
+	elif [[ "${release}" == "centos" ]]; then
+		${installType} yum-utils >/dev/null 2>&1
+		sudo rpm -ivh http://pkg.cloudflareclient.com/cloudflare-release-el${centosVersion}.rpm >/dev/null 2>&1
+	fi
+	echoContent green " ---> 安装cloudflare-warp"
+	${installType} cloudflare-warp >/dev/null 2>&1
+	warp-cli register
+	warp-cli set-mode proxy
+	warp-cli set-proxy-port 31303
+	warp-cli connect
+	# systemctl daemon-reload
+	# systemctl enable cloudflare-warp
+}
 # 初始化Nginx申请证书配置
 initTLSNginxConfig() {
 	handleNginx stop
@@ -2186,7 +2211,7 @@ EOF
 # 自定义CDN IP
 customCDNIP() {
 	echoContent skyBlue "\n进度 $1/${totalProgress} : 添加DNS智能解析"
-	echoContent yellow "如对CDN自选ip不了解，请选择[n]"
+	echoContent yellow "\n如对CDN自选ip不了解，请选择[n]"
 	echoContent yellow "\n 移动:104.16.123.96"
 	echoContent yellow " 联通:hostmonit.com"
 	echoContent yellow " 电信:www.digitalocean.com"
@@ -3072,18 +3097,13 @@ ipv6Routing() {
 		read -r -p "请按照上面示例录入域名：" domainList
 
 		if [[ -f "${configPath}09_routing.json" ]];then
-			local routing=
-			if grep -q "IPv6-out" ${configPath}09_routing.json;then
-				local ipv6OutIndex=$(jq .routing.rules[].outboundTag ${configPath}09_routing.json|awk '{print ""NR""":"$0}'|grep "IPv6-out"|awk -F "[:]" '{print $1}'|head -1)
-				if [[ ${ipv6OutIndex} -gt 0 ]];then
-					routing=$(jq -r 'del(.routing.rules['$(expr ${ipv6OutIndex} - 1)'])' ${configPath}09_routing.json)
-					echo "${routing}" |jq . >${configPath}09_routing.json
-				fi
-			fi
+
+			unInstallRouting IPv6-out
 
 			routing=$(jq -r '.routing.rules += [{"type":"field","domain":["geosite:'${domainList//,/\",\"geosite:}'"],"outboundTag":"IPv6-out"}]' ${configPath}09_routing.json)
 
 			echo "${routing}"|jq . >${configPath}09_routing.json
+
 		else
 			cat <<EOF >${configPath}09_routing.json
 {
@@ -3103,69 +3123,136 @@ ipv6Routing() {
 EOF
 fi
 
-		cat <<EOF >${configPath}10_ipv4_outbounds.json
-{
-    "outbounds":[
-        {
-            "protocol":"freedom",
-            "settings":{
-                "domainStrategy":"UseIPv4"
-            },
-            "tag":"IPv4-out"
-        },
-        {
-            "protocol":"freedom",
-            "settings":{
-                "domainStrategy":"UseIPv6"
-            },
-            "tag":"IPv6-out"
-        },
-        {
-            "protocol":"blackhole",
-            "tag":"blackhole-out"
-        }
-    ]
-}
-EOF
+		unInstallOutbounds IPv6-out
+
+		outbounds=$(jq -r '.outbounds += [{"protocol":"freedom","settings":{"domainStrategy":"UseIPv6"},"tag":"IPv6-out"}]' ${configPath}10_ipv4_outbounds.json)
+
+		echo "${outbounds}"|jq . >${configPath}10_ipv4_outbounds.json
+
 		echoContent green " ---> 添加成功"
 
 	elif [[ "${ipv6Status}" == "2" ]]; then
-		rm -rf ${configPath}09_routing.json
 
-		cat <<EOF >${configPath}10_ipv4_outbounds.json
-{
-    "outbounds":[
-        {
-            "protocol":"freedom",
-            "settings":{
-                "domainStrategy":"UseIPv4"
-            },
-            "tag":"IPv4-out"
-        },
-        {
-            "protocol":"freedom",
-            "settings":{
-                "domainStrategy":"UseIPv6"
-            },
-            "tag":"IPv6-out"
-        },
-        {
-            "protocol":"blackhole",
-            "tag":"blackhole-out"
-        }
-    ]
-}
-EOF
+		unInstallRouting IPv6-out
+
+		unInstallOutbounds IPv6-out
+
 		echoContent green " ---> IPv6分流卸载成功"
 	else
 		echoContent red " ---> 选择错误"
-		ipv6HumanVerification
 		exit 0
 	fi
 
 	reloadCore
 }
 
+# 根据tag卸载Routing
+unInstallRouting(){
+	local tag=$1
+
+	if [[ -f "${configPath}09_routing.json" ]];then
+		local routing=
+		if grep -q "${tag}" ${configPath}09_routing.json;then
+			local index=$(jq .routing.rules[].outboundTag ${configPath}09_routing.json|awk '{print ""NR""":"$0}'|grep "${tag}"|awk -F "[:]" '{print $1}'|head -1)
+			if [[ ${index} -gt 0 ]];then
+				routing=$(jq -r 'del(.routing.rules['$(expr ${index} - 1)'])' ${configPath}09_routing.json)
+				echo "${routing}" |jq . >${configPath}09_routing.json
+			fi
+		fi
+	fi
+}
+
+# 根据tag卸载出站
+unInstallOutbounds(){
+	local tag=$1
+
+	if grep -q "${tag}" ${configPath}10_ipv4_outbounds.json;then
+		local ipv6OutIndex=$(jq .outbounds[].tag ${configPath}10_ipv4_outbounds.json|awk '{print ""NR""":"$0}'|grep "${tag}"|awk -F "[:]" '{print $1}'|head -1)
+		if [[ ${ipv6OutIndex} -gt 0 ]];then
+			routing=$(jq -r 'del(.outbounds['$(expr ${ipv6OutIndex} - 1)'])' ${configPath}10_ipv4_outbounds.json)
+			echo "${routing}" |jq . >${configPath}10_ipv4_outbounds.json
+		fi
+	fi
+
+}
+# warp分流
+warpRouting(){
+	echoContent skyBlue "\n进度  $1/${totalProgress} : WARP分流"
+
+	# 安装warp
+	if [[ -z $(which warp-cli) ]];then
+		echo
+		read -r -p "cloudflare-warp未安装，是否安装 ？[y/n]:" installCloudflareWarpStatus
+		if [[ "${installCloudflareWarpStatus}" == "y" ]];then
+			installWarp
+		else
+			echoContent yellow " ---> 放弃安装"
+			exit 0
+		fi
+	fi
+
+	echoContent red "\n=============================================================="
+	echoContent yellow "1.添加域名"
+	echoContent yellow "2.卸载WARP分流"
+	echoContent red "=============================================================="
+	read -r -p "请选择:" warpStatus
+	if [[ "${warpStatus}" == "1" ]]; then
+		echoContent red "=============================================================="
+		echoContent yellow "# 注意事项\n"
+		echoContent yellow "1.规则仅支持预定义域名列表[https://github.com/v2fly/domain-list-community]"
+		echoContent yellow "2.详细文档[https://www.v2fly.org/config/routing.html]"
+		echoContent yellow "3.只可以把流量分流给warp，不可指定是ipv4或者ipv6"
+		echoContent yellow "4.如内核启动失败请检查域名后重新添加域名"
+		echoContent yellow "5.不允许有特殊字符，注意逗号的格式"
+		echoContent yellow "6.每次添加都是重新添加，不会保留上次域名"
+		echoContent yellow "7.录入示例:google,youtube,facebook\n"
+		read -r -p "请按照上面示例录入域名：" domainList
+
+		if [[ -f "${configPath}09_routing.json" ]];then
+			unInstallRouting warp-socks-out
+
+			routing=$(jq -r '.routing.rules += [{"type":"field","domain":["geosite:'${domainList//,/\",\"geosite:}'"],"outboundTag":"warp-socks-out"}]' ${configPath}09_routing.json)
+
+			echo "${routing}"|jq . >${configPath}09_routing.json
+
+		else
+			cat <<EOF >${configPath}09_routing.json
+{
+    "routing":{
+        "domainStrategy": "IPOnDemand",
+        "rules": [
+          {
+            "type": "field",
+            "domain": [
+            	"geosite:${domainList//,/\",\"geosite:}"
+            ],
+            "outboundTag": "warp-socks-out"
+          }
+        ]
+  }
+}
+EOF
+		fi
+		unInstallOutbounds warp-socks-out
+
+		local outbounds=$(jq -r '.outbounds += [{"protocol":"socks","settings":{"servers":[{"address":"127.0.0.1","port":31303}]},"tag":"warp-socks-out"}]' ${configPath}10_ipv4_outbounds.json)
+
+		echo "${outbounds}"|jq . >${configPath}10_ipv4_outbounds.json
+
+		echoContent green " ---> 添加成功"
+
+	elif [[ "${warpStatus}" == "2" ]]; then
+		unInstallRouting warp-socks-out
+
+		unInstallOutbounds warp-socks-out
+
+		echoContent green " ---> WARP分流卸载成功"
+	else
+		echoContent red " ---> 选择错误"
+		exit 0
+	fi
+	reloadCore
+}
 # 流媒体工具箱
 streamingToolbox() {
 	echoContent skyBlue "\n功能 1/${totalProgress} : 流媒体工具箱"
@@ -3218,57 +3305,17 @@ dokodemoDoorUnblockNetflix() {
 setDokodemoDoorUnblockNetflixOutbounds() {
 	read -r -p "请输入解锁Netflix vps的IP:" setIP
 	if [[ -n "${setIP}" ]]; then
-		cat <<EOF >${configPath}10_ipv4_outbounds.json
-{
-    "outbounds":[
-        {
-            "protocol":"freedom",
-            "settings":{
-                "domainStrategy":"UseIPv4"
-            },
-            "tag":"IPv4-out"
-        },
-        {
-            "protocol":"freedom",
-            "settings":{
-                "domainStrategy":"UseIPv6"
-            },
-            "tag":"IPv6-out"
-        },
-        {
-            "protocol":"blackhole",
-            "tag":"blackhole-out"
-        },
-        {
-            "tag":"netflix-80",
-            "protocol":"freedom",
-            "settings":{
-                "domainStrategy":"AsIs",
-                "redirect":"${setIP}:22387"
-            }
-        },
-        {
-            "tag":"netflix-443",
-            "protocol":"freedom",
-            "settings":{
-                "domainStrategy":"AsIs",
-                "redirect":"${setIP}:22388"
-            }
-        }
-    ]
-}
-EOF
+
+		unInstallOutbounds netflix-80
+		unInstallOutbounds netflix-443
+
+		outbounds=$(jq -r '.outbounds += [{"tag":"netflix-80","protocol":"freedom","settings":{"domainStrategy":"AsIs","redirect":"'${setIP}':22387"}},{"tag":"netflix-443","protocol":"freedom","settings":{"domainStrategy":"AsIs","redirect":"'${setIP}':22388"}}]' ${configPath}10_ipv4_outbounds.json)
+
+		echo "${outbounds}"|jq . >${configPath}10_ipv4_outbounds.json
+
 		if [[ -f "${configPath}09_routing.json" ]] ;then
-			local routing=
-			if grep -q "netflix-" ${configPath}09_routing.json;then
-				jq .routing.rules[].outboundTag ${configPath}09_routing.json|awk '{print ""NR""":"$0}'|grep "netflix-"|awk -F "[:]" '{print $1}'| while read -r index;do
-					local netflixIndex=$(jq .routing.rules[].outboundTag ${configPath}09_routing.json|awk '{print ""NR""":"$0}'|grep "netflix-"|awk -F "[:]" '{print $1}'|head -1)
-					if [[ ${netflixIndex} -gt 0 ]];then
-						routing=$(jq -r 'del(.routing.rules['$(expr ${netflixIndex} - 1)'])' ${configPath}09_routing.json)
-						echo "${routing}" |jq . >${configPath}09_routing.json
-					fi
-				done
-			fi
+			unInstallRouting netflix-80
+			unInstallRouting netflix-443
 
 			local routing=$(jq -r '.routing.rules += [{"type":"field","port":80,"domain":["ip.sb","geosite:netflix"],"outboundTag":"netflix-80"},{"type":"field","port":443,"domain":["ip.sb","geosite:netflix"],"outboundTag":"netflix-443"}]' ${configPath}09_routing.json)
 			echo "${routing}"|jq . >${configPath}09_routing.json
@@ -3438,32 +3485,10 @@ EOF
 # 移除任意门解锁Netflix
 removeDokodemoDoorUnblockNetflix() {
 
-	cat <<EOF >${configPath}10_ipv4_outbounds.json
-{
-    "outbounds":[
-        {
-            "protocol":"freedom",
-            "settings":{
-                "domainStrategy":"UseIPv4"
-            },
-            "tag":"IPv4-out"
-        },
-        {
-            "protocol":"freedom",
-            "settings":{
-                "domainStrategy":"UseIPv6"
-            },
-            "tag":"IPv6-out"
-        },
-        {
-            "protocol":"blackhole",
-            "tag":"blackhole-out"
-        }
-    ]
-}
-EOF
-
-	rm -rf ${configPath}09_routing.json
+	unInstallOutbounds netflix-80
+	unInstallOutbounds netflix-443
+	unInstallRouting netflix-80
+	unInstallRouting netflix-443
 	rm -rf ${configPath}01_netflix_inbounds.json
 
 	reloadCore
@@ -3935,16 +3960,17 @@ menu() {
 	echoContent yellow "5.更新证书"
 	echoContent yellow "6.更换CDN节点"
 	echoContent yellow "7.IPv6分流"
-	echoContent yellow "8.流媒体工具"
-	echoContent yellow "9.添加新端口"
+	echoContent yellow "8.WARP分流"
+	echoContent yellow "9.流媒体工具"
+	echoContent yellow "10.添加新端口"
 	echoContent skyBlue "-------------------------版本管理-----------------------------"
-	echoContent yellow "10.core管理"
-	echoContent yellow "11.更新Trojan-Go"
-	echoContent yellow "12.更新脚本"
-	echoContent yellow "13.安装BBR、DD脚本"
+	echoContent yellow "11.core管理"
+	echoContent yellow "12.更新Trojan-Go"
+	echoContent yellow "13.更新脚本"
+	echoContent yellow "14.安装BBR、DD脚本"
 	echoContent skyBlue "-------------------------脚本管理-----------------------------"
-	echoContent yellow "14.查看日志"
-	echoContent yellow "15.卸载脚本"
+	echoContent yellow "15.查看日志"
+	echoContent yellow "16.卸载脚本"
 	echoContent red "=============================================================="
 	mkdirTools
 	aliasInstall
@@ -3972,27 +3998,30 @@ menu() {
 		ipv6Routing 1
 		;;
 	8)
-		streamingToolbox 1
+		warpRouting 1
 		;;
 	9)
-		addCorePort 1
+		streamingToolbox 1
 		;;
 	10)
-		coreVersionManageMenu 1
+		addCorePort 1
 		;;
 	11)
-		updateTrojanGo 1
+		coreVersionManageMenu 1
 		;;
 	12)
-		updateV2RayAgent 1
+		updateTrojanGo 1
 		;;
 	13)
-		bbrInstall
+		updateV2RayAgent 1
 		;;
 	14)
-		checkLog 1
+		bbrInstall
 		;;
 	15)
+		checkLog 1
+		;;
+	16)
 		unInstall 1
 		;;
 	esac
