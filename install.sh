@@ -581,7 +581,7 @@ installWarp(){
 
 	elif [[ "${release}" == "ubuntu" ]]; then
 		curl https://pkg.cloudflareclient.com/pubkey.gpg | sudo apt-key add - >/dev/null 2>&1
-		echo "deb http://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list >/dev/null 2>&1
+		echo "deb http://pkg.cloudflareclient.com/ focal main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list >/dev/null 2>&1
 		sudo apt update >/dev/null 2>&1
 
 	elif [[ "${release}" == "centos" ]]; then
@@ -595,11 +595,12 @@ installWarp(){
         echoContent red " ---> 安装WARP失败"
         exit 0;
 	fi
-	warp-cli register >/dev/null 2>&1
-	warp-cli set-mode proxy >/dev/null 2>&1
-	warp-cli set-proxy-port 31303 >/dev/null 2>&1
-	warp-cli connect >/dev/null 2>&1
+	warp-cli --accept-tos register
+	warp-cli --accept-tos set-mode proxy
+	warp-cli --accept-tos set-proxy-port 31303
+	warp-cli --accept-tos connect
 
+    # todo curl --socks5 127.0.0.1:31303 https://www.cloudflare.com/cdn-cgi/trace
 	# systemctl daemon-reload
 	# systemctl enable cloudflare-warp
 }
@@ -3955,7 +3956,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.4"
+	echoContent green "当前版本：v2.5.4-dev"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
