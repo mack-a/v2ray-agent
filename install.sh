@@ -54,13 +54,13 @@ checkSystem() {
 		fi
 		release="debian"
 		installType='apt -y install'
-		upgrade="apt update -y"
+		upgrade="apt update"
 		removeType='apt -y autoremove'
 
 	elif grep </etc/issue -q -i "ubuntu" && [[ -f "/etc/issue" ]] || grep </etc/issue -q -i "ubuntu" && [[ -f "/proc/version" ]]; then
 		release="ubuntu"
 		installType='apt -y install'
-		upgrade="apt update -y"
+		upgrade="apt update"
 		removeType='apt -y autoremove'
 	fi
 
@@ -456,6 +456,16 @@ installTools() {
 		${installType} qrencode >/dev/null 2>&1
 	fi
 
+    if ! find /usr/bin /usr/sbin | grep -q -w sudo; then
+		echoContent green " ---> 安装sudo"
+		${installType} sudo >/dev/null 2>&1
+	fi
+
+	if ! find /usr/bin /usr/sbin | grep -q -w lsb-release; then
+		echoContent green " ---> 安装lsb-release"
+		${installType} lsb-release >/dev/null 2>&1
+	fi
+
 	# 检测nginx版本，并提供是否卸载的选项
 
 	if ! find /usr/bin /usr/sbin | grep -q -w nginx; then
@@ -495,10 +505,6 @@ installTools() {
 		fi
 	fi
 
-	if ! find /usr/bin /usr/sbin | grep -q -w sudo; then
-		echoContent green " ---> 安装sudo"
-		${installType} sudo >/dev/null 2>&1
-	fi
 	# todo 关闭防火墙
 
 	if [[ ! -d "$HOME/.acme.sh" ]] || [[ -d "$HOME/.acme.sh" && -z $(find "$HOME/.acme.sh/acme.sh") ]]; then
@@ -567,6 +573,7 @@ EOF
 
 # 安装warp
 installWarp(){
+    ${installType} gnupg2 -y >/dev/null 2>&1
 	if [[ "${release}" == "debian" ]]; then
 		curl https://pkg.cloudflareclient.com/pubkey.gpg | sudo apt-key add - >/dev/null 2>&1
 		echo "deb http://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list >/dev/null 2>&1
@@ -581,12 +588,18 @@ installWarp(){
 		${installType} yum-utils >/dev/null 2>&1
 		sudo rpm -ivh http://pkg.cloudflareclient.com/cloudflare-release-el${centosVersion}.rpm >/dev/null 2>&1
 	fi
+
 	echoContent green " ---> 安装cloudflare-warp"
 	${installType} cloudflare-warp >/dev/null 2>&1
-	warp-cli register
-	warp-cli set-mode proxy
-	warp-cli set-proxy-port 31303
-	warp-cli connect
+	if [[ -z $(which warp-cli) ]];then
+        echoContent red " ---> 安装WARP失败"
+        exit 0;
+	fi
+	warp-cli register >/dev/null 2>&1
+	warp-cli set-mode proxy >/dev/null 2>&1
+	warp-cli set-proxy-port 31303 >/dev/null 2>&1
+	warp-cli connect >/dev/null 2>&1
+
 	# systemctl daemon-reload
 	# systemctl enable cloudflare-warp
 }
@@ -3942,7 +3955,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.3"
+	echoContent green "当前版本：v2.5.4"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
