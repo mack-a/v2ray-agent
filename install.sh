@@ -1457,7 +1457,7 @@ handleV2Ray() {
 			echoContent green " ---> V2Ray启动成功"
 		else
 			echoContent red "V2Ray启动失败"
-			echoContent red "执行 [ps -ef|grep v2ray] 查看日志"
+			echoContent red "请手动执行【/etc/v2ray-agent/v2ray/v2ray -confdir /etc/v2ray-agent/v2ray/conf】，查看错误日志"
 			exit 0
 		fi
 	elif [[ "$1" == "stop" ]]; then
@@ -1487,7 +1487,7 @@ handleXray() {
 			echoContent green " ---> Xray启动成功"
 		else
 			echoContent red "xray启动失败"
-			echoContent red "执行 [ps -ef|grep xray] 查看日志"
+			echoContent red "请手动执行【/etc/v2ray-agent/xray/xray -confdir /etc/v2ray-agent/xray/conf】，查看错误日志"
 			exit 0
 		fi
 	elif [[ "$1" == "stop" ]]; then
@@ -1517,7 +1517,7 @@ handleTrojanGo() {
 			echoContent green " ---> Trojan-Go启动成功"
 		else
 			echoContent red "Trojan-Go启动失败"
-			echoContent red "请手动执行【/etc/v2ray-agent/trojan/trojan-go -config /etc/v2ray-agent/trojan/config_full.json】,查看错误日志"
+			echoContent red "请手动执行【/etc/v2ray-agent/trojan/trojan-go -config /etc/v2ray-agent/trojan/config_full.json】，查看错误日志"
 			exit 0
 		fi
 	elif [[ "$1" == "stop" ]]; then
