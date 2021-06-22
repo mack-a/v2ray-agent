@@ -509,9 +509,10 @@ installTools() {
 
 	if [[ ! -d "$HOME/.acme.sh" ]] || [[ -d "$HOME/.acme.sh" && -z $(find "$HOME/.acme.sh/acme.sh") ]]; then
 		echoContent green " ---> 安装acme.sh"
-		curl -s https://get.acme.sh | sh -s email=my@example.com >/etc/v2ray-agent/tls/acme.log
+		curl -s https://get.acme.sh | sh -s email=my@example.com >/etc/v2ray-agent/tls/acme.log 2>&1
 		if [[ ! -d "$HOME/.acme.sh" ]] || [[ -z $(find "$HOME/.acme.sh/acme.sh") ]]; then
 			echoContent red "  acme安装失败--->"
+			tail -n 100 /etc/v2ray-agent/tls/acme.log
 			echoContent yellow "错误排查："
 			echoContent red "  1.获取Github文件失败，请等待Gitub恢复后尝试，恢复进度可查看 [https://www.githubstatus.com/]"
 			echoContent red "  2.acme.sh脚本出现bug，可查看[https://github.com/acmesh-official/acme.sh] issues"
@@ -575,12 +576,12 @@ EOF
 installWarp(){
     ${installType} gnupg2 -y >/dev/null 2>&1
 	if [[ "${release}" == "debian" ]]; then
-		curl https://pkg.cloudflareclient.com/pubkey.gpg | sudo apt-key add - >/dev/null 2>&1
+		curl -s https://pkg.cloudflareclient.com/pubkey.gpg | sudo apt-key add - >/dev/null 2>&1
 		echo "deb http://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list >/dev/null 2>&1
 		sudo apt update >/dev/null 2>&1
 
 	elif [[ "${release}" == "ubuntu" ]]; then
-		curl https://pkg.cloudflareclient.com/pubkey.gpg | sudo apt-key add - >/dev/null 2>&1
+		curl -s https://pkg.cloudflareclient.com/pubkey.gpg | sudo apt-key add - >/dev/null 2>&1
 		echo "deb http://pkg.cloudflareclient.com/ focal main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list >/dev/null 2>&1
 		sudo apt update >/dev/null 2>&1
 
@@ -589,7 +590,7 @@ installWarp(){
 		sudo rpm -ivh http://pkg.cloudflareclient.com/cloudflare-release-el${centosVersion}.rpm >/dev/null 2>&1
 	fi
 
-	echoContent green " ---> 安装cloudflare-warp"
+	echoContent green " ---> 安装WARP"
 	${installType} cloudflare-warp >/dev/null 2>&1
 	if [[ -z $(which warp-cli) ]];then
         echoContent red " ---> 安装WARP失败"
@@ -599,7 +600,8 @@ installWarp(){
 	warp-cli --accept-tos set-mode proxy
 	warp-cli --accept-tos set-proxy-port 31303
 	warp-cli --accept-tos connect
-
+#	if [[]];then
+#	fi
     # todo curl --socks5 127.0.0.1:31303 https://www.cloudflare.com/cdn-cgi/trace
 	# systemctl daemon-reload
 	# systemctl enable cloudflare-warp
@@ -710,7 +712,7 @@ server {
 		alias /etc/v2ray-agent/subscribe/;
 	}
 	location / {
-		add_header Strict-Transport-Security "max-age=63072000" always;
+		add_header Strict-Transport-Security "max-age=15552000; preload" always;
 	}
 }
 EOF
@@ -2195,7 +2197,7 @@ initTrojanGoConfig() {
     "local_addr": "127.0.0.1",
     "local_port": 31296,
     "remote_addr": "127.0.0.1",
-    "remote_port": 31300,
+    "remote_port": 31302,
     "disable_http_check":true,
     "log_level":3,
     "log_file":"/etc/v2ray-agent/trojan/trojan.log",
@@ -3196,7 +3198,7 @@ warpRouting(){
 	# 安装warp
 	if [[ -z $(which warp-cli) ]];then
 		echo
-		read -r -p "cloudflare-warp未安装，是否安装 ？[y/n]:" installCloudflareWarpStatus
+		read -r -p "WARP未安装，是否安装 ？[y/n]:" installCloudflareWarpStatus
 		if [[ "${installCloudflareWarpStatus}" == "y" ]];then
 			installWarp
 		else
