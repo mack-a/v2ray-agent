@@ -835,12 +835,13 @@ randomPathFunction() {
 		if [[ -z "${customPath}" ]]; then
 			customPath=$(head -n 50 /dev/urandom | sed 's/[^a-z]//g' | strings -n 4 | tr 'A-Z' 'a-z' | head -1)
 			currentPath=${customPath:0:4}
+			customPath=${currentPath}
 		else
 			currentPath=${customPath}
 		fi
 
 	fi
-	echoContent yellow "path：${customPath}"
+	echoContent yellow "path：${currentPath}"
 	echoContent skyBlue "\n----------------------------"
 }
 # Nginx伪装博客
@@ -2227,7 +2228,7 @@ EOF
 # 自定义CDN IP
 customCDNIP() {
 	echoContent skyBlue "\n进度 $1/${totalProgress} : 添加DNS智能解析"
-	echoContent yellow "\n如对CDN自选ip不了解，请选择[n]"
+	echoContent yellow "\n如对Cloudflare自选ip不了解，请选择[n]"
 	echoContent yellow "\n 移动:104.16.123.96"
 	echoContent yellow " 联通:hostmonit.com"
 	echoContent yellow " 电信:www.digitalocean.com"
@@ -3958,7 +3959,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.4-dev"
+	echoContent green "当前版本：v2.5.4"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
