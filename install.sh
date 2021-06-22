@@ -2198,7 +2198,7 @@ initTrojanGoConfig() {
     "local_addr": "127.0.0.1",
     "local_port": 31296,
     "remote_addr": "127.0.0.1",
-    "remote_port": 31302,
+    "remote_port": 31300,
     "disable_http_check":true,
     "log_level":3,
     "log_file":"/etc/v2ray-agent/trojan/trojan.log",
