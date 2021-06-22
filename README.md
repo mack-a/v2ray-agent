@@ -87,7 +87,7 @@
 ## 注意事项
 
 - **修改Cloudflare->SSL/TLS->Overview->Full**
-- **Cloudflare ---> A记录解析的云朵必须为灰色【如非灰色，会影响到定时任务自动续签证书】**
+- **Cloudflare ---> A记录解析的云朵必须为灰色【如非灰色，会影响到定时任务自动续签证书、多端口】**
 - **使用纯净系统安装，如使用其他脚本安装过，请重新build系统再安装**
 - wget: command not found [**这里需要自己手动安装下wget**]
   ，如未使用过Linux，[点击查看](https://github.com/mack-a/v2ray-agent/tree/master/documents/install_tools.md)安装教程
