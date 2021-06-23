@@ -1991,7 +1991,7 @@ EOF
 
 	if echo "${selectCustomInstallType}" | grep -q 4 || [[ "$1" == "all" ]]; then
 		# 回落trojan-go
-		fallbacksList='{"dest":31296,"xver":0}'
+		fallbacksList='{"dest":31296,"xver":0},{"alpn":"h2","dest":31302,"xver":0}'
 	fi
 
 	# VLESS_WS_TLS
@@ -2587,13 +2587,6 @@ addCorePort() {
         "port": 443,
         "network": "tcp",
         "followRedirect": false
-      },
-      "sniffing": {
-        "enabled": true,
-        "destOverride": [
-        	"http",
-          	"tls"
-        ]
       },
       "tag": "dokodemo-door-newPort-${port}"
     }
@@ -3959,7 +3952,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.5"
+	echoContent green "当前版本：v2.5.6"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
