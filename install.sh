@@ -331,7 +331,7 @@ showInstallStatus() {
 		fi
 
 		if echo ${currentInstallProtocolType} | grep -q 4; then
-			echoContent yellow "Trojan+TCP/WS[TLS]\c"
+			echoContent yellow "Trojan+TCP/WS[TLS] \c"
 		fi
 
 		if echo ${currentInstallProtocolType} | grep -q 5; then
@@ -3958,8 +3958,9 @@ menu() {
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
-	echoContent red "\n\nVMess+TLS+TCP(http+tls)，将在未来几个版本脚本中移除"
 	echoContent red "\n=============================================================="
+	echoContent red "VMess+TLS+TCP(http+tls)，将在未来几个版本脚本中移除"
+	echoContent red "=============================================================="
 	if [[ -n "${coreInstallType}" ]]; then
 		echoContent yellow "1.重新安装"
 	else
