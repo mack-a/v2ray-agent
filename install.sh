@@ -685,8 +685,8 @@ server {
 	}
 }
 EOF
-	elif ! echo "${selectCustomInstallType}" |grep -q 4; then
 
+	else
 		cat <<EOF >>/etc/nginx/conf.d/alone.conf
 server {
 	listen 127.0.0.1:31302 http2;
@@ -1642,7 +1642,7 @@ EOF
 
 	if echo "${selectCustomInstallType}" | grep -q 4 || [[ "$1" == "all" ]]; then
 		# 回落trojan-go
-		fallbacksList='{"dest":31296,"xver":0}'
+		fallbacksList='{"dest":31296,"xver":0},{"alpn":"h2","dest":31302,"xver":0}'
 	fi
 
 	# VLESS_WS_TLS
@@ -1805,7 +1805,7 @@ EOF
         ],
         "decryption": "none",
         "fallbacks": [
-            ${fallbacksList}
+        	${fallbacksList}
         ]
       },
       "streamSettings": {
@@ -1870,13 +1870,13 @@ EOF
 }
 EOF
 	fi
-
-	if echo "${selectCustomInstallType}" | grep -q 5 || [[ "$1" == "all" ]];then
-		echo >/dev/null
-	elif [[ -f "/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json" ]] && echo "${selectCustomInstallType}" | grep -q 4;then
-		# "h2",
-		sed -i '/\"h2\",/d' $(grep "\"h2\"," -rl /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json)
-	fi
+#
+#	if echo "${selectCustomInstallType}" | grep -q 5 || [[ "$1" == "all" ]];then
+#		echo >/dev/null
+#	elif [[ -f "/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json" ]] && echo "${selectCustomInstallType}" | grep -q 4;then
+#		# "h2",
+#		sed -i '/\"h2\",/d' $(grep "\"h2\"," -rl /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json)
+#	fi
 }
 
 # 初始化Xray 配置文件
@@ -2182,12 +2182,12 @@ EOF
 ]
 }
 EOF
-	if echo "${selectCustomInstallType}" | grep -q 5 || [[ "$1" == "all" ]];then
-		echo >/dev/null
-	elif [[ -f "/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json" ]] && echo "${selectCustomInstallType}" | grep -q 4;then
-		# "h2",
-		sed -i '/\"h2\",/d' $(grep "\"h2\"," -rl /etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json)
-	fi
+#	if echo "${selectCustomInstallType}" | grep -q 5 || [[ "$1" == "all" ]];then
+#		echo >/dev/null
+#	elif [[ -f "/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json" ]] && echo "${selectCustomInstallType}" | grep -q 4;then
+#		# "h2",
+#		sed -i '/\"h2\",/d' $(grep "\"h2\"," -rl /etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json)
+#	fi
 }
 
 # 初始化Trojan-Go配置
@@ -3954,7 +3954,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.7"
+	echoContent green "当前版本：v2.5.8"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
