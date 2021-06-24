@@ -1694,7 +1694,7 @@ EOF
     "clients": [
       {
         "id": "${uuid}",
-        "alterId": 1,
+        "alterId": 0,
         "email": "${domain}_vmess_tcp"
       }
     ]
@@ -1734,7 +1734,7 @@ EOF
     "clients": [
       {
         "id": "${uuid}",
-        "alterId": 1,
+        "alterId": 0,
         "add": "${add}",
         "email": "${domain}_vmess_ws"
       }
@@ -2045,7 +2045,7 @@ EOF
     "clients": [
       {
         "id": "${uuid}",
-        "alterId": 1,
+        "alterId": 0,
         "email": "${domain}_vmess_tcp"
       }
     ]
@@ -2085,7 +2085,7 @@ EOF
     "clients": [
       {
         "id": "${uuid}",
-        "alterId": 1,
+        "alterId": 0,
         "add": "${add}",
         "email": "${domain}_vmess_ws"
       }
@@ -2311,11 +2311,11 @@ EOF
 
 	elif [[ "${type}" == "vmessws" ]]; then
 
-		qrCodeBase64Default=$(echo -n '{"port":"'${port}'","ps":'${ps}',"tls":"tls","id":'"${id}"',"aid":"1","v":"2","host":"'${host}'","type":"none","path":"/'${path}'","net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}' | sed 's#/#\\\/#g' | base64)
+		qrCodeBase64Default=$(echo -n '{"port":"'${port}'","ps":'${ps}',"tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":"/'${path}'","net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}' | sed 's#/#\\\/#g' | base64)
 		qrCodeBase64Default=$(echo ${qrCodeBase64Default} | sed 's/ //g')
 
 		echoContent yellow " ---> 通用json(VMess+WS+TLS)"
-		echoContent green '    {"port":"'${port}'","ps":'${ps}',"tls":"tls","id":'"${id}"',"aid":"1","v":"2","host":"'${host}'","type":"none","path":"/'${path}'","net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}\n'
+		echoContent green '    {"port":"'${port}'","ps":'${ps}',"tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":"/'${path}'","net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}\n'
 		echoContent yellow " ---> 通用vmess(VMess+WS+TLS)链接"
 		echoContent green "    vmess://${qrCodeBase64Default}\n"
 		echoContent yellow " ---> 二维码 vmess(VMess+WS+TLS)"
@@ -2327,11 +2327,11 @@ EOF
 
 	elif [[ "${type}" == "vmesstcp" ]]; then
 
-		qrCodeBase64Default=$(echo -n '{"port":"'${port}'","ps":'${ps}',"tls":"tls","id":'"${id}"',"aid":"1","v":"2","host":"'${host}'","type":"http","path":"/'${path}'","net":"tcp","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'","obfs":"http","obfsParam":"'${host}'"}' | sed 's#/#\\\/#g' | base64)
+		qrCodeBase64Default=$(echo -n '{"port":"'${port}'","ps":'${ps}',"tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"http","path":"/'${path}'","net":"http","add":"'${add}'","allowInsecure":0,"method":"post","peer":"'${host}'","obfs":"http","obfsParam":"'${host}'"}' | sed 's#/#\\\/#g' | base64)
 		qrCodeBase64Default=$(echo ${qrCodeBase64Default} | sed 's/ //g')
 
 		echoContent yellow " ---> 通用json(VMess+TCP+TLS)"
-		echoContent green '    {"port":"'${port}'","ps":'${ps}',"tls":"tls","id":'"${id}"',"aid":"1","v":"2","host":"'${host}'","type":"http","path":"/'${path}'","net":"tcp","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'","obfs":"http","obfsParam":"'${host}'"}\n'
+		echoContent green '    {"port":"'${port}'","ps":'${ps}',"tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"http","path":"/'${path}'","net":"http","add":"'${add}'","allowInsecure":0,"method":"post","peer":"'${host}'","obfs":"http","obfsParam":"'${host}'"}\n'
 		echoContent yellow " ---> 通用vmess(VMess+TCP+TLS)链接"
 		echoContent green "    vmess://${qrCodeBase64Default}\n"
 
@@ -2367,13 +2367,13 @@ EOF
 		VLESSEmail=$(echo "${ps}" | awk -F "[\"]" '{print $2}')
 
 		echoContent yellow " ---> 通用格式(VLESS+gRPC+TLS)"
-		echoContent green "    vless://${VLESSID}@${add}:${port}?encryption=none&security=tls&type=grpc&host=${host}&serviceName=${path}#${VLESSEmail}\n"
+		echoContent green "    vless://${VLESSID}@${add}:${port}?encryption=none&security=tls&type=grpc&host=${host}&serviceName=${path}&alpn=h2#${VLESSEmail}\n"
 
 		echoContent yellow " ---> 格式化明文(VLESS+gRPC+TLS)"
 		echoContent green "    协议类型：VLESS，地址：${add}，伪装域名/SNI：${host}，端口：${port}，用户ID：${VLESSID}，安全：tls，传输方式：gRPC，serviceName:${path}，账户名:${VLESSEmail}\n"
 
 		cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
-vless://${VLESSID}@${add}:${port}?encryption=none&security=tls&type=grpc&host=${host}&path=${path}#${VLESSEmail}
+vless://${VLESSID}@${add}:${port}?encryption=none&security=tls&type=grpc&host=${host}&path=${path}&serviceName=${path}&alpn=h2#${VLESSEmail}
 EOF
 		echoContent yellow " ---> 二维码 VLESS(VLESS+gRPC+TLS)"
 		echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${VLESSID}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dgrpc%26host%3D${host}%26path%3D${path}%23${VLESSEmail}"
@@ -2819,13 +2819,13 @@ addUser() {
 
 		if [[ ${userNum} == 0 ]]; then
 
-			users=${users}{\"id\":\"${uuid}\",\"flow\":\"xtls-rprx-direct\",\"email\":\"${email}\",\"alterId\":1}
+			users=${users}{\"id\":\"${uuid}\",\"flow\":\"xtls-rprx-direct\",\"email\":\"${email}\",\"alterId\":0}
 
 			if echo ${currentInstallProtocolType} | grep -q 4; then
 				trojanGoUsers=${trojanGoUsers}\"${uuid}\"
 			fi
 		else
-			users=${users}{\"id\":\"${uuid}\",\"flow\":\"xtls-rprx-direct\",\"email\":\"${email}\",\"alterId\":1},
+			users=${users}{\"id\":\"${uuid}\",\"flow\":\"xtls-rprx-direct\",\"email\":\"${email}\",\"alterId\":0},
 
 			if echo ${currentInstallProtocolType} | grep -q 4; then
 				trojanGoUsers=${trojanGoUsers}\"${uuid}\",
@@ -2840,7 +2840,7 @@ addUser() {
 	fi
 
 	if [[ -n $(echo ${currentInstallProtocolType} | grep 0) ]]; then
-		local vlessUsers="${users//\,\"alterId\":1/}"
+		local vlessUsers="${users//\,\"alterId\":0/}"
 
 		local vlessTcpResult
 		vlessTcpResult=$(jq -r '.inbounds[0].settings.clients += ['${vlessUsers}']' ${configPath}02_VLESS_TCP_inbounds.json)
@@ -2850,7 +2850,7 @@ addUser() {
 	#	users="${users//"flow":"xtls-rprx-direct",/"alterId":1,}"
 
 	if echo ${currentInstallProtocolType} | grep -q 1; then
-		local vlessUsers="${users//\,\"alterId\":1/}"
+		local vlessUsers="${users//\,\"alterId\":0/}"
 		vlessUsers="${vlessUsers//\"flow\":\"xtls-rprx-direct\"\,/}"
 		local vlessWsResult
 		vlessWsResult=$(jq -r '.inbounds[0].settings.clients += ['${vlessUsers}']' ${configPath}03_VLESS_WS_inbounds.json)
@@ -3954,9 +3954,10 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.8"
+	echoContent green "当前版本：v2.5.9"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
+	echoContent yellow "VMess+TLS+TCP，将在未来几个版本脚本中移除"
 	showInstallStatus
 	echoContent red "\n=============================================================="
 	if [[ -n "${coreInstallType}" ]]; then
