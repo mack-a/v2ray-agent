@@ -3957,8 +3957,8 @@ menu() {
 	echoContent green "当前版本：v2.5.9"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
-	echoContent yellow "VMess+TLS+TCP，将在未来几个版本脚本中移除"
 	showInstallStatus
+	echoContent red "\n\nVMess+TLS+TCP(http+tls)，将在未来几个版本脚本中移除"
 	echoContent red "\n=============================================================="
 	if [[ -n "${coreInstallType}" ]]; then
 		echoContent yellow "1.重新安装"
