@@ -331,7 +331,7 @@ showInstallStatus() {
 		fi
 
 		if echo ${currentInstallProtocolType} | grep -q 4; then
-			echoContent yellow "Trojan+TCP/WS[TLS] \c"
+			echoContent yellow "Trojan+TCP[TLS] \c"
 		fi
 
 		if echo ${currentInstallProtocolType} | grep -q 5; then
@@ -1285,50 +1285,50 @@ updateXray() {
 	fi
 }
 # 更新Trojan-Go
-updateTrojanGo() {
-	echoContent skyBlue "\n进度  $1/${totalProgress} : 更新Trojan-Go"
-	if [[ ! -d "/etc/v2ray-agent/trojan/" ]]; then
-		echoContent red " ---> 没有检测到安装目录，请执行脚本安装内容"
-		menu
-		exit 0
-	fi
-	if find /etc/v2ray-agent/trojan/ | grep -q "trojan-go"; then
-		version=$(curl -s https://api.github.com/repos/p4gefau1t/trojan-go/releases | jq -r .[0].tag_name)
-		echoContent green " ---> Trojan-Go版本:${version}"
-		if [[ -n $(wget --help | grep show-progress) ]]; then
-			wget -c -q --show-progress -P /etc/v2ray-agent/trojan/ "https://github.com/p4gefau1t/trojan-go/releases/download/${version}/${trojanGoCPUVendor}.zip"
-		else
-			wget -c -P /etc/v2ray-agent/trojan/ "https://github.com/p4gefau1t/trojan-go/releases/download/${version}/${trojanGoCPUVendor}.zip" >/dev/null 2>&1
-		fi
-		unzip -o /etc/v2ray-agent/trojan/${trojanGoCPUVendor}.zip -d /etc/v2ray-agent/trojan >/dev/null
-		rm -rf /etc/v2ray-agent/trojan/${trojanGoCPUVendor}.zip
-		handleTrojanGo stop
-		handleTrojanGo start
-	else
-		echoContent green " ---> 当前Trojan-Go版本:$(/etc/v2ray-agent/trojan/trojan-go --version | awk '{print $2}' | head -1)"
-		if [[ -n $(/etc/v2ray-agent/trojan/trojan-go --version) ]]; then
-			version=$(curl -s https://api.github.com/repos/p4gefau1t/trojan-go/releases | jq -r .[0].tag_name)
-			if [[ "${version}" == "$(/etc/v2ray-agent/trojan/trojan-go --version | awk '{print $2}' | head -1)" ]]; then
-				read -r -p "当前版本与最新版相同，是否重新安装？[y/n]:" reInstalTrojanGoStatus
-				if [[ "${reInstalTrojanGoStatus}" == "y" ]]; then
-					handleTrojanGo stop
-					rm -rf /etc/v2ray-agent/trojan/trojan-go
-					updateTrojanGo 1
-				else
-					echoContent green " ---> 放弃重新安装"
-				fi
-			else
-				read -r -p "最新版本为：${version}，是否更新？[y/n]：" installTrojanGoStatus
-				if [[ "${installTrojanGoStatus}" == "y" ]]; then
-					rm -rf /etc/v2ray-agent/trojan/trojan-go
-					updateTrojanGo 1
-				else
-					echoContent green " ---> 放弃更新"
-				fi
-			fi
-		fi
-	fi
-}
+#updateTrojanGo() {
+#	echoContent skyBlue "\n进度  $1/${totalProgress} : 更新Trojan-Go"
+#	if [[ ! -d "/etc/v2ray-agent/trojan/" ]]; then
+#		echoContent red " ---> 没有检测到安装目录，请执行脚本安装内容"
+#		menu
+#		exit 0
+#	fi
+#	if find /etc/v2ray-agent/trojan/ | grep -q "trojan-go"; then
+#		version=$(curl -s https://api.github.com/repos/p4gefau1t/trojan-go/releases | jq -r .[0].tag_name)
+#		echoContent green " ---> Trojan-Go版本:${version}"
+#		if [[ -n $(wget --help | grep show-progress) ]]; then
+#			wget -c -q --show-progress -P /etc/v2ray-agent/trojan/ "https://github.com/p4gefau1t/trojan-go/releases/download/${version}/${trojanGoCPUVendor}.zip"
+#		else
+#			wget -c -P /etc/v2ray-agent/trojan/ "https://github.com/p4gefau1t/trojan-go/releases/download/${version}/${trojanGoCPUVendor}.zip" >/dev/null 2>&1
+#		fi
+#		unzip -o /etc/v2ray-agent/trojan/${trojanGoCPUVendor}.zip -d /etc/v2ray-agent/trojan >/dev/null
+#		rm -rf /etc/v2ray-agent/trojan/${trojanGoCPUVendor}.zip
+#		handleTrojanGo stop
+#		handleTrojanGo start
+#	else
+#		echoContent green " ---> 当前Trojan-Go版本:$(/etc/v2ray-agent/trojan/trojan-go --version | awk '{print $2}' | head -1)"
+#		if [[ -n $(/etc/v2ray-agent/trojan/trojan-go --version) ]]; then
+#			version=$(curl -s https://api.github.com/repos/p4gefau1t/trojan-go/releases | jq -r .[0].tag_name)
+#			if [[ "${version}" == "$(/etc/v2ray-agent/trojan/trojan-go --version | awk '{print $2}' | head -1)" ]]; then
+#				read -r -p "当前版本与最新版相同，是否重新安装？[y/n]:" reInstalTrojanGoStatus
+#				if [[ "${reInstalTrojanGoStatus}" == "y" ]]; then
+#					handleTrojanGo stop
+#					rm -rf /etc/v2ray-agent/trojan/trojan-go
+#					updateTrojanGo 1
+#				else
+#					echoContent green " ---> 放弃重新安装"
+#				fi
+#			else
+#				read -r -p "最新版本为：${version}，是否更新？[y/n]：" installTrojanGoStatus
+#				if [[ "${installTrojanGoStatus}" == "y" ]]; then
+#					rm -rf /etc/v2ray-agent/trojan/trojan-go
+#					updateTrojanGo 1
+#				else
+#					echoContent green " ---> 放弃更新"
+#				fi
+#			fi
+#		fi
+#	fi
+#}
 
 # 验证整个服务是否可用
 checkGFWStatue() {
@@ -1640,9 +1640,44 @@ EOF
 	# 回落nginx
 	local fallbacksList='{"dest":31300,"xver":0},{"alpn":"h2","dest":31302,"xver":0}'
 
-	if echo "${selectCustomInstallType}" | grep -q 4 || [[ "$1" == "all" ]]; then
-		# 回落trojan-go
-		fallbacksList='{"dest":31296,"xver":0},{"alpn":"h2","dest":31302,"xver":0}'
+#	if echo "${selectCustomInstallType}" | grep -q 4 || [[ "$1" == "all" ]]; then
+#		# 回落trojan-go
+#		fallbacksList='{"dest":31296,"xver":1},{"alpn":"h2","dest":31302,"xver":0}'
+#	fi
+
+if [[ -n $(echo "${selectCustomInstallType}" | grep 4) || "$1" == "all" ]]; then
+#		fallbacksList=${fallbacksList}',{"path":"/'${customPath}'tcp","dest":31298,"xver":1}'
+		fallbacksList='{"dest":31296,"xver":1},{"alpn":"h2","dest":31302,"xver":0}'
+cat <<EOF >/etc/v2ray-agent/v2ray/conf/04_trojan_TCP_inbounds.json
+{
+"inbounds":[
+	{
+	  "port": 31296,
+	  "listen": "127.0.0.1",
+	  "protocol": "trojan",
+	  "tag":"trojanTCP",
+	  "settings": {
+		"clients": [
+		  {
+			"password": "${uuid}",
+			"email": "${domain}_trojan_tcp"
+		  }
+		],
+		"fallbacks":[
+			{"dest":"31300"}
+		]
+	  },
+	  "streamSettings": {
+		"network": "tcp",
+		"security": "none",
+		"tcpSettings": {
+			"acceptProxyProtocol": true
+		}
+	  }
+	}
+	]
+}
+EOF
 	fi
 
 	# VLESS_WS_TLS
@@ -2511,40 +2546,52 @@ showAccounts() {
 		fi
 	fi
 
-	# trojan-go
-	if [[ -d "/etc/v2ray-agent/" ]] && [[ -d "/etc/v2ray-agent/trojan/" ]] && [[ -f "/etc/v2ray-agent/trojan/config_full.json" ]]; then
-		show=1
-		# local trojanUUID=`cat /etc/v2ray-agent/trojan/config_full.json |jq .password[0]|awk -F '["]' '{print $2}'`
-		local trojanGoPath
-		trojanGoPath=$(jq -r .websocket.path /etc/v2ray-agent/trojan/config_full.json)
-		local trojanGoAdd
-		trojanGoAdd=$(jq .websocket.add /etc/v2ray-agent/trojan/config_full.json | awk -F '["]' '{print $2}')
+	# trojan tcp
+	if echo ${currentInstallProtocolType} | grep -q 4 || [[ -z "${currentInstallProtocolType}" ]]; then
 		echoContent skyBlue "\n==================================  Trojan TLS  ==================================\n"
-		# cat /etc/v2ray-agent/trojan/config_full.json | jq .password
-		jq -r -c '.password[]' /etc/v2ray-agent/trojan/config_full.json | while read -r user; do
-			trojanUUID=${user}
-			if [[ -n "${trojanUUID}" ]]; then
-				echoContent skyBlue " ---> 帐号：${currentHost}_trojan_${trojanUUID}\n"
-				echo
-				defaultBase64Code trojan trojan ${trojanUUID} ${currentHost}
-			fi
-		done
-
-		echoContent skyBlue "\n================================  Trojan WS TLS   ================================\n"
-		if [[ -z ${trojanGoAdd} ]]; then
-			trojanGoAdd=${currentHost}
-		fi
-
-		jq -r -c '.password[]' /etc/v2ray-agent/trojan/config_full.json | while read -r user; do
-			trojanUUID=${user}
-			if [[ -n "${trojanUUID}" ]]; then
-				echoContent skyBlue " ---> 帐号：${trojanGoAdd}_trojan_ws_${trojanUUID}"
-				echo
-				defaultBase64Code trojangows trojan ${trojanUUID} ${currentHost} ${trojanGoPath} ${trojanGoAdd}
-			fi
-
+		jq .inbounds[0].settings.clients ${configPath}04_trojan_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
+			echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq -r .email )_$(echo "${user}" | jq -r .password)"
+			echo
+			defaultBase64Code trojan trojan $(echo "${user}" | jq -r .password) ${currentHost}
 		done
 	fi
+
+
+#	# trojan-go
+#	if [[ -d "/etc/v2ray-agent/" ]] && [[ -d "/etc/v2ray-agent/trojan/" ]] && [[ -f "/etc/v2ray-agent/trojan/config_full.json" ]]; then
+#		show=1
+#		# local trojanUUID=`cat /etc/v2ray-agent/trojan/config_full.json |jq .password[0]|awk -F '["]' '{print $2}'`
+#		local trojanGoPath
+#		trojanGoPath=$(jq -r .websocket.path /etc/v2ray-agent/trojan/config_full.json)
+#		local trojanGoAdd
+#		trojanGoAdd=$(jq .websocket.add /etc/v2ray-agent/trojan/config_full.json | awk -F '["]' '{print $2}')
+#		echoContent skyBlue "\n==================================  Trojan TLS  ==================================\n"
+#		# cat /etc/v2ray-agent/trojan/config_full.json | jq .password
+#		jq -r -c '.password[]' /etc/v2ray-agent/trojan/config_full.json | while read -r user; do
+#			trojanUUID=${user}
+#			if [[ -n "${trojanUUID}" ]]; then
+#				echoContent skyBlue " ---> 帐号：${currentHost}_trojan_${trojanUUID}\n"
+#				echo
+#				defaultBase64Code trojan trojan ${trojanUUID} ${currentHost}
+#			fi
+#		done
+#
+#		echoContent skyBlue "\n================================  Trojan WS TLS   ================================\n"
+#		if [[ -z ${trojanGoAdd} ]]; then
+#			trojanGoAdd=${currentHost}
+#		fi
+#
+#		jq -r -c '.password[]' /etc/v2ray-agent/trojan/config_full.json | while read -r user; do
+#			trojanUUID=${user}
+#			if [[ -n "${trojanUUID}" ]]; then
+#				echoContent skyBlue " ---> 帐号：${trojanGoAdd}_trojan_ws_${trojanUUID}"
+#				echo
+#				defaultBase64Code trojangows trojan ${trojanUUID} ${currentHost} ${trojanGoPath} ${trojanGoAdd}
+#			fi
+#
+#		done
+#	fi
+
 	if [[ -z ${show} ]]; then
 		echoContent red " ---> 未安装"
 	fi
@@ -2721,25 +2768,24 @@ updateV2RayCDN() {
 			fi
 
 			# trojan
-			if [[ -d "/etc/v2ray-agent/trojan" ]] && [[ -f "/etc/v2ray-agent/trojan/config_full.json" ]]; then
-				add=$(jq -r .websocket.add /etc/v2ray-agent/trojan/config_full.json)
-				if [[ -n ${add} ]]; then
-					sed -i "s/${add}/${setDomain}/g" $(grep "${add}" -rl /etc/v2ray-agent/trojan/config_full.json)
-				fi
-			fi
+#			if [[ -d "/etc/v2ray-agent/trojan" ]] && [[ -f "/etc/v2ray-agent/trojan/config_full.json" ]]; then
+#				add=$(jq -r .websocket.add /etc/v2ray-agent/trojan/config_full.json)
+#				if [[ -n ${add} ]]; then
+#					sed -i "s/${add}/${setDomain}/g" $(grep "${add}" -rl /etc/v2ray-agent/trojan/config_full.json)
+#				fi
+#			fi
 
-			if [[ -d "/etc/v2ray-agent/trojan" ]] && [[ -f "/etc/v2ray-agent/trojan/config_full.json" ]] && [[ $(jq -r .websocket.add /etc/v2ray-agent/trojan/config_full.json) == ${setDomain} ]]; then
-				echoContent green "\n ---> Trojan CDN修改成功"
-				handleTrojanGo stop
-				handleTrojanGo start
-			elif [[ -d "/etc/v2ray-agent/trojan" ]] && [[ -f "/etc/v2ray-agent/trojan/config_full.json" ]]; then
-				echoContent red " ---> 修改Trojan CDN失败"
-			fi
+#			if [[ -d "/etc/v2ray-agent/trojan" ]] && [[ -f "/etc/v2ray-agent/trojan/config_full.json" ]] && [[ $(jq -r .websocket.add /etc/v2ray-agent/trojan/config_full.json) == ${setDomain} ]]; then
+#				echoContent green "\n ---> Trojan CDN修改成功"
+#				handleTrojanGo stop
+#				handleTrojanGo start
+#			elif [[ -d "/etc/v2ray-agent/trojan" ]] && [[ -f "/etc/v2ray-agent/trojan/config_full.json" ]]; then
+#				echoContent red " ---> 修改Trojan CDN失败"
+#			fi
 		fi
 	else
 		echoContent red " ---> 未安装可用类型"
 	fi
-	menu
 }
 
 # manageUser 用户管理
@@ -2899,20 +2945,32 @@ addUser() {
 	fi
 
 	if echo ${currentInstallProtocolType} | grep -q 5; then
-		local vmessUsers="${users//\"flow\":\"xtls-rprx-direct\"\,/}"
+		local vlessGRPCUsers="${users//\"flow\":\"xtls-rprx-direct\"\,/}"
+		vlessGRPCUsers="${vlessGRPCUsers//\,\"alterId\":0/}"
 
 		local vlessGRPCResult
-		vlessGRPCResult=$(jq -r '.inbounds[0].settings.clients += ['${vmessUsers}']' ${configPath}06_VLESS_gRPC_inbounds.json)
+		vlessGRPCResult=$(jq -r '.inbounds[0].settings.clients += ['${vlessGRPCUsers}']' ${configPath}06_VLESS_gRPC_inbounds.json)
 		echo "${vlessGRPCResult}" | jq . >${configPath}06_VLESS_gRPC_inbounds.json
 	fi
 
 	if echo ${currentInstallProtocolType} | grep -q 4; then
-		local trojanResult
-		trojanResult=$(jq -r '.password += ['${trojanGoUsers}']' ${configPath}../../trojan/config_full.json)
-		echo "${trojanResult}" | jq . >${configPath}../../trojan/config_full.json
-		handleTrojanGo stop
-		handleTrojanGo start
+		local trojanUsers="${users//\"flow\":\"xtls-rprx-direct\"\,/}"
+		trojanUsers="${trojanUsers//id/password}"
+		trojanUsers="${trojanUsers//\,\"alterId\":0/}"
+
+
+		local trojanTCPResult
+		trojanTCPResult=$(jq -r '.inbounds[0].settings.clients += ['${trojanUsers}']' ${configPath}04_trojan_TCP_inbounds.json)
+		echo "${trojanTCPResult}" | jq . >${configPath}04_trojan_TCP_inbounds.json
 	fi
+
+#	if echo ${currentInstallProtocolType} | grep -q 4; then
+#		local trojanResult
+#		trojanResult=$(jq -r '.password += ['${trojanGoUsers}']' ${configPath}../../trojan/config_full.json)
+#		echo "${trojanResult}" | jq . >${configPath}../../trojan/config_full.json
+#		handleTrojanGo stop
+#		handleTrojanGo start
+#	fi
 
 	reloadCore
 	echoContent green " ---> 添加完成"
@@ -2960,12 +3018,17 @@ removeUser() {
 		fi
 
 		if echo ${currentInstallProtocolType} | grep -q 4; then
-			local trojanResult
-			trojanResult=$(jq -r 'del(.password['${delUserIndex}'])' ${configPath}../../trojan/config_full.json)
-			echo "${trojanResult}" | jq . >${configPath}../../trojan/config_full.json
-			handleTrojanGo stop
-			handleTrojanGo start
+			local trojanTCPResult
+			trojanTCPResult=$(jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])' ${configPath}04_trojan_TCP_inbounds.json)
+			echo "${trojanTCPResult}" | jq . >${configPath}04_trojan_TCP_inbounds.json
 		fi
+#		if echo ${currentInstallProtocolType} | grep -q 4; then
+#			local trojanResult
+#			trojanResult=$(jq -r 'del(.password['${delUserIndex}'])' ${configPath}../../trojan/config_full.json)
+#			echo "${trojanResult}" | jq . >${configPath}../../trojan/config_full.json
+#			handleTrojanGo stop
+#			handleTrojanGo start
+#		fi
 		reloadCore
 	fi
 }
@@ -3387,7 +3450,7 @@ EOF
 		fi
 		reloadCore
 		echoContent green " ---> 添加Netflix出战解锁成功"
-		echoContent yellow " ---> 不支持trojan的相关节点"
+#		echoContent yellow " ---> 不支持trojan的相关节点"
 		exit 0
 	fi
 	echoContent red " ---> ip不可为空"
@@ -3513,7 +3576,7 @@ EOF
 		echo "${routing}" | jq . >${configPath}09_routing.json
 		reloadCore
 		echoContent green " ---> 添加落地机入站解锁Netflix成功"
-		echoContent yellow " ---> trojan的相关节点不支持此操作"
+#		echoContent yellow " ---> trojan的相关节点不支持此操作"
 		exit 0
 	fi
 	echoContent red " ---> ip不可为空"
@@ -3666,7 +3729,8 @@ customV2RayInstall() {
 	echoContent yellow "1.VLESS+TLS+WS[CDN]"
 	echoContent yellow "2.VMess+TLS+TCP"
 	echoContent yellow "3.VMess+TLS+WS[CDN]"
-	echoContent yellow "4.Trojan、Trojan+WS[CDN]"
+#	echoContent yellow "4.Trojan、Trojan+WS[CDN]"
+	echoContent yellow "4.Trojan"
 	echoContent yellow "5.VLESS+TLS+gRPC[CDN]"
 	read -r -p "请选择[多选]，[例如:123]:" selectCustomInstallType
 	echoContent skyBlue "--------------------------------------------------------------"
@@ -3728,7 +3792,8 @@ customXrayInstall() {
 	echoContent yellow "1.VLESS+TLS+WS[CDN]"
 	echoContent yellow "2.VMess+TLS+TCP"
 	echoContent yellow "3.VMess+TLS+WS[CDN]"
-	echoContent yellow "4.Trojan、Trojan+WS[CDN]"
+	# echoContent yellow "4.Trojan、Trojan+WS[CDN]"
+	echoContent yellow "4.Trojan"
 	echoContent yellow "5.VLESS+TLS+gRPC[CDN]"
 	read -r -p "请选择[多选]，[例如:123]:" selectCustomInstallType
 	echoContent skyBlue "--------------------------------------------------------------"
@@ -3840,12 +3905,12 @@ v2rayCoreInstall() {
 	# 安装V2Ray
 	installV2Ray 7
 	installV2RayService 8
-	installTrojanGo 9
-	installTrojanService 10
+#	installTrojanGo 9
+#	installTrojanService 10
 	customCDNIP 11
 	initV2RayConfig all 12
 	cleanUp xrayDel
-	initTrojanGoConfig 13
+#	initTrojanGoConfig 13
 	installCronTLS 14
 	nginxBlog 15
 	updateRedirectNginxConf
@@ -3853,9 +3918,9 @@ v2rayCoreInstall() {
 	sleep 2
 	handleV2Ray start
 	handleNginx start
-	handleTrojanGo stop
-	sleep 1
-	handleTrojanGo start
+#	handleTrojanGo stop
+#	sleep 1
+#	handleTrojanGo start
 	# 生成账号
 	checkGFWStatue 16
 	showAccounts 17
@@ -3982,7 +4047,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.10"
+	echoContent green "当前版本：v2.5.10-dev_remove_trojan-go"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
@@ -4008,12 +4073,12 @@ menu() {
 	echoContent yellow "10.添加新端口"
 	echoContent skyBlue "-------------------------版本管理-----------------------------"
 	echoContent yellow "11.core管理"
-	echoContent yellow "12.更新Trojan-Go"
-	echoContent yellow "13.更新脚本"
-	echoContent yellow "14.安装BBR、DD脚本"
+#	echoContent yellow "12.更新Trojan-Go"
+	echoContent yellow "12.更新脚本"
+	echoContent yellow "13.安装BBR、DD脚本"
 	echoContent skyBlue "-------------------------脚本管理-----------------------------"
-	echoContent yellow "15.查看日志"
-	echoContent yellow "16.卸载脚本"
+	echoContent yellow "14.查看日志"
+	echoContent yellow "15.卸载脚本"
 	echoContent red "=============================================================="
 	mkdirTools
 	aliasInstall
@@ -4052,19 +4117,19 @@ menu() {
 	11)
 		coreVersionManageMenu 1
 		;;
+#	12)
+#		updateTrojanGo 1
+#		;;
 	12)
-		updateTrojanGo 1
-		;;
-	13)
 		updateV2RayAgent 1
 		;;
-	14)
+	13)
 		bbrInstall
 		;;
-	15)
+	14)
 		checkLog 1
 		;;
-	16)
+	15)
 		unInstall 1
 		;;
 	esac
