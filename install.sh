@@ -1964,19 +1964,6 @@ EOF
 EOF
 	fi
 
-	# 取消BT
-	#	cat <<EOF >/etc/v2ray-agent/xray/conf/10_bt_outbounds.json
-	#{
-	#    "outbounds": [
-	#        {
-	#          "protocol": "blackhole",
-	#          "settings": {},
-	#          "tag": "blocked"
-	#        }
-	#    ]
-	#}
-	#EOF
-
 	# dns
 	cat <<EOF >/etc/v2ray-agent/xray/conf/11_dns.json
 {
@@ -1987,14 +1974,51 @@ EOF
   }
 }
 EOF
+
 	# VLESS_TCP_TLS/XTLS
 	# 回落nginx
 	local fallbacksList='{"dest":31300,"xver":0},{"alpn":"h2","dest":31302,"xver":0}'
 
-	if echo "${selectCustomInstallType}" | grep -q 4 || [[ "$1" == "all" ]]; then
-		# 回落trojan-go
-		fallbacksList='{"dest":31296,"xver":0},{"alpn":"h2","dest":31302,"xver":0}'
+	# trojan
+	if [[ -n $(echo "${selectCustomInstallType}" | grep 4) || "$1" == "all" ]]; then
+#		fallbacksList=${fallbacksList}',{"path":"/'${customPath}'tcp","dest":31298,"xver":1}'
+		fallbacksList='{"dest":31296,"xver":1},{"alpn":"h2","dest":31302,"xver":0}'
+		cat <<EOF >/etc/v2ray-agent/xray/conf/04_trojan_TCP_inbounds.json
+{
+"inbounds":[
+	{
+	  "port": 31296,
+	  "listen": "127.0.0.1",
+	  "protocol": "trojan",
+	  "tag":"trojanTCP",
+	  "settings": {
+		"clients": [
+		  {
+			"password": "${uuid}",
+			"email": "${domain}_trojan_tcp"
+		  }
+		],
+		"fallbacks":[
+			{"dest":"31300"}
+		]
+	  },
+	  "streamSettings": {
+		"network": "tcp",
+		"security": "none",
+		"tcpSettings": {
+			"acceptProxyProtocol": true
+		}
+	  }
+	}
+	]
+}
+EOF
 	fi
+
+#	if echo "${selectCustomInstallType}" | grep -q 4 || [[ "$1" == "all" ]]; then
+#		# 回落trojan-go
+#		fallbacksList='{"dest":31296,"xver":0},{"alpn":"h2","dest":31302,"xver":0}'
+#	fi
 
 	# VLESS_WS_TLS
 	if echo "${selectCustomInstallType}" | grep -q 1 || [[ "$1" == "all" ]]; then
@@ -2070,6 +2094,7 @@ EOF
 }
 EOF
 	fi
+
 
 	# VMess_WS
 	if echo "${selectCustomInstallType}" | grep -q 3 || [[ "$1" == "all" ]]; then
@@ -2631,7 +2656,7 @@ unInstall() {
 	fi
 
 	handleV2Ray stop
-	handleTrojanGo stop
+#	handleTrojanGo stop
 	rm -rf /root/.acme.sh
 	echoContent green " ---> 删除acme.sh完成"
 	rm -rf /etc/systemd/system/v2ray.service
@@ -3671,18 +3696,18 @@ customV2RayInstall() {
 		installV2RayService 9
 		initV2RayConfig custom 10
 		cleanUp xrayDel
-		if echo ${selectCustomInstallType} | grep -q 4; then
-			installTrojanGo 11
-			installTrojanService 12
-			initTrojanGoConfig 13
-			handleTrojanGo stop
-			handleTrojanGo start
-		else
-			# 这里需要删除trojan的服务
-			handleTrojanGo stop
-			rm -rf /etc/v2ray-agent/trojan/*
-			rm -rf /etc/systemd/system/trojan-go.service
-		fi
+#		if echo ${selectCustomInstallType} | grep -q 4; then
+#			installTrojanGo 11
+#			installTrojanService 12
+#			initTrojanGoConfig 13
+#			handleTrojanGo stop
+#			handleTrojanGo start
+#		else
+#			# 这里需要删除trojan的服务
+#			handleTrojanGo stop
+#			rm -rf /etc/v2ray-agent/trojan/*
+#			rm -rf /etc/systemd/system/trojan-go.service
+#		fi
 		installCronTLS 14
 		handleV2Ray stop
 		handleV2Ray start
@@ -3734,17 +3759,20 @@ customXrayInstall() {
 		initXrayConfig custom 10
 		cleanUp v2rayDel
 		if echo "${selectCustomInstallType}" | grep -q 4; then
-			installTrojanGo 11
-			installTrojanService 12
-			initTrojanGoConfig 13
-			handleTrojanGo stop
-			handleTrojanGo start
+#			installTrojanGo 11
+#			installTrojanService 12
+#			initTrojanGoConfig 13
+#			handleTrojanGo stop
+#			handleTrojanGo start
+			echo
 		else
 			# 这里需要删除trojan的服务
-			handleTrojanGo stop
-			rm -rf /etc/v2ray-agent/trojan/*
-			rm -rf /etc/systemd/system/trojan-go.service
+#			handleTrojanGo stop
+#			rm -rf /etc/v2ray-agent/trojan/*
+#			rm -rf /etc/systemd/system/trojan-go.service
+			echo
 		fi
+
 		installCronTLS 14
 		handleXray stop
 		handleXray start
@@ -3849,12 +3877,12 @@ xrayCoreInstall() {
 	handleV2Ray stop
 	installXray 7
 	installXrayService 8
-	installTrojanGo 9
-	installTrojanService 10
+#	installTrojanGo 9
+#	installTrojanService 10
 	customCDNIP 11
 	initXrayConfig all 12
 	cleanUp v2rayDel
-	initTrojanGoConfig 13
+#	initTrojanGoConfig 13
 	installCronTLS 14
 	nginxBlog 15
 	updateRedirectNginxConf
@@ -3863,9 +3891,9 @@ xrayCoreInstall() {
 	handleXray start
 
 	handleNginx start
-	handleTrojanGo stop
-	sleep 1
-	handleTrojanGo start
+#	handleTrojanGo stop
+#	sleep 1
+#	handleTrojanGo start
 	# 生成账号
 	checkGFWStatue 16
 	showAccounts 17
@@ -3954,7 +3982,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.9"
+	echoContent green "当前版本：v2.5.10"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
