@@ -229,15 +229,18 @@ readInstallProtocolType() {
 		if echo ${row} | grep -q VMess_WS_inbounds; then
 			currentInstallProtocolType=${currentInstallProtocolType}'3'
 		fi
+		if echo ${row} | grep -q trojan_TCP_inbounds; then
+			currentInstallProtocolType=${currentInstallProtocolType}'4'
+		fi
 		if echo ${row} | grep -q VLESS_gRPC_inbounds; then
 			currentInstallProtocolType=${currentInstallProtocolType}'5'
 		fi
 
 	done < <(ls ${configPath} | grep inbounds.json | awk -F "[.]" '{print $1}')
 
-	if [[ -f "/etc/v2ray-agent/trojan/trojan-go" ]] && [[ -f "/etc/v2ray-agent/trojan/config_full.json" ]]; then
-		currentInstallProtocolType=${currentInstallProtocolType}'4'
-	fi
+#	if [[ -f "/etc/v2ray-agent/trojan/trojan-go" ]] && [[ -f "/etc/v2ray-agent/trojan/config_full.json" ]]; then
+#		currentInstallProtocolType=${currentInstallProtocolType}'4'
+#	fi
 }
 
 # 检查文件目录以及path路径
@@ -4047,7 +4050,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.10-dev_remove_trojan-go"
+	echoContent green "当前版本：v2.5.10-dev_remove_trojan-go_1"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
