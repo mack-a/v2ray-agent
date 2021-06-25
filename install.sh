@@ -3988,6 +3988,7 @@ menu() {
 	showInstallStatus
 	echoContent red "\n=============================================================="
 	echoContent red "VMess+TLS+TCP(http+tls)，将在未来几个版本脚本中移除"
+	echoContent red "此版本正在将trojan-go(trojan)替换为Xray-core(trojan)"
 	echoContent red "=============================================================="
 	if [[ -n "${coreInstallType}" ]]; then
 		echoContent yellow "1.重新安装"
