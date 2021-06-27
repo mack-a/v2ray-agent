@@ -744,7 +744,7 @@ checkIP() {
 			exit 0
 		fi
 	else
-		read -r -p "IP查询失败，是否重试[y/n]？" retryStatus
+		read -r -p "IP查询失败，请检查域名解析是否正确，是否重试[y/n]？" retryStatus
 		if [[ "${retryStatus}" == "y" ]]; then
 			checkIP
 		else
@@ -1698,7 +1698,7 @@ EOF
     "clients": [
       {
         "id": "${uuid}",
-        "email": "${domain}_vless_ws"
+        "email": "${domain}_VLESS_WS"
       }
     ],
     "decryption": "none"
@@ -1807,7 +1807,7 @@ EOF
                 {
                     "id": "${uuid}",
                     "add": "${add}",
-        			"email": "${domain}_vless_grpc"
+        			"email": "${domain}_VLESS_gRPC"
                 }
             ],
             "decryption": "none"
@@ -2020,7 +2020,7 @@ EOF
 	# trojan
 	if [[ -n $(echo "${selectCustomInstallType}" | grep 4) || "$1" == "all" ]]; then
 #		fallbacksList=${fallbacksList}',{"path":"/'${customPath}'tcp","dest":31298,"xver":1}'
-		fallbacksList='{"dest":31296,"xver":1},{"alpn":"h2","dest":31302,"xver":0}'
+		fallbacksList='{"dest":31296,"xver":1},{"dest":30301,"xver":1},{"alpn":"h2","dest":31302,"xver":0}'
 		cat <<EOF >/etc/v2ray-agent/xray/conf/04_trojan_TCP_inbounds.json
 {
 "inbounds":[
@@ -2073,7 +2073,7 @@ EOF
     "clients": [
       {
         "id": "${uuid}",
-        "email": "${domain}_vless_ws"
+        "email": "${domain}_VLESS_WS"
       }
     ],
     "decryption": "none"
@@ -2183,7 +2183,7 @@ EOF
                 {
                     "id": "${uuid}",
                     "add": "${add}",
-                    "email": "${domain}_vless_grpc"
+                    "email": "${domain}_VLESS_gRPC"
                 }
             ],
             "decryption": "none"
@@ -2390,11 +2390,11 @@ EOF
 
 	elif [[ "${type}" == "vmesstcp" ]]; then
 
-		qrCodeBase64Default=$(echo -n '{"port":"'${port}'","ps":'${ps}',"tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"http","path":"/'${path}'","net":"http","add":"'${add}'","allowInsecure":0,"method":"post","peer":"'${host}'","obfs":"http","obfsParam":"'${host}'"}' | sed 's#/#\\\/#g' | base64)
+		qrCodeBase64Default=$(echo -n '{"alpn":"http1.1","port":"'${port}'","ps":'${ps}',"tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"http","path":"/'${path}'","net":"tcp","add":"'${add}'","allowInsecure":0,"method":"post","peer":"'${host}'","obfs":"http","obfsParam":"'${host}'"}' | sed 's#/#\\\/#g' | base64)
 		qrCodeBase64Default=$(echo ${qrCodeBase64Default} | sed 's/ //g')
 
 		echoContent yellow " ---> 通用json(VMess+TCP+TLS)"
-		echoContent green '    {"port":"'${port}'","ps":'${ps}',"tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"http","path":"/'${path}'","net":"http","add":"'${add}'","allowInsecure":0,"method":"post","peer":"'${host}'","obfs":"http","obfsParam":"'${host}'"}\n'
+		echoContent green '    {"alpn":"http1.1","port":"'${port}'","ps":'${ps}',"tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"http","path":"/'${path}'","net":"http","add":"'${add}'","allowInsecure":0,"method":"post","peer":"'${host}'","obfs":"http","obfsParam":"'${host}'"}\n'
 		echoContent yellow " ---> 通用vmess(VMess+TCP+TLS)链接"
 		echoContent green "    vmess://${qrCodeBase64Default}\n"
 
@@ -2433,7 +2433,7 @@ EOF
 		echoContent green "    vless://${VLESSID}@${add}:${port}?encryption=none&security=tls&type=grpc&host=${host}&serviceName=${path}&alpn=h2#${VLESSEmail}\n"
 
 		echoContent yellow " ---> 格式化明文(VLESS+gRPC+TLS)"
-		echoContent green "    协议类型：VLESS，地址：${add}，伪装域名/SNI：${host}，端口：${port}，用户ID：${VLESSID}，安全：tls，传输方式：gRPC，serviceName:${path}，账户名:${VLESSEmail}\n"
+		echoContent green "    协议类型：VLESS，地址：${add}，伪装域名/SNI：${host}，端口：${port}，用户ID：${VLESSID}，安全：tls，传输方式：gRPC，alpn：h2，serviceName:${path}，账户名:${VLESSEmail}\n"
 
 		cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
 vless://${VLESSID}@${add}:${port}?encryption=none&security=tls&type=grpc&host=${host}&path=${path}&serviceName=${path}&alpn=h2#${VLESSEmail}
@@ -2444,7 +2444,7 @@ EOF
 	elif [[ "${type}" == "trojan" ]]; then
 		# URLEncode
 		echoContent yellow " ---> Trojan(TLS)"
-		echoContent green "    trojan://${id}@${host}:${port}?peer=${host}&sni=${host}#${host}_trojan\n"
+		echoContent green "    trojan://${id}@${host}:${port}?peer=${host}&sni=${host}&alpn=http1.1#${host}_trojan\n"
 
 		cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
 trojan://${id}@${host}:${port}?peer=${host}&sni=${host}#${host}_trojan
