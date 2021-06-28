@@ -111,17 +111,11 @@
 
 ## 客户端推荐
 - Android
-
-[AnXray](https://github.com/XTLS/AnXray/releases)[推荐使用最新版本]
-
-- iOS
-
-Shadowrocket
-
-- win/Mac/Linux
-
-[Qv2ray](https://github.com/Qv2ray/Qv2ray/actions)[推荐action版本]
-
+  - [AnXray](https://github.com/XTLS/AnXray/releases)  
+  
+- windows/Mac/Linux
+  - [Qv2ray](https://github.com/Qv2ray/Qv2ray/actions)[推荐action版本]
+  
 ## 安装脚本
 
 - 支持快捷方式启动，安装完毕后，shell输入【**vasma**】即可打开脚本，脚本执行路径[**/etc/v2ray-agent/install.sh**]
