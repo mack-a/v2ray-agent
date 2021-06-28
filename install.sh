@@ -167,6 +167,7 @@ initVar() {
 
 	# pingIPv6 pingIPv4
 	# pingIPv4=
+	pingIP=
 	pingIPv6=
 
 	# 集成更新证书逻辑不再使用单独的脚本--RenewTLS
@@ -645,7 +646,7 @@ initTLSNginxConfig() {
 		# 测试nginx
 		echoContent yellow "\n检查Nginx是否正常访问"
 		sleep 0.5
-		domainResult=$(curl -s "${domain}/test" | grep fjkvymb6len)
+		domainResult=$(curl -s "${domain}/test" --resolve "${domain}:80:${pingIP}" | grep fjkvymb6len)
 		if [[ -n ${domainResult} ]]; then
 			handleNginx stop
 			echoContent green "\n ---> Nginx配置成功"
@@ -725,7 +726,7 @@ EOF
 # 检查ip
 checkIP() {
 	echoContent skyBlue " ---> 检查ipv4中"
-	local pingIP=$(curl -s -H 'accept:application/dns-json' 'https://cloudflare-dns.com/dns-query?name='${domain}'&type=A' | jq -r ".Answer|.[]|select(.type==1)|.data")
+	pingIP=$(curl -s -H 'accept:application/dns-json' 'https://cloudflare-dns.com/dns-query?name='${domain}'&type=A' | jq -r ".Answer|.[]|select(.type==1)|.data")
 
 	if [[ -z "${pingIP}" ]]; then
 		echoContent skyBlue " ---> 检查ipv6中"
