@@ -1718,45 +1718,45 @@ EOF
 	fi
 
 	# VMess_TCP
-	if echo "${selectCustomInstallType}" | grep -q 2 || [[ "$1" == "all" ]]; then
-		fallbacksList=${fallbacksList}',{"path":"/'${customPath}'tcp","dest":31298,"xver":1}'
-		cat <<EOF >/etc/v2ray-agent/v2ray/conf/04_VMess_TCP_inbounds.json
-{
-"inbounds":[
-{
-  "port": 31298,
-  "listen": "127.0.0.1",
-  "protocol": "vmess",
-  "tag":"VMessTCP",
-  "settings": {
-    "clients": [
-      {
-        "id": "${uuid}",
-        "alterId": 0,
-        "email": "${domain}_vmess_tcp"
-      }
-    ]
-  },
-  "streamSettings": {
-    "network": "tcp",
-    "security": "none",
-    "tcpSettings": {
-      "acceptProxyProtocol": true,
-      "header": {
-        "type": "http",
-        "request": {
-          "path": [
-            "/${customPath}tcp"
-          ]
-        }
-      }
-    }
-  }
-}
-]
-}
-EOF
-	fi
+#	if echo "${selectCustomInstallType}" | grep -q 2 || [[ "$1" == "all" ]]; then
+#		fallbacksList=${fallbacksList}',{"path":"/'${customPath}'tcp","dest":31298,"xver":1}'
+#		cat <<EOF >/etc/v2ray-agent/v2ray/conf/04_VMess_TCP_inbounds.json
+#{
+#"inbounds":[
+#{
+#  "port": 31298,
+#  "listen": "127.0.0.1",
+#  "protocol": "vmess",
+#  "tag":"VMessTCP",
+#  "settings": {
+#    "clients": [
+#      {
+#        "id": "${uuid}",
+#        "alterId": 0,
+#        "email": "${domain}_vmess_tcp"
+#      }
+#    ]
+#  },
+#  "streamSettings": {
+#    "network": "tcp",
+#    "security": "none",
+#    "tcpSettings": {
+#      "acceptProxyProtocol": true,
+#      "header": {
+#        "type": "http",
+#        "request": {
+#          "path": [
+#            "/${customPath}tcp"
+#          ]
+#        }
+#      }
+#    }
+#  }
+#}
+#]
+#}
+#EOF
+#	fi
 
 	# VMess_WS
 	if echo "${selectCustomInstallType}" | grep -q 3 || [[ "$1" == "all" ]]; then
@@ -1851,8 +1851,8 @@ EOF
         "security": "tls",
         "tlsSettings": {
           "alpn": [
-            "h2",
-            "http/1.1"
+            "http/1.1",
+            "h2"
           ],
           "certificates": [
             {
@@ -2020,7 +2020,7 @@ EOF
 	# trojan
 	if [[ -n $(echo "${selectCustomInstallType}" | grep 4) || "$1" == "all" ]]; then
 #		fallbacksList=${fallbacksList}',{"path":"/'${customPath}'tcp","dest":31298,"xver":1}'
-		fallbacksList='{"dest":31296,"xver":1},{"dest":30301,"xver":1},{"alpn":"h2","dest":31302,"xver":0}'
+		fallbacksList='{"dest":31296,"xver":1},{"alpn":"h2","dest":31302,"xver":0}'
 		cat <<EOF >/etc/v2ray-agent/xray/conf/04_trojan_TCP_inbounds.json
 {
 "inbounds":[
@@ -2092,46 +2092,46 @@ EOF
 EOF
 	fi
 
-	# VMess_TCP
-	if [[ -n $(echo ${selectCustomInstallType} | grep 2) || "$1" == "all" ]]; then
-		fallbacksList=${fallbacksList}',{"path":"/'${customPath}'tcp","dest":31298,"xver":1}'
-		cat <<EOF >/etc/v2ray-agent/xray/conf/04_VMess_TCP_inbounds.json
-{
-"inbounds":[
-{
-  "port": 31298,
-  "listen": "127.0.0.1",
-  "protocol": "vmess",
-  "tag":"VMessTCP",
-  "settings": {
-    "clients": [
-      {
-        "id": "${uuid}",
-        "alterId": 0,
-        "email": "${domain}_vmess_tcp"
-      }
-    ]
-  },
-  "streamSettings": {
-    "network": "tcp",
-    "security": "none",
-    "tcpSettings": {
-      "acceptProxyProtocol": true,
-      "header": {
-        "type": "http",
-        "request": {
-          "path": [
-            "/${customPath}tcp"
-          ]
-        }
-      }
-    }
-  }
-}
-]
-}
-EOF
-	fi
+#	# VMess_TCP
+#	if [[ -n $(echo ${selectCustomInstallType} | grep 2) || "$1" == "all" ]]; then
+#		fallbacksList=${fallbacksList}',{"path":"/'${customPath}'tcp","dest":31298,"xver":1}'
+#		cat <<EOF >/etc/v2ray-agent/xray/conf/04_VMess_TCP_inbounds.json
+#{
+#"inbounds":[
+#{
+#  "port": 31298,
+#  "listen": "127.0.0.1",
+#  "protocol": "vmess",
+#  "tag":"VMessTCP",
+#  "settings": {
+#    "clients": [
+#      {
+#        "id": "${uuid}",
+#        "alterId": 0,
+#        "email": "${domain}_vmess_tcp"
+#      }
+#    ]
+#  },
+#  "streamSettings": {
+#    "network": "tcp",
+#    "security": "none",
+#    "tcpSettings": {
+#      "acceptProxyProtocol": true,
+#      "header": {
+#        "type": "http",
+#        "request": {
+#          "path": [
+#            "/${customPath}tcp"
+#          ]
+#        }
+#      }
+#    }
+#  }
+#}
+#]
+#}
+#EOF
+#	fi
 
 
 	# VMess_WS
@@ -2228,8 +2228,8 @@ EOF
     "xtlsSettings": {
       "minVersion": "1.2",
       "alpn": [
-        "h2",
-        "http/1.1"
+        "http/1.1",
+        "h2"
       ],
       "certificates": [
         {
@@ -2390,11 +2390,25 @@ EOF
 
 	elif [[ "${type}" == "vmesstcp" ]]; then
 
-		qrCodeBase64Default=$(echo -n '{"alpn":"http1.1","port":"'${port}'","ps":'${ps}',"tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"http","path":"/'${path}'","net":"tcp","add":"'${add}'","allowInsecure":0,"method":"post","peer":"'${host}'","obfs":"http","obfsParam":"'${host}'"}' | sed 's#/#\\\/#g' | base64)
+#		echoContent yellow " ---> 通用格式[新版，推荐]"
+#
+#		echoContent green "    vmess://tcp+tls:2e6257c5-1402-41a6-a96d-1e0bdad78159-0@vu3.s83h.xyz:443/?type=http&tlsServerName=vu3.s83h.xyz#vu3.s83h.xyz_vmess_tcp"
+#		echoContent green "    vmess://tcp+tls:${id//\"/}-0@${add}:${port}/?type=http&path=/${path}&tlsServerName=${host}&alpn=http1.1#${ps//\"/}\n"
+#
+#		echoContent yellow " ---> 格式化明文(vmess+http+tls)"
+#		echoContent green "协议类型：vmess，地址：${host}，端口：${port}，用户ID：${id}，安全：tls，传输方式：http，账户名:${ps}\n"
+#		cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
+#vmess://http+tls:${id}-0@${add}:${port}/?path=/${path}&tlsServerName=${host}&alpn=http1.1#${ps}
+#EOF
+#		echoContent yellow " ---> 二维码 vmess(http+tls)"
+#		echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vmess%3A%2F%2Fhttp%2Btls%3A${id}-0%40add%3A${port}%2F%3Fpath%3D%2F${path}%26tlsServerName%3D${host}%26alpn%3Dhttp1.1%23%24%7B${ps}%7D\n"
+
+		echoContent red path:${path}
+		qrCodeBase64Default=$(echo -n '{"add":"'${add}'","aid":"0","host":"'${host}'","id":'"${id}"',"net":"tcp","path":"/'${path}'","port":"'${port}'","ps":'${ps}',"scy":"none","sni":"'${host}'","tls":"tls","v":"2","type":"http","allowInsecure":0,"peer":"'${host}'","obfs":"http","obfsParam":"'${host}'"}'  | base64)
 		qrCodeBase64Default=$(echo ${qrCodeBase64Default} | sed 's/ //g')
 
 		echoContent yellow " ---> 通用json(VMess+TCP+TLS)"
-		echoContent green '    {"alpn":"http1.1","port":"'${port}'","ps":'${ps}',"tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"http","path":"/'${path}'","net":"http","add":"'${add}'","allowInsecure":0,"method":"post","peer":"'${host}'","obfs":"http","obfsParam":"'${host}'"}\n'
+		echoContent green '    {"port":"'${port}'","ps":'${ps}',"tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"http","path":"/'${path}'","net":"http","add":"'${add}'","allowInsecure":0,"method":"post","peer":"'${host}'","obfs":"http","obfsParam":"'${host}'"}\n'
 		echoContent yellow " ---> 通用vmess(VMess+TCP+TLS)链接"
 		echoContent green "    vmess://${qrCodeBase64Default}\n"
 
@@ -2439,7 +2453,7 @@ EOF
 vless://${VLESSID}@${add}:${port}?encryption=none&security=tls&type=grpc&host=${host}&path=${path}&serviceName=${path}&alpn=h2#${VLESSEmail}
 EOF
 		echoContent yellow " ---> 二维码 VLESS(VLESS+gRPC+TLS)"
-		echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${VLESSID}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dgrpc%26host%3D${host}%26path%3D${path}%23${VLESSEmail}"
+		echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${VLESSID}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dgrpc%26host%3D${host}%26serviceName%3D${path}%26path%3D${path}%26alpn%3Dh2%23${VLESSEmail}"
 
 	elif [[ "${type}" == "trojan" ]]; then
 		# URLEncode
@@ -2447,10 +2461,10 @@ EOF
 		echoContent green "    trojan://${id}@${host}:${port}?peer=${host}&sni=${host}&alpn=http1.1#${host}_trojan\n"
 
 		cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
-trojan://${id}@${host}:${port}?peer=${host}&sni=${host}#${host}_trojan
+trojan://${id}@${host}:${port}?peer=${host}&sni=${host}&alpn=http1.1#${host}_trojan
 EOF
 		echoContent yellow " ---> 二维码 Trojan(TLS)"
-		echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${host}%3a${port}%3fpeer%3d${host}%26sni%3d${host}%23${host}_trojan\n"
+		echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${host}%3a${port}%3fpeer%3d${host}%26sni%3d${host}%26alpn%3Dhttp1.1%23${host}_trojan\n"
 
 	elif [[ "${type}" == "trojangows" ]]; then
 		# URLEncode
