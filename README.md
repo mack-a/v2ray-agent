@@ -127,12 +127,6 @@
 wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh" && chmod 700 /root/install.sh && /root/install.sh
 ```
 
-- trojan-go(trojan)->Xray-core(trojan)【Beta】
-
-```
-wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/dev_remove_trojan-go/install.sh" && chmod 700 /root/install.sh && /root/install.sh
-```
-
 - Stable-v2.4.16【无gRPC】
 ```
 wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/stable_v2.4.16/install.sh" && chmod 700 /root/install.sh && /root/install.sh
