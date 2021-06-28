@@ -111,11 +111,9 @@
 
 ## 客户端推荐
 - Android
-  - [AnXray](https://github.com/XTLS/AnXray/releases)  
-
+  - [AnXray](https://github.com/XTLS/AnXray/releases)
 - iOS
   - Shadowrocket
-  
 - windows/Mac/Linux
   - [Qv2ray](https://github.com/Qv2ray/Qv2ray/actions)[推荐action版本]
   
