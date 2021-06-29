@@ -687,7 +687,7 @@ server {
     }
 	location /${currentPath}grpc {
 		client_max_body_size 0;
-		keepalive_time 1071906480m;
+#		keepalive_time 1071906480m;
 		keepalive_requests 4294967296;
 		client_body_timeout 1071906480m;
  		send_timeout 1071906480m;
