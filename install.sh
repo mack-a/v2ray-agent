@@ -600,6 +600,7 @@ installWarp(){
         echoContent red " ---> 安装WARP失败"
         exit 0;
 	fi
+	systemctl enable warp-svc
 	warp-cli --accept-tos register
 	warp-cli --accept-tos set-mode proxy
 	warp-cli --accept-tos set-proxy-port 31303
@@ -685,6 +686,14 @@ server {
     		alias /etc/v2ray-agent/subscribe/;
     }
 	location /${currentPath}grpc {
+		client_max_body_size 0;
+		keepalive_time 1071906480m;
+		keepalive_requests 4294967296;
+		client_body_timeout 1071906480m;
+ 		send_timeout 1071906480m;
+ 		lingering_close always;
+ 		grpc_read_timeout 1071906480m;
+ 		grpc_send_timeout 1071906480m;
 		grpc_pass grpc://127.0.0.1:31301;
 	}
 }
@@ -2336,28 +2345,28 @@ defaultBase64Code() {
 
 		if [[ "${coreInstallType}" == "1" ]]; then
 			echoContent yellow " ---> 通用格式(VLESS+TCP+TLS/xtls-rprx-direct)"
-			echoContent green "    vless://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&flow=xtls-rprx-direct#${VLESSEmail}\n"
+			echoContent green "    vless://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&sni=${host}&flow=xtls-rprx-direct#${VLESSEmail}\n"
 
 			echoContent yellow " ---> 格式化明文(VLESS+TCP+TLS/xtls-rprx-direct)"
 			echoContent green "协议类型：VLESS，地址：${host}，端口：${port}，用户ID：${VLESSID}，安全：xtls，传输方式：tcp，flow：xtls-rprx-direct，账户名:${VLESSEmail}\n"
 			cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
-vless://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&flow=xtls-rprx-direct#${VLESSEmail}
+vless://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&sni=${host}&flow=xtls-rprx-direct#${VLESSEmail}
 EOF
 			echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS/xtls-rprx-direct)"
-			echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${VLESSID}%40${host}%3A${port}%3F${encryption}%3Dnone%26security%3Dxtls%26type%3Dtcp%26${host}%3D${host}%26headerType%3Dnone%26flow%3Dxtls-rprx-direct%23${VLESSEmail}\n"
+			echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${VLESSID}%40${host}%3A${port}%3F${encryption}%3Dnone%26security%3Dxtls%26type%3Dtcp%26${host}%3D${host}%26headerType%3Dnone%26sni%3D${host}%26flow%3Dxtls-rprx-direct%23${VLESSEmail}\n"
 
 			echoContent skyBlue "----------------------------------------------------------------------------------"
 
 			echoContent yellow " ---> 通用格式(VLESS+TCP+TLS/xtls-rprx-splice)"
-			echoContent green "    vless://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&flow=xtls-rprx-splice#${VLESSEmail}\n"
+			echoContent green "    vless://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&sni=${host}&flow=xtls-rprx-splice#${VLESSEmail}\n"
 
 			echoContent yellow " ---> 格式化明文(VLESS+TCP+TLS/xtls-rprx-splice)"
 			echoContent green "    协议类型：VLESS，地址：${host}，端口：${port}，用户ID：${VLESSID}，安全：xtls，传输方式：tcp，flow：xtls-rprx-splice，账户名:${VLESSEmail}\n"
 			cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
-vless://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&flow=xtls-rprx-splice#${VLESSEmail}
+vless://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&sni=${host}&flow=xtls-rprx-splice#${VLESSEmail}
 EOF
 			echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS/xtls-rprx-splice)"
-			echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${VLESSID}%40${host}%3A${port}%3F${encryption}%3Dnone%26security%3Dxtls%26type%3Dtcp%26${host}%3D${host}%26headerType%3Dnone%26flow%3Dxtls-rprx-splice%23${VLESSEmail}\n"
+			echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${VLESSID}%40${host}%3A${port}%3F${encryption}%3Dnone%26security%3Dxtls%26type%3Dtcp%26${host}%3D${host}%26headerType%3Dnone%26sni%3D${host}%26flow%3Dxtls-rprx-splice%23${VLESSEmail}\n"
 
 		elif [[ "${coreInstallType}" == "2" || "${coreInstallType}" == "3" ]]; then
 			echoContent yellow " ---> 通用格式(VLESS+TCP+TLS)"
@@ -2375,11 +2384,11 @@ EOF
 
 	elif [[ "${type}" == "vmessws" ]]; then
 
-		qrCodeBase64Default=$(echo -n '{"port":"'${port}'","ps":'${ps}',"tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":"/'${path}'","net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}' | sed 's#/#\\\/#g' | base64)
+		qrCodeBase64Default=$(echo -n '{"port":"'${port}'","ps":'${ps}',"tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":"/'${path}'","net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'","sni":"'${host}'"}' | sed 's#/#\\\/#g' | base64)
 		qrCodeBase64Default=$(echo ${qrCodeBase64Default} | sed 's/ //g')
 
 		echoContent yellow " ---> 通用json(VMess+WS+TLS)"
-		echoContent green '    {"port":"'${port}'","ps":'${ps}',"tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":"/'${path}'","net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'"}\n'
+		echoContent green '    {"port":"'${port}'","ps":'${ps}',"tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":"/'${path}'","net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'","sni":"'${host}'"}\n'
 		echoContent yellow " ---> 通用vmess(VMess+WS+TLS)链接"
 		echoContent green "    vmess://${qrCodeBase64Default}\n"
 		echoContent yellow " ---> 二维码 vmess(VMess+WS+TLS)"
@@ -2426,17 +2435,17 @@ EOF
 		VLESSEmail=$(echo "${ps}" | awk -F "[\"]" '{print $2}')
 
 		echoContent yellow " ---> 通用格式(VLESS+WS+TLS)"
-		echoContent green "    vless://${VLESSID}@${add}:${port}?encryption=none&security=tls&type=ws&host=${host}&path=%2f${path}#${VLESSEmail}\n"
+		echoContent green "    vless://${VLESSID}@${add}:${port}?encryption=none&security=tls&type=ws&host=${host}&sni=${host}&path=%2f${path}#${VLESSEmail}\n"
 
 		echoContent yellow " ---> 格式化明文(VLESS+WS+TLS)"
 		echoContent green "    协议类型：VLESS，地址：${add}，伪装域名/SNI：${host}，端口：${port}，用户ID：${VLESSID}，安全：tls，传输方式：ws，路径:/${path}，账户名:${VLESSEmail}\n"
 
 		cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
-vless://${VLESSID}@${add}:${port}?encryption=none&security=tls&type=ws&host=${host}&path=%2f${path}#${VLESSEmail}
+vless://${VLESSID}@${add}:${port}?encryption=none&security=tls&type=ws&host=${host}&sni=${host}&path=%2f${path}#${VLESSEmail}
 EOF
 
 		echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS/XTLS)"
-		echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${VLESSID}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dws%26host%3D${host}%26path%3D%252f${path}%23${VLESSEmail}"
+		echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${VLESSID}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dws%26host%3D${host}%26sni%3D${host}%26path%3D%252f${path}%23${VLESSEmail}"
 
 	elif [[ "${type}" == "vlessgrpc" ]]; then
 		local VLESSID
@@ -2445,16 +2454,16 @@ EOF
 		VLESSEmail=$(echo "${ps}" | awk -F "[\"]" '{print $2}')
 
 		echoContent yellow " ---> 通用格式(VLESS+gRPC+TLS)"
-		echoContent green "    vless://${VLESSID}@${add}:${port}?encryption=none&security=tls&type=grpc&host=${host}&serviceName=${path}&alpn=h2#${VLESSEmail}\n"
+		echoContent green "    vless://${VLESSID}@${add}:${port}?encryption=none&security=tls&type=grpc&host=${host}&serviceName=${path}&alpn=h2&sni=${host}#${VLESSEmail}\n"
 
 		echoContent yellow " ---> 格式化明文(VLESS+gRPC+TLS)"
 		echoContent green "    协议类型：VLESS，地址：${add}，伪装域名/SNI：${host}，端口：${port}，用户ID：${VLESSID}，安全：tls，传输方式：gRPC，alpn：h2，serviceName:${path}，账户名:${VLESSEmail}\n"
 
 		cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
-vless://${VLESSID}@${add}:${port}?encryption=none&security=tls&type=grpc&host=${host}&path=${path}&serviceName=${path}&alpn=h2#${VLESSEmail}
+vless://${VLESSID}@${add}:${port}?encryption=none&security=tls&type=grpc&host=${host}&path=${path}&serviceName=${path}&alpn=h2&sni=${host}#${VLESSEmail}
 EOF
 		echoContent yellow " ---> 二维码 VLESS(VLESS+gRPC+TLS)"
-		echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${VLESSID}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dgrpc%26host%3D${host}%26serviceName%3D${path}%26path%3D${path}%26alpn%3Dh2%23${VLESSEmail}"
+		echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${VLESSID}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dgrpc%26host%3D${host}%26serviceName%3D${path}%26path%3D${path}%26sni%3D${host}%26alpn%3Dh2%23${VLESSEmail}"
 
 	elif [[ "${type}" == "trojan" ]]; then
 		# URLEncode
@@ -4065,7 +4074,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.10"
+	echoContent green "当前版本：v2.5.11"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
