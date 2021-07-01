@@ -202,7 +202,7 @@ readInstallType() {
 
 		if [[ -d "/etc/v2ray-agent/xray" && -f "/etc/v2ray-agent/xray/xray" ]]; then
 			# 这里检测xray-core
-			if [[ -d "/etc/v2ray-agent/xray/conf" && -f "/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json" ]]; then
+			if [[ -d "/etc/v2ray-agent/xray/conf" ]] && [[ -f "/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/02_trojan_TCP_inbounds.json" ]]; then
 				# xray-core
 				configPath=/etc/v2ray-agent/xray/conf/
 				# coreInstallPath=/etc/v2ray-agent/xray/xray
@@ -218,6 +218,9 @@ readInstallProtocolType() {
 	currentInstallProtocolType=
 
 	while read -r row; do
+		if echo ${row} | grep -q 02_trojan_TCP_inbounds; then
+			currentInstallProtocolType=${currentInstallProtocolType}'trojan'
+		fi
 		if echo ${row} | grep -q VLESS_TCP_inbounds; then
 			currentInstallProtocolType=${currentInstallProtocolType}'0'
 		fi
@@ -230,7 +233,7 @@ readInstallProtocolType() {
 		if echo ${row} | grep -q VMess_WS_inbounds; then
 			currentInstallProtocolType=${currentInstallProtocolType}'3'
 		fi
-		if echo ${row} | grep -q trojan_TCP_inbounds; then
+		if echo ${row} | grep -q 04_trojan_TCP_inbounds; then
 			currentInstallProtocolType=${currentInstallProtocolType}'4'
 		fi
 		if echo ${row} | grep -q VLESS_gRPC_inbounds; then
@@ -322,12 +325,18 @@ showInstallStatus() {
 			fi
 		fi
 
+		if echo ${currentInstallProtocolType} | grep -q trojan; then
+			if [[ "${coreInstallType}" == 1 ]]; then
+				echoContent yellow "Trojan+TCP[TLS/XTLS] \c"
+			fi
+		fi
+
 		if echo ${currentInstallProtocolType} | grep -q 1; then
 			echoContent yellow "VLESS+WS[TLS] \c"
 		fi
 
 		if echo ${currentInstallProtocolType} | grep -q 2; then
-			echoContent yellow "VMess+TCP[TLS] \c"
+			echoContent yellow "Trojan+gRPC[TLS] \c"
 		fi
 
 		if echo ${currentInstallProtocolType} | grep -q 3; then
@@ -1989,6 +1998,65 @@ EOF
 #	fi
 }
 
+# 初始化Xray Trojan XTLS 配置文件
+initXrayFrontingConfig(){
+	if [[ -z "${configPath}" ]]; then
+		echoContent red " ---> 未安装，请使用脚本安装"
+		menu
+		exit 0
+	fi
+	if [[ "${coreInstallType}" != "1" ]];then
+		echoContent red " ---> 未安装可用类型"
+	fi
+	local xtlsType=
+	if echo ${currentInstallProtocolType} | grep -q trojan; then
+		xtlsType=VLESS
+	else
+		xtlsType=Trojan
+
+	fi
+
+	echoContent skyBlue "\n功能 1/${totalProgress} : 前置切换为${xtlsType}"
+	echoContent red "\n=============================================================="
+	echoContent yellow "# 注意事项\n"
+	echoContent yellow "会将前置替换为${xtlsType}"
+	echoContent yellow "会保留前置下的Trojan协议"
+	echoContent yellow "再次执行可切换至上一次的前置\n"
+
+	echoContent yellow "1.切换至${xtlsType}"
+	echoContent red "=============================================================="
+	read -r -p "请选择：" selectType
+	if [[ "${selectType}" == "1" ]]; then
+
+		if [[ "${xtlsType}" == "Trojan" ]];then
+
+			local VLESSConfig=$(cat ${configPath}02_VLESS_TCP_inbounds.json)
+			VLESSConfig=${VLESSConfig//"id"/"password"}
+			VLESSConfig=${VLESSConfig//VLESSTCP/TrojanTCPXTLS}
+			VLESSConfig=${VLESSConfig//VLESS/Trojan}
+			VLESSConfig=${VLESSConfig//"vless"/"trojan"}
+			VLESSConfig=${VLESSConfig//"id"/"password"}
+
+			echo "${VLESSConfig}" | jq . >${configPath}02_trojan_TCP_inbounds.json
+			rm  ${configPath}02_VLESS_TCP_inbounds.json
+		elif [[ "${xtlsType}" == "VLESS" ]]; then
+
+			local VLESSConfig=$(cat ${configPath}02_trojan_TCP_inbounds.json)
+			VLESSConfig=${VLESSConfig//"password"/"id"}
+			VLESSConfig=${VLESSConfig//TrojanTCPXTLS/VLESSTCP}
+			VLESSConfig=${VLESSConfig//Trojan/VLESS}
+			VLESSConfig=${VLESSConfig//"trojan"/"vless"}
+			VLESSConfig=${VLESSConfig//"password"/"id"}
+
+			echo "${VLESSConfig}" | jq . >${configPath}02_VLESS_TCP_inbounds.json
+			rm ${configPath}02_trojan_TCP_inbounds.json
+		fi
+		reloadCore
+	fi
+
+	exit 0;
+}
+
 # 初始化Xray 配置文件
 initXrayConfig() {
 	echoContent skyBlue "\n进度 $2/${totalProgress} : 初始化Xray配置"
@@ -2447,7 +2515,7 @@ defaultBase64Code() {
 		local VLESSEmail
 		VLESSEmail=$(echo "${ps}" | awk -F "[\"]" '{print $2}')
 
-		if [[ "${coreInstallType}" == "1" ]]; then
+		if [[ "${coreInstallType}" == "1" ]] && echo ${currentInstallProtocolType} | grep -q 0; then
 			echoContent yellow " ---> 通用格式(VLESS+TCP+TLS/xtls-rprx-direct)"
 			echoContent green "    vless://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&sni=${host}&flow=xtls-rprx-direct#${VLESSEmail}\n"
 
@@ -2485,6 +2553,32 @@ EOF
 			echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS)"
 			echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3a%2f%2f${VLESSID}%40${host}%3a${port}%3fsecurity%3dtls%26encryption%3dnone%26host%3d${host}%26headerType%3dnone%26type%3dtcp%23${VLESSEmail}\n"
 		fi
+
+	elif [[ "${coreInstallType}" == "1" ]] && echo ${currentInstallProtocolType} | grep -q trojan; then
+			echoContent yellow " ---> 通用格式(Trojan+TCP+TLS/xtls-rprx-direct)"
+			echoContent green "    trojan://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&sni=${host}&flow=xtls-rprx-direct#${VLESSEmail}\n"
+
+			echoContent yellow " ---> 格式化明文(Trojan+TCP+TLS/xtls-rprx-direct)"
+			echoContent green "协议类型：Trojan，地址：${host}，端口：${port}，用户ID：${VLESSID}，安全：xtls，传输方式：tcp，flow：xtls-rprx-direct，账户名:${VLESSEmail}\n"
+			cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
+trojan://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&sni=${host}&flow=xtls-rprx-direct#${VLESSEmail}
+EOF
+			echoContent yellow " ---> 二维码 Trojan(Trojan+TCP+TLS/xtls-rprx-direct)"
+			echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3A%2F%2F${VLESSID}%40${host}%3A${port}%3F${encryption}%3Dnone%26security%3Dxtls%26type%3Dtcp%26${host}%3D${host}%26headerType%3Dnone%26sni%3D${host}%26flow%3Dxtls-rprx-direct%23${VLESSEmail}\n"
+
+			echoContent skyBlue "----------------------------------------------------------------------------------"
+
+			echoContent yellow " ---> 通用格式(Trojan+TCP+TLS/xtls-rprx-splice)"
+			echoContent green "    trojan://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&sni=${host}&flow=xtls-rprx-splice#${VLESSEmail}\n"
+
+			echoContent yellow " ---> 格式化明文(Trojan+TCP+TLS/xtls-rprx-splice)"
+			echoContent green "    协议类型：VLESS，地址：${host}，端口：${port}，用户ID：${VLESSID}，安全：xtls，传输方式：tcp，flow：xtls-rprx-splice，账户名:${VLESSEmail}\n"
+			cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
+vless://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&sni=${host}&flow=xtls-rprx-splice#${VLESSEmail}
+EOF
+			echoContent yellow " ---> 二维码 Trojan(Trojan+TCP+TLS/xtls-rprx-splice)"
+			echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3A%2F%2F${VLESSID}%40${host}%3A${port}%3F${encryption}%3Dnone%26security%3Dxtls%26type%3Dtcp%26${host}%3D${host}%26headerType%3Dnone%26sni%3D${host}%26flow%3Dxtls-rprx-splice%23${VLESSEmail}\n"
+
 
 	elif [[ "${type}" == "vmessws" ]]; then
 
@@ -2624,7 +2718,16 @@ showAccounts() {
 	# VLESS TCP
 	if [[ -n "${configPath}" ]]; then
 		show=1
-		if echo "${currentInstallProtocolType}" | grep -q 0 || [[ -z "${currentInstallProtocolType}" ]]; then
+		if  echo "${currentInstallProtocolType}" | grep -q trojan ;then
+			echoContent skyBlue "===================== Trojan TCP TLS/XTLS-direct/XTLS-splice ======================\n"
+			# cat ${configPath}02_VLESS_TCP_inbounds.json | jq .inbounds[0].settings.clients | jq -c '.[]'
+			jq .inbounds[0].settings.clients ${configPath}02_trojan_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
+				echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq -r .email )_$(echo "${user}" | jq -r .password)"
+				echo
+				defaultBase64Code trojanTCPXTLS $(echo "${user}" | jq .email) $(echo "${user}" | jq .password) "${currentHost}:${currentPort}" ${currentHost}
+			done
+
+		else
 			echoContent skyBlue "===================== VLESS TCP TLS/XTLS-direct/XTLS-splice ======================\n"
 			# cat ${configPath}02_VLESS_TCP_inbounds.json | jq .inbounds[0].settings.clients | jq -c '.[]'
 			jq .inbounds[0].settings.clients ${configPath}02_VLESS_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
@@ -2634,8 +2737,9 @@ showAccounts() {
 			done
 		fi
 
+
 		# VLESS WS
-		if echo ${currentInstallProtocolType} | grep -q 1 || [[ -z "${currentInstallProtocolType}" ]]; then
+		if echo ${currentInstallProtocolType} | grep -q 1; then
 			echoContent skyBlue "\n================================ VLESS WS TLS CDN ================================\n"
 
 			# cat ${configPath}03_VLESS_WS_inbounds.json | jq .inbounds[0].settings.clients | jq -c '.[]'
@@ -2652,7 +2756,7 @@ showAccounts() {
 		fi
 
 		# VMess TCP
-#		if echo ${currentInstallProtocolType} | grep -q 2 || [[ -z "${currentInstallProtocolType}" ]]; then
+#		if echo ${currentInstallProtocolType} | grep -q 2; then
 #			echoContent skyBlue "\n================================= VMess TCP TLS  =================================\n"
 #
 #			# cat ${configPath}04_VMess_TCP_inbounds.json | jq .inbounds[0].settings.clients | jq -c '.[]'
@@ -2664,7 +2768,7 @@ showAccounts() {
 #		fi
 
 		# VMess WS
-		if echo ${currentInstallProtocolType} | grep -q 3 || [[ -z "${currentInstallProtocolType}" ]]; then
+		if echo ${currentInstallProtocolType} | grep -q 3; then
 			echoContent skyBlue "\n================================ VMess WS TLS CDN ================================\n"
 			local path="${currentPath}vws"
 			if [[ ${coreInstallType} == "1" ]]; then
@@ -2678,7 +2782,7 @@ showAccounts() {
 		fi
 
 		# VLESS grpc
-		if echo ${currentInstallProtocolType} | grep -q 5 || [[ -z "${currentInstallProtocolType}" ]]; then
+		if echo ${currentInstallProtocolType} | grep -q 5; then
 			echoContent skyBlue "\n=============================== VLESS gRPC TLS CDN ===============================\n"
 			local serviceName=$(jq -r .inbounds[0].streamSettings.grpcSettings.serviceName ${configPath}06_VLESS_gRPC_inbounds.json)
 			jq .inbounds[0].settings.clients ${configPath}06_VLESS_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
@@ -2690,7 +2794,7 @@ showAccounts() {
 	fi
 
 	# trojan tcp
-	if echo ${currentInstallProtocolType} | grep -q 4 || [[ -z "${currentInstallProtocolType}" ]]; then
+	if echo ${currentInstallProtocolType} | grep -q 4; then
 		echoContent skyBlue "\n==================================  Trojan TLS  ==================================\n"
 		jq .inbounds[0].settings.clients ${configPath}04_trojan_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
 			echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq -r .email )_$(echo "${user}" | jq -r .password)"
@@ -2699,7 +2803,7 @@ showAccounts() {
 		done
 	fi
 
-	if echo ${currentInstallProtocolType} | grep -q 2 || [[ -z "${currentInstallProtocolType}" ]]; then
+	if echo ${currentInstallProtocolType} | grep -q 2; then
 		echoContent skyBlue "\n================================  Trojan gRPC TLS  ================================\n"
 		local serviceName=$(jq -r .inbounds[0].streamSettings.grpcSettings.serviceName ${configPath}04_trojan_gRPC_inbounds.json)
 		jq .inbounds[0].settings.clients ${configPath}04_trojan_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
@@ -4200,7 +4304,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.14_dev_trojan_1"
+	echoContent green "当前版本：v2.5.14_dev_trojan_2"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
@@ -4212,23 +4316,24 @@ menu() {
 	fi
 
 	echoContent yellow "2.任意组合安装"
+	echoContent yellow "3.切换Trojan[XTLS]"
 	echoContent skyBlue "-------------------------工具管理-----------------------------"
-	echoContent yellow "3.账号管理"
-	echoContent yellow "4.更换伪装站"
-	echoContent yellow "5.更新证书"
-	echoContent yellow "6.更换CDN节点"
-	echoContent yellow "7.IPv6分流"
-	echoContent yellow "8.WARP分流"
-	echoContent yellow "9.流媒体工具"
-	echoContent yellow "10.添加新端口"
+	echoContent yellow "4.账号管理"
+	echoContent yellow "5.更换伪装站"
+	echoContent yellow "6.更新证书"
+	echoContent yellow "7.更换CDN节点"
+	echoContent yellow "8.IPv6分流"
+	echoContent yellow "9.WARP分流"
+	echoContent yellow "10.流媒体工具"
+	echoContent yellow "11.添加新端口"
 	echoContent skyBlue "-------------------------版本管理-----------------------------"
-	echoContent yellow "11.core管理"
+	echoContent yellow "12.core管理"
 #	echoContent yellow "12.更新Trojan-Go"
-	echoContent yellow "12.更新脚本"
-	echoContent yellow "13.安装BBR、DD脚本"
+	echoContent yellow "13.更新脚本"
+	echoContent yellow "14.安装BBR、DD脚本"
 	echoContent skyBlue "-------------------------脚本管理-----------------------------"
-	echoContent yellow "14.查看日志"
-	echoContent yellow "15.卸载脚本"
+	echoContent yellow "15.查看日志"
+	echoContent yellow "16.卸载脚本"
 	echoContent red "=============================================================="
 	mkdirTools
 	aliasInstall
@@ -4241,45 +4346,48 @@ menu() {
 		selectCoreInstall
 		;;
 	3)
-		manageAccount 1
+		initXrayFrontingConfig 1
 		;;
 	4)
-		updateNginxBlog 1
+		manageAccount 1
 		;;
 	5)
-		renewalTLS 1
+		updateNginxBlog 1
 		;;
 	6)
-		updateV2RayCDN 1
+		renewalTLS 1
 		;;
 	7)
-		ipv6Routing 1
+		updateV2RayCDN 1
 		;;
 	8)
-		warpRouting 1
+		ipv6Routing 1
 		;;
 	9)
-		streamingToolbox 1
+		warpRouting 1
 		;;
 	10)
-		addCorePort 1
+		streamingToolbox 1
 		;;
 	11)
+		addCorePort 1
+		;;
+	12)
 		coreVersionManageMenu 1
 		;;
 #	12)
 #		updateTrojanGo 1
 #		;;
-	12)
+	13)
 		updateV2RayAgent 1
 		;;
-	13)
+	14)
 		bbrInstall
 		;;
-	14)
+	15)
 		checkLog 1
 		;;
-	15)
+	16)
 		unInstall 1
 		;;
 	esac
