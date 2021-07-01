@@ -2210,6 +2210,10 @@ EOF
 
 	# trojan_grpc
 	if echo ${selectCustomInstallType} | grep -q 2 || [[ "$1" == "all" ]]; then
+		if ! echo ${selectCustomInstallType} | grep -q 5;then
+			fallbacksList=${fallbacksList//31302/31304}
+		fi
+
 		cat <<EOF >/etc/v2ray-agent/xray/conf/04_trojan_gRPC_inbounds.json
 {
     "inbounds": [
@@ -2648,16 +2652,16 @@ showAccounts() {
 		fi
 
 		# VMess TCP
-		if echo ${currentInstallProtocolType} | grep -q 2 || [[ -z "${currentInstallProtocolType}" ]]; then
-			echoContent skyBlue "\n================================= VMess TCP TLS  =================================\n"
-
-			# cat ${configPath}04_VMess_TCP_inbounds.json | jq .inbounds[0].settings.clients | jq -c '.[]'
-			jq .inbounds[0].settings.clients ${configPath}04_VMess_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
-				echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq -r .email )_$(echo "${user}" | jq -r .id)"
-				echo
-				defaultBase64Code vmesstcp $(echo "${user}" | jq .email) $(echo "${user}" | jq .id) "${currentHost}:${currentPort}" "${currentPath}tcp" "${currentHost}"
-			done
-		fi
+#		if echo ${currentInstallProtocolType} | grep -q 2 || [[ -z "${currentInstallProtocolType}" ]]; then
+#			echoContent skyBlue "\n================================= VMess TCP TLS  =================================\n"
+#
+#			# cat ${configPath}04_VMess_TCP_inbounds.json | jq .inbounds[0].settings.clients | jq -c '.[]'
+#			jq .inbounds[0].settings.clients ${configPath}04_VMess_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
+#				echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq -r .email )_$(echo "${user}" | jq -r .id)"
+#				echo
+#				defaultBase64Code vmesstcp $(echo "${user}" | jq .email) $(echo "${user}" | jq .id) "${currentHost}:${currentPort}" "${currentPath}tcp" "${currentHost}"
+#			done
+#		fi
 
 		# VMess WS
 		if echo ${currentInstallProtocolType} | grep -q 3 || [[ -z "${currentInstallProtocolType}" ]]; then
@@ -3959,7 +3963,7 @@ customXrayInstall() {
 		handleNginx stop
 		initNginxConfig 4
 		# 随机path
-		if echo "${selectCustomInstallType}" | grep -q 1 || echo "${selectCustomInstallType}" | grep -q 3 || echo "${selectCustomInstallType}" | grep -q 4 || echo "${selectCustomInstallType}" | grep -q 5; then
+		if echo "${selectCustomInstallType}" | grep -q 1 || echo "${selectCustomInstallType}" | grep -q 2 || echo "${selectCustomInstallType}" | grep -q 3 || echo "${selectCustomInstallType}" | grep -q 5; then
 			randomPathFunction 5
 			customCDNIP 6
 		fi
