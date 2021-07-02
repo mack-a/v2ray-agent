@@ -138,6 +138,9 @@ initVar() {
 	# 当前的个性化安装方式 01234
 	currentInstallProtocolType=
 
+	# 前置类型
+	frontingType=
+
 	# 选择的个性化安装方式
 	selectCustomInstallType=
 
@@ -202,7 +205,7 @@ readInstallType() {
 
 		if [[ -d "/etc/v2ray-agent/xray" && -f "/etc/v2ray-agent/xray/xray" ]]; then
 			# 这里检测xray-core
-			if [[ -d "/etc/v2ray-agent/xray/conf" && -f "/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json" ]]; then
+			if [[ -d "/etc/v2ray-agent/xray/conf" ]] && [[ -f "/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/02_trojan_TCP_inbounds.json" ]]; then
 				# xray-core
 				configPath=/etc/v2ray-agent/xray/conf/
 				# coreInstallPath=/etc/v2ray-agent/xray/xray
@@ -218,19 +221,24 @@ readInstallProtocolType() {
 	currentInstallProtocolType=
 
 	while read -r row; do
+		if echo ${row} | grep -q 02_trojan_TCP_inbounds; then
+			currentInstallProtocolType=${currentInstallProtocolType}'trojan'
+			frontingType=02_trojan_TCP_inbounds
+		fi
 		if echo ${row} | grep -q VLESS_TCP_inbounds; then
 			currentInstallProtocolType=${currentInstallProtocolType}'0'
+			frontingType=02_VLESS_TCP_inbounds
 		fi
 		if echo ${row} | grep -q VLESS_WS_inbounds; then
 			currentInstallProtocolType=${currentInstallProtocolType}'1'
 		fi
-		if echo ${row} | grep -q VMess_TCP_inbounds; then
+		if echo ${row} | grep -q trojan_gRPC_inbounds; then
 			currentInstallProtocolType=${currentInstallProtocolType}'2'
 		fi
 		if echo ${row} | grep -q VMess_WS_inbounds; then
 			currentInstallProtocolType=${currentInstallProtocolType}'3'
 		fi
-		if echo ${row} | grep -q trojan_TCP_inbounds; then
+		if echo ${row} | grep -q 04_trojan_TCP_inbounds; then
 			currentInstallProtocolType=${currentInstallProtocolType}'4'
 		fi
 		if echo ${row} | grep -q VLESS_gRPC_inbounds; then
@@ -253,7 +261,7 @@ readConfigHostPathUUID() {
 	currentAdd=
 	# 读取path
 	if [[ -n "${configPath}" ]]; then
-		local fallback=$(jq -r -c '.inbounds[0].settings.fallbacks[]|select(.path)' ${configPath}02_VLESS_TCP_inbounds.json|head -1)
+		local fallback=$(jq -r -c '.inbounds[0].settings.fallbacks[]|select(.path)' ${configPath}${frontingType}.json|head -1)
 
 		local path=$(echo "${fallback}"|jq -r .path|awk -F "[/]" '{print $2}')
 
@@ -267,27 +275,27 @@ readConfigHostPathUUID() {
 	fi
 
 	if [[ "${coreInstallType}" == "1" ]]; then
-		currentHost=$(jq -r .inbounds[0].streamSettings.xtlsSettings.certificates[0].certificateFile ${configPath}02_VLESS_TCP_inbounds.json | awk -F '[t][l][s][/]' '{print $2}' | awk -F '[.][c][r][t]' '{print $1}')
-		currentUUID=$(jq -r .inbounds[0].settings.clients[0].id ${configPath}02_VLESS_TCP_inbounds.json)
-		currentAdd=$(jq -r .inbounds[0].settings.clients[0].add ${configPath}02_VLESS_TCP_inbounds.json)
+		currentHost=$(jq -r .inbounds[0].streamSettings.xtlsSettings.certificates[0].certificateFile ${configPath}${frontingType}.json | awk -F '[t][l][s][/]' '{print $2}' | awk -F '[.][c][r][t]' '{print $1}')
+		currentUUID=$(jq -r .inbounds[0].settings.clients[0].id ${configPath}${frontingType}.json)
+		currentAdd=$(jq -r .inbounds[0].settings.clients[0].add ${configPath}${frontingType}.json)
 		if [[ "${currentAdd}" == "null" ]];then
 			currentAdd=${currentHost}
 		fi
-		currentPort=$(jq .inbounds[0].port ${configPath}02_VLESS_TCP_inbounds.json)
+		currentPort=$(jq .inbounds[0].port ${configPath}${frontingType}.json)
 
 	elif [[ "${coreInstallType}" == "2" || "${coreInstallType}" == "3" ]]; then
 		if [[ "${coreInstallType}" == "3" ]]; then
-			currentHost=$(jq -r .inbounds[0].streamSettings.xtlsSettings.certificates[0].certificateFile ${configPath}02_VLESS_TCP_inbounds.json | awk -F '[t][l][s][/]' '{print $2}' | awk -F '[.][c][r][t]' '{print $1}')
+			currentHost=$(jq -r .inbounds[0].streamSettings.xtlsSettings.certificates[0].certificateFile ${configPath}${frontingType}.json | awk -F '[t][l][s][/]' '{print $2}' | awk -F '[.][c][r][t]' '{print $1}')
 		else
-			currentHost=$(jq -r .inbounds[0].streamSettings.tlsSettings.certificates[0].certificateFile ${configPath}02_VLESS_TCP_inbounds.json | awk -F '[t][l][s][/]' '{print $2}' | awk -F '[.][c][r][t]' '{print $1}')
+			currentHost=$(jq -r .inbounds[0].streamSettings.tlsSettings.certificates[0].certificateFile ${configPath}${frontingType}.json | awk -F '[t][l][s][/]' '{print $2}' | awk -F '[.][c][r][t]' '{print $1}')
 		fi
-		currentAdd=$(jq -r .inbounds[0].settings.clients[0].add ${configPath}02_VLESS_TCP_inbounds.json)
+		currentAdd=$(jq -r .inbounds[0].settings.clients[0].add ${configPath}${frontingType}.json)
 
 		if [[ "${currentAdd}" == "null" ]];then
 			currentAdd=${currentHost}
 		fi
-		currentUUID=$(jq -r .inbounds[0].settings.clients[0].id ${configPath}02_VLESS_TCP_inbounds.json)
-		currentPort=$(jq .inbounds[0].port ${configPath}02_VLESS_TCP_inbounds.json)
+		currentUUID=$(jq -r .inbounds[0].settings.clients[0].id ${configPath}${frontingType}.json)
+		currentPort=$(jq .inbounds[0].port ${configPath}${frontingType}.json)
 	fi
 }
 
@@ -322,12 +330,18 @@ showInstallStatus() {
 			fi
 		fi
 
+		if echo ${currentInstallProtocolType} | grep -q trojan; then
+			if [[ "${coreInstallType}" == 1 ]]; then
+				echoContent yellow "Trojan+TCP[TLS/XTLS] \c"
+			fi
+		fi
+
 		if echo ${currentInstallProtocolType} | grep -q 1; then
 			echoContent yellow "VLESS+WS[TLS] \c"
 		fi
 
 		if echo ${currentInstallProtocolType} | grep -q 2; then
-			echoContent yellow "VMess+TCP[TLS] \c"
+			echoContent yellow "Trojan+gRPC[TLS] \c"
 		fi
 
 		if echo ${currentInstallProtocolType} | grep -q 3; then
@@ -675,7 +689,44 @@ server {
 		return 403;
 }
 EOF
-	if echo "${selectCustomInstallType}" |grep -q 5 || [[ -z "${selectCustomInstallType}" ]]; then
+if [[ -n $(echo "${selectCustomInstallType}" |grep 2) && -n $(echo "${selectCustomInstallType}" |grep 5) ]] || [[ -z "${selectCustomInstallType}" ]];then
+
+		cat <<EOF >>/etc/nginx/conf.d/alone.conf
+server {
+	listen 127.0.0.1:31302 http2;
+	server_name ${domain};
+	root /usr/share/nginx/html;
+	location /s/ {
+    		add_header Content-Type text/plain;
+    		alias /etc/v2ray-agent/subscribe/;
+    }
+
+    location /${currentPath}grpc {
+		client_max_body_size 0;
+#		keepalive_time 1071906480m;
+		keepalive_requests 4294967296;
+		client_body_timeout 1071906480m;
+ 		send_timeout 1071906480m;
+ 		lingering_close always;
+ 		grpc_read_timeout 1071906480m;
+ 		grpc_send_timeout 1071906480m;
+		grpc_pass grpc://127.0.0.1:31301;
+	}
+
+	location /${currentPath}trojangrpc {
+		client_max_body_size 0;
+		# keepalive_time 1071906480m;
+		keepalive_requests 4294967296;
+		client_body_timeout 1071906480m;
+ 		send_timeout 1071906480m;
+ 		lingering_close always;
+ 		grpc_read_timeout 1071906480m;
+ 		grpc_send_timeout 1071906480m;
+		grpc_pass grpc://127.0.0.1:31304;
+	}
+}
+EOF
+	elif echo "${selectCustomInstallType}" |grep -q 5 || [[ -z "${selectCustomInstallType}" ]]; then
 		cat <<EOF >>/etc/nginx/conf.d/alone.conf
 server {
 	listen 127.0.0.1:31302 http2;
@@ -694,12 +745,37 @@ server {
  		lingering_close always;
  		grpc_read_timeout 1071906480m;
  		grpc_send_timeout 1071906480m;
-		grpc_pass grpc://127.0.0.1:31301;
+		grpc_pass grpc://127.0.0.1:31304;
 	}
 }
 EOF
 
+	elif echo "${selectCustomInstallType}" |grep -q 2 || [[ -z "${selectCustomInstallType}" ]];then
+
+		cat <<EOF >>/etc/nginx/conf.d/alone.conf
+server {
+	listen 127.0.0.1:31302 http2;
+	server_name ${domain};
+	root /usr/share/nginx/html;
+	location /s/ {
+    		add_header Content-Type text/plain;
+    		alias /etc/v2ray-agent/subscribe/;
+    }
+	location /${currentPath}trojangrpc {
+		client_max_body_size 0;
+		# keepalive_time 1071906480m;
+		keepalive_requests 4294967296;
+		client_body_timeout 1071906480m;
+ 		send_timeout 1071906480m;
+ 		lingering_close always;
+ 		grpc_read_timeout 1071906480m;
+ 		grpc_send_timeout 1071906480m;
+		grpc_pass grpc://127.0.0.1:31301;
+	}
+}
+EOF
 	else
+
 		cat <<EOF >>/etc/nginx/conf.d/alone.conf
 server {
 	listen 127.0.0.1:31302 http2;
@@ -1927,6 +2003,65 @@ EOF
 #	fi
 }
 
+# 初始化Xray Trojan XTLS 配置文件
+initXrayFrontingConfig(){
+	if [[ -z "${configPath}" ]]; then
+		echoContent red " ---> 未安装，请使用脚本安装"
+		menu
+		exit 0
+	fi
+	if [[ "${coreInstallType}" != "1" ]];then
+		echoContent red " ---> 未安装可用类型"
+	fi
+	local xtlsType=
+	if echo ${currentInstallProtocolType} | grep -q trojan; then
+		xtlsType=VLESS
+	else
+		xtlsType=Trojan
+
+	fi
+
+	echoContent skyBlue "\n功能 1/${totalProgress} : 前置切换为${xtlsType}"
+	echoContent red "\n=============================================================="
+	echoContent yellow "# 注意事项\n"
+	echoContent yellow "会将前置替换为${xtlsType}"
+	echoContent yellow "如果前置是Trojan，查看帐号时则会出现两个Trojan协议的节点，有一个不可用xtls"
+	echoContent yellow "再次执行可切换至上一次的前置\n"
+
+	echoContent yellow "1.切换至${xtlsType}"
+	echoContent red "=============================================================="
+	read -r -p "请选择：" selectType
+	if [[ "${selectType}" == "1" ]]; then
+
+		if [[ "${xtlsType}" == "Trojan" ]];then
+
+			local VLESSConfig=$(cat ${configPath}${frontingType}.json)
+			VLESSConfig=${VLESSConfig//"id"/"password"}
+			VLESSConfig=${VLESSConfig//VLESSTCP/TrojanTCPXTLS}
+			VLESSConfig=${VLESSConfig//VLESS/Trojan}
+			VLESSConfig=${VLESSConfig//"vless"/"trojan"}
+			VLESSConfig=${VLESSConfig//"id"/"password"}
+
+			echo "${VLESSConfig}" | jq . >${configPath}02_trojan_TCP_inbounds.json
+			rm  ${configPath}${frontingType}.json
+		elif [[ "${xtlsType}" == "VLESS" ]]; then
+
+			local VLESSConfig=$(cat ${configPath}02_trojan_TCP_inbounds.json)
+			VLESSConfig=${VLESSConfig//"password"/"id"}
+			VLESSConfig=${VLESSConfig//TrojanTCPXTLS/VLESSTCP}
+			VLESSConfig=${VLESSConfig//Trojan/VLESS}
+			VLESSConfig=${VLESSConfig//"trojan"/"vless"}
+			VLESSConfig=${VLESSConfig//"password"/"id"}
+
+			echo "${VLESSConfig}" | jq . >${configPath}02_VLESS_TCP_inbounds.json
+			rm ${configPath}02_trojan_TCP_inbounds.json
+		fi
+		reloadCore
+	fi
+
+	exit 0;
+}
+
 # 初始化Xray 配置文件
 initXrayConfig() {
 	echoContent skyBlue "\n进度 $2/${totalProgress} : 初始化Xray配置"
@@ -2144,6 +2279,49 @@ EOF
 #	fi
 
 
+#	# trojan_gRPC
+
+	# trojan_grpc
+	if echo ${selectCustomInstallType} | grep -q 2 || [[ "$1" == "all" ]]; then
+		echo selectCustomInstallType:${selectCustomInstallType}
+		if ! echo ${selectCustomInstallType} | grep -q 5 && [[ -n ${selectCustomInstallType} ]];then
+			fallbacksList=${fallbacksList//31302/31304}
+		fi
+
+		cat <<EOF >/etc/v2ray-agent/xray/conf/04_trojan_gRPC_inbounds.json
+{
+    "inbounds": [
+        {
+            "port": 31304,
+            "listen": "127.0.0.1",
+            "protocol": "trojan",
+            "tag": "trojangRPCTCP",
+            "settings": {
+                "clients": [
+                    {
+                        "password": "${uuid}",
+                        "email": "${domain}_trojan_gRPC"
+                    }
+                ],
+                "fallbacks": [
+                    {
+                        "dest": "31300"
+                    }
+                ]
+            },
+            "streamSettings": {
+                "network": "grpc",
+                "grpcSettings": {
+                    "serviceName": "${customPath}trojangrpc"
+                }
+            }
+        }
+    ]
+}
+EOF
+	fi
+
+
 	# VMess_WS
 	if echo "${selectCustomInstallType}" | grep -q 3 || [[ "$1" == "all" ]]; then
 		fallbacksList=${fallbacksList}',{"path":"/'${customPath}'vws","dest":31299,"xver":1}'
@@ -2320,7 +2498,7 @@ customCDNIP() {
 # 通用
 defaultBase64Code() {
 	local type=$1
-	local ps=$2
+	local email=$2
 	local id=$3
 	local hostPort=$4
 	local host=
@@ -2336,51 +2514,73 @@ defaultBase64Code() {
 	local path=$5
 	local add=$6
 
-	local subAccount=${currentHost}_$(echo "${id//\"/}_currentHost" | md5sum | awk '{print $1}')
+	local subAccount=${currentHost}_$(echo "${id}_currentHost" | md5sum | awk '{print $1}')
 	if [[ "${type}" == "vlesstcp" ]]; then
-		local VLESSID
-		VLESSID=${id//\"/}
-		local VLESSEmail
-		VLESSEmail=$(echo "${ps}" | awk -F "[\"]" '{print $2}')
 
-		if [[ "${coreInstallType}" == "1" ]]; then
+		if [[ "${coreInstallType}" == "1" ]] && echo ${currentInstallProtocolType} | grep -q 0; then
 			echoContent yellow " ---> 通用格式(VLESS+TCP+TLS/xtls-rprx-direct)"
-			echoContent green "    vless://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&sni=${host}&flow=xtls-rprx-direct#${VLESSEmail}\n"
+			echoContent green "    vless://${id}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&sni=${host}&flow=xtls-rprx-direct#${email}\n"
 
 			echoContent yellow " ---> 格式化明文(VLESS+TCP+TLS/xtls-rprx-direct)"
-			echoContent green "协议类型：VLESS，地址：${host}，端口：${port}，用户ID：${VLESSID}，安全：xtls，传输方式：tcp，flow：xtls-rprx-direct，账户名:${VLESSEmail}\n"
+			echoContent green "协议类型：VLESS，地址：${host}，端口：${port}，用户ID：${id}，安全：xtls，传输方式：tcp，flow：xtls-rprx-direct，账户名:${email}\n"
 			cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
-vless://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&sni=${host}&flow=xtls-rprx-direct#${VLESSEmail}
+vless://${id}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&sni=${host}&flow=xtls-rprx-direct#${email}
 EOF
 			echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS/xtls-rprx-direct)"
-			echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${VLESSID}%40${host}%3A${port}%3F${encryption}%3Dnone%26security%3Dxtls%26type%3Dtcp%26${host}%3D${host}%26headerType%3Dnone%26sni%3D${host}%26flow%3Dxtls-rprx-direct%23${VLESSEmail}\n"
+			echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${host}%3A${port}%3F${encryption}%3Dnone%26security%3Dxtls%26type%3Dtcp%26${host}%3D${host}%26headerType%3Dnone%26sni%3D${host}%26flow%3Dxtls-rprx-direct%23${email}\n"
 
 			echoContent skyBlue "----------------------------------------------------------------------------------"
 
 			echoContent yellow " ---> 通用格式(VLESS+TCP+TLS/xtls-rprx-splice)"
-			echoContent green "    vless://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&sni=${host}&flow=xtls-rprx-splice#${VLESSEmail}\n"
+			echoContent green "    vless://${id}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&sni=${host}&flow=xtls-rprx-splice#${email}\n"
 
 			echoContent yellow " ---> 格式化明文(VLESS+TCP+TLS/xtls-rprx-splice)"
-			echoContent green "    协议类型：VLESS，地址：${host}，端口：${port}，用户ID：${VLESSID}，安全：xtls，传输方式：tcp，flow：xtls-rprx-splice，账户名:${VLESSEmail}\n"
+			echoContent green "    协议类型：VLESS，地址：${host}，端口：${port}，用户ID：${id}，安全：xtls，传输方式：tcp，flow：xtls-rprx-splice，账户名:${email}\n"
 			cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
-vless://${VLESSID}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&sni=${host}&flow=xtls-rprx-splice#${VLESSEmail}
+vless://${id}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&sni=${host}&flow=xtls-rprx-splice#${email}
 EOF
 			echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS/xtls-rprx-splice)"
-			echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${VLESSID}%40${host}%3A${port}%3F${encryption}%3Dnone%26security%3Dxtls%26type%3Dtcp%26${host}%3D${host}%26headerType%3Dnone%26sni%3D${host}%26flow%3Dxtls-rprx-splice%23${VLESSEmail}\n"
+			echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${host}%3A${port}%3F${encryption}%3Dnone%26security%3Dxtls%26type%3Dtcp%26${host}%3D${host}%26headerType%3Dnone%26sni%3D${host}%26flow%3Dxtls-rprx-splice%23${email}\n"
 
 		elif [[ "${coreInstallType}" == "2" || "${coreInstallType}" == "3" ]]; then
 			echoContent yellow " ---> 通用格式(VLESS+TCP+TLS)"
-			echoContent green "    vless://${VLESSID}@${host}:${port}?security=tls&encryption=none&host=${host}&headerType=none&type=tcp#${VLESSEmail}\n"
+			echoContent green "    vless://${id}@${host}:${port}?security=tls&encryption=none&host=${host}&headerType=none&type=tcp#${email}\n"
 
 			echoContent yellow " ---> 格式化明文(VLESS+TCP+TLS/xtls-rprx-splice)"
-			echoContent green "    协议类型：VLESS，地址：${host}，端口：${port}，用户ID：${VLESSID}，安全：tls，传输方式：tcp，账户名:${VLESSEmail}\n"
+			echoContent green "    协议类型：VLESS，地址：${host}，端口：${port}，用户ID：${id}，安全：tls，传输方式：tcp，账户名:${email}\n"
 
 			cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
-vless://${VLESSID}@${host}:${port}?security=tls&encryption=none&host=${host}&headerType=none&type=tcp#${VLESSEmail}
+vless://${id}@${host}:${port}?security=tls&encryption=none&host=${host}&headerType=none&type=tcp#${email}
 EOF
 			echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS)"
-			echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3a%2f%2f${VLESSID}%40${host}%3a${port}%3fsecurity%3dtls%26encryption%3dnone%26host%3d${host}%26headerType%3dnone%26type%3dtcp%23${VLESSEmail}\n"
+			echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3a%2f%2f${id}%40${host}%3a${port}%3fsecurity%3dtls%26encryption%3dnone%26host%3d${host}%26headerType%3dnone%26type%3dtcp%23${email}\n"
 		fi
+
+	elif [[ "${type}" == "trojanTCPXTLS" ]]; then
+			echoContent yellow " ---> 通用格式(Trojan+TCP+TLS/xtls-rprx-direct)"
+			echoContent green "    trojan://${id}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&sni=${host}&flow=xtls-rprx-direct#${email}\n"
+
+			echoContent yellow " ---> 格式化明文(Trojan+TCP+TLS/xtls-rprx-direct)"
+			echoContent green "协议类型：Trojan，地址：${host}，端口：${port}，用户ID：${id}，安全：xtls，传输方式：tcp，flow：xtls-rprx-direct，账户名:${email}\n"
+			cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
+trojan://${id}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&sni=${host}&flow=xtls-rprx-direct#${email}
+EOF
+			echoContent yellow " ---> 二维码 Trojan(Trojan+TCP+TLS/xtls-rprx-direct)"
+			echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3A%2F%2F${id}%40${host}%3A${port}%3Fencryption%3Dnone%26security%3Dxtls%26type%3Dtcp%26${host}%3D${host}%26headerType%3Dnone%26sni%3D${host}%26flow%3Dxtls-rprx-direct%23${email}\n"
+
+			echoContent skyBlue "----------------------------------------------------------------------------------"
+
+			echoContent yellow " ---> 通用格式(Trojan+TCP+TLS/xtls-rprx-splice)"
+			echoContent green "    trojan://${id}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&sni=${host}&flow=xtls-rprx-splice#${email}\n"
+
+			echoContent yellow " ---> 格式化明文(Trojan+TCP+TLS/xtls-rprx-splice)"
+			echoContent green "    协议类型：VLESS，地址：${host}，端口：${port}，用户ID：${id}，安全：xtls，传输方式：tcp，flow：xtls-rprx-splice，账户名:${email}\n"
+			cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
+trojan://${id}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&sni=${host}&flow=xtls-rprx-splice#${email}
+EOF
+			echoContent yellow " ---> 二维码 Trojan(Trojan+TCP+TLS/xtls-rprx-splice)"
+			echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3A%2F%2F${id}%40${host}%3A${port}%3Fencryption%3Dnone%26security%3Dxtls%26type%3Dtcp%26${host}%3D${host}%26headerType%3Dnone%26sni%3D${host}%26flow%3Dxtls-rprx-splice%23${email}\n"
+
 
 	elif [[ "${type}" == "vmessws" ]]; then
 
@@ -2429,97 +2629,111 @@ EOF
 		echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vmess://${qrCodeBase64Default}\n"
 
 	elif [[ "${type}" == "vlessws" ]]; then
-		local VLESSID
-		VLESSID=$(echo "${id}" | awk -F "[\"]" '{print $2}')
-		local VLESSEmail
-		VLESSEmail=$(echo "${ps}" | awk -F "[\"]" '{print $2}')
 
 		echoContent yellow " ---> 通用格式(VLESS+WS+TLS)"
-		echoContent green "    vless://${VLESSID}@${add}:${port}?encryption=none&security=tls&type=ws&host=${host}&sni=${host}&path=%2f${path}#${VLESSEmail}\n"
+		echoContent green "    vless://${id}@${add}:${port}?encryption=none&security=tls&type=ws&host=${host}&sni=${host}&path=%2f${path}#${email}\n"
 
 		echoContent yellow " ---> 格式化明文(VLESS+WS+TLS)"
-		echoContent green "    协议类型：VLESS，地址：${add}，伪装域名/SNI：${host}，端口：${port}，用户ID：${VLESSID}，安全：tls，传输方式：ws，路径:/${path}，账户名:${VLESSEmail}\n"
+		echoContent green "    协议类型：VLESS，地址：${add}，伪装域名/SNI：${host}，端口：${port}，用户ID：${id}，安全：tls，传输方式：ws，路径:/${path}，账户名:${email}\n"
 
 		cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
-vless://${VLESSID}@${add}:${port}?encryption=none&security=tls&type=ws&host=${host}&sni=${host}&path=%2f${path}#${VLESSEmail}
+vless://${id}@${add}:${port}?encryption=none&security=tls&type=ws&host=${host}&sni=${host}&path=%2f${path}#${email}
 EOF
 
 		echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS/XTLS)"
-		echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${VLESSID}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dws%26host%3D${host}%26sni%3D${host}%26path%3D%252f${path}%23${VLESSEmail}"
+		echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dws%26host%3D${host}%26sni%3D${host}%26path%3D%252f${path}%23${email}"
 
 	elif [[ "${type}" == "vlessgrpc" ]]; then
-		local VLESSID
-		VLESSID=$(echo "${id}" | awk -F "[\"]" '{print $2}')
-		local VLESSEmail
-		VLESSEmail=$(echo "${ps}" | awk -F "[\"]" '{print $2}')
 
 		echoContent yellow " ---> 通用格式(VLESS+gRPC+TLS)"
-		echoContent green "    vless://${VLESSID}@${add}:${port}?encryption=none&security=tls&type=grpc&host=${host}&serviceName=${path}&alpn=h2&sni=${host}#${VLESSEmail}\n"
+		echoContent green "    vless://${id}@${add}:${port}?encryption=none&security=tls&type=grpc&host=${host}&path=${path}&serviceName=${path}&alpn=h2&sni=${host}#${email}\n"
 
 		echoContent yellow " ---> 格式化明文(VLESS+gRPC+TLS)"
-		echoContent green "    协议类型：VLESS，地址：${add}，伪装域名/SNI：${host}，端口：${port}，用户ID：${VLESSID}，安全：tls，传输方式：gRPC，alpn：h2，serviceName:${path}，账户名:${VLESSEmail}\n"
+		echoContent green "    协议类型：VLESS，地址：${add}，伪装域名/SNI：${host}，端口：${port}，用户ID：${id}，安全：tls，传输方式：gRPC，alpn：h2，serviceName:${path}，账户名:${email}\n"
 
 		cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
-vless://${VLESSID}@${add}:${port}?encryption=none&security=tls&type=grpc&host=${host}&path=${path}&serviceName=${path}&alpn=h2&sni=${host}#${VLESSEmail}
+vless://${id}@${add}:${port}?encryption=none&security=tls&type=grpc&host=${host}&path=${path}&serviceName=${path}&alpn=h2&sni=${host}#${email}
 EOF
 		echoContent yellow " ---> 二维码 VLESS(VLESS+gRPC+TLS)"
-		echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${VLESSID}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dgrpc%26host%3D${host}%26serviceName%3D${path}%26path%3D${path}%26sni%3D${host}%26alpn%3Dh2%23${VLESSEmail}"
+		echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dgrpc%26host%3D${host}%26serviceName%3D${path}%26path%3D${path}%26sni%3D${host}%26alpn%3Dh2%23${email}"
 
 	elif [[ "${type}" == "trojan" ]]; then
 		# URLEncode
 		echoContent yellow " ---> Trojan(TLS)"
-		echoContent green "    trojan://${id}@${host}:${port}?peer=${host}&sni=${host}&alpn=http1.1#${host}_trojan\n"
+		echoContent green "    trojan://${id}@${host}:${port}?peer=${host}&sni=${host}&alpn=http1.1#${host}_Trojan\n"
 
 		cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
-trojan://${id}@${host}:${port}?peer=${host}&sni=${host}&alpn=http1.1#${host}_trojan
+trojan://${id}@${host}:${port}?peer=${host}&sni=${host}&alpn=http1.1#${host}_Trojan
 EOF
 		echoContent yellow " ---> 二维码 Trojan(TLS)"
-		echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${host}%3a${port}%3fpeer%3d${host}%26sni%3d${host}%26alpn%3Dhttp1.1%23${host}_trojan\n"
+		echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${host}%3a${port}%3fpeer%3d${host}%26sni%3d${host}%26alpn%3Dhttp1.1%23${host}_Trojan\n"
+
+	elif [[ "${type}" == "trojangrpc" ]]; then
+		# URLEncode
+
+		echoContent yellow " ---> Trojan gRPC(TLS)"
+		echoContent green "    trojan://${id}@${host}:${port}?encryption=none&peer=${host}&security=tls&type=grpc&sni=${host}&alpn=h2&path=${path}&serviceName=${path}#${host}_Trojan_gRPC\n"
+
+		cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
+trojan://${id}@${host}:${port}?encryption=none&peer=${host}&security=tls&type=grpc&sni=${host}&alpn=h2&path=${path}&serviceName=${path}#${host}_Trojan_gRPC
+EOF
+		echoContent yellow " ---> 二维码 Trojan gRPC(TLS)"
+		echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${host}%3a${port}%3Fencryption%3Dnone%26security%3Dtls%26peer%3d${host}%26type%3Dgrpc%26sni%3d${host}%26path%3D${path}%26alpn%3D=h2%26serviceName%3D${path}%23${host}_Trojan_gRPC\n"
 
 	elif [[ "${type}" == "trojangows" ]]; then
 		# URLEncode
 		echoContent yellow " ---> Trojan-Go(WS+TLS) Shadowrocket"
-		echoContent green "    trojan://${id}@${add}:${port}?allowInsecure=0&&peer=${host}&sni=${host}&plugin=obfs-local;obfs=websocket;obfs-host=${host};obfs-uri=${path}#${host}_trojan_ws\n"
+		echoContent green "    trojan://${id}@${add}:${port}?allowInsecure=0&&peer=${host}&sni=${host}&plugin=obfs-local;obfs=websocket;obfs-host=${host};obfs-uri=${path}#${host}_Trojan_ws\n"
 
 		cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
-trojan://${id}@${add}:${port}?allowInsecure=0&&peer=${host}&sni=${host}&plugin=obfs-local;obfs=websocket;obfs-host=${host};obfs-uri=${path}#${host}_trojan_ws
+trojan://${id}@${add}:${port}?allowInsecure=0&&peer=${host}&sni=${host}&plugin=obfs-local;obfs=websocket;obfs-host=${host};obfs-uri=${path}#${host}_Trojan_ws
 EOF
 		echoContent yellow " ---> 二维码 Trojan-Go(WS+TLS) Shadowrocket"
-		echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${add}%3a${port}%3fallowInsecure%3d0%26peer%3d${host}%26plugin%3dobfs-local%3bobfs%3dwebsocket%3bobfs-host%3d${host}%3bobfs-uri%3d${path}%23${host}_trojan_ws\n"
+		echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${add}%3a${port}%3fallowInsecure%3d0%26peer%3d${host}%26plugin%3dobfs-local%3bobfs%3dwebsocket%3bobfs-host%3d${host}%3bobfs-uri%3d${path}%23${host}_Trojan_ws\n"
 
 		path=$(echo "${path}" | awk -F "[/]" '{print $2}')
 		echoContent yellow " ---> Trojan-Go(WS+TLS) QV2ray"
 
 		cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
-trojan-go://${id}@${add}:${port}?sni=${host}&type=ws&host=${host}&path=%2F${path}#${host}_trojan_ws
+trojan-go://${id}@${add}:${port}?sni=${host}&type=ws&host=${host}&path=%2F${path}#${host}_Trojan_ws
 EOF
 
-		echoContent green "    trojan-go://${id}@${add}:${port}?sni=${host}&type=ws&host=${host}&path=%2F${path}#${host}_trojan_ws\n"
+		echoContent green "    trojan-go://${id}@${add}:${port}?sni=${host}&type=ws&host=${host}&path=%2F${path}#${host}_Trojan_ws\n"
 
 	fi
 }
 # 账号
 showAccounts() {
 	readInstallType
-	readConfigHostPathUUID
 	readInstallProtocolType
+	readConfigHostPathUUID
 	echoContent skyBlue "\n进度 $1/${totalProgress} : 账号"
 	local show
 	# VLESS TCP
 	if [[ -n "${configPath}" ]]; then
 		show=1
-		if echo "${currentInstallProtocolType}" | grep -q 0 || [[ -z "${currentInstallProtocolType}" ]]; then
+		if  echo "${currentInstallProtocolType}" | grep -q trojan ;then
+			echoContent skyBlue "===================== Trojan TCP TLS/XTLS-direct/XTLS-splice ======================\n"
+			# cat ${configPath}02_VLESS_TCP_inbounds.json | jq .inbounds[0].settings.clients | jq -c '.[]'
+			jq .inbounds[0].settings.clients ${configPath}02_trojan_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
+				echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq -r .email )_$(echo "${user}" | jq -r .password)"
+				echo
+				defaultBase64Code trojanTCPXTLS $(echo "${user}" | jq -r .email) $(echo "${user}" | jq -r .password) "${currentHost}:${currentPort}" ${currentHost}
+			done
+
+		else
 			echoContent skyBlue "===================== VLESS TCP TLS/XTLS-direct/XTLS-splice ======================\n"
 			# cat ${configPath}02_VLESS_TCP_inbounds.json | jq .inbounds[0].settings.clients | jq -c '.[]'
 			jq .inbounds[0].settings.clients ${configPath}02_VLESS_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
 				echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq -r .email )_$(echo "${user}" | jq -r .id)"
 				echo
-				defaultBase64Code vlesstcp $(echo "${user}" | jq .email) $(echo "${user}" | jq .id) "${currentHost}:${currentPort}" ${currentHost}
+				defaultBase64Code vlesstcp $(echo "${user}" | jq -r .email) $(echo "${user}" | jq -r .id) "${currentHost}:${currentPort}" ${currentHost}
 			done
 		fi
 
+
 		# VLESS WS
-		if echo ${currentInstallProtocolType} | grep -q 1 || [[ -z "${currentInstallProtocolType}" ]]; then
+		if echo ${currentInstallProtocolType} | grep -q 1; then
 			echoContent skyBlue "\n================================ VLESS WS TLS CDN ================================\n"
 
 			# cat ${configPath}03_VLESS_WS_inbounds.json | jq .inbounds[0].settings.clients | jq -c '.[]'
@@ -2531,24 +2745,24 @@ showAccounts() {
 					echoContent yellow "Xray的0-RTT path后面会有?ed=2048，不兼容以v2ray为核心的客户端，请手动删除?ed=2048后使用\n"
 					path="${currentPath}ws?ed=2048"
 				fi
-				defaultBase64Code vlessws $(echo "${user}" | jq .email) $(echo "${user}" | jq .id) "${currentHost}:${currentPort}" ${path} ${currentAdd}
+				defaultBase64Code vlessws $(echo "${user}" | jq -r .email) $(echo "${user}" | jq -r .id) "${currentHost}:${currentPort}" ${path} ${currentAdd}
 			done
 		fi
 
 		# VMess TCP
-		if echo ${currentInstallProtocolType} | grep -q 2 || [[ -z "${currentInstallProtocolType}" ]]; then
-			echoContent skyBlue "\n================================= VMess TCP TLS  =================================\n"
-
-			# cat ${configPath}04_VMess_TCP_inbounds.json | jq .inbounds[0].settings.clients | jq -c '.[]'
-			jq .inbounds[0].settings.clients ${configPath}04_VMess_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
-				echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq -r .email )_$(echo "${user}" | jq -r .id)"
-				echo
-				defaultBase64Code vmesstcp $(echo "${user}" | jq .email) $(echo "${user}" | jq .id) "${currentHost}:${currentPort}" "${currentPath}tcp" "${currentHost}"
-			done
-		fi
+#		if echo ${currentInstallProtocolType} | grep -q 2; then
+#			echoContent skyBlue "\n================================= VMess TCP TLS  =================================\n"
+#
+#			# cat ${configPath}04_VMess_TCP_inbounds.json | jq .inbounds[0].settings.clients | jq -c '.[]'
+#			jq .inbounds[0].settings.clients ${configPath}04_VMess_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
+#				echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq -r .email )_$(echo "${user}" | jq -r .id)"
+#				echo
+#				defaultBase64Code vmesstcp $(echo "${user}" | jq .email) $(echo "${user}" | jq .id) "${currentHost}:${currentPort}" "${currentPath}tcp" "${currentHost}"
+#			done
+#		fi
 
 		# VMess WS
-		if echo ${currentInstallProtocolType} | grep -q 3 || [[ -z "${currentInstallProtocolType}" ]]; then
+		if echo ${currentInstallProtocolType} | grep -q 3; then
 			echoContent skyBlue "\n================================ VMess WS TLS CDN ================================\n"
 			local path="${currentPath}vws"
 			if [[ ${coreInstallType} == "1" ]]; then
@@ -2557,24 +2771,24 @@ showAccounts() {
 			jq .inbounds[0].settings.clients ${configPath}05_VMess_WS_inbounds.json | jq -c '.[]' | while read -r user; do
 				echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq -r .email )_$(echo "${user}" | jq -r .id)"
 				echo
-				defaultBase64Code vmessws $(echo "${user}" | jq .email) $(echo "${user}" | jq .id) "${currentHost}:${currentPort}" ${path} ${currentAdd}
+				defaultBase64Code vmessws $(echo "${user}" | jq -r .email) $(echo "${user}" | jq -r .id) "${currentHost}:${currentPort}" ${path} ${currentAdd}
 			done
 		fi
 
 		# VLESS grpc
-		if echo ${currentInstallProtocolType} | grep -q 5 || [[ -z "${currentInstallProtocolType}" ]]; then
+		if echo ${currentInstallProtocolType} | grep -q 5; then
 			echoContent skyBlue "\n=============================== VLESS gRPC TLS CDN ===============================\n"
 			local serviceName=$(jq -r .inbounds[0].streamSettings.grpcSettings.serviceName ${configPath}06_VLESS_gRPC_inbounds.json)
 			jq .inbounds[0].settings.clients ${configPath}06_VLESS_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
 				echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq -r .email )_$(echo "${user}" | jq -r .id)"
 				echo
-				defaultBase64Code vlessgrpc $(echo "${user}" | jq .email) $(echo "${user}" | jq .id) "${currentHost}:${currentPort}" ${serviceName} ${currentAdd}
+				defaultBase64Code vlessgrpc $(echo "${user}" | jq -r .email) $(echo "${user}" | jq -r .id) "${currentHost}:${currentPort}" ${serviceName} ${currentAdd}
 			done
 		fi
 	fi
 
 	# trojan tcp
-	if echo ${currentInstallProtocolType} | grep -q 4 || [[ -z "${currentInstallProtocolType}" ]]; then
+	if echo ${currentInstallProtocolType} | grep -q 4; then
 		echoContent skyBlue "\n==================================  Trojan TLS  ==================================\n"
 		jq .inbounds[0].settings.clients ${configPath}04_trojan_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
 			echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq -r .email )_$(echo "${user}" | jq -r .password)"
@@ -2583,41 +2797,15 @@ showAccounts() {
 		done
 	fi
 
-
-#	# trojan-go
-#	if [[ -d "/etc/v2ray-agent/" ]] && [[ -d "/etc/v2ray-agent/trojan/" ]] && [[ -f "/etc/v2ray-agent/trojan/config_full.json" ]]; then
-#		show=1
-#		# local trojanUUID=`cat /etc/v2ray-agent/trojan/config_full.json |jq .password[0]|awk -F '["]' '{print $2}'`
-#		local trojanGoPath
-#		trojanGoPath=$(jq -r .websocket.path /etc/v2ray-agent/trojan/config_full.json)
-#		local trojanGoAdd
-#		trojanGoAdd=$(jq .websocket.add /etc/v2ray-agent/trojan/config_full.json | awk -F '["]' '{print $2}')
-#		echoContent skyBlue "\n==================================  Trojan TLS  ==================================\n"
-#		# cat /etc/v2ray-agent/trojan/config_full.json | jq .password
-#		jq -r -c '.password[]' /etc/v2ray-agent/trojan/config_full.json | while read -r user; do
-#			trojanUUID=${user}
-#			if [[ -n "${trojanUUID}" ]]; then
-#				echoContent skyBlue " ---> 帐号：${currentHost}_trojan_${trojanUUID}\n"
-#				echo
-#				defaultBase64Code trojan trojan ${trojanUUID} ${currentHost}
-#			fi
-#		done
-#
-#		echoContent skyBlue "\n================================  Trojan WS TLS   ================================\n"
-#		if [[ -z ${trojanGoAdd} ]]; then
-#			trojanGoAdd=${currentHost}
-#		fi
-#
-#		jq -r -c '.password[]' /etc/v2ray-agent/trojan/config_full.json | while read -r user; do
-#			trojanUUID=${user}
-#			if [[ -n "${trojanUUID}" ]]; then
-#				echoContent skyBlue " ---> 帐号：${trojanGoAdd}_trojan_ws_${trojanUUID}"
-#				echo
-#				defaultBase64Code trojangows trojan ${trojanUUID} ${currentHost} ${trojanGoPath} ${trojanGoAdd}
-#			fi
-#
-#		done
-#	fi
+	if echo ${currentInstallProtocolType} | grep -q 2; then
+		echoContent skyBlue "\n================================  Trojan gRPC TLS  ================================\n"
+		local serviceName=$(jq -r .inbounds[0].streamSettings.grpcSettings.serviceName ${configPath}04_trojan_gRPC_inbounds.json)
+		jq .inbounds[0].settings.clients ${configPath}04_trojan_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
+			echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq -r .email )_$(echo "${user}" | jq -r .password)"
+			echo
+			defaultBase64Code trojangrpc $(echo "${user}" | jq -r .email) $(echo "${user}" | jq -r .password) "${currentHost}:${currentPort}" ${serviceName} ${currentAdd}
+		done
+	fi
 
 	if [[ -z ${show} ]]; then
 		echoContent red " ---> 未安装"
@@ -2785,9 +2973,9 @@ updateV2RayCDN() {
 
 		if [[ -n ${setDomain} ]]; then
 			if [[ -n ${currentAdd} ]]; then
-				sed -i "s/\"${currentAdd}\"/\"${setDomain}\"/g" $(grep "${currentAdd}" -rl ${configPath}02_VLESS_TCP_inbounds.json)
+				sed -i "s/\"${currentAdd}\"/\"${setDomain}\"/g" $(grep "${currentAdd}" -rl ${configPath}${frontingType}.json)
 			fi
-			if [[ $(jq -r .inbounds[0].settings.clients[0].add ${configPath}02_VLESS_TCP_inbounds.json) == ${setDomain} ]]; then
+			if [[ $(jq -r .inbounds[0].settings.clients[0].add ${configPath}${frontingType}.json) == ${setDomain} ]]; then
 				echoContent green " ---> CDN修改成功"
 				reloadCore
 			else
@@ -2843,7 +3031,7 @@ customUUID() {
 			echoContent red " ---> UUID不可为空"
 		else
 			local repeat=
-			jq -r -c '.inbounds[0].settings.clients[].id' ${configPath}02_VLESS_TCP_inbounds.json | while read -r line; do
+			jq -r -c '.inbounds[0].settings.clients[].id' ${configPath}${frontingType}.json | while read -r line; do
 				if [[ "${line}" == "${currentCustomUUID}" ]]; then
 					echo repeat >/tmp/v2ray-agent
 				fi
@@ -2868,7 +3056,7 @@ customUserEmail() {
 			echoContent red " ---> email不可为空"
 		else
 			local repeat=
-			jq -r -c '.inbounds[0].settings.clients[].email' ${configPath}02_VLESS_TCP_inbounds.json | while read -r line; do
+			jq -r -c '.inbounds[0].settings.clients[].email' ${configPath}${frontingType}.json | while read -r line; do
 				if [[ "${line}" == "${currentCustomEmail}" ]]; then
 					echo repeat >/tmp/v2ray-agent
 				fi
@@ -2937,12 +3125,21 @@ addUser() {
 		users="${users//\"flow\":\"xtls-rprx-direct\"\,/}"
 	fi
 
-	if [[ -n $(echo ${currentInstallProtocolType} | grep 0) ]]; then
+	if echo ${currentInstallProtocolType} | grep -q 0; then
 		local vlessUsers="${users//\,\"alterId\":0/}"
 
 		local vlessTcpResult
-		vlessTcpResult=$(jq -r '.inbounds[0].settings.clients += ['${vlessUsers}']' ${configPath}02_VLESS_TCP_inbounds.json)
-		echo "${vlessTcpResult}" | jq . >${configPath}02_VLESS_TCP_inbounds.json
+		vlessTcpResult=$(jq -r '.inbounds[0].settings.clients += ['${vlessUsers}']' ${configPath}${frontingType}.json)
+		echo "${vlessTcpResult}" | jq . >${configPath}${frontingType}.json
+	fi
+
+	if echo ${currentInstallProtocolType} | grep -q trojan; then
+		local trojanXTLSUsers="${users//\,\"alterId\":0/}"
+		trojanXTLSUsers=${trojanXTLSUsers//"id"/"password"}
+		echo trojanXTLSUsers:${trojanXTLSUsers}
+		local trojanXTLSResult
+		trojanXTLSResult=$(jq -r '.inbounds[0].settings.clients += ['${trojanXTLSUsers}']' ${configPath}${frontingType}.json)
+		echo "${trojanXTLSResult}" | jq . >${configPath}${frontingType}.json
 	fi
 
 	#	users="${users//"flow":"xtls-rprx-direct",/"alterId":1,}"
@@ -2956,11 +3153,13 @@ addUser() {
 	fi
 
 	if echo ${currentInstallProtocolType} | grep -q 2; then
-		local vmessUsers="${users//\"flow\":\"xtls-rprx-direct\"\,/}"
-
-		local vmessTcpResult
-		vmessTcpResult=$(jq -r '.inbounds[0].settings.clients += ['${vmessUsers}']' ${configPath}04_VMess_TCP_inbounds.json)
-		echo "${vmessTcpResult}" | jq . >${configPath}04_VMess_TCP_inbounds.json
+		local trojangRPCUsers="${users//\"flow\":\"xtls-rprx-direct\"\,/}"
+		trojangRPCUsers="${trojangRPCUsers//\,\"alterId\":0/}"
+		trojangRPCUsers=${trojangRPCUsers//"id"/"password"}
+		echo trojangRPCUsers:${trojangRPCUsers}
+		local trojangRPCResult
+		trojangRPCResult=$(jq -r '.inbounds[0].settings.clients += ['${trojangRPCUsers}']' ${configPath}04_trojan_gRPC_inbounds.json)
+		echo "${trojangRPCResult}" | jq . >${configPath}04_trojan_gRPC_inbounds.json
 	fi
 
 	if echo ${currentInstallProtocolType} | grep -q 3; then
@@ -3007,16 +3206,16 @@ addUser() {
 # 移除用户
 removeUser() {
 
-	if echo ${currentInstallProtocolType} | grep -q 0; then
-		jq -r -c .inbounds[0].settings.clients[].email ${configPath}02_VLESS_TCP_inbounds.json | awk '{print NR""":"$0}'
+	if echo ${currentInstallProtocolType} | grep -q 0 || echo ${currentInstallProtocolType} | grep -q trojan ; then
+		jq -r -c .inbounds[0].settings.clients[].email ${configPath}${frontingType}.json | awk '{print NR""":"$0}'
 		read -r -p "请选择要删除的用户编号[仅支持单个删除]:" delUserIndex
-		if [[ $(jq -r '.inbounds[0].settings.clients|length' ${configPath}02_VLESS_TCP_inbounds.json) -lt ${delUserIndex} ]]; then
+		if [[ $(jq -r '.inbounds[0].settings.clients|length' ${configPath}${frontingType}.json) -lt ${delUserIndex} ]]; then
 			echoContent red " ---> 选择错误"
 		else
 			delUserIndex=$((${delUserIndex} - 1))
 			local vlessTcpResult
-			vlessTcpResult=$(jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])' ${configPath}02_VLESS_TCP_inbounds.json)
-			echo "${vlessTcpResult}" | jq . >${configPath}02_VLESS_TCP_inbounds.json
+			vlessTcpResult=$(jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])' ${configPath}${frontingType}.json)
+			echo "${vlessTcpResult}" | jq . >${configPath}${frontingType}.json
 		fi
 	fi
 	if [[ -n "${delUserIndex}" ]]; then
@@ -3027,9 +3226,9 @@ removeUser() {
 		fi
 
 		if echo ${currentInstallProtocolType} | grep -q 2; then
-			local vmessTCPResult
-			vmessTCPResult=$(jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])' ${configPath}04_VMess_TCP_inbounds.json)
-			echo "${vmessTCPResult}" | jq . >${configPath}04_VMess_TCP_inbounds.json
+			local trojangRPCUsers
+			trojangRPCUsers=$(jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])' ${configPath}04_trojan_gRPC_inbounds.json)
+			echo "${trojangRPCUsers}" | jq . >${configPath}04_trojan_gRPC_inbounds.json
 		fi
 
 		if echo ${currentInstallProtocolType} | grep -q 3; then
@@ -3049,13 +3248,7 @@ removeUser() {
 			trojanTCPResult=$(jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])' ${configPath}04_trojan_TCP_inbounds.json)
 			echo "${trojanTCPResult}" | jq . >${configPath}04_trojan_TCP_inbounds.json
 		fi
-#		if echo ${currentInstallProtocolType} | grep -q 4; then
-#			local trojanResult
-#			trojanResult=$(jq -r 'del(.password['${delUserIndex}'])' ${configPath}../../trojan/config_full.json)
-#			echo "${trojanResult}" | jq . >${configPath}../../trojan/config_full.json
-#			handleTrojanGo stop
-#			handleTrojanGo start
-#		fi
+
 		reloadCore
 	fi
 }
@@ -3817,7 +4010,7 @@ customXrayInstall() {
 	echoContent yellow "VLESS前置，默认安装0，如果只需要安装0，则只选择0即可"
 	echoContent yellow "0.VLESS+TLS/XTLS+TCP"
 	echoContent yellow "1.VLESS+TLS+WS[CDN]"
-#	echoContent yellow "2.VMess+TLS+TCP"
+	echoContent yellow "2.Trojan+TLS+gRPC[CDN]"
 	echoContent yellow "3.VMess+TLS+WS[CDN]"
 	# echoContent yellow "4.Trojan、Trojan+WS[CDN]"
 	echoContent yellow "4.Trojan"
@@ -3837,7 +4030,7 @@ customXrayInstall() {
 		handleNginx stop
 		initNginxConfig 4
 		# 随机path
-		if echo "${selectCustomInstallType}" | grep -q 1 || echo "${selectCustomInstallType}" | grep -q 3 || echo "${selectCustomInstallType}" | grep -q 4 || echo "${selectCustomInstallType}" | grep -q 5; then
+		if echo "${selectCustomInstallType}" | grep -q 1 || echo "${selectCustomInstallType}" | grep -q 2 || echo "${selectCustomInstallType}" | grep -q 3 || echo "${selectCustomInstallType}" | grep -q 5; then
 			randomPathFunction 5
 			customCDNIP 6
 		fi
@@ -4074,7 +4267,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.13"
+	echoContent green "当前版本：v2.5.14"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
@@ -4086,23 +4279,28 @@ menu() {
 	fi
 
 	echoContent yellow "2.任意组合安装"
+	if echo ${currentInstallProtocolType} | grep -q trojan; then
+		echoContent yellow "3.切换VLESS[XTLS]"
+	elif echo ${currentInstallProtocolType} | grep -q 0;then
+		echoContent yellow "3.切换Trojan[XTLS]"
+	fi
 	echoContent skyBlue "-------------------------工具管理-----------------------------"
-	echoContent yellow "3.账号管理"
-	echoContent yellow "4.更换伪装站"
-	echoContent yellow "5.更新证书"
-	echoContent yellow "6.更换CDN节点"
-	echoContent yellow "7.IPv6分流"
-	echoContent yellow "8.WARP分流"
-	echoContent yellow "9.流媒体工具"
-	echoContent yellow "10.添加新端口"
+	echoContent yellow "4.账号管理"
+	echoContent yellow "5.更换伪装站"
+	echoContent yellow "6.更新证书"
+	echoContent yellow "7.更换CDN节点"
+	echoContent yellow "8.IPv6分流"
+	echoContent yellow "9.WARP分流"
+	echoContent yellow "10.流媒体工具"
+	echoContent yellow "11.添加新端口"
 	echoContent skyBlue "-------------------------版本管理-----------------------------"
-	echoContent yellow "11.core管理"
+	echoContent yellow "12.core管理"
 #	echoContent yellow "12.更新Trojan-Go"
-	echoContent yellow "12.更新脚本"
-	echoContent yellow "13.安装BBR、DD脚本"
+	echoContent yellow "13.更新脚本"
+	echoContent yellow "14.安装BBR、DD脚本"
 	echoContent skyBlue "-------------------------脚本管理-----------------------------"
-	echoContent yellow "14.查看日志"
-	echoContent yellow "15.卸载脚本"
+	echoContent yellow "15.查看日志"
+	echoContent yellow "16.卸载脚本"
 	echoContent red "=============================================================="
 	mkdirTools
 	aliasInstall
@@ -4115,45 +4313,48 @@ menu() {
 		selectCoreInstall
 		;;
 	3)
-		manageAccount 1
+		initXrayFrontingConfig 1
 		;;
 	4)
-		updateNginxBlog 1
+		manageAccount 1
 		;;
 	5)
-		renewalTLS 1
+		updateNginxBlog 1
 		;;
 	6)
-		updateV2RayCDN 1
+		renewalTLS 1
 		;;
 	7)
-		ipv6Routing 1
+		updateV2RayCDN 1
 		;;
 	8)
-		warpRouting 1
+		ipv6Routing 1
 		;;
 	9)
-		streamingToolbox 1
+		warpRouting 1
 		;;
 	10)
-		addCorePort 1
+		streamingToolbox 1
 		;;
 	11)
+		addCorePort 1
+		;;
+	12)
 		coreVersionManageMenu 1
 		;;
 #	12)
 #		updateTrojanGo 1
 #		;;
-	12)
+	13)
 		updateV2RayAgent 1
 		;;
-	13)
+	14)
 		bbrInstall
 		;;
-	14)
+	15)
 		checkLog 1
 		;;
-	15)
+	16)
 		unInstall 1
 		;;
 	esac
