@@ -54,10 +54,11 @@
 - VLESS+TCP+xtls-rprx-direct【**推荐**】
 - VLESS+gRPC+TLS【支持CDN、IPv6】
 - VLESS+WS+TLS【支持CDN、IPv6】
-- VMess+TCP+TLS
+- Trojan+TCP+TLS【**推荐**】
+- Trojan+TCP+xtls-rprx-direct【**推荐**】
+- Trojan+gRPC+TLS【支持CDN、IPv6】
 - VMess+WS+TLS【支持CDN、IPv6】
-- Trojan【**推荐**】
-- Trojan-Go+WS【支持CDN、不支持IPv6】
+
 
 ## 线路推荐
 
@@ -125,11 +126,6 @@
 
 ```
 wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh" && chmod 700 /root/install.sh && /root/install.sh
-```
-
-- dev_trojan_gRPC【Beta】
-```
-wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/dev_trojan/install.sh" && chmod 700 /root/install.sh && /root/install.sh
 ```
 
 - Stable-v2.4.16【无gRPC】
