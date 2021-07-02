@@ -2584,11 +2584,11 @@ EOF
 
 	elif [[ "${type}" == "vmessws" ]]; then
 
-		qrCodeBase64Default=$(echo -n '{"port":"'${port}'","ps":'${ps}',"tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":"/'${path}'","net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'","sni":"'${host}'"}' | sed 's#/#\\\/#g' | base64)
+		qrCodeBase64Default=$(echo -n '{"port":"'${port}'","ps":'\"${email}\"',"tls":"tls","id":'\"${id}\"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":"/'${path}'","net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'","sni":"'${host}'"}' | sed 's#/#\\\/#g' | base64)
 		qrCodeBase64Default=$(echo ${qrCodeBase64Default} | sed 's/ //g')
 
 		echoContent yellow " ---> 通用json(VMess+WS+TLS)"
-		echoContent green '    {"port":"'${port}'","ps":'${ps}',"tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":"/'${path}'","net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'","sni":"'${host}'"}\n'
+		echoContent green '    {"port":"'${port}'","ps":'\"${ps}\"',"tls":"tls","id":'\"${id}\"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":"/'${path}'","net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'","sni":"'${host}'"}\n'
 		echoContent yellow " ---> 通用vmess(VMess+WS+TLS)链接"
 		echoContent green "    vmess://${qrCodeBase64Default}\n"
 		echoContent yellow " ---> 二维码 vmess(VMess+WS+TLS)"
@@ -3156,7 +3156,7 @@ addUser() {
 		local trojangRPCUsers="${users//\"flow\":\"xtls-rprx-direct\"\,/}"
 		trojangRPCUsers="${trojangRPCUsers//\,\"alterId\":0/}"
 		trojangRPCUsers=${trojangRPCUsers//"id"/"password"}
-		echo trojangRPCUsers:${trojangRPCUsers}
+
 		local trojangRPCResult
 		trojangRPCResult=$(jq -r '.inbounds[0].settings.clients += ['${trojangRPCUsers}']' ${configPath}04_trojan_gRPC_inbounds.json)
 		echo "${trojangRPCResult}" | jq . >${configPath}04_trojan_gRPC_inbounds.json
@@ -4277,7 +4277,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.14"
+	echoContent green "当前版本：v2.5.15"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
