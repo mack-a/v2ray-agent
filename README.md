@@ -33,7 +33,8 @@
 
 ## 特性
 
-- 支持[Xray-core[XTLS]](https://github.com/XTLS/Xray-core)、v2ray-core [XTLS]、v2ray-core
+- 支持[Xray-core[XTLS]](https://github.com/XTLS/Xray-core)、v2ray-core
+- 支持切换前置[VLESS XTLS -> Trojan XTLS]、[Trojan XTLS -> VLESS XTLS]
 - 支持不同核心之间的配置文件互相读取
 - 支持 VLESS/VMess/trojan 协议
 - 支持Debian、Ubuntu、Centos，支持主流的cpu架构。**不建议使用Centos以及低版本的系统，2.3.x后不再支持Centos6**
@@ -44,6 +45,7 @@
 - 支持卸载时保留Nginx、tls证书。如果acme.sh申请的证书在有效的情况下，不会重新签发
 - 支持纯IPv6，[IPv6注意事项](https://github.com/mack-a/v2ray-agent/blob/master/documents/ipv6_help.md)
 - 支持IPv4[入]->IPv6分流[出]
+- 支持WARP分流
 - 支持日志管理
 - 支持多端口配置
 - [支持自定义证书安装](https://github.com/mack-a/v2ray-agent/blob/master/documents/install_tls.md)
@@ -80,10 +82,8 @@
 ## 组合推荐
 
 - 中转/gia ---> VLESS+TCP+TLS/XTLS、Trojan【推荐使用XTLS的xtls-rprx-direct】
-- 移动宽带 ---> VMESS+WS+TLS/Trojan-Go+WS + Cloudflare
-- cloudflare-> VLESS+gRPC+tls[多路复用]
-- Trojan建议开启Mux【**多路复用**】，仅需客户端开启，服务端自适应。
-- VMess/VLESS也可开启Mux，效果需要自己尝试，XTLS不支持Mux。仅需客户端开启，服务端自适应。
+- 移动宽带 ---> VMESS+WS+TLS/VLESS+WS+TLS/VLESS+gRPC+TLS/Trojan+gRPC+TLS + Cloudflare
+- cloudflare-> VLESS+gRPC+TLS/Trojan+gRPC+TLS[多路复用、延迟低]
 
 ## 注意事项
 
