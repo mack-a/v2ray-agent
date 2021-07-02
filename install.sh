@@ -3368,16 +3368,26 @@ aliasInstall() {
 
 	if [[ -f "$HOME/install.sh" ]] && [[ -d "/etc/v2ray-agent" ]] && grep <$HOME/install.sh -q "作者：mack-a"; then
 		mv "$HOME/install.sh" /etc/v2ray-agent/install.sh
-		if [[ -d "/usr/bin/" ]] && [[ ! -f "/usr/bin/vasma" ]]; then
-			ln -s /etc/v2ray-agent/install.sh /usr/bin/vasma
-			chmod 700 /usr/bin/vasma
+		local vasmaType=
+		if [[ -d "/usr/bin/" ]] ; then
+			if [[ ! -f "/usr/bin/vasma" ]];then
+				ln -s /etc/v2ray-agent/install.sh /usr/bin/vasma
+				chmod 700 /usr/bin/vasma
+				vasmaType=true
+			fi
+
 			rm -rf "$HOME/install.sh"
-		elif [[ -d "/usr/sbin" ]] && [[ ! -f "/usr/sbin/vasma" ]]; then
-			ln -s /etc/v2ray-agent/install.sh /usr/sbin/vasma
-			chmod 700 /usr/sbin/vasma
+		elif [[ -d "/usr/sbin" ]] ; then
+			if [[ ! -f "/usr/sbin/vasma" ]];then
+				ln -s /etc/v2ray-agent/install.sh /usr/sbin/vasma
+				chmod 700 /usr/sbin/vasma
+				vasmaType=true
+			fi
 			rm -rf "$HOME/install.sh"
 		fi
-		echoContent green "快捷方式创建成功，可执行[vasma]重新打开脚本"
+		if [[ "${vasmaType}" == "true" ]];then
+			echoContent green "快捷方式创建成功，可执行[vasma]重新打开脚本"
+		fi
 	fi
 }
 
