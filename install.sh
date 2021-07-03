@@ -2832,7 +2832,7 @@ updateNginxBlog() {
 	read -r -p "请选择：" selectInstallNginxBlogType
 
 	if [[ "${selectInstallNginxBlogType}" =~ ^[1-9]$ ]]; then
-		rm -rf /usr/share/nginx/html
+#		rm -rf /usr/share/nginx/html
 		rm -rf /usr/share/nginx/*
 		if wget --help | grep -q show-progress; then
 			wget -c -q --show-progress -P /usr/share/nginx "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${selectInstallNginxBlogType}.zip" >/dev/null
