@@ -930,7 +930,7 @@ randomPathFunction() {
 		fi
 
 	fi
-	echoContent yellow "path：${currentPath}"
+	echoContent yellow "\n path：${currentPath}"
 	echoContent skyBlue "\n----------------------------"
 }
 # Nginx伪装博客
@@ -1626,6 +1626,7 @@ handleTrojanGo() {
 initV2RayConfig() {
 	echoContent skyBlue "\n进度 $2/${totalProgress} : 初始化V2Ray配置"
 	echo
+
 	read -r -p "是否自定义UUID ？[y/n]:" customUUIDStatus
 	echo
 	if [[ "${customUUIDStatus}" == "y" ]]; then
@@ -2066,25 +2067,27 @@ initXrayFrontingConfig(){
 initXrayConfig() {
 	echoContent skyBlue "\n进度 $2/${totalProgress} : 初始化Xray配置"
 	echo
-	read -r -p "是否自定义UUID ？[y/n]:" customUUIDStatus
-	echo
-
-	if [[ "${customUUIDStatus}" == "y" ]]; then
-		read -r -p "请输入合法的UUID:" currentCustomUUID
-		if [[ -n "${currentCustomUUID}" ]]; then
-			uuid=${currentCustomUUID}
-		fi
-	fi
-
-	if [[ -n "${currentUUID}" && -z "${uuid}" ]]; then
+	local uuid=
+	if [[ -n "${currentUUID}" ]]; then
 		read -r -p "读取到上次安装记录，是否使用上次安装时的UUID ？[y/n]:" historyUUIDStatus
 		if [[ "${historyUUIDStatus}" == "y" ]]; then
 			uuid=${currentUUID}
+			echoContent green "\n ---> 使用成功"
 		else
 			uuid=$(/etc/v2ray-agent/xray/xray uuid)
 		fi
-	elif [[ -z "${uuid}" ]]; then
-		uuid=$(/etc/v2ray-agent/xray/xray uuid)
+	fi
+
+	if [[ -z "${uuid}" ]];then
+		echoContent yellow "请输入自定义UUID[需合法]，[回车]随机UUID"
+		read -r -p 'UUID:' customUUID
+
+		if [[ -n ${customUUID} ]];then
+			uuid=${customUUID}
+		else
+			uuid=$(/etc/v2ray-agent/xray/xray uuid)
+		fi
+
 	fi
 
 	if [[ -z "${uuid}" ]]; then
@@ -2092,7 +2095,7 @@ initXrayConfig() {
 		uuid=$(/etc/v2ray-agent/xray/xray uuid)
 	fi
 
-	echoContent green "\n ---> 使用成功"
+	echoContent yellow "\n ${uuid}"
 
 	rm -rf /etc/v2ray-agent/xray/conf/*
 
@@ -2283,7 +2286,6 @@ EOF
 
 	# trojan_grpc
 	if echo ${selectCustomInstallType} | grep -q 2 || [[ "$1" == "all" ]]; then
-		echo selectCustomInstallType:${selectCustomInstallType}
 		if ! echo ${selectCustomInstallType} | grep -q 5 && [[ -n ${selectCustomInstallType} ]];then
 			fallbacksList=${fallbacksList//31302/31304}
 		fi
