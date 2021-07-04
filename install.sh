@@ -1016,10 +1016,7 @@ renewalTLS() {
 			handleNginx stop
 			sudo "$HOME/.acme.sh/acme.sh" --cron --home "$HOME/.acme.sh"
 			sudo "$HOME/.acme.sh/acme.sh" --installcert -d "${currentHost}" --fullchainpath /etc/v2ray-agent/tls/"${currentHost}.crt" --keypath /etc/v2ray-agent/tls/"${currentHost}.key" --ecc
-			handleNginx start
-
 			reloadCore
-
 		else
 			echoContent green " ---> 证书有效"
 		fi
