@@ -101,6 +101,7 @@
 - **[如有使用不明白的地方请先查看脚本使用指南](https://github.com/mack-a/v2ray-agent/blob/master/documents/how_to_use.md)**
 - **Oracle vps有一个额外的防火墙，需要手动设置**
 - **如果使用gRPC通过cloudflare转发,需要在cloudflare设置允许gRPC，cloudflare Network->gRPC**
+- **gRPC目前处于测试阶段，可能对你使用的客户端不兼容，如不能使用请忽略**
 
 ## [脚本使用指南](https://github.com/mack-a/v2ray-agent/blob/master/documents/how_to_use.md)、[脚本目录](https://github.com/mack-a/v2ray-agent/blob/master/documents/how_to_use.md#5脚本目录)
 

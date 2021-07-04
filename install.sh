@@ -2780,6 +2780,7 @@ showAccounts() {
 		# VLESS grpc
 		if echo ${currentInstallProtocolType} | grep -q 5; then
 			echoContent skyBlue "\n=============================== VLESS gRPC TLS CDN ===============================\n"
+			echoContent red "\n --->gRPC目前处于测试阶段，可能对你使用的客户端不兼容，如不能使用请忽略"
 			local serviceName=$(jq -r .inbounds[0].streamSettings.grpcSettings.serviceName ${configPath}06_VLESS_gRPC_inbounds.json)
 			jq .inbounds[0].settings.clients ${configPath}06_VLESS_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
 				echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq -r .email )_$(echo "${user}" | jq -r .id)"
@@ -2801,6 +2802,7 @@ showAccounts() {
 
 	if echo ${currentInstallProtocolType} | grep -q 2; then
 		echoContent skyBlue "\n================================  Trojan gRPC TLS  ================================\n"
+		echoContent red "\n --->gRPC目前处于测试阶段，可能对你使用的客户端不兼容，如不能使用请忽略"
 		local serviceName=$(jq -r .inbounds[0].streamSettings.grpcSettings.serviceName ${configPath}04_trojan_gRPC_inbounds.json)
 		jq .inbounds[0].settings.clients ${configPath}04_trojan_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
 			echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq -r .email )_$(echo "${user}" | jq -r .password)"
