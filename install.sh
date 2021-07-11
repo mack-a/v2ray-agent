@@ -4281,7 +4281,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.16"
+	echoContent green "当前版本：v2.5.17"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
@@ -4304,7 +4304,7 @@ menu() {
 	echoContent yellow "6.更新证书"
 	echoContent yellow "7.更换CDN节点"
 	echoContent yellow "8.IPv6分流"
-	echoContent yellow "9.WARP分流"
+	echoContent yellow "9.WARP分流[不可用]"
 	echoContent yellow "10.流媒体工具"
 	echoContent yellow "11.添加新端口"
 	echoContent skyBlue "-------------------------版本管理-----------------------------"
@@ -4344,9 +4344,9 @@ menu() {
 	8)
 		ipv6Routing 1
 		;;
-	9)
-		warpRouting 1
-		;;
+#	9)
+#		warpRouting 1
+#		;;
 	10)
 		streamingToolbox 1
 		;;
