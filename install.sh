@@ -3,6 +3,7 @@
 # -------------------------------------------------------------
 # 检查系统
 export LANG=en_US.UTF-8
+stty erase ^H #重新定义erase，使退格键生效
 echoContent() {
 	case $1 in
 	# 红色
