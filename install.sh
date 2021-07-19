@@ -62,12 +62,15 @@ checkSystem() {
 		installType='apt -y install'
 		upgrade="apt update"
 		removeType='apt -y autoremove'
+		if grep </etc/issue -q -i "16.";then
+			release=
+		fi
 	fi
 
 	if [[ -z ${release} ]]; then
-		echo "本脚本不支持此系统，请将下方日志反馈给开发者"
-		cat /etc/issue
-		cat /proc/version
+		echoContent red "\n本脚本不支持此系统，请将下方日志反馈给开发者\n"
+		echoContent yellow "$(cat /etc/issue)"
+		echoContent yellow "$(cat /proc/version)"
 		exit 0
 	fi
 }
@@ -4308,7 +4311,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.18"
+	echoContent green "当前版本：v2.5.19"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
