@@ -3,6 +3,10 @@
 # -------------------------------------------------------------
 # 检查系统
 export LANG=en_US.UTF-8
+
+# 重新定义erase，使退格键生效
+stty erase ^H
+
 echoContent() {
 	case $1 in
 	# 红色
@@ -62,12 +66,15 @@ checkSystem() {
 		installType='apt -y install'
 		upgrade="apt update"
 		removeType='apt -y autoremove'
+		if grep </etc/issue -q -i "16.";then
+			release=
+		fi
 	fi
 
 	if [[ -z ${release} ]]; then
-		echo "本脚本不支持此系统，请将下方日志反馈给开发者"
-		cat /etc/issue
-		cat /proc/version
+		echoContent red "\n本脚本不支持此系统，请将下方日志反馈给开发者\n"
+		echoContent yellow "$(cat /etc/issue)"
+		echoContent yellow "$(cat /proc/version)"
 		exit 0
 	fi
 }
@@ -1700,18 +1707,7 @@ EOF
 }
 EOF
 	fi
-	# 取消BT
-	#	cat <<EOF >/etc/v2ray-agent/v2ray/conf/10_bt_outbounds.json
-	#{
-	#    "outbounds": [
-	#        {
-	#          "protocol": "blackhole",
-	#          "settings": {},
-	#          "tag": "blocked"
-	#        }
-	#    ]
-	#}
-	#EOF
+
 
 	# dns
 	cat <<EOF >/etc/v2ray-agent/v2ray/conf/11_dns.json
@@ -2147,6 +2143,7 @@ EOF
 EOF
 	fi
 
+
 	# dns
 	cat <<EOF >/etc/v2ray-agent/xray/conf/11_dns.json
 {
@@ -2164,7 +2161,6 @@ EOF
 
 	# trojan
 	if [[ -n $(echo "${selectCustomInstallType}" | grep 4) || "$1" == "all" ]]; then
-#		fallbacksList=${fallbacksList}',{"path":"/'${customPath}'tcp","dest":31298,"xver":1}'
 		fallbacksList='{"dest":31296,"xver":1},{"alpn":"h2","dest":31302,"xver":0}'
 		cat <<EOF >/etc/v2ray-agent/xray/conf/04_trojan_TCP_inbounds.json
 {
@@ -2197,11 +2193,6 @@ EOF
 }
 EOF
 	fi
-
-#	if echo "${selectCustomInstallType}" | grep -q 4 || [[ "$1" == "all" ]]; then
-#		# 回落trojan-go
-#		fallbacksList='{"dest":31296,"xver":0},{"alpn":"h2","dest":31302,"xver":0}'
-#	fi
 
 	# VLESS_WS_TLS
 	if echo "${selectCustomInstallType}" | grep -q 1 || [[ "$1" == "all" ]]; then
@@ -2237,49 +2228,6 @@ EOF
 EOF
 	fi
 
-#	# VMess_TCP
-#	if [[ -n $(echo ${selectCustomInstallType} | grep 2) || "$1" == "all" ]]; then
-#		fallbacksList=${fallbacksList}',{"path":"/'${customPath}'tcp","dest":31298,"xver":1}'
-#		cat <<EOF >/etc/v2ray-agent/xray/conf/04_VMess_TCP_inbounds.json
-#{
-#"inbounds":[
-#{
-#  "port": 31298,
-#  "listen": "127.0.0.1",
-#  "protocol": "vmess",
-#  "tag":"VMessTCP",
-#  "settings": {
-#    "clients": [
-#      {
-#        "id": "${uuid}",
-#        "alterId": 0,
-#        "email": "${domain}_vmess_tcp"
-#      }
-#    ]
-#  },
-#  "streamSettings": {
-#    "network": "tcp",
-#    "security": "none",
-#    "tcpSettings": {
-#      "acceptProxyProtocol": true,
-#      "header": {
-#        "type": "http",
-#        "request": {
-#          "path": [
-#            "/${customPath}tcp"
-#          ]
-#        }
-#      }
-#    }
-#  }
-#}
-#]
-#}
-#EOF
-#	fi
-
-
-#	# trojan_gRPC
 
 	# trojan_grpc
 	if echo ${selectCustomInstallType} | grep -q 2 || [[ "$1" == "all" ]]; then
@@ -3480,6 +3428,83 @@ fi
 	reloadCore
 }
 
+# bt下载管理
+btTools() {
+	if [[ -z "${configPath}" ]]; then
+		echoContent red " ---> 未安装，请使用脚本安装"
+		menu
+		exit 0
+	fi
+
+	echoContent skyBlue "\n功能 1/${totalProgress} : bt下载管理"
+	echoContent red "\n=============================================================="
+
+	if [[ -f ${configPath}09_routing.json ]] && grep -q bittorrent < ${configPath}09_routing.json;then
+		echoContent yellow "当前状态：已禁用"
+	else
+		echoContent yellow "当前状态：未禁用"
+	fi
+
+	echoContent yellow "1.禁用"
+	echoContent yellow "2.打开"
+	echoContent red "=============================================================="
+	read -r -p "请选择:" btStatus
+	if [[ "${btStatus}" == "1" ]]; then
+
+		if [[ -f "${configPath}09_routing.json" ]];then
+
+			unInstallRouting blackhole-out
+
+			routing=$(jq -r '.routing.rules += [{"type":"field","outboundTag":"blackhole-out","protocol":["bittorrent"]}]' ${configPath}09_routing.json)
+
+			echo "${routing}"|jq . >${configPath}09_routing.json
+
+		else
+			cat <<EOF >${configPath}09_routing.json
+{
+    "routing":{
+        "domainStrategy": "IPOnDemand",
+        "rules": [
+          {
+            "type": "field",
+            "outboundTag": "blackhole-out",
+            "protocol": [ "bittorrent" ]
+          }
+        ]
+  }
+}
+EOF
+fi
+
+		installSniffing
+
+		unInstallOutbounds blackhole-out
+
+		outbounds=$(jq -r '.outbounds += [{"protocol":"blackhole","tag":"blackhole-out"}]' ${configPath}10_ipv4_outbounds.json)
+
+		echo "${outbounds}"|jq . >${configPath}10_ipv4_outbounds.json
+
+
+
+		echoContent green " ---> BT下载禁用成功"
+
+	elif [[ "${btStatus}" == "2" ]]; then
+
+		unInstallSniffing
+
+		unInstallRouting blackhole-out
+
+		unInstallOutbounds blackhole-out
+
+		echoContent green " ---> BT下载打开成功"
+	else
+		echoContent red " ---> 选择错误"
+		exit 0
+	fi
+
+	reloadCore
+}
+
 # 根据tag卸载Routing
 unInstallRouting(){
 	local tag=$1
@@ -3509,6 +3534,23 @@ unInstallOutbounds(){
 	fi
 
 }
+
+# 卸载嗅探
+unInstallSniffing(){
+	ls ${configPath}|grep inbounds.json|while read -r inbound;do
+		sniffing=$(jq -r 'del(.inbounds[0].sniffing)' ${configPath}${inbound})
+		echo "${sniffing}" |jq . >${configPath}${inbound}
+	done
+}
+
+# 安装嗅探
+installSniffing(){
+	ls ${configPath}|grep inbounds.json|while read -r inbound;do
+		sniffing=$(jq -r '.inbounds[0].sniffing = {"enabled":true,"destOverride":["http","tls"]}' ${configPath}${inbound})
+		echo "${sniffing}" |jq . >${configPath}${inbound}
+	done
+}
+
 # warp分流
 warpRouting(){
 	echoContent skyBlue "\n进度  $1/${totalProgress} : WARP分流"
@@ -3810,7 +3852,6 @@ EOF
 		echo "${routing}" | jq . >${configPath}09_routing.json
 		reloadCore
 		echoContent green " ---> 添加落地机入站解锁Netflix成功"
-#		echoContent yellow " ---> trojan的相关节点不支持此操作"
 		exit 0
 	fi
 	echoContent red " ---> ip不可为空"
@@ -4090,7 +4131,6 @@ selectCoreInstall() {
 	echoContent red "\n=============================================================="
 	echoContent yellow "1.Xray-core"
 	echoContent yellow "2.v2ray-core"
-	# echoContent yellow "3.v2ray-core[XTLS]"
 	echoContent red "=============================================================="
 	read -r -p "请选择：" selectCoreType
 	case ${selectCoreType} in
@@ -4139,12 +4179,9 @@ v2rayCoreInstall() {
 	# 安装V2Ray
 	installV2Ray 7
 	installV2RayService 8
-#	installTrojanGo 9
-#	installTrojanService 10
 	customCDNIP 11
 	initV2RayConfig all 12
 	cleanUp xrayDel
-#	initTrojanGoConfig 13
 	installCronTLS 14
 	nginxBlog 15
 	updateRedirectNginxConf
@@ -4152,9 +4189,6 @@ v2rayCoreInstall() {
 	sleep 2
 	handleV2Ray start
 	handleNginx start
-#	handleTrojanGo stop
-#	sleep 1
-#	handleTrojanGo start
 	# 生成账号
 	checkGFWStatue 16
 	showAccounts 17
@@ -4281,7 +4315,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.17"
+	echoContent green "当前版本：v2.5.19"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
@@ -4307,14 +4341,14 @@ menu() {
 	echoContent yellow "9.WARP分流[不可用]"
 	echoContent yellow "10.流媒体工具"
 	echoContent yellow "11.添加新端口"
+	echoContent yellow "12.BT下载管理"
 	echoContent skyBlue "-------------------------版本管理-----------------------------"
-	echoContent yellow "12.core管理"
-#	echoContent yellow "12.更新Trojan-Go"
-	echoContent yellow "13.更新脚本"
-	echoContent yellow "14.安装BBR、DD脚本"
+	echoContent yellow "13.core管理"
+	echoContent yellow "14.更新脚本"
+	echoContent yellow "15.安装BBR、DD脚本"
 	echoContent skyBlue "-------------------------脚本管理-----------------------------"
-	echoContent yellow "15.查看日志"
-	echoContent yellow "16.卸载脚本"
+	echoContent yellow "16.查看日志"
+	echoContent yellow "17.卸载脚本"
 	echoContent red "=============================================================="
 	mkdirTools
 	aliasInstall
@@ -4354,21 +4388,21 @@ menu() {
 		addCorePort 1
 		;;
 	12)
+		btTools 1
+		;;
+	13)
 		coreVersionManageMenu 1
 		;;
-#	12)
-#		updateTrojanGo 1
-#		;;
-	13)
+	14)
 		updateV2RayAgent 1
 		;;
-	14)
+	15)
 		bbrInstall
 		;;
-	15)
+	16)
 		checkLog 1
 		;;
-	16)
+	17)
 		unInstall 1
 		;;
 	esac
