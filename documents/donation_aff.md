@@ -48,32 +48,7 @@ https://www.vultr.com/?ref=8851953-6G
 ```
 
 
-
-## 7.idc.wiki
-- 此IDC主要是售卖vps/scp-流量转发
-- vps有4837、9929等，流量转发线路有CN2、上海联通、广州移动、IPLC等，
-- 价格和线路详情在下面，按照流量和端口计费。
-- 比较推荐流量转发服务，按照100G/人，一个月10-20RMB。
-
-```
-https://idc.wiki/lndex.php?productid=1900
-```
-
-- 线路详情
-```
-[10Gbps] 上海 Azure 0.3000/GB
-[1Gbps] 上海联通 0.0500/GB
-[1Gbps] 佛港高速内网 (佛山电信/香港HE) 0.5500/GB
-[1Gbps] 广州移动 (112.x) 0.0500/GB
-[1Gbps] 广州移动 (183.232.x)	0.0500/GB
-[200Mbps] 上海CN2 0.1500/GB
-[200Mbps] 常州三线 (电信出口)	0.0600/GB
-[200Mbps] 常州三线 (移动出口)	0.0600/GB
-[200Mbps] 常州三线 (联通出口)	0.0600/GB
-[500Mbps] 上海CN2 (联通入口/UDP不) 0.1000/GB
-```
-
-## 8.gigsgigscloud
+## 7.gigsgigscloud
 - CLOUDLET V【Premium China Route】 代表的大陆优化线路，相对比较贵。
 - CLOUDLET K+【Standard China Route】 代表的对大陆优化比较一般。其余的则完全没有额外优化。
 
