@@ -2,10 +2,13 @@
 - 稳定大厂，不管是限量版GIA还是日本软银都抢爆。[点击购买](https://bandwagonhost.com/aff.php?aff=64917)
 
 ## 2.[centerhop](https://my.centerhop.com/aff.php?aff=190)
-- 此厂商vps 2刀/月，新加坡vps，支持解锁新加坡区Netflix
-- 不适合直连，适合使用上海CN2拉。
-- [点击购买](https://my.centerhop.com/aff.php?aff=190)
+- 不适合直连，适合当落地解锁机，可参考脚本中的任意门解锁，或者使用中专拉
+- 购买位置Services->Order New Services->Cloud VPS - KVM S
 
+套餐名称|内存|CPU|硬盘(SSD)|流量|带宽|价格|推荐理由|购买链接
+---|---|---|---|---|---|---|---|---
+VN01-A Price|1G|1核|10G SAN|1T|10Mbps-200Mbps|$3 USD|解锁新加坡区Netflix|[购买链接](https://my.centerhop.com/aff.php?aff=190)
+  
 ## 3.[racknerd](https://my.racknerd.com/aff.php?aff=2705)
 
 - 比较适合联通来回都走AS4837，电信尚可
