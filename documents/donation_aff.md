@@ -9,13 +9,18 @@
 ## 3.[racknerd](https://my.racknerd.com/aff.php?aff=2705)
 
 - 比较适合联通来回都走AS4837，电信尚可
+- 说一下这两天racknerd使用感受，我使用的是洛杉矶的DC02，去程联通AS4837，回程国外段会先走圣何塞，国内段AS4837，白天带宽可以跑满， 晚上YouTube在3w-8w之间波动较大，dd系统时大约花了20分钟，机器超售相对严重，vultr差不多3分钟内能dd完毕。
+- 本来白嫖来当测试机的，没想到可以日常使用。
+- 由于机器相对便宜，建议买之前测试一下丢包，traceroute一下testIP。
+- 截止编辑日期没有发现别人反馈的Google人机验证问题。
 
 套餐名称|内存|CPU|硬盘(SSD)|流量|带宽|价格|推荐理由|购买链接
 ---|---|---|---|---|---|---|---|---
 [INTEL-SSD] 768 MB KVM VPS Special|768M|1核|12 GB Pure SSD|2T|1Gbps|$9.49 USD|价格便宜，联通去程回程都走AS4837，路由一般不会变，位置建议【San Jose】|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=476)
 1GB KVM VPS Special|1G|1核|17 GB Pure SSD|3T|1Gbps|$10.98 USD|价格便宜，联通去程回程都走AS4837|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=358)
-1 GB RAM - LA-DC02 PURE SSD PROMO|1G|1核|20 GB Pure SSD|3T|1Gbps|$12.79 USD|价格便宜，联通去程回程都走AS4837，据说路由可能会变|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=498)
-[6.18 SALE - 2021] 1.8 GB KVM VPS Special |1.8G|2核|18 GB Pure SSD|5T|1Gbps|$17.88 USD|价格便宜，联通去程回程都走AS4837，大流量机器|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=508)
+1 GB RAM - LA-DC02 PURE SSD PROMO|1.5G|1核|20 GB Pure SSD|3T|1Gbps|$12.79 USD|价格便宜，联通去程回程都走AS4837，据说路由可能会变|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=498)
+XMas Sale - 1.5GB KVM|1.5G|1核|20 GB SSD Cached RAID-10 Storage|4.5T|1Gbps|$15.71 USD|联通去程回程都走AS4837，大流量机器|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=52)
+[6.18 SALE - 2021] 1.8 GB KVM VPS Special |1.8G|2核|18 GB Pure SSD|5T|1Gbps|$17.88 USD|联通去程回程都走AS4837，大流量机器|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=508)
 
 
 ## 4.kuaichedao
