@@ -80,6 +80,16 @@ www.digitalocean.com|xx|xx|xx
 - 3.注意伪装域名部分填写科学上网的域名
   <img src='https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/CloudFlare自选ip 手动更改 v2rayN.png' width=400/>
 
+### 5.Openwrt - Passwall
+VLESS-WS
+- 1.地址（支持域名）（address）填写：科学上网的域名
+- 2.域名（tlsServerName）填写：科学上网的域名
+- 3.WebSocket Host（ws host）填写：自定义ip或者上方提供的域名
+
+VLESS-gRPC
+- 1.地址（支持域名）(address)填写：自定义ip或者上方提供的域名
+- 2.域名（tlsServerName）填写：科学上网的域名
+- 3.注意记得填写serviceName
 # 2.断流优化
 
 > (这里贴一下V2Ray白话文指南具体说明)[https://guide.v2fly.org/advanced/cdn.html]
