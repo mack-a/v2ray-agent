@@ -22,7 +22,7 @@ VN01-A Price|1G|1核|10G SAN|1T|10Mbps-200Mbps|$3 USD|解锁新加坡区Netflix|
 [INTEL-SSD] 768 MB KVM VPS Special|768M|1核|12 GB Pure SSD|2T|1Gbps|$9.49 USD|价格便宜，联通去程回程都走AS4837，路由一般不会变，位置建议【San Jose】|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=476)
 1GB KVM VPS Special|1G|1核|17 GB Pure SSD|3T|1Gbps|$10.98 USD|价格便宜，联通去程回程都走AS4837|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=358)
 1 GB RAM - LA-DC02 PURE SSD PROMO|1.5G|1核|20 GB Pure SSD|3T|1Gbps|$12.79 USD|价格便宜，联通去程回程都走AS4837，据说路由可能会变|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=498)
-[RYZEN-NVMe] 512MB Ryzen KVM VPS |0.5G|1x AMD Ryzen 3900X CPU Core|10 GB NVMe SSD Storage|2T|1Gbps|$14.18 USD|价钱比较适中，机器配置相对较高|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=461)
+[RYZEN-NVMe] 512MB Ryzen KVM VPS |0.5G|1x AMD Ryzen 3900X CPU Core|10 GB NVMe SSD Storage|2T|1Gbps|$14.18 USD|价格、流量比较适中，联通去程回程都走AS4837|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=461)
 XMas Sale - 1.5GB KVM|1.5G|1核|20 GB SSD Cached RAID-10 Storage|4.5T|1Gbps|$15.71 USD|联通去程回程都走AS4837，大流量机器|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=52)
 [6.18 SALE - 2021] 1.8 GB KVM VPS Special |1.8G|2核|18 GB Pure SSD|5T|1Gbps|$17.88 USD|联通去程回程都走AS4837，大流量机器|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=508)
 
