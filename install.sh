@@ -815,15 +815,21 @@ EOF
 # 检查ip
 checkIP() {
 	echoContent skyBlue " ---> 检查ipv4中"
-	pingIP=$(curl -s -H 'accept:application/dns-json' 'https://cloudflare-dns.com/dns-query?name='${domain}'&type=A' | jq -r ".Answer|.[]|select(.type==1)|.data")
-
-	if [[ -z "${pingIP}" ]]; then
-		echoContent skyBlue " ---> 检查ipv6中"
-		pingIP=$(curl -s -H 'accept:application/dns-json' 'https://cloudflare-dns.com/dns-query?name='${domain}'&type=AAAA' | jq -r ".Answer|.[]|select(.type==28)|.data")
-		pingIPv6=${pingIP}
+	local pingIP=$(curl -s -H 'accept:application/dns-json' 'https://cloudflare-dns.com/dns-query?name='${domain}'&type=A' | jq -r ".Answer")
+	if [[ "${pingIP}" != "null" ]];then
+		pingIP=$(echo "${pingIP}"|jq -r ".[]|select(.type==1)|.data")
 	fi
 
-	if [[ -n "${pingIP}" ]]; then
+	if [[ "${pingIP}" == "null" ]]; then
+		echoContent skyBlue " ---> 检查ipv6中"
+		local pingIP=$(curl -s -H 'accept:application/dns-json' 'https://cloudflare-dns.com/dns-query?name='${domain}'&type=AAAA' | jq -r ".Answer")
+		if [[ "${pingIP}" -ne "null" ]];then
+			pingIP=$(echo "${pingIP}"|jq -r ".[]|select(.type==28)|.data")
+			pingIPv6=${pingIP}
+		fi
+	fi
+
+	if [[ "${pingIP}" != "null" ]]; then
 		echo
 		read -r -p "当前域名的IP为 [${pingIP}]，是否正确[y/n]？" domainStatus
 		if [[ "${domainStatus}" == "y" ]]; then
