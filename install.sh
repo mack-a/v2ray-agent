@@ -39,7 +39,7 @@ checkSystem() {
 		if [[ -f "/etc/centos-release" ]];then
 			centosVersion=$(rpm -q centos-release | awk -F "[-]" '{print $3}' | awk -F "[.]" '{print $1}')
 
-			if [[ -z "${centosVersion}" ]] && grep </etc/centos-release "release 8"; then
+			if [[ -z "${centosVersion}" ]] && grep </etc/centos-release -q -i "release 8"; then
 				centosVersion=8
 			fi
 		fi
@@ -3557,7 +3557,12 @@ installSniffing(){
 # warp分流
 warpRouting(){
 	echoContent skyBlue "\n进度  $1/${totalProgress} : WARP分流"
-
+	echoContent red "=============================================================="
+	echoContent yellow "# 注意事项\n"
+	echoContent yellow "1.官方warp经过几轮测试有bug，重启会导致warp失效，并且无法启动，也有可能CPU使用率暴涨"
+	echoContent yellow "2.不重启机器可正常使用，如果非要使用官方warp，建议不重启机器"
+	echoContent yellow "3.有的机器重启后仍正常使用"
+	echoContent yellow "4.重启后无法使用，也可卸载重新安装"
 	# 安装warp
 	if [[ -z $(which warp-cli) ]];then
 		echo
@@ -3621,6 +3626,9 @@ EOF
 		echoContent green " ---> 添加成功"
 
 	elif [[ "${warpStatus}" == "2" ]]; then
+
+		${removeType} cloudflare-warp >/dev/null 2>&1
+
 		unInstallRouting warp-socks-out
 
 		unInstallOutbounds warp-socks-out
@@ -4318,7 +4326,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.20"
+	echoContent green "当前版本：v2.5.21"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
@@ -4341,7 +4349,7 @@ menu() {
 	echoContent yellow "6.更新证书"
 	echoContent yellow "7.更换CDN节点"
 	echoContent yellow "8.IPv6分流"
-	echoContent yellow "9.WARP分流[不可用]"
+	echoContent yellow "9.WARP分流"
 	echoContent yellow "10.流媒体工具"
 	echoContent yellow "11.添加新端口"
 	echoContent yellow "12.BT下载管理"
@@ -4381,9 +4389,9 @@ menu() {
 	8)
 		ipv6Routing 1
 		;;
-#	9)
-#		warpRouting 1
-#		;;
+	9)
+		warpRouting 1
+		;;
 	10)
 		streamingToolbox 1
 		;;
