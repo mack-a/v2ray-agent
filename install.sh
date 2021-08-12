@@ -179,6 +179,9 @@ initVar() {
 
 	# 集成更新证书逻辑不再使用单独的脚本--RenewTLS
 	renewTLS=$1
+
+	# tls安装失败后尝试的次数
+	installTLSCount=
 }
 
 # 检测安装方式
@@ -823,7 +826,7 @@ checkIP() {
 	if [[ "${pingIP}" == "null" ]]; then
 		echoContent skyBlue " ---> 检查ipv6中"
 		local pingIP=$(curl -s -H 'accept:application/dns-json' 'https://cloudflare-dns.com/dns-query?name='${domain}'&type=AAAA' | jq -r ".Answer")
-		if [[ "${pingIP}" -ne "null" ]];then
+		if [[ "${pingIP}" != "null" ]];then
 			pingIP=$(echo "${pingIP}"|jq -r ".[]|select(.type==28)|.data")
 			pingIPv6=${pingIP}
 		fi
@@ -886,11 +889,17 @@ installTLS() {
 		if [[ -d "$HOME/.acme.sh/${tlsDomain}_ecc" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]]; then
 			sudo "$HOME/.acme.sh/acme.sh" --installcert -d "${tlsDomain}" --fullchainpath "/etc/v2ray-agent/tls/${tlsDomain}.crt" --keypath "/etc/v2ray-agent/tls/${tlsDomain}.key" --ecc >/dev/null
 		fi
-
 		if [[ ! -f "/etc/v2ray-agent/tls/${tlsDomain}.crt" || ! -f "/etc/v2ray-agent/tls/${tlsDomain}.key"  ]] || [[ -z $(cat "/etc/v2ray-agent/tls/${tlsDomain}.key") || -z $(cat "/etc/v2ray-agent/tls/${tlsDomain}.crt") ]]; then
 			tail -n 10 /etc/v2ray-agent/tls/acme.log
-			echoContent red " ---> TLS安装失败，请检查acme日志"
-			exit 0
+			if [[ ${installTLSCount} == "1" ]];then
+				echoContent red " ---> TLS安装失败，请检查acme日志"
+				exit 0
+			fi
+			echoContent red " ---> TLS安装失败，检查防火墙中"
+			handleFirewall stop
+			echoContent yellow " ---> 重新尝试安装TLS证书"
+			installTLSCount=1
+			installTLS "$1"
 		fi
 		echoContent green " ---> TLS生成成功"
 	else
@@ -3229,6 +3238,22 @@ updateV2RayAgent() {
 	exit 0
 }
 
+# 防火墙
+handleFirewall(){
+	if systemctl status ufw 2>/dev/null|grep -q "active (exited)" && [[ "$1" == "stop" ]]; then
+		systemctl stop ufw >/dev/null 2>&1
+		systemctl disable ufw >/dev/null 2>&1
+		echoContent green " ---> ufw关闭成功"
+
+	fi
+
+	if systemctl status firewalld 2>/dev/null|grep -q "active (running)" && [[ "$1" == "stop" ]]; then
+		systemctl stop firewalld >/dev/null 2>&1
+		systemctl disable firewalld >/dev/null 2>&1
+		echoContent green " ---> firewalld关闭成功"
+	fi
+}
+
 # 安装BBR
 bbrInstall() {
 	echoContent red "\n=============================================================="
@@ -4326,7 +4351,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.21"
+	echoContent green "当前版本：v2.5.22"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
