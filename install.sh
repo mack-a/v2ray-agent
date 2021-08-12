@@ -176,6 +176,7 @@ initVar() {
 	# pingIPv4=
 	pingIP=
 	pingIPv6=
+	localIP=
 
 	# 集成更新证书逻辑不再使用单独的脚本--RenewTLS
 	renewTLS=$1
@@ -658,24 +659,45 @@ initTLSNginxConfig() {
 		initTLSNginxConfig
 	else
 		# 修改配置
-		echoContent green "\n ---> 配置Nginx"
+#		echoContent green "\n ---> 配置Nginx"
 		touch /etc/nginx/conf.d/alone.conf
-		echo "server {listen 80;listen [::]:80;server_name ${domain};root /usr/share/nginx/html;location ~ /.well-known {allow all;}location /test {return 200 'fjkvymb6len';}}" >/etc/nginx/conf.d/alone.conf
+		cat <<EOF >/etc/nginx/conf.d/alone.conf
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${domain};
+    root /usr/share/nginx/html;
+    location ~ /.well-known {
+    	allow all;
+    }
+    location /test {
+    	return 200 'fjkvymb6len';
+    }
+	location /ip {
+		proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header REMOTE-HOST \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+		default_type text/plain;
+		return 200 \$proxy_add_x_forwarded_for;
+	}
+}
+EOF
 		# 启动nginx
 		handleNginx start
-		echoContent yellow "\n检查IP是否设置为当前VPS"
+#		echoContent yellow "\n检查IP是否设置为当前VPS"
 		checkIP
 		# 测试nginx
-		echoContent yellow "\n检查Nginx是否正常访问"
-		sleep 0.5
-		domainResult=$(curl -s "${domain}/test" --resolve "${domain}:80:${pingIP}" | grep fjkvymb6len)
-		if [[ -n ${domainResult} ]]; then
-			handleNginx stop
-			echoContent green "\n ---> Nginx配置成功"
-		else
-			echoContent red " ---> 无法正常访问服务器，请检测域名是否正确、域名的DNS解析以及防火墙设置是否正确--->"
-			exit 0
-		fi
+#		echoContent yellow "\n检查Nginx是否正常访问"
+#		sleep 0.5
+#		domainResult=$(curl -s "${domain}/test" --resolve "${domain}:80:${pingIP}" | grep fjkvymb6len)
+#		if [[ -n ${domainResult} ]]; then
+##			handleNginx stop
+#			echoContent green "\n ---> Nginx配置成功"
+#		else
+#			echoContent red " ---> 无法正常访问服务器，请检测域名是否正确、域名的DNS解析以及防火墙设置是否正确--->"
+#			exit 0
+#		fi
 	fi
 }
 
@@ -817,39 +839,71 @@ EOF
 
 # 检查ip
 checkIP() {
-	echoContent skyBlue " ---> 检查ipv4中"
-	local pingIP=$(curl -s -H 'accept:application/dns-json' 'https://cloudflare-dns.com/dns-query?name='${domain}'&type=A' | jq -r ".Answer")
-	if [[ "${pingIP}" != "null" ]];then
-		pingIP=$(echo "${pingIP}"|jq -r ".[]|select(.type==1)|.data")
+	echoContent skyBlue " ---> 检查域名ip中"
+	localIP=$(curl -s -m 2 "${domain}/ip")
+	handleNginx stop
+	if [[ -z ${localIP} ]] || ! echo "${localIP}"|sed '1{s/[^(]*(//;s/).*//;q}'|grep -q '.' && ! echo "${localIP}"|sed '1{s/[^(]*(//;s/).*//;q}'|grep -q ':';then
+		echoContent red "\n ---> 未检测到当前域名的ip"
+		echoContent yellow " ---> 请检查域名是否书写正确"
+		echoContent yellow " ---> 请检查域名dns解析是否正确"
+		echoContent yellow " ---> 如解析正确，请等待dns生效，预计三分钟内生效"
+		if [[ -n ${localIP} ]];then
+			echoContent yellow " ---> 检测返回值异常"
+		fi
+		echoContent red " ---> 请检查防火墙是否关闭\n"
+		read -r -p "是否通过脚本关闭防火墙？[y/n]:" disableFirewallStatus
+		if [[ ${disableFirewallStatus} == "y" ]];then
+			handleFirewall stop
+		fi
+
+		exit 0;
 	fi
 
-	if [[ "${pingIP}" == "null" ]]; then
-		echoContent skyBlue " ---> 检查ipv6中"
-		local pingIP=$(curl -s -H 'accept:application/dns-json' 'https://cloudflare-dns.com/dns-query?name='${domain}'&type=AAAA' | jq -r ".Answer")
-		if [[ "${pingIP}" != "null" ]];then
-			pingIP=$(echo "${pingIP}"|jq -r ".[]|select(.type==28)|.data")
-			pingIPv6=${pingIP}
-		fi
+	if echo "${localIP}"|awk -F "[,]" '{print $2}'|grep -q "." || echo "${localIP}"|awk -F "[,]" '{print $2}'|grep -q ":";then
+		echoContent red "\n ---> 检测到多个ip，请确认是否关闭cloudflare的云朵"
+		echoContent yellow " ---> 关闭云朵后等待三分钟后重试"
+		echoContent yellow " ---> 检测到的ip如下：[${localIP}]"
+		exit 0;
 	fi
 
-	if [[ "${pingIP}" != "null" ]]; then
-		echo
-		read -r -p "当前域名的IP为 [${pingIP}]，是否正确[y/n]？" domainStatus
-		if [[ "${domainStatus}" == "y" ]]; then
-			echoContent green "\n ---> IP确认完成"
-		else
-			echoContent red "\n ---> 1.检查Cloudflare DNS解析是否正常"
-			echoContent red " ---> 2.检查Cloudflare DNS云朵是否为灰色\n"
-			exit 0
-		fi
-	else
-		read -r -p "IP查询失败，请检查域名解析是否正确，是否重试[y/n]？" retryStatus
-		if [[ "${retryStatus}" == "y" ]]; then
-			checkIP
-		else
-			exit 0
-		fi
-	fi
+	echoContent green " ---> 当前域名ip为：[${localIP}]"
+#	local pingIP=$(curl -s -H 'accept:application/dns-json' 'https://cloudflare-dns.com/dns-query?name='${domain}'&type=A' | jq -r ".Answer")
+#	if [[ "${pingIP}" != "null" ]];then
+#		pingIP=$(echo "${pingIP}"|jq -r ".[]|select(.type==1)|.data")
+#	fi
+
+#	if [[ "${pingIP}" == "null" ]]; then
+#		echoContent skyBlue " ---> 检查ipv6中"
+#		local pingIP=$(curl -s -H 'accept:application/dns-json' 'https://cloudflare-dns.com/dns-query?name='${domain}'&type=AAAA' | jq -r ".Answer")
+#		if [[ "${pingIP}" != "null" ]];then
+#			pingIP=$(echo "${pingIP}"|jq -r ".[]|select(.type==28)|.data")
+#			pingIPv6=${pingIP}
+#		fi
+#	fi
+
+#	if [[ "${pingIP}" == "${localIP}" ]];then
+#		echoContent green "\n ---> IP检测通过"
+#	else
+#		if [[ "${pingIP}" != "null" ]]; then
+#			echo
+#			read -r -p "当前域名的IP为 [${pingIP}]，是否正确[y/n]？" domainStatus
+#			if [[ "${domainStatus}" == "y" ]]; then
+#				echoContent green "\n ---> IP确认完成"
+#			else
+#				echoContent red "\n ---> 1.检查Cloudflare DNS解析是否正常"
+#				echoContent red " ---> 2.检查Cloudflare DNS云朵是否为灰色\n"
+#				exit 0
+#			fi
+#		else
+#			read -r -p "IP查询失败，请检查域名解析是否正确，是否重试[y/n]？" retryStatus
+#			if [[ "${retryStatus}" == "y" ]]; then
+#				checkIP
+#			else
+#				exit 0
+#			fi
+#		fi
+#	fi
+
 }
 # 安装TLS
 installTLS() {
@@ -880,7 +934,7 @@ installTLS() {
 		fi
 	elif [[ -d "$HOME/.acme.sh" ]] && [[ ! -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" || ! -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" ]]; then
 		echoContent green " ---> 安装TLS证书"
-		if [[ -n "${pingIPv6}" ]]; then
+		if echo "${localIP}"|grep -q ":"; then
 			sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --server letsencrypt --listen-v6 >> /etc/v2ray-agent/tls/acme.log
 		else
 			sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --server letsencrypt >> /etc/v2ray-agent/tls/acme.log
@@ -4056,7 +4110,7 @@ customV2RayInstall() {
 		initTLSNginxConfig 2
 		installTLS 3
 		handleNginx stop
-		initNginxConfig 4
+#		initNginxConfig 4
 		# 随机path
 		if echo ${selectCustomInstallType} | grep -q 1 || echo ${selectCustomInstallType} | grep -q 3 || echo ${selectCustomInstallType} | grep -q 4; then
 			randomPathFunction 5
@@ -4119,7 +4173,7 @@ customXrayInstall() {
 		initTLSNginxConfig 2
 		installTLS 3
 		handleNginx stop
-		initNginxConfig 4
+#		initNginxConfig 4
 		# 随机path
 		if echo "${selectCustomInstallType}" | grep -q 1 || echo "${selectCustomInstallType}" | grep -q 2 || echo "${selectCustomInstallType}" | grep -q 3 || echo "${selectCustomInstallType}" | grep -q 5; then
 			randomPathFunction 5
@@ -4204,56 +4258,56 @@ selectCoreInstall() {
 v2rayCoreInstall() {
 	cleanUp xrayClean
 	selectCustomInstallType=
-	totalProgress=17
+	totalProgress=13
 	installTools 2
 	# 申请tls
 	initTLSNginxConfig 3
 	installTLS 4
 	handleNginx stop
-	initNginxConfig 5
-	randomPathFunction 6
+#	initNginxConfig 5
+	randomPathFunction 5
 	# 安装V2Ray
-	installV2Ray 7
-	installV2RayService 8
-	customCDNIP 11
-	initV2RayConfig all 12
+	installV2Ray 6
+	installV2RayService 7
+	customCDNIP 8
+	initV2RayConfig all 9
 	cleanUp xrayDel
-	installCronTLS 14
-	nginxBlog 15
+	installCronTLS 10
+	nginxBlog 11
 	updateRedirectNginxConf
 	handleV2Ray stop
 	sleep 2
 	handleV2Ray start
 	handleNginx start
 	# 生成账号
-	checkGFWStatue 16
-	showAccounts 17
+	checkGFWStatue 12
+	showAccounts 13
 }
 
 # xray-core 安装
 xrayCoreInstall() {
 	cleanUp v2rayClean
 	selectCustomInstallType=
-	totalProgress=17
+	totalProgress=13
 	installTools 2
 	# 申请tls
 	initTLSNginxConfig 3
 	installTLS 4
 	handleNginx stop
-	initNginxConfig 5
-	randomPathFunction 6
+#	initNginxConfig 5
+	randomPathFunction 5
 	# 安装Xray
 	handleV2Ray stop
-	installXray 7
-	installXrayService 8
+	installXray 6
+	installXrayService 7
 #	installTrojanGo 9
 #	installTrojanService 10
-	customCDNIP 11
-	initXrayConfig all 12
+	customCDNIP 8
+	initXrayConfig all 9
 	cleanUp v2rayDel
 #	initTrojanGoConfig 13
-	installCronTLS 14
-	nginxBlog 15
+	installCronTLS 10
+	nginxBlog 11
 	updateRedirectNginxConf
 	handleXray stop
 	sleep 2
@@ -4264,8 +4318,8 @@ xrayCoreInstall() {
 #	sleep 1
 #	handleTrojanGo start
 	# 生成账号
-	checkGFWStatue 16
-	showAccounts 17
+	checkGFWStatue 12
+	showAccounts 13
 }
 
 # 核心管理
@@ -4351,7 +4405,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.22"
+	echoContent green "当前版本：v2.5.23"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
