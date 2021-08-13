@@ -812,7 +812,7 @@ EOF
 
 # 检查ip
 checkIP() {
-	echoContent skyBlue " ---> 检查域名ip中"
+	echoContent skyBlue "\n ---> 检查域名ip中"
 	localIP=$(curl -s -m 2 "${domain}/ip")
 	handleNginx stop
 	if [[ -z ${localIP} ]] || ! echo "${localIP}"|sed '1{s/[^(]*(//;s/).*//;q}'|grep -q '.' && ! echo "${localIP}"|sed '1{s/[^(]*(//;s/).*//;q}'|grep -q ':';then
@@ -841,43 +841,6 @@ checkIP() {
 	fi
 
 	echoContent green " ---> 当前域名ip为：[${localIP}]"
-#	local pingIP=$(curl -s -H 'accept:application/dns-json' 'https://cloudflare-dns.com/dns-query?name='${domain}'&type=A' | jq -r ".Answer")
-#	if [[ "${pingIP}" != "null" ]];then
-#		pingIP=$(echo "${pingIP}"|jq -r ".[]|select(.type==1)|.data")
-#	fi
-
-#	if [[ "${pingIP}" == "null" ]]; then
-#		echoContent skyBlue " ---> 检查ipv6中"
-#		local pingIP=$(curl -s -H 'accept:application/dns-json' 'https://cloudflare-dns.com/dns-query?name='${domain}'&type=AAAA' | jq -r ".Answer")
-#		if [[ "${pingIP}" != "null" ]];then
-#			pingIP=$(echo "${pingIP}"|jq -r ".[]|select(.type==28)|.data")
-#			pingIPv6=${pingIP}
-#		fi
-#	fi
-
-#	if [[ "${pingIP}" == "${localIP}" ]];then
-#		echoContent green "\n ---> IP检测通过"
-#	else
-#		if [[ "${pingIP}" != "null" ]]; then
-#			echo
-#			read -r -p "当前域名的IP为 [${pingIP}]，是否正确[y/n]？" domainStatus
-#			if [[ "${domainStatus}" == "y" ]]; then
-#				echoContent green "\n ---> IP确认完成"
-#			else
-#				echoContent red "\n ---> 1.检查Cloudflare DNS解析是否正常"
-#				echoContent red " ---> 2.检查Cloudflare DNS云朵是否为灰色\n"
-#				exit 0
-#			fi
-#		else
-#			read -r -p "IP查询失败，请检查域名解析是否正确，是否重试[y/n]？" retryStatus
-#			if [[ "${retryStatus}" == "y" ]]; then
-#				checkIP
-#			else
-#				exit 0
-#			fi
-#		fi
-#	fi
-
 }
 # 安装TLS
 installTLS() {
@@ -1879,8 +1842,8 @@ EOF
         "security": "tls",
         "tlsSettings": {
           "alpn": [
-            "http/1.1",
-            "h2"
+            "h2",
+            "http/1.1"
           ],
           "certificates": [
             {
@@ -2303,8 +2266,8 @@ EOF
     "xtlsSettings": {
       "minVersion": "1.2",
       "alpn": [
-        "http/1.1",
-        "h2"
+        "h2",
+        "http/1.1"
       ],
       "certificates": [
         {
@@ -2361,21 +2324,33 @@ EOF
 
 # 自定义CDN IP
 customCDNIP() {
-	echoContent skyBlue "\n进度 $1/${totalProgress} : 添加DNS智能解析"
-	echoContent yellow "\n如对Cloudflare自选ip不了解，请选择[n]"
-	echoContent yellow "\n 移动:104.16.123.96"
-	echoContent yellow " 联通:hostmonit.com"
-	echoContent yellow " 电信:www.digitalocean.com"
+	echoContent skyBlue "\n进度 $1/${totalProgress} : 添加cloudflare自选CNAME"
+	echoContent red "\n=============================================================="
+	echoContent yellow "# 注意事项"
+	echoContent yellow "\n教程地址:"
+	echoContent skyBlue "https://github.com/mack-a/v2ray-agent/blob/master/documents/optimize_V2Ray.md"
+	echoContent red "\n如对Cloudflare优化不了解，请不要使用"
+	echoContent yellow "\n 1.移动:104.16.123.96"
+	echoContent yellow " 2.联通:www.cloudflare.com"
+	echoContent yellow " 3.电信:www.digitalocean.com"
 	echoContent skyBlue "----------------------------"
-	read -r -p '是否使用？[y/n]:' dnsProxy
-	if [[ "${dnsProxy}" == "y" ]]; then
-		add="domain08.mqcjuc.ml"
-		echoContent green "\n ---> 使用成功"
-	else
+	read -r -p "请选择[回车不使用]:" selectCloudflareType
+    case ${selectCloudflareType} in
+    1)
+        add="104.16.123.96"
+        ;;
+    2)
+        add="www.cloudflare.com"
+        ;;
+    3)
+        add="www.digitalocean.com"
+        ;;
+    *)
 		add="${domain}"
-	fi
+		echoContent yellow "\n ---> 不使用"
+		;;
+    esac
 }
-
 # 通用
 defaultBase64Code() {
 	local type=$1
@@ -4205,7 +4180,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.23"
+	echoContent green "当前版本：v2.5.24"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
