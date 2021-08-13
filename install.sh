@@ -173,7 +173,6 @@ initVar() {
 	currentUUID=
 
 	# pingIPv6 pingIPv4
-	# pingIPv4=
 	pingIP=
 	pingIPv6=
 	localIP=
@@ -200,11 +199,9 @@ readInstallType() {
 				if ! grep </etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json -q xtls; then
 					# 不带XTLS的v2ray-core
 					coreInstallType=2
-					# coreInstallPath=/etc/v2ray-agent/v2ray/v2ray
 					ctlPath=/etc/v2ray-agent/v2ray/v2ctl
 				elif grep </etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json -q xtls; then
 					# 带XTLS的v2ray-core
-					# coreInstallPath=/etc/v2ray-agent/v2ray/v2ray
 					ctlPath=/etc/v2ray-agent/v2ray/v2ctl
 					coreInstallType=3
 				fi
@@ -216,7 +213,6 @@ readInstallType() {
 			if [[ -d "/etc/v2ray-agent/xray/conf" ]] && [[ -f "/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/02_trojan_TCP_inbounds.json" ]]; then
 				# xray-core
 				configPath=/etc/v2ray-agent/xray/conf/
-				# coreInstallPath=/etc/v2ray-agent/xray/xray
 				ctlPath=/etc/v2ray-agent/xray/xray
 				coreInstallType=1
 			fi
@@ -254,10 +250,6 @@ readInstallProtocolType() {
 		fi
 
 	done < <(ls ${configPath} | grep inbounds.json | awk -F "[.]" '{print $1}')
-
-#	if [[ -f "/etc/v2ray-agent/trojan/trojan-go" ]] && [[ -f "/etc/v2ray-agent/trojan/config_full.json" ]]; then
-#		currentInstallProtocolType=${currentInstallProtocolType}'4'
-#	fi
 }
 
 # 检查文件目录以及path路径
@@ -531,8 +523,6 @@ installTools() {
 		fi
 	fi
 
-	# todo 关闭防火墙
-
 	if [[ ! -d "$HOME/.acme.sh" ]] || [[ -d "$HOME/.acme.sh" && -z $(find "$HOME/.acme.sh/acme.sh") ]]; then
 		echoContent green " ---> 安装acme.sh"
 		curl -s https://get.acme.sh | sh -s >/etc/v2ray-agent/tls/acme.log 2>&1
@@ -551,8 +541,6 @@ installTools() {
 installNginxTools() {
 
 	if [[ "${release}" == "debian" ]]; then
-		# 卸载原有Nginx
-		# sudo apt remove nginx nginx-common nginx-full -y >/dev/null
 		sudo apt install gnupg2 ca-certificates lsb-release -y >/dev/null 2>&1
 		echo "deb http://nginx.org/packages/mainline/debian $(lsb_release -cs) nginx" | sudo tee /etc/apt/sources.list.d/nginx.list >/dev/null 2>&1
 		echo -e "Package: *\nPin: origin nginx.org\nPin: release o=nginx\nPin-Priority: 900\n" | sudo tee /etc/apt/preferences.d/99nginx >/dev/null 2>&1
@@ -562,8 +550,6 @@ installNginxTools() {
 		sudo apt update >/dev/null 2>&1
 
 	elif [[ "${release}" == "ubuntu" ]]; then
-		# 卸载原有Nginx
-		# sudo apt remove nginx nginx-common nginx-full -y >/dev/null
 		sudo apt install gnupg2 ca-certificates lsb-release -y >/dev/null 2>&1
 		echo "deb http://nginx.org/packages/mainline/ubuntu $(lsb_release -cs) nginx" | sudo tee /etc/apt/sources.list.d/nginx.list >/dev/null 2>&1
 		echo -e "Package: *\nPin: origin nginx.org\nPin: release o=nginx\nPin-Priority: 900\n" | sudo tee /etc/apt/preferences.d/99nginx >/dev/null 2>&1
@@ -659,7 +645,6 @@ initTLSNginxConfig() {
 		initTLSNginxConfig
 	else
 		# 修改配置
-#		echoContent green "\n ---> 配置Nginx"
 		touch /etc/nginx/conf.d/alone.conf
 		cat <<EOF >/etc/nginx/conf.d/alone.conf
 server {
@@ -685,19 +670,7 @@ server {
 EOF
 		# 启动nginx
 		handleNginx start
-#		echoContent yellow "\n检查IP是否设置为当前VPS"
 		checkIP
-		# 测试nginx
-#		echoContent yellow "\n检查Nginx是否正常访问"
-#		sleep 0.5
-#		domainResult=$(curl -s "${domain}/test" --resolve "${domain}:80:${pingIP}" | grep fjkvymb6len)
-#		if [[ -n ${domainResult} ]]; then
-##			handleNginx stop
-#			echoContent green "\n ---> Nginx配置成功"
-#		else
-#			echoContent red " ---> 无法正常访问服务器，请检测域名是否正确、域名的DNS解析以及防火墙设置是否正确--->"
-#			exit 0
-#		fi
 	fi
 }
 
@@ -1444,51 +1417,6 @@ updateXray() {
 		fi
 	fi
 }
-# 更新Trojan-Go
-#updateTrojanGo() {
-#	echoContent skyBlue "\n进度  $1/${totalProgress} : 更新Trojan-Go"
-#	if [[ ! -d "/etc/v2ray-agent/trojan/" ]]; then
-#		echoContent red " ---> 没有检测到安装目录，请执行脚本安装内容"
-#		menu
-#		exit 0
-#	fi
-#	if find /etc/v2ray-agent/trojan/ | grep -q "trojan-go"; then
-#		version=$(curl -s https://api.github.com/repos/p4gefau1t/trojan-go/releases | jq -r .[0].tag_name)
-#		echoContent green " ---> Trojan-Go版本:${version}"
-#		if [[ -n $(wget --help | grep show-progress) ]]; then
-#			wget -c -q --show-progress -P /etc/v2ray-agent/trojan/ "https://github.com/p4gefau1t/trojan-go/releases/download/${version}/${trojanGoCPUVendor}.zip"
-#		else
-#			wget -c -P /etc/v2ray-agent/trojan/ "https://github.com/p4gefau1t/trojan-go/releases/download/${version}/${trojanGoCPUVendor}.zip" >/dev/null 2>&1
-#		fi
-#		unzip -o /etc/v2ray-agent/trojan/${trojanGoCPUVendor}.zip -d /etc/v2ray-agent/trojan >/dev/null
-#		rm -rf /etc/v2ray-agent/trojan/${trojanGoCPUVendor}.zip
-#		handleTrojanGo stop
-#		handleTrojanGo start
-#	else
-#		echoContent green " ---> 当前Trojan-Go版本:$(/etc/v2ray-agent/trojan/trojan-go --version | awk '{print $2}' | head -1)"
-#		if [[ -n $(/etc/v2ray-agent/trojan/trojan-go --version) ]]; then
-#			version=$(curl -s https://api.github.com/repos/p4gefau1t/trojan-go/releases | jq -r .[0].tag_name)
-#			if [[ "${version}" == "$(/etc/v2ray-agent/trojan/trojan-go --version | awk '{print $2}' | head -1)" ]]; then
-#				read -r -p "当前版本与最新版相同，是否重新安装？[y/n]:" reInstalTrojanGoStatus
-#				if [[ "${reInstalTrojanGoStatus}" == "y" ]]; then
-#					handleTrojanGo stop
-#					rm -rf /etc/v2ray-agent/trojan/trojan-go
-#					updateTrojanGo 1
-#				else
-#					echoContent green " ---> 放弃重新安装"
-#				fi
-#			else
-#				read -r -p "最新版本为：${version}，是否更新？[y/n]：" installTrojanGoStatus
-#				if [[ "${installTrojanGoStatus}" == "y" ]]; then
-#					rm -rf /etc/v2ray-agent/trojan/trojan-go
-#					updateTrojanGo 1
-#				else
-#					echoContent green " ---> 放弃更新"
-#				fi
-#			fi
-#		fi
-#	fi
-#}
 
 # 验证整个服务是否可用
 checkGFWStatue() {
@@ -1790,13 +1718,7 @@ EOF
 	# 回落nginx
 	local fallbacksList='{"dest":31300,"xver":0},{"alpn":"h2","dest":31302,"xver":0}'
 
-#	if echo "${selectCustomInstallType}" | grep -q 4 || [[ "$1" == "all" ]]; then
-#		# 回落trojan-go
-#		fallbacksList='{"dest":31296,"xver":1},{"alpn":"h2","dest":31302,"xver":0}'
-#	fi
-
 if [[ -n $(echo "${selectCustomInstallType}" | grep 4) || "$1" == "all" ]]; then
-#		fallbacksList=${fallbacksList}',{"path":"/'${customPath}'tcp","dest":31298,"xver":1}'
 		fallbacksList='{"dest":31296,"xver":1},{"alpn":"h2","dest":31302,"xver":0}'
 cat <<EOF >/etc/v2ray-agent/v2ray/conf/04_trojan_TCP_inbounds.json
 {
@@ -1864,46 +1786,6 @@ EOF
 EOF
 	fi
 
-	# VMess_TCP
-#	if echo "${selectCustomInstallType}" | grep -q 2 || [[ "$1" == "all" ]]; then
-#		fallbacksList=${fallbacksList}',{"path":"/'${customPath}'tcp","dest":31298,"xver":1}'
-#		cat <<EOF >/etc/v2ray-agent/v2ray/conf/04_VMess_TCP_inbounds.json
-#{
-#"inbounds":[
-#{
-#  "port": 31298,
-#  "listen": "127.0.0.1",
-#  "protocol": "vmess",
-#  "tag":"VMessTCP",
-#  "settings": {
-#    "clients": [
-#      {
-#        "id": "${uuid}",
-#        "alterId": 0,
-#        "email": "${domain}_vmess_tcp"
-#      }
-#    ]
-#  },
-#  "streamSettings": {
-#    "network": "tcp",
-#    "security": "none",
-#    "tcpSettings": {
-#      "acceptProxyProtocol": true,
-#      "header": {
-#        "type": "http",
-#        "request": {
-#          "path": [
-#            "/${customPath}tcp"
-#          ]
-#        }
-#      }
-#    }
-#  }
-#}
-#]
-#}
-#EOF
-#	fi
 
 	# VMess_WS
 	if echo "${selectCustomInstallType}" | grep -q 3 || [[ "$1" == "all" ]]; then
@@ -1940,7 +1822,6 @@ EOF
 	fi
 	# VLESS gRPC
 	if echo "${selectCustomInstallType}" | grep -q 5 || [[ "$1" == "all" ]]; then
-#		fallbacksList=${fallbacksList}',{"alpn":"h2","dest":31301,"xver":0}'
 		cat <<EOF >/etc/v2ray-agent/v2ray/conf/06_VLESS_gRPC_inbounds.json
 {
     "inbounds":[
@@ -2055,13 +1936,6 @@ EOF
 }
 EOF
 	fi
-#
-#	if echo "${selectCustomInstallType}" | grep -q 5 || [[ "$1" == "all" ]];then
-#		echo >/dev/null
-#	elif [[ -f "/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json" ]] && echo "${selectCustomInstallType}" | grep -q 4;then
-#		# "h2",
-#		sed -i '/\"h2\",/d' $(grep "\"h2\"," -rl /etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json)
-#	fi
 }
 
 # 初始化Xray Trojan XTLS 配置文件
@@ -2371,7 +2245,6 @@ EOF
 	fi
 
 	if echo "${selectCustomInstallType}" | grep -q 5 || [[ "$1" == "all" ]]; then
-#		fallbacksList=${fallbacksList}',{"alpn":"h2","dest":31302,"xver":0}'
 		cat <<EOF >/etc/v2ray-agent/xray/conf/06_VLESS_gRPC_inbounds.json
 {
     "inbounds":[
@@ -2447,12 +2320,6 @@ EOF
 ]
 }
 EOF
-#	if echo "${selectCustomInstallType}" | grep -q 5 || [[ "$1" == "all" ]];then
-#		echo >/dev/null
-#	elif [[ -f "/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json" ]] && echo "${selectCustomInstallType}" | grep -q 4;then
-#		# "h2",
-#		sed -i '/\"h2\",/d' $(grep "\"h2\"," -rl /etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json)
-#	fi
 }
 
 # 初始化Trojan-Go配置
@@ -2728,7 +2595,6 @@ showAccounts() {
 		show=1
 		if  echo "${currentInstallProtocolType}" | grep -q trojan ;then
 			echoContent skyBlue "===================== Trojan TCP TLS/XTLS-direct/XTLS-splice ======================\n"
-			# cat ${configPath}02_VLESS_TCP_inbounds.json | jq .inbounds[0].settings.clients | jq -c '.[]'
 			jq .inbounds[0].settings.clients ${configPath}02_trojan_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
 				echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq -r .email )_$(echo "${user}" | jq -r .password)"
 				echo
@@ -2737,7 +2603,6 @@ showAccounts() {
 
 		else
 			echoContent skyBlue "===================== VLESS TCP TLS/XTLS-direct/XTLS-splice ======================\n"
-			# cat ${configPath}02_VLESS_TCP_inbounds.json | jq .inbounds[0].settings.clients | jq -c '.[]'
 			jq .inbounds[0].settings.clients ${configPath}02_VLESS_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
 				echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq -r .email )_$(echo "${user}" | jq -r .id)"
 				echo
@@ -2750,7 +2615,6 @@ showAccounts() {
 		if echo ${currentInstallProtocolType} | grep -q 1; then
 			echoContent skyBlue "\n================================ VLESS WS TLS CDN ================================\n"
 
-			# cat ${configPath}03_VLESS_WS_inbounds.json | jq .inbounds[0].settings.clients | jq -c '.[]'
 			jq .inbounds[0].settings.clients ${configPath}03_VLESS_WS_inbounds.json | jq -c '.[]' | while read -r user; do
 				echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq -r .email )_$(echo "${user}" | jq -r .id)"
 				echo
@@ -2762,18 +2626,6 @@ showAccounts() {
 				defaultBase64Code vlessws $(echo "${user}" | jq -r .email) $(echo "${user}" | jq -r .id) "${currentHost}:${currentPort}" ${path} ${currentAdd}
 			done
 		fi
-
-		# VMess TCP
-#		if echo ${currentInstallProtocolType} | grep -q 2; then
-#			echoContent skyBlue "\n================================= VMess TCP TLS  =================================\n"
-#
-#			# cat ${configPath}04_VMess_TCP_inbounds.json | jq .inbounds[0].settings.clients | jq -c '.[]'
-#			jq .inbounds[0].settings.clients ${configPath}04_VMess_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
-#				echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq -r .email )_$(echo "${user}" | jq -r .id)"
-#				echo
-#				defaultBase64Code vmesstcp $(echo "${user}" | jq .email) $(echo "${user}" | jq .id) "${currentHost}:${currentPort}" "${currentPath}tcp" "${currentHost}"
-#			done
-#		fi
 
 		# VMess WS
 		if echo ${currentInstallProtocolType} | grep -q 3; then
@@ -3000,22 +2852,6 @@ updateV2RayCDN() {
 			else
 				echoContent red " ---> 修改CDN失败"
 			fi
-
-			# trojan
-#			if [[ -d "/etc/v2ray-agent/trojan" ]] && [[ -f "/etc/v2ray-agent/trojan/config_full.json" ]]; then
-#				add=$(jq -r .websocket.add /etc/v2ray-agent/trojan/config_full.json)
-#				if [[ -n ${add} ]]; then
-#					sed -i "s/${add}/${setDomain}/g" $(grep "${add}" -rl /etc/v2ray-agent/trojan/config_full.json)
-#				fi
-#			fi
-
-#			if [[ -d "/etc/v2ray-agent/trojan" ]] && [[ -f "/etc/v2ray-agent/trojan/config_full.json" ]] && [[ $(jq -r .websocket.add /etc/v2ray-agent/trojan/config_full.json) == ${setDomain} ]]; then
-#				echoContent green "\n ---> Trojan CDN修改成功"
-#				handleTrojanGo stop
-#				handleTrojanGo start
-#			elif [[ -d "/etc/v2ray-agent/trojan" ]] && [[ -f "/etc/v2ray-agent/trojan/config_full.json" ]]; then
-#				echoContent red " ---> 修改Trojan CDN失败"
-#			fi
 		fi
 	else
 		echoContent red " ---> 未安装可用类型"
@@ -3140,7 +2976,6 @@ addUser() {
 
 	#	兼容v2ray-core
 	if [[ "${coreInstallType}" == "2" ]]; then
-		#  | sed 's/"flow":"xtls-rprx-direct",/"alterId":1,/g')
 		users="${users//\"flow\":\"xtls-rprx-direct\"\,/}"
 	fi
 
@@ -4111,7 +3946,6 @@ customV2RayInstall() {
 		initTLSNginxConfig 2
 		installTLS 3
 		handleNginx stop
-#		initNginxConfig 4
 		# 随机path
 		if echo ${selectCustomInstallType} | grep -q 1 || echo ${selectCustomInstallType} | grep -q 3 || echo ${selectCustomInstallType} | grep -q 4; then
 			randomPathFunction 5
@@ -4126,18 +3960,6 @@ customV2RayInstall() {
 		installV2RayService 9
 		initV2RayConfig custom 10
 		cleanUp xrayDel
-#		if echo ${selectCustomInstallType} | grep -q 4; then
-#			installTrojanGo 11
-#			installTrojanService 12
-#			initTrojanGoConfig 13
-#			handleTrojanGo stop
-#			handleTrojanGo start
-#		else
-#			# 这里需要删除trojan的服务
-#			handleTrojanGo stop
-#			rm -rf /etc/v2ray-agent/trojan/*
-#			rm -rf /etc/systemd/system/trojan-go.service
-#		fi
 		installCronTLS 14
 		handleV2Ray stop
 		handleV2Ray start
@@ -4158,7 +3980,6 @@ customXrayInstall() {
 	echoContent yellow "1.VLESS+TLS+WS[CDN]"
 	echoContent yellow "2.Trojan+TLS+gRPC[CDN]"
 	echoContent yellow "3.VMess+TLS+WS[CDN]"
-	# echoContent yellow "4.Trojan、Trojan+WS[CDN]"
 	echoContent yellow "4.Trojan"
 	echoContent yellow "5.VLESS+TLS+gRPC[CDN]"
 	read -r -p "请选择[多选]，[例如:123]:" selectCustomInstallType
@@ -4174,7 +3995,6 @@ customXrayInstall() {
 		initTLSNginxConfig 2
 		installTLS 3
 		handleNginx stop
-#		initNginxConfig 4
 		# 随机path
 		if echo "${selectCustomInstallType}" | grep -q 1 || echo "${selectCustomInstallType}" | grep -q 2 || echo "${selectCustomInstallType}" | grep -q 3 || echo "${selectCustomInstallType}" | grep -q 5; then
 			randomPathFunction 5
@@ -4189,20 +4009,6 @@ customXrayInstall() {
 		installXrayService 9
 		initXrayConfig custom 10
 		cleanUp v2rayDel
-		if echo "${selectCustomInstallType}" | grep -q 4; then
-#			installTrojanGo 11
-#			installTrojanService 12
-#			initTrojanGoConfig 13
-#			handleTrojanGo stop
-#			handleTrojanGo start
-			echo
-		else
-			# 这里需要删除trojan的服务
-#			handleTrojanGo stop
-#			rm -rf /etc/v2ray-agent/trojan/*
-#			rm -rf /etc/systemd/system/trojan-go.service
-			echo
-		fi
 
 		installCronTLS 14
 		handleXray stop
@@ -4216,7 +4022,7 @@ customXrayInstall() {
 	fi
 }
 
-# 选择核心安装---v2ray-core、xray-core、锁定版本的v2ray-core[xtls]
+# 选择核心安装---v2ray-core、xray-core
 selectCoreInstall() {
 	echoContent skyBlue "\n功能 1/${totalProgress} : 选择核心安装"
 	echoContent red "\n=============================================================="
@@ -4295,18 +4101,14 @@ xrayCoreInstall() {
 	initTLSNginxConfig 3
 	installTLS 4
 	handleNginx stop
-#	initNginxConfig 5
 	randomPathFunction 5
 	# 安装Xray
 	handleV2Ray stop
 	installXray 6
 	installXrayService 7
-#	installTrojanGo 9
-#	installTrojanService 10
 	customCDNIP 8
 	initXrayConfig all 9
 	cleanUp v2rayDel
-#	initTrojanGoConfig 13
 	installCronTLS 10
 	nginxBlog 11
 	updateRedirectNginxConf
@@ -4315,9 +4117,6 @@ xrayCoreInstall() {
 	handleXray start
 
 	handleNginx start
-#	handleTrojanGo stop
-#	sleep 1
-#	handleTrojanGo start
 	# 生成账号
 	checkGFWStatue 12
 	showAccounts 13
