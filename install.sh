@@ -847,6 +847,7 @@ checkIP() {
 		echoContent yellow " ---> 请检查域名是否书写正确"
 		echoContent yellow " ---> 请检查域名dns解析是否正确"
 		echoContent yellow " ---> 如解析正确，请等待dns生效，预计三分钟内生效"
+		echoContent yellow " ---> 如以上设置都正确，请重新安装纯净系统后再次尝试"
 		if [[ -n ${localIP} ]];then
 			echoContent yellow " ---> 检测返回值异常"
 		fi
