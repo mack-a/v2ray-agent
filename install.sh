@@ -815,7 +815,7 @@ checkIP() {
 	echoContent skyBlue "\n ---> 检查域名ip中"
 	localIP=$(curl -s -m 2 "${domain}/ip")
 	handleNginx stop
-	if [[ -z ${localIP} ]] || ! echo "${localIP}"|sed '1{s/[^(]*(//;s/).*//;q}'|grep -q '.' && ! echo "${localIP}"|sed '1{s/[^(]*(//;s/).*//;q}'|grep -q ':';then
+	if [[ -z ${localIP} ]] || ! echo "${localIP}"|sed '1{s/[^(]*(//;s/).*//;q}'|grep -q '\.' && ! echo "${localIP}"|sed '1{s/[^(]*(//;s/).*//;q}'|grep -q ':';then
 		echoContent red "\n ---> 未检测到当前域名的ip"
 		echoContent yellow " ---> 请检查域名是否书写正确"
 		echoContent yellow " ---> 请检查域名dns解析是否正确"
@@ -1843,8 +1843,8 @@ EOF
         "security": "tls",
         "tlsSettings": {
           "alpn": [
-            "h2",
-            "http/1.1"
+            "http/1.1",
+            "h2"
           ],
           "certificates": [
             {
@@ -2268,8 +2268,8 @@ EOF
     "xtlsSettings": {
       "minVersion": "1.2",
       "alpn": [
-        "h2",
-        "http/1.1"
+        "http/1.1",
+        "h2"
       ],
       "certificates": [
         {
@@ -4182,7 +4182,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.26"
+	echoContent green "当前版本：v2.5.27"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
