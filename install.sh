@@ -3536,19 +3536,19 @@ EOF
 streamingToolbox() {
 	echoContent skyBlue "\n功能 1/${totalProgress} : 流媒体工具箱"
 	echoContent red "\n=============================================================="
-	echoContent yellow "1.Netflix检测"
-	echoContent yellow "2.任意门落地机解锁Netflix"
-	echoContent yellow "3.DNS解锁流媒体"
+#	echoContent yellow "1.Netflix检测"
+	echoContent yellow "1.任意门落地机解锁Netflix"
+	echoContent yellow "2.DNS解锁流媒体"
 	read -r -p "请选择:" selectType
 
 	case ${selectType} in
+#	1)
+#		checkNetflix
+#		;;
 	1)
-		checkNetflix
-		;;
-	2)
 		dokodemoDoorUnblockNetflix
 		;;
-	3)
+	2)
 		dnsUnlockNetflix
 		;;
 	esac
