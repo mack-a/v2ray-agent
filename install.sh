@@ -50,9 +50,6 @@ checkSystem() {
 		upgrade="yum update -y --skip-broken"
 
 	elif grep </etc/issue -q -i "debian" && [[ -f "/etc/issue" ]] || grep </etc/issue -q -i "debian" && [[ -f "/proc/version" ]]; then
-		if grep </etc/issue -i "8"; then
-			debianVersion=8
-		fi
 		release="debian"
 		installType='apt -y install'
 		upgrade="apt update"
@@ -172,9 +169,6 @@ initVar() {
 	# UUID
 	currentUUID=
 
-	# pingIPv6 pingIPv4
-	pingIP=
-	pingIPv6=
 	localIP=
 
 	# 集成更新证书逻辑不再使用单独的脚本--RenewTLS
@@ -248,8 +242,7 @@ readInstallProtocolType() {
 		if echo ${row} | grep -q VLESS_gRPC_inbounds; then
 			currentInstallProtocolType=${currentInstallProtocolType}'5'
 		fi
-
-	done < <(ls ${configPath} | grep inbounds.json | awk -F "[.]" '{print $1}')
+	done < <(find ${configPath} -name "*inbounds.json" | awk -F "[.]" '{print $1}')
 }
 
 # 检查文件目录以及path路径
@@ -261,9 +254,11 @@ readConfigHostPathUUID() {
 	currentAdd=
 	# 读取path
 	if [[ -n "${configPath}" ]]; then
-		local fallback=$(jq -r -c '.inbounds[0].settings.fallbacks[]|select(.path)' ${configPath}${frontingType}.json|head -1)
+		local fallback
+		fallback=$(jq -r -c '.inbounds[0].settings.fallbacks[]|select(.path)' ${configPath}${frontingType}.json|head -1)
 
-		local path=$(echo "${fallback}"|jq -r .path|awk -F "[/]" '{print $2}')
+		local path
+		path=$(echo "${fallback}"|jq -r .path|awk -F "[/]" '{print $2}')
 
 		if [[ $(echo "${fallback}"|jq -r .dest) == 31297 ]]; then
 			currentPath=$(echo "${path}" | awk -F "[w][s]" '{print $1}')
@@ -683,7 +678,7 @@ server {
 	listen [::]:80;
 	server_name ${domain};
 	# shellcheck disable=SC2154
-	return 301 https://${domain}$request_uri;
+	return 301 https://${domain}\${request_uri};
 }
 server {
 		listen 127.0.0.1:31300;
@@ -857,8 +852,8 @@ installTLS() {
 			installTLS "$1"
 		else
 			echoContent green " ---> 证书有效"
-
-			if ! ls /etc/v2ray-agent/tls/ | grep -q "${tlsDomain}.crt" || ! ls /etc/v2ray-agent/tls/ | grep -q "${tlsDomain}.key" || [[ -z $(cat "/etc/v2ray-agent/tls/${tlsDomain}.crt") ]]; then
+			#
+			if [[ -z ${find /etc/v2ray-agent/tls/ -name "${tlsDomain}.crt"} ]] || [[ -z ${find /etc/v2ray-agent/tls/ -name "${tlsDomain}.key"} ]] || [[ -z $(cat "/etc/v2ray-agent/tls/${tlsDomain}.crt") ]];then
 				sudo "$HOME/.acme.sh/acme.sh" --installcert -d "${tlsDomain}" --fullchainpath "/etc/v2ray-agent/tls/${tlsDomain}.crt" --keypath "/etc/v2ray-agent/tls/${tlsDomain}.key" --ecc >/dev/null
 			else
 				echoContent yellow " ---> 如未过期请选择[n]\n"
@@ -872,9 +867,9 @@ installTLS() {
 	elif [[ -d "$HOME/.acme.sh" ]] && [[ ! -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" || ! -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" ]]; then
 		echoContent green " ---> 安装TLS证书"
 		if echo "${localIP}"|grep -q ":"; then
-			sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --server letsencrypt --listen-v6 >> /etc/v2ray-agent/tls/acme.log
+			sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --server letsencrypt --listen-v6 | tee -a /etc/v2ray-agent/tls/acme.log
 		else
-			sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --server letsencrypt >> /etc/v2ray-agent/tls/acme.log
+			sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --server letsencrypt | tee -a /etc/v2ray-agent/tls/acme.log
 		fi
 
 		if [[ -d "$HOME/.acme.sh/${tlsDomain}_ecc" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]]; then
@@ -991,7 +986,8 @@ handleNginx() {
 installCronTLS() {
 	echoContent skyBlue "\n进度 $1/${totalProgress} : 添加定时维护证书"
 	crontab -l >/etc/v2ray-agent/backup_crontab.cron
-	local historyCrontab=$(sed '/v2ray-agent/d;/acme.sh/d' /etc/v2ray-agent/backup_crontab.cron)
+	local historyCrontab
+	historyCrontab=$(sed '/v2ray-agent/d;/acme.sh/d' /etc/v2ray-agent/backup_crontab.cron)
 	echo "${historyCrontab}" >/etc/v2ray-agent/backup_crontab.cron
 	echo "30 1 * * * /bin/bash /etc/v2ray-agent/install.sh RenewTLS >> /etc/v2ray-agent/crontab_tls.log 2>&1" >>/etc/v2ray-agent/backup_crontab.cron
 	crontab /etc/v2ray-agent/backup_crontab.cron
@@ -1003,13 +999,13 @@ renewalTLS() {
 	echoContent skyBlue "\n进度  1/1 : 更新证书"
 
 	if [[ -d "$HOME/.acme.sh/${currentHost}_ecc" ]] && [[ -f "$HOME/.acme.sh/${currentHost}_ecc/${currentHost}.key" ]] && [[ -f "$HOME/.acme.sh/${currentHost}_ecc/${currentHost}.cer" ]]; then
-		modifyTime=$(stat $HOME/.acme.sh/${currentHost}_ecc/${currentHost}.cer | sed -n '7,6p' | awk '{print $2" "$3" "$4" "$5}')
+		modifyTime=$(stat "$HOME/.acme.sh/${currentHost}_ecc/${currentHost}.cer" | sed -n '7,6p' | awk '{print $2" "$3" "$4" "$5}')
 
 		modifyTime=$(date +%s -d "${modifyTime}")
 		currentTime=$(date +%s)
-		stampDiff=$(expr ${currentTime} - ${modifyTime})
-		days=$(expr ${stampDiff} / 86400)
-		remainingDays=$(expr 90 - ${days})
+		stampDiff=$(("${currentTime}" - "${modifyTime}"))
+		days=$(("${stampDiff}" / 86400))
+		remainingDays=$((90 - "${days}"))
 		tlsStatus=${remainingDays}
 		if [[ ${remainingDays} -le 0 ]]; then
 			tlsStatus="已过期"
@@ -1039,13 +1035,13 @@ checkTLStatus() {
 
 	if [[ -n "$1" ]]; then
 		if [[ -d "$HOME/.acme.sh/$1_ecc" ]] && [[ -f "$HOME/.acme.sh/$1_ecc/$1.key" ]] && [[ -f "$HOME/.acme.sh/$1_ecc/$1.cer" ]]; then
-			modifyTime=$(stat $HOME/.acme.sh/$1_ecc/$1.key | sed -n '7,6p' | awk '{print $2" "$3" "$4" "$5}')
+			modifyTime=$(stat "$HOME/.acme.sh/$1_ecc/$1.key" | sed -n '7,6p' | awk '{print $2" "$3" "$4" "$5}')
 
 			modifyTime=$(date +%s -d "${modifyTime}")
 			currentTime=$(date +%s)
-			stampDiff=$(expr ${currentTime} - ${modifyTime})
-			days=$(expr ${stampDiff} / 86400)
-			remainingDays=$(expr 90 - ${days})
+			stampDiff=$(("${currentTime}" - "${modifyTime}"))
+			days=$(("${stampDiff}" / 86400))
+			remainingDays=$(( 90 - "${days}"))
 			tlsStatus=${remainingDays}
 			if [[ ${remainingDays} -le 0 ]]; then
 				tlsStatus="已过期"
@@ -1077,8 +1073,8 @@ installV2Ray() {
 			wget -c -P /etc/v2ray-agent/v2ray/ "https://github.com/v2fly/v2ray-core/releases/download/${version}/${v2rayCoreCPUVendor}.zip" >/dev/null 2>&1
 		fi
 
-		unzip -o /etc/v2ray-agent/v2ray/${v2rayCoreCPUVendor}.zip -d /etc/v2ray-agent/v2ray >/dev/null
-		rm -rf /etc/v2ray-agent/v2ray/${v2rayCoreCPUVendor}.zip
+		unzip -o "/etc/v2ray-agent/v2ray/${v2rayCoreCPUVendor}.zip" -d /etc/v2ray-agent/v2ray >/dev/null
+		rm -rf "/etc/v2ray-agent/v2ray/${v2rayCoreCPUVendor}.zip"
 	else
 		if [[ "${selectCoreType}" == "3" ]]; then
 			echoContent green " ---> 锁定v2ray-core版本为v4.32.1"
@@ -1113,8 +1109,8 @@ installXray() {
 			wget -c -P /etc/v2ray-agent/xray/ "https://github.com/XTLS/Xray-core/releases/download/${version}/${xrayCoreCPUVendor}.zip" >/dev/null 2>&1
 		fi
 
-		unzip -o /etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip -d /etc/v2ray-agent/xray >/dev/null
-		rm -rf /etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip
+		unzip -o "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip" -d /etc/v2ray-agent/xray >/dev/null
+		rm -rf "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip"
 		chmod 655 /etc/v2ray-agent/xray/xray
 	else
 		echoContent green " ---> Xray-core版本:$(/etc/v2ray-agent/xray/xray --version | awk '{print $2}' | head -1)"
@@ -1129,8 +1125,7 @@ installXray() {
 # 安装Trojan-go
 installTrojanGo() {
 	echoContent skyBlue "\n进度  $1/${totalProgress} : 安装Trojan-Go"
-
-	if ! ls /etc/v2ray-agent/trojan/ | grep -q trojan-go; then
+	if [[ -z ${find /etc/v2ray-agent/trojan/ -name "trojan-go"} ]]; then
 
 		version=$(curl -s https://api.github.com/repos/p4gefau1t/trojan-go/releases | jq -r .[0].tag_name)
 		echoContent green " ---> Trojan-Go版本:${version}"
@@ -1139,8 +1134,8 @@ installTrojanGo() {
 		else
 			wget -c -P /etc/v2ray-agent/trojan/ "https://github.com/p4gefau1t/trojan-go/releases/download/${version}/${trojanGoCPUVendor}.zip" >/dev/null 2>&1
 		fi
-		unzip -o /etc/v2ray-agent/trojan/${trojanGoCPUVendor}.zip -d /etc/v2ray-agent/trojan >/dev/null
-		rm -rf /etc/v2ray-agent/trojan/${trojanGoCPUVendor}.zip
+		unzip -o "/etc/v2ray-agent/trojan/${trojanGoCPUVendor}.zip" -d /etc/v2ray-agent/trojan >/dev/null
+		rm -rf "/etc/v2ray-agent/trojan/${trojanGoCPUVendor}.zip"
 	else
 		echoContent green " ---> Trojan-Go版本:$(/etc/v2ray-agent/trojan/trojan-go --version | awk '{print $2}' | head -1)"
 
@@ -1181,7 +1176,7 @@ v2rayVersionManageMenu() {
 		read -r -p "请输入要回退的版本：" selectV2rayVersionType
 		version=$(curl -s https://api.github.com/repos/v2fly/v2ray-core/releases | jq -r .[].tag_name| head -5| awk '{print ""NR""":"$0}' | grep "${selectV2rayVersionType}:" | awk -F "[:]" '{print $2}')
 		if [[ -n "${version}" ]]; then
-			updateV2Ray ${version}
+			updateV2Ray "${version}"
 		else
 			echoContent red "\n ---> 输入有误，请重新输入"
 			v2rayVersionManageMenu 1
@@ -1259,8 +1254,8 @@ updateV2Ray() {
 			wget -c -P "/etc/v2ray-agent/v2ray/ https://github.com/v2fly/v2ray-core/releases/download/${version}/${v2rayCoreCPUVendor}.zip" >/dev/null 2>&1
 		fi
 
-		unzip -o /etc/v2ray-agent/v2ray/${v2rayCoreCPUVendor}.zip -d /etc/v2ray-agent/v2ray >/dev/null
-		rm -rf /etc/v2ray-agent/v2ray/${v2rayCoreCPUVendor}.zip
+		unzip -o "/etc/v2ray-agent/v2ray/${v2rayCoreCPUVendor}.zip" -d /etc/v2ray-agent/v2ray >/dev/null
+		rm -rf "/etc/v2ray-agent/v2ray/${v2rayCoreCPUVendor}.zip"
 		handleV2Ray stop
 		handleV2Ray start
 	else
@@ -1333,8 +1328,8 @@ updateXray() {
 			wget -c -P /etc/v2ray-agent/xray/ "https://github.com/XTLS/Xray-core/releases/download/${version}/${xrayCoreCPUVendor}.zip" >/dev/null 2>&1
 		fi
 
-		unzip -o /etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip -d /etc/v2ray-agent/xray >/dev/null
-		rm -rf /etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip
+		unzip -o "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip" -d /etc/v2ray-agent/xray >/dev/null
+		rm -rf "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip"
 		chmod 655 /etc/v2ray-agent/xray/xray
 		handleXray stop
 		handleXray start
@@ -1525,7 +1520,7 @@ handleV2Ray() {
 }
 # 操作xray
 handleXray() {
-	if [[ -n $(find /bin /usr/bin -name "systemctl") ]] && ls /etc/systemd/system/ | grep -q xray.service; then
+	if [[ -n $(find /bin /usr/bin -name "systemctl") ]] && [[ -n $(find /etc/systemd/system/ -name "xray.service") ]];then
 		if [[ -z $(pgrep -f "xray/xray") ]] && [[ "$1" == "start" ]]; then
 			systemctl start xray.service
 		elif [[ -n $(pgrep -f "xray/xray") ]] && [[ "$1" == "stop" ]]; then
@@ -1549,36 +1544,6 @@ handleXray() {
 		else
 			echoContent red "xray关闭失败"
 			echoContent red "请手动执行【ps -ef|grep -v grep|grep xray|awk '{print \$2}'|xargs kill -9】"
-			exit 0
-		fi
-	fi
-}
-
-# 操作Trojan-Go
-handleTrojanGo() {
-	if [[ -n $(find /bin /usr/bin -name "systemctl") ]] && ls /etc/systemd/system/ | grep -q trojan-go.service; then
-		if [[ -z $(pgrep -f "trojan-go") ]] && [[ "$1" == "start" ]]; then
-			systemctl start trojan-go.service
-		elif [[ -n $(pgrep -f "trojan-go") ]] && [[ "$1" == "stop" ]]; then
-			systemctl stop trojan-go.service
-		fi
-	fi
-
-	sleep 0.5
-	if [[ "$1" == "start" ]]; then
-		if [[ -n $(pgrep -f "trojan-go") ]]; then
-			echoContent green " ---> Trojan-Go启动成功"
-		else
-			echoContent red "Trojan-Go启动失败"
-			echoContent red "请手动执行【/etc/v2ray-agent/trojan/trojan-go -config /etc/v2ray-agent/trojan/config_full.json】，查看错误日志"
-			exit 0
-		fi
-	elif [[ "$1" == "stop" ]]; then
-		if [[ -z $(pgrep -f "trojan-go") ]]; then
-			echoContent green " ---> Trojan-Go关闭成功"
-		else
-			echoContent red "Trojan-Go关闭失败"
-			echoContent red "请手动执行【ps -ef|grep -v grep|grep trojan-go|awk '{print \$2}'|xargs kill -9】"
 			exit 0
 		fi
 	fi
@@ -1934,7 +1899,8 @@ initXrayFrontingConfig(){
 
 		if [[ "${xtlsType}" == "Trojan" ]];then
 
-			local VLESSConfig=$(cat ${configPath}${frontingType}.json)
+			local VLESSConfig
+			VLESSConfig=$(cat ${configPath}${frontingType}.json)
 			VLESSConfig=${VLESSConfig//"id"/"password"}
 			VLESSConfig=${VLESSConfig//VLESSTCP/TrojanTCPXTLS}
 			VLESSConfig=${VLESSConfig//VLESS/Trojan}
@@ -1945,7 +1911,8 @@ initXrayFrontingConfig(){
 			rm  ${configPath}${frontingType}.json
 		elif [[ "${xtlsType}" == "VLESS" ]]; then
 
-			local VLESSConfig=$(cat ${configPath}02_trojan_TCP_inbounds.json)
+			local VLESSConfig
+			VLESSConfig=$(cat ${configPath}02_trojan_TCP_inbounds.json)
 			VLESSConfig=${VLESSConfig//"password"/"id"}
 			VLESSConfig=${VLESSConfig//TrojanTCPXTLS/VLESSTCP}
 			VLESSConfig=${VLESSConfig//Trojan/VLESS}
@@ -2135,8 +2102,8 @@ EOF
 
 
 	# trojan_grpc
-	if echo ${selectCustomInstallType} | grep -q 2 || [[ "$1" == "all" ]]; then
-		if ! echo ${selectCustomInstallType} | grep -q 5 && [[ -n ${selectCustomInstallType} ]];then
+	if echo "${selectCustomInstallType}" | grep -q 2 || [[ "$1" == "all" ]]; then
+		if ! echo "${selectCustomInstallType}" | grep -q 5 && [[ -n ${selectCustomInstallType} ]];then
 			fallbacksList=${fallbacksList//31302/31304}
 		fi
 
@@ -2372,7 +2339,8 @@ defaultBase64Code() {
 	local path=$5
 	local add=$6
 
-	local subAccount=${currentHost}_$(echo "${id}_currentHost" | md5sum | awk '{print $1}')
+	local subAccount
+	subAccount=${currentHost}_$(echo "${id}_currentHost" | md5sum | awk '{print $1}')
 	if [[ "${type}" == "vlesstcp" ]]; then
 
 		if [[ "${coreInstallType}" == "1" ]] && echo ${currentInstallProtocolType} | grep -q 0; then
@@ -2385,7 +2353,7 @@ defaultBase64Code() {
 vless://${id}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&sni=${host}&flow=xtls-rprx-direct#${email}
 EOF
 			echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS/xtls-rprx-direct)"
-			echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${host}%3A${port}%3F${encryption}%3Dnone%26security%3Dxtls%26type%3Dtcp%26${host}%3D${host}%26headerType%3Dnone%26sni%3D${host}%26flow%3Dxtls-rprx-direct%23${email}\n"
+			echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${host}%3A${port}%3Fencryption%3Dnone%26security%3Dxtls%26type%3Dtcp%26${host}%3D${host}%26headerType%3Dnone%26sni%3D${host}%26flow%3Dxtls-rprx-direct%23${email}\n"
 
 			echoContent skyBlue "----------------------------------------------------------------------------------"
 
@@ -2398,7 +2366,7 @@ EOF
 vless://${id}@${host}:${port}?encryption=none&security=xtls&type=tcp&host=${host}&headerType=none&sni=${host}&flow=xtls-rprx-splice#${email}
 EOF
 			echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS/xtls-rprx-splice)"
-			echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${host}%3A${port}%3F${encryption}%3Dnone%26security%3Dxtls%26type%3Dtcp%26${host}%3D${host}%26headerType%3Dnone%26sni%3D${host}%26flow%3Dxtls-rprx-splice%23${email}\n"
+			echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${host}%3A${port}%3Fencryption%3Dnone%26security%3Dxtls%26type%3Dtcp%26${host}%3D${host}%26headerType%3Dnone%26sni%3D${host}%26flow%3Dxtls-rprx-splice%23${email}\n"
 
 		elif [[ "${coreInstallType}" == "2" || "${coreInstallType}" == "3" ]]; then
 			echoContent yellow " ---> 通用格式(VLESS+TCP+TLS)"
@@ -2442,11 +2410,12 @@ EOF
 
 	elif [[ "${type}" == "vmessws" ]]; then
 
-		qrCodeBase64Default=$(echo -n '{"port":"'${port}'","ps":'\"${email}\"',"tls":"tls","id":'\"${id}\"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":"/'${path}'","net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'","sni":"'${host}'"}' | sed 's#/#\\\/#g' | base64)
-		qrCodeBase64Default=$(echo ${qrCodeBase64Default} | sed 's/ //g')
+		qrCodeBase64Default=$(echo -n '{"port":"'${port}'","ps":"'"${email}"'","tls":"tls","id":"'"${id}"'","aid":"0","v":"2","host":"'"${host}"'","type":"none","path":"/'"${path}"'","net":"ws","add":"'"${add}"'","allowInsecure":0,"method":"none","peer":"'"${host}"'","sni":"'${host}'"}' | sed 's#/#\\\/#g' | base64)
+		qrCodeBase64Default="${qrCodeBase64Default// /}"
+
 
 		echoContent yellow " ---> 通用json(VMess+WS+TLS)"
-		echoContent green '    {"port":"'${port}'","ps":'\"${ps}\"',"tls":"tls","id":'\"${id}\"',"aid":"0","v":"2","host":"'${host}'","type":"none","path":"/'${path}'","net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'","sni":"'${host}'"}\n'
+		echoContent green "    {"port":"'${port}'","ps":'"${ps}"',"tls":"tls","id":'"${id}"',"aid":"0","v":"2","host":'${host}',"type":"none","path":"/'${path}'","net":"ws","add":"'${add}'","allowInsecure":0,"method":"none","peer":"'${host}'","sni":"'${host}'"}\n"
 		echoContent yellow " ---> 通用vmess(VMess+WS+TLS)链接"
 		echoContent green "    vmess://${qrCodeBase64Default}\n"
 		echoContent yellow " ---> 二维码 vmess(VMess+WS+TLS)"
@@ -2559,6 +2528,7 @@ EOF
 		echoContent green "    trojan-go://${id}@${add}:${port}?sni=${host}&type=ws&host=${host}&path=%2F${path}#${host}_Trojan_ws\n"
 
 	fi
+
 }
 # 账号
 showAccounts() {
@@ -2575,7 +2545,7 @@ showAccounts() {
 			jq .inbounds[0].settings.clients ${configPath}02_trojan_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
 				echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq -r .email )_$(echo "${user}" | jq -r .password)"
 				echo
-				defaultBase64Code trojanTCPXTLS $(echo "${user}" | jq -r .email) $(echo "${user}" | jq -r .password) "${currentHost}:${currentPort}" ${currentHost}
+				defaultBase64Code trojanTCPXTLS "$(echo "${user}" | jq -r .email)" "$(echo "${user}" | jq -r .password)" "${currentHost}:${currentPort}" ${currentHost}
 			done
 
 		else
@@ -2583,7 +2553,7 @@ showAccounts() {
 			jq .inbounds[0].settings.clients ${configPath}02_VLESS_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
 				echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq -r .email )_$(echo "${user}" | jq -r .id)"
 				echo
-				defaultBase64Code vlesstcp $(echo "${user}" | jq -r .email) $(echo "${user}" | jq -r .id) "${currentHost}:${currentPort}" ${currentHost}
+				defaultBase64Code vlesstcp "$(echo "${user}" | jq -r .email)" "$(echo "${user}" | jq -r .id)" "${currentHost}:${currentPort}" ${currentHost}
 			done
 		fi
 
@@ -2600,7 +2570,7 @@ showAccounts() {
 					echoContent yellow "Xray的0-RTT path后面会有?ed=2048，不兼容以v2ray为核心的客户端，请手动删除?ed=2048后使用\n"
 					path="${currentPath}ws?ed=2048"
 				fi
-				defaultBase64Code vlessws $(echo "${user}" | jq -r .email) $(echo "${user}" | jq -r .id) "${currentHost}:${currentPort}" ${path} ${currentAdd}
+				defaultBase64Code vlessws "$(echo "${user}" | jq -r .email)" "$(echo "${user}" | jq -r .id)" "${currentHost}:${currentPort}" ${path} ${currentAdd}
 			done
 		fi
 
@@ -2614,7 +2584,7 @@ showAccounts() {
 			jq .inbounds[0].settings.clients ${configPath}05_VMess_WS_inbounds.json | jq -c '.[]' | while read -r user; do
 				echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq -r .email )_$(echo "${user}" | jq -r .id)"
 				echo
-				defaultBase64Code vmessws $(echo "${user}" | jq -r .email) $(echo "${user}" | jq -r .id) "${currentHost}:${currentPort}" ${path} ${currentAdd}
+				defaultBase64Code vmessws "$(echo "${user}" | jq -r .email)" "$(echo "${user}" | jq -r .id)" "${currentHost}:${currentPort}" ${path} ${currentAdd}
 			done
 		fi
 
@@ -2626,7 +2596,7 @@ showAccounts() {
 			jq .inbounds[0].settings.clients ${configPath}06_VLESS_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
 				echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq -r .email )_$(echo "${user}" | jq -r .id)"
 				echo
-				defaultBase64Code vlessgrpc $(echo "${user}" | jq -r .email) $(echo "${user}" | jq -r .id) "${currentHost}:${currentPort}" ${serviceName} ${currentAdd}
+				defaultBase64Code vlessgrpc "$(echo "${user}" | jq -r .email)" "$(echo "${user}" | jq -r .id)" "${currentHost}:${currentPort}" ${serviceName} ${currentAdd}
 			done
 		fi
 	fi
@@ -2637,18 +2607,19 @@ showAccounts() {
 		jq .inbounds[0].settings.clients ${configPath}04_trojan_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
 			echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq -r .email )_$(echo "${user}" | jq -r .password)"
 			echo
-			defaultBase64Code trojan trojan $(echo "${user}" | jq -r .password) ${currentHost}
+			defaultBase64Code trojan trojan "$(echo "${user}" | jq -r .password)" "${currentHost}"
 		done
 	fi
 
 	if echo ${currentInstallProtocolType} | grep -q 2; then
 		echoContent skyBlue "\n================================  Trojan gRPC TLS  ================================\n"
 		echoContent red "\n --->gRPC目前处于测试阶段，可能对你使用的客户端不兼容，如不能使用请忽略"
-		local serviceName=$(jq -r .inbounds[0].streamSettings.grpcSettings.serviceName ${configPath}04_trojan_gRPC_inbounds.json)
+		local serviceName=
+		serviceName=$(jq -r .inbounds[0].streamSettings.grpcSettings.serviceName ${configPath}04_trojan_gRPC_inbounds.json)
 		jq .inbounds[0].settings.clients ${configPath}04_trojan_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
 			echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq -r .email )_$(echo "${user}" | jq -r .password)"
 			echo
-			defaultBase64Code trojangrpc $(echo "${user}" | jq -r .email) $(echo "${user}" | jq -r .password) "${currentHost}:${currentPort}" ${serviceName} ${currentAdd}
+			defaultBase64Code trojangrpc "$(echo "${user}" | jq -r .email)" "$(echo "${user}" | jq -r .password)" "${currentHost}:${currentPort}" ${serviceName} ${currentAdd}
 		done
 	fi
 
@@ -2742,7 +2713,7 @@ EOF
 
 		local dokoConfig=$(ls ${configPath} | grep dokodemodoor | awk '{print ""NR""":"$1}' | grep ${portIndex}":")
 		if [[ -n "${dokoConfig}" ]]; then
-			rm ${configPath}/$(echo "${dokoConfig}" | awk -F "[:]" '{print $2}')
+			rm "${configPath}/$(echo "${dokoConfig}" | awk -F "[:]" '{print $2}')"
 			reloadCore
 		else
 			echoContent yellow "\n ---> 编号输入错误，请重新选择"
@@ -2821,7 +2792,7 @@ updateV2RayCDN() {
 
 		if [[ -n ${setDomain} ]]; then
 			if [[ -n ${currentAdd} ]]; then
-				sed -i "s/\"${currentAdd}\"/\"${setDomain}\"/g" $(grep "${currentAdd}" -rl ${configPath}${frontingType}.json)
+				sed -i "s/\"${currentAdd}\"/\"${setDomain}\"/g" "$(grep "${currentAdd}" -rl ${configPath}${frontingType}.json)"
 			fi
 			if [[ $(jq -r .inbounds[0].settings.clients[0].add ${configPath}${frontingType}.json) == ${setDomain} ]]; then
 				echoContent green " ---> CDN修改成功"
@@ -3405,11 +3376,12 @@ unInstallRouting(){
 	local tag=$1
 
 	if [[ -f "${configPath}09_routing.json" ]];then
-		local routing=
+		local routing
 		if grep -q "${tag}" ${configPath}09_routing.json;then
-			local index=$(jq .routing.rules[].outboundTag ${configPath}09_routing.json|awk '{print ""NR""":"$0}'|grep "${tag}"|awk -F "[:]" '{print $1}'|head -1)
+			local index
+			index=$(jq .routing.rules[].outboundTag ${configPath}09_routing.json|awk '{print ""NR""":"$0}'|grep "${tag}"|awk -F "[:]" '{print $1}'|head -1)
 			if [[ ${index} -gt 0 ]];then
-				routing=$(jq -r 'del(.routing.rules['$(expr ${index} - 1)'])' ${configPath}09_routing.json)
+				routing=$(jq -r 'del(.routing.rules['"$(("${index}" - 1))"'])' ${configPath}09_routing.json)
 				echo "${routing}" |jq . >${configPath}09_routing.json
 			fi
 		fi
@@ -3421,9 +3393,11 @@ unInstallOutbounds(){
 	local tag=$1
 
 	if grep -q "${tag}" ${configPath}10_ipv4_outbounds.json;then
-		local ipv6OutIndex=$(jq .outbounds[].tag ${configPath}10_ipv4_outbounds.json|awk '{print ""NR""":"$0}'|grep "${tag}"|awk -F "[:]" '{print $1}'|head -1)
+		local ipv6OutIndex
+		ipv6OutIndex=$(jq .outbounds[].tag ${configPath}10_ipv4_outbounds.json|awk '{print ""NR""":"$0}'|grep "${tag}"|awk -F "[:]" '{print $1}'|head -1)
 		if [[ ${ipv6OutIndex} -gt 0 ]];then
-			routing=$(jq -r 'del(.outbounds['$(expr ${ipv6OutIndex} - 1)'])' ${configPath}10_ipv4_outbounds.json)
+			routing
+			routing=$(jq -r 'del(.outbounds['$(("${ipv6OutIndex}" - 1))'])' ${configPath}10_ipv4_outbounds.json)
 			echo "${routing}" |jq . >${configPath}10_ipv4_outbounds.json
 		fi
 	fi
