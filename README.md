@@ -106,7 +106,7 @@
 
 ## 捐赠
 
-[您可以使用我的AFF进行购买VPS捐赠](https://github.com/mack-a/v2ray-agent/blob/master/documents/donation_aff.md)
+[您可以使用我的AFF进行购买VPS捐赠](https://www.v2ray-agent.com/%E6%82%A8%E5%8F%AF%E4%BB%A5%E9%80%9A%E8%BF%87%E6%88%91%E7%9A%84AFF%E8%B4%AD%E4%B9%B0vps%E6%8D%90%E8%B5%A0)
 
 [支持通过虚拟币向我捐赠](https://github.com/mack-a/v2ray-agent/blob/master/documents/donation.md)
 
