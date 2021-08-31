@@ -96,7 +96,7 @@ www.digitalocean.com|xx|xx|xx
 - 3.注意记得填写serviceName
 
 # 2.断流优化
-> (这里贴一下V2Ray白话文指南具体说明)[https://guide.v2fly.org/advanced/cdn.html]
+> [这里贴一下V2Ray白话文指南具体说明](https://guide.v2fly.org/advanced/cdn.html)
 
 ## cloudflare gRPC断流
 - [grpc协议下UDP通过cloudflare会断](https://github.com/XTLS/Xray-core/issues/671)
