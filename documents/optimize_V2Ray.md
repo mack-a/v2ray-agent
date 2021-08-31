@@ -96,20 +96,9 @@ www.digitalocean.com|xx|xx|xx
 - 3.注意记得填写serviceName
 
 # 2.断流优化
-
 > (这里贴一下V2Ray白话文指南具体说明)[https://guide.v2fly.org/advanced/cdn.html]
 
-## 1.修改 Security Level
+## cloudflare gRPC断流
+- [grpc协议下UDP通过cloudflare会断](https://github.com/XTLS/Xray-core/issues/671)
+- [为什么套用 cloudflare grpc 会断流](https://github.com/v2fly/v2ray-core/discussions/1174)
 
-- Firewall->Settings->Security Level->Essentially Off
-
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/firewall_settings.png" width=400>
-
-## 2.添加firewall rules
-
-- Firewall- Firwall Rules->create a Firewall rule
-- Rule name可以随便填
-- URL Path Value填写翻墙的path
-- action则为Allow
-
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/firewall_settings.png" width=400>
