@@ -178,10 +178,10 @@ initVar() {
 	pingIPv6=
 	localIP=
 
-	# 集成更新证书逻辑不再使用单独的脚本--RenewTLS
+	# Integrated Update Certificate Logic No longer use separate scripts--RenewTLS
 	renewTLS=$1
 
-	# tls安装失败后尝试的次数
+	# Number of attempts after a failed tls installation
 	installTLSCount=
 }
 
@@ -405,7 +405,7 @@ mkdirTools() {
 # Installation kit
 installTools() {
 	echo 'Installation tool'
-	echoContent skyBlue "\nprogress  $1/${totalProgress} : Installation tool"
+	echoContent skyBlue "\n progress  $1/${totalProgress} : Installation tool"
 	# Repair Ubuntu Individual System Issues
 	if [[ "${release}" == "ubuntu" ]]; then
 		dpkg --configure -a
@@ -648,7 +648,7 @@ initTLSNginxConfig() {
 		echoContent red "  Domain name--->"
 		initTLSNginxConfig
 	else
-		# 修改配置
+		# update config
 		touch /etc/nginx/conf.d/alone.conf
 		cat <<EOF >/etc/nginx/conf.d/alone.conf
 server {
@@ -672,7 +672,7 @@ server {
 	}
 }
 EOF
-		# 启动nginx
+		# start nginx
 		handleNginx start
 		checkIP
 	fi
@@ -1386,7 +1386,7 @@ updateXray() {
 	fi
 }
 
-# 验证整个服务是否可用
+# Verify that the entire service is available
 checkGFWStatue() {
 	readInstallType
 	echoContent skyBlue "\n progress $1/${totalProgress} : Verify service startup status"
@@ -1907,7 +1907,7 @@ EOF
 	fi
 }
 
-# initializationXray Trojan XTLS 配置文件
+# initializationXray Trojan XTLS config
 initXrayFrontingConfig(){
 	if [[ -z "${configPath}" ]]; then
 		echoContent red " ---> Not installed, please use the script installation"
@@ -3130,7 +3130,7 @@ handleFirewall(){
 	fi
 }
 
-# 安装BBR
+# install BBR
 bbrInstall() {
 	echoContent red "\n=============================================================="
 	echoContent green "BBR、DDMature works for [YLX2016] with scripts, address [https://github.com/ylx2016/linux-netspeed], please be familiar"
@@ -3464,7 +3464,7 @@ warpRouting(){
 	echoContent yellow "2.It can be used normally without rebooting the machine, if you have to use the official warp, it is recommended not to reboot the machine"
 	echoContent yellow "3.Some machines still work normally after reboot"
 	echoContent yellow "4.Uninstall and reinstall if you can't use it after reboot"
-	# 安装warp
+	# Install WARP
 	if [[ -z $(which warp-cli) ]];then
 		echo
 		read -r -p "WARP not installed, installed or not ？[y/n]:" installCloudflareWarpStatus
@@ -3480,7 +3480,7 @@ warpRouting(){
 	echoContent yellow "1.Add Domain"
 	echoContent yellow "2.Uninstall the WARP diversion"
 	echoContent red "=============================================================="
-	read -r -p "请选择:" warpStatus
+	read -r -p "please choose:" warpStatus
 	if [[ "${warpStatus}" == "1" ]]; then
 		echoContent red "=============================================================="
 		echoContent yellow "# Cautions\n"
@@ -3534,9 +3534,9 @@ EOF
 
 		unInstallOutbounds warp-socks-out
 
-		echoContent green " ---> WARP分流卸载成功"
+		echoContent green " ---> WARP shunt uninstall success"
 	else
-		echoContent red " ---> 选择错误"
+		echoContent red " ---> wrong selection"
 		exit 0
 	fi
 	reloadCore
