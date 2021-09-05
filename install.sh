@@ -854,7 +854,7 @@ installTLS() {
 		else
 			echoContent green " ---> 证书有效"
 			#
-			if [[ -z ${find/etc/v2ray-agent/tls/ -name "${tlsDomain}.crt"} ]] || [[ -z ${find/etc/v2ray-agent/tls/ -name "${tlsDomain}.key"} ]] || [[ -z $(cat "/etc/v2ray-agent/tls/${tlsDomain}.crt") ]]; then
+			if [[ -z $(find /etc/v2ray-agent/tls/ -name "${tlsDomain}.crt") ]] || [[ -z $(find /etc/v2ray-agent/tls/ -name "${tlsDomain}.key") ]] || [[ -z $(cat "/etc/v2ray-agent/tls/${tlsDomain}.crt") ]]; then
 				sudo "$HOME/.acme.sh/acme.sh" --installcert -d "${tlsDomain}" --fullchainpath "/etc/v2ray-agent/tls/${tlsDomain}.crt" --keypath "/etc/v2ray-agent/tls/${tlsDomain}.key" --ecc >/dev/null
 			else
 				echoContent yellow " ---> 如未过期请选择[n]\n"
@@ -1127,7 +1127,7 @@ installXray() {
 # 安装Trojan-go
 installTrojanGo() {
 	echoContent skyBlue "\n进度  $1/${totalProgress} : 安装Trojan-Go"
-	if [[ -z ${find/etc/v2ray-agent/trojan/ -name "trojan-go"} ]]; then
+	if [[ -z $(find /etc/v2ray-agent/trojan/ -name "trojan-go") ]]; then
 
 		version=$(curl -s https://api.github.com/repos/p4gefau1t/trojan-go/releases | jq -r .[0].tag_name)
 		echoContent green " ---> Trojan-Go版本:${version}"
@@ -4123,7 +4123,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.29"
+	echoContent green "当前版本：v2.5.30"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
