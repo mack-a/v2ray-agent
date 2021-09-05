@@ -195,6 +195,13 @@ vim /etc/nginx/conf.d/alone.conf
 add_header Strict-Transport-Security "max-age=63072000" always;
 ```
 
+## 4.低版本升级高版本后无法启动核心
+- 1.先分别执行下方命令
+- 2.使用脚本中[13.core管理]启动即可
+```
+systemctl stop trojan-go
+systemctl disable trojan-go
+```
 # 4.答疑
 
 ## 1.哪一种线路是最好的？
