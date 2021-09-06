@@ -1005,9 +1005,9 @@ renewalTLS() {
 
 		modifyTime=$(date +%s -d "${modifyTime}")
 		currentTime=$(date +%s)
-		((stampDiff=currentTime - modifyTime))
-		((days=stampDiff / 86400))
-		((remainingDays=90 - days))
+		((stampDiff = currentTime - modifyTime))
+		((days = stampDiff / 86400))
+		((remainingDays = 90 - days))
 
 		tlsStatus=${remainingDays}
 		if [[ ${remainingDays} -le 0 ]]; then
@@ -1042,9 +1042,9 @@ checkTLStatus() {
 
 			modifyTime=$(date +%s -d "${modifyTime}")
 			currentTime=$(date +%s)
-			((stampDiff=currentTime - modifyTime))
-			((days=stampDiff / 86400))
-			((remainingDays=90 - days))
+			((stampDiff = currentTime - modifyTime))
+			((days = stampDiff / 86400))
+			((remainingDays = 90 - days))
 
 			tlsStatus=${remainingDays}
 			if [[ ${remainingDays} -le 0 ]]; then
@@ -2407,15 +2407,12 @@ EOF
 		echoContent yellow " ---> 二维码 Trojan(Trojan+TCP+TLS/xtls-rprx-splice)"
 		echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3A%2F%2F${id}%40${host}%3A${port}%3Fencryption%3Dnone%26security%3Dxtls%26type%3Dtcp%26${host}%3D${host}%26headerType%3Dnone%26sni%3D${host}%26flow%3Dxtls-rprx-splice%23${email}\n"
 
-	elif
-		[[ "${type}" == "vmessws" ]]
-	then
-
-		qrCodeBase64Default=$(echo -n "{\"port\":${port},\"ps\":\"${email}\",\"tls\":\"tls\",\"id\":\"${id}\",\"aid\":0,\"v\":2,\"host\":\"${host}\",\"type\":\"none\",\"path\":\"/${path}\",\"net\":\"ws\",\"add\":\"${add}\",\"allowInsecure\":0,\"method\":\"none\",\"peer\":\"${host}\",\"sni\":\"${host}\"}" | sed 's#/#\\\/#g' | base64)
+	elif [[ "${type}" == "vmessws" ]]; then
+		qrCodeBase64Default=$(echo -n "{\"port\":${port},\"ps\":\"${email}\",\"tls\":\"tls\",\"id\":\"${id}\",\"aid\":0,\"v\":2,\"host\":\"${host}\",\"type\":\"none\",\"path\":\"/${path}\",\"net\":\"ws\",\"add\":\"${add}\",\"allowInsecure\":0,\"method\":\"none\",\"peer\":\"${host}\",\"sni\":\"${host}\"}" | base64 -w 0)
 		qrCodeBase64Default="${qrCodeBase64Default// /}"
 
 		echoContent yellow " ---> 通用json(VMess+WS+TLS)"
-		echoContent green "    {\"port\":${port},\"ps\":\"${email}\",\"tls\":\"tls\",\"id\":\"${id}\",\"aid\":0,\"v\":2,\"host\":'${host}',\"type\":\"none\",\"path\":\"${path}\",\"net\":\"ws\",\"add\":\"${add}\",\"allowInsecure\":0,\"method\":\"none\",\"peer\":\"${host}\",\"sni\":\"${host}\"}\n"
+		echoContent green "    {\"port\":${port},\"ps\":\"${email}\",\"tls\":\"tls\",\"id\":\"${id}\",\"aid\":0,\"v\":2,\"host\":\"${host}\",\"type\":\"none\",\"path\":\"${path}\",\"net\":\"ws\",\"add\":\"${add}\",\"allowInsecure\":0,\"method\":\"none\",\"peer\":\"${host}\",\"sni\":\"${host}\"}\n"
 		echoContent yellow " ---> 通用vmess(VMess+WS+TLS)链接"
 		echoContent green "    vmess://${qrCodeBase64Default}\n"
 		echoContent yellow " ---> 二维码 vmess(VMess+WS+TLS)"
@@ -4125,7 +4122,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.31"
+	echoContent green "当前版本：v2.5.32"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
