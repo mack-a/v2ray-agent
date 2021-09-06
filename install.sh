@@ -1005,9 +1005,10 @@ renewalTLS() {
 
 		modifyTime=$(date +%s -d "${modifyTime}")
 		currentTime=$(date +%s)
-		stampDiff=$(("${currentTime}" - "${modifyTime}"))
-		days=$(("${stampDiff}" / 86400))
-		remainingDays=$((90 - "${days}"))
+		((stampDiff=currentTime - modifyTime))
+		((days=stampDiff / 86400))
+		((remainingDays=90 - days))
+
 		tlsStatus=${remainingDays}
 		if [[ ${remainingDays} -le 0 ]]; then
 			tlsStatus="已过期"
@@ -1041,9 +1042,10 @@ checkTLStatus() {
 
 			modifyTime=$(date +%s -d "${modifyTime}")
 			currentTime=$(date +%s)
-			stampDiff=$(("${currentTime}" - "${modifyTime}"))
-			days=$(("${stampDiff}" / 86400))
-			remainingDays=$((90 - "${days}"))
+			((stampDiff=currentTime - modifyTime))
+			((days=stampDiff / 86400))
+			((remainingDays=90 - days))
+
 			tlsStatus=${remainingDays}
 			if [[ ${remainingDays} -le 0 ]]; then
 				tlsStatus="已过期"
@@ -4099,7 +4101,7 @@ subscribe() {
 		showAccounts >/dev/null
 		mv /etc/v2ray-agent/subscribe_tmp/* /etc/v2ray-agent/subscribe/
 
-		if [[ -n $(ls /etc/v2ray-agent/subscribe) ]]; then
+		if [[ -n $(ls /etc/v2ray-agent/subscribe/) ]]; then
 			find /etc/v2ray-agent/subscribe | while read -r email; do
 				email=$(echo "${email}" | awk -F "[s][u][b][s][c][r][i][b][e][/]" '{print $2}')
 				local base64Result
@@ -4123,7 +4125,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.30"
+	echoContent green "当前版本：v2.5.31"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
