@@ -53,12 +53,14 @@ checkSystem() {
 		release="debian"
 		installType='apt -y install'
 		upgrade="apt update"
+		updateReleaseInfoChange='apt-get --allow-releaseinfo-change update'
 		removeType='apt -y autoremove'
 
 	elif grep </etc/issue -q -i "ubuntu" && [[ -f "/etc/issue" ]] || grep </etc/issue -q -i "ubuntu" && [[ -f "/proc/version" ]]; then
 		release="ubuntu"
 		installType='apt -y install'
 		upgrade="apt update"
+		updateReleaseInfoChange='apt-get --allow-releaseinfo-change update'
 		removeType='apt -y autoremove'
 		if grep </etc/issue -q -i "16."; then
 			release=
@@ -408,7 +410,11 @@ installTools() {
 
 	echoContent green " ---> 检查、安装更新【新机器会很慢，如长时间无反应，请手动停止后重新执行】"
 
-	${upgrade} >/dev/null 2>&1
+	${upgrade} >/etc/v2ray-agent/install.log 2>&1
+	if grep <"/etc/v2ray-agent/install.log" -q "changed"; then
+		${updateReleaseInfoChange} >/dev/null 2>&1
+	fi
+
 	if [[ "${release}" == "centos" ]]; then
 		rm -rf /var/run/yum.pid
 		${installType} epel-release >/dev/null 2>&1
@@ -4122,7 +4128,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.32"
+	echoContent green "当前版本：v2.5.33"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
