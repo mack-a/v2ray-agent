@@ -141,6 +141,9 @@ initVar() {
 	# 当前的个性化安装方式 01234
 	currentInstallProtocolType=
 
+	# 当前alpn的顺序
+	currentAlpn=
+
 	# 前置类型
 	frontingType=
 
@@ -245,6 +248,16 @@ readInstallProtocolType() {
 			currentInstallProtocolType=${currentInstallProtocolType}'5'
 		fi
 	done < <(find ${configPath} -name "*inbounds.json" | awk -F "[.]" '{print $1}')
+}
+
+# 读取当前alpn的顺序
+readInstallAlpn() {
+	if [[ -n ${currentInstallProtocolType} ]]; then
+		local alpn=$(jq -r .inbounds[0].streamSettings.xtlsSettings.alpn[0] ${configPath}${frontingType}.json)
+		if [[ -n ${alpn} ]]; then
+			currentAlpn=${alpn}
+		fi
+	fi
 }
 
 # 检查文件目录以及path路径
@@ -380,6 +393,7 @@ checkCPUVendor
 readInstallType
 readInstallProtocolType
 readConfigHostPathUUID
+readInstallAlpn
 
 # -------------------------------------------------------------
 
@@ -4024,7 +4038,7 @@ xrayCoreInstall() {
 	handleNginx stop
 	randomPathFunction 5
 	# 安装Xray
-	handleV2Ray stop
+	# handleV2Ray stop
 	installXray 6
 	installXrayService 7
 	customCDNIP 8
@@ -4123,12 +4137,52 @@ subscribe() {
 	fi
 }
 
+# 切换alpn
+switchAlpn() {
+	echoContent skyBlue "\n功能 1/${totalProgress} : 切换alpn"
+	if [[ -z ${currentAlpn} ]]; then
+		echoContent red " ---> 无法读取alpn，请检查是否安装"
+		exit 0
+	fi
+
+	echoContent red "\n=============================================================="
+	echoContent green "当前alpn首位为：${currentAlpn}"
+	echoContent yellow "  1.当http/1.1首位时，trojan可用，gRPC部分客户端可用【客户端支持手动选择alpn的可用】"
+	echoContent yellow "  2.当h2首位时，gRPC可用，trojan部分客户端可用【客户端支持手动选择alpn的可用】"
+	echoContent yellow "  3.如客户端不支持手动更换alpn，建议使用此功能更改服务端alpn顺序，来使用相应的协议"
+	echoContent red "=============================================================="
+
+	if [[ "${currentAlpn}" == "http/1.1" ]]; then
+		echoContent yellow "1.切换alpn h2 首位"
+	elif [[ "${currentAlpn}" == "h2" ]]; then
+		echoContent yellow "1.切换alpn http/1.1 首位"
+	else
+		echoContent red '不符合'
+	fi
+
+	echoContent red "=============================================================="
+
+	read -r -p "请选择:" selectSwitchAlpnType
+	if [[ "${selectSwitchAlpnType}" == "1" && "${currentAlpn}" == "http/1.1" ]]; then
+
+		local frontingTypeJSON=$(jq -r ".inbounds[0].streamSettings.xtlsSettings.alpn = [\"h2\",\"http/1.1\"]" ${configPath}${frontingType}.json)
+		echo "${frontingTypeJSON}" | jq . >${configPath}${frontingType}.json
+
+	elif [[ "${selectSwitchAlpnType}" == "1" && "${currentAlpn}" == "h2" ]]; then
+		local frontingTypeJSON=$(jq -r ".inbounds[0].streamSettings.xtlsSettings.alpn =[\"http/1.1\",\"h2\"]" ${configPath}${frontingType}.json)
+		echo "${frontingTypeJSON}" | jq . >${configPath}${frontingType}.json
+	else
+		echoContent red " ---> 选择错误"
+		exit 0;
+	fi
+	reloadCore
+}
 # 主菜单
 menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.33"
+	echoContent green "当前版本：v2.5.34"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
@@ -4145,6 +4199,7 @@ menu() {
 	elif echo ${currentInstallProtocolType} | grep -q 0; then
 		echoContent yellow "3.切换Trojan[XTLS]"
 	fi
+
 	echoContent skyBlue "-------------------------工具管理-----------------------------"
 	echoContent yellow "4.账号管理"
 	echoContent yellow "5.更换伪装站"
@@ -4155,13 +4210,14 @@ menu() {
 	echoContent yellow "10.流媒体工具"
 	echoContent yellow "11.添加新端口"
 	echoContent yellow "12.BT下载管理"
+	echoContent yellow "13.切换alpn"
 	echoContent skyBlue "-------------------------版本管理-----------------------------"
-	echoContent yellow "13.core管理"
-	echoContent yellow "14.更新脚本"
-	echoContent yellow "15.安装BBR、DD脚本"
+	echoContent yellow "14.core管理"
+	echoContent yellow "15.更新脚本"
+	echoContent yellow "16.安装BBR、DD脚本"
 	echoContent skyBlue "-------------------------脚本管理-----------------------------"
-	echoContent yellow "16.查看日志"
-	echoContent yellow "17.卸载脚本"
+	echoContent yellow "17.查看日志"
+	echoContent yellow "18.卸载脚本"
 	echoContent red "=============================================================="
 	mkdirTools
 	aliasInstall
@@ -4204,18 +4260,21 @@ menu() {
 		btTools 1
 		;;
 	13)
-		coreVersionManageMenu 1
+		switchAlpn 1
 		;;
 	14)
-		updateV2RayAgent 1
+		coreVersionManageMenu 1
 		;;
 	15)
-		bbrInstall
+		updateV2RayAgent 1
 		;;
 	16)
-		checkLog 1
+		bbrInstall
 		;;
 	17)
+		checkLog 1
+		;;
+	18)
 		unInstall 1
 		;;
 	esac
