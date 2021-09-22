@@ -953,17 +953,11 @@ installTLS() {
 	local tlsDomain=${domain}
 	# 安装tls
 	if [[ -f "/etc/v2ray-agent/tls/${tlsDomain}.crt" && -f "/etc/v2ray-agent/tls/${tlsDomain}.key" && -n $(cat "/etc/v2ray-agent/tls/${tlsDomain}.crt") ]] || [[ -d "$HOME/.acme.sh/${tlsDomain}_ecc" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]]; then
-		# 存在证书
 		echoContent green " ---> 检测到证书"
-		checkTLStatus "${tlsDomain}"
-		if [[ "${tlsStatus}" == "已过期" ]]; then
-			rm -rf "$HOME/.acme.sh/${tlsDomain}_ecc/*"
-			rm -rf "/etc/v2ray-agent/tls/${tlsDomain}*"
-			installTLS "$1"
-		else
-			echoContent green " ---> 证书有效"
-			#
-			if [[ -z $(find /etc/v2ray-agent/tls/ -name "${tlsDomain}.crt") ]] || [[ -z $(find /etc/v2ray-agent/tls/ -name "${tlsDomain}.key") ]] || [[ -z $(cat "/etc/v2ray-agent/tls/${tlsDomain}.crt") ]]; then
+		#		checkTLStatus
+		renewalTLS
+
+		if [[ -z $(find /etc/v2ray-agent/tls/ -name "${tlsDomain}.crt") ]] || [[ -z $(find /etc/v2ray-agent/tls/ -name "${tlsDomain}.key") ]] || [[ -z $(cat "/etc/v2ray-agent/tls/${tlsDomain}.crt") ]]; then
 				sudo "$HOME/.acme.sh/acme.sh" --installcert -d "${tlsDomain}" --fullchainpath "/etc/v2ray-agent/tls/${tlsDomain}.crt" --keypath "/etc/v2ray-agent/tls/${tlsDomain}.key" --ecc >/dev/null
 			else
 				echoContent yellow " ---> 如未过期请选择[n]\n"
@@ -972,8 +966,8 @@ installTLS() {
 					rm -rf /etc/v2ray-agent/tls/*
 					installTLS "$1"
 				fi
-			fi
 		fi
+
 	elif [[ -d "$HOME/.acme.sh" ]] && [[ ! -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" || ! -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" ]]; then
 		echoContent green " ---> 安装TLS证书"
 		if echo "${localIP}" | grep -q ":"; then
@@ -1107,7 +1101,9 @@ installCronTLS() {
 
 # 更新证书
 renewalTLS() {
-	echoContent skyBlue "\n进度  1/1 : 更新证书"
+	if [[ -n $1 ]]; then
+		echoContent skyBlue "\n进度  $1/1 : 更新证书"
+	fi
 
 	if [[ -d "$HOME/.acme.sh/${currentHost}_ecc" ]] && [[ -f "$HOME/.acme.sh/${currentHost}_ecc/${currentHost}.key" ]] && [[ -f "$HOME/.acme.sh/${currentHost}_ecc/${currentHost}.cer" ]]; then
 		modifyTime=$(stat "$HOME/.acme.sh/${currentHost}_ecc/${currentHost}.cer" | sed -n '7,6p' | awk '{print $2" "$3" "$4" "$5}')
@@ -1145,24 +1141,23 @@ renewalTLS() {
 # 查看TLS证书的状态
 checkTLStatus() {
 
-	if [[ -n "$1" ]]; then
-		if [[ -d "$HOME/.acme.sh/$1_ecc" ]] && [[ -f "$HOME/.acme.sh/$1_ecc/$1.key" ]] && [[ -f "$HOME/.acme.sh/$1_ecc/$1.cer" ]]; then
-			modifyTime=$(stat "$HOME/.acme.sh/$1_ecc/$1.key" | sed -n '7,6p' | awk '{print $2" "$3" "$4" "$5}')
+	if [[ -d "$HOME/.acme.sh/${currentHost}_ecc" ]] && [[ -f "$HOME/.acme.sh/${currentHost}_ecc/${currentHost}.key" ]] && [[ -f "$HOME/.acme.sh/${currentHost}_ecc/${currentHost}.cer" ]]; then
+		modifyTime=$(stat "$HOME/.acme.sh/${currentHost}_ecc/${currentHost}.cer" | sed -n '7,6p' | awk '{print $2" "$3" "$4" "$5}')
 
-			modifyTime=$(date +%s -d "${modifyTime}")
-			currentTime=$(date +%s)
-			((stampDiff = currentTime - modifyTime))
-			((days = stampDiff / 86400))
-			((remainingDays = 90 - days))
+		modifyTime=$(date +%s -d "${modifyTime}")
+		currentTime=$(date +%s)
+		((stampDiff = currentTime - modifyTime))
+		((days = stampDiff / 86400))
+		((remainingDays = 90 - days))
 
-			tlsStatus=${remainingDays}
-			if [[ ${remainingDays} -le 0 ]]; then
-				tlsStatus="已过期"
-			fi
-			echoContent skyBlue " ---> 证书生成日期:$(date -d "@${modifyTime}" +"%F %H:%M:%S")"
-			echoContent skyBlue " ---> 证书生成天数:${days}"
-			echoContent skyBlue " ---> 证书剩余天数:${tlsStatus}"
+		tlsStatus=${remainingDays}
+		if [[ ${remainingDays} -le 0 ]]; then
+			tlsStatus="已过期"
 		fi
+
+		echoContent skyBlue " ---> 证书生成日期:$(date -d "@${modifyTime}" +"%F %H:%M:%S")"
+		echoContent skyBlue " ---> 证书生成天数:${days}"
+		echoContent skyBlue " ---> 证书剩余天数:${tlsStatus}"
 	fi
 }
 
@@ -4273,7 +4268,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.35"
+	echoContent green "当前版本：v2.5.36"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
