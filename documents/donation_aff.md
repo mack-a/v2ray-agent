@@ -93,9 +93,33 @@ LAX:SimpleCloud V01 电信gia 联通AS9929|500M|1核|20G|1T|1Gbps|12 USD/月|5% 
 XMas Sale - 1.5GB KVM|1.5G|1核|20 GB SSD Cached RAID-10 Storage|4.5T|1Gbps|$15.71 USD|联通去程回程都走AS4837，大流量机器|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=52)
 [6.18 SALE - 2021] 1.8 GB KVM VPS Special |1.8G|2核|18 GB Pure SSD|5T|1Gbps|$17.88 USD|联通去程回程都走AS4837，大流量机器|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=508)
 
-# 4.联通 日本软银【待更新】
+# 4.联通 日本软银
 
-# 5.流媒体解锁【待更新】
+## 1.推荐理由
+- 线路一般比较稳定，延迟一般80ms以下，晚高峰基本上不丢包
+
+## 2.推荐商家
+### 1.[搬瓦工](https://bandwagonhost.com/cart.php?aff=64917)
+- 老牌商家在vps圈声望比较高，非常稳定，补货后基本很快会被抢空
+- 不接受退款
+- 6.58%折扣码：BWH3HYATVBJW
+- location是【JP-Equinix Osaka Softbank】
+
+套餐名称|内存|CPU|硬盘|流量|带宽|价格|购买链接
+---|---|---|---|---|---|---|---
+CN2 GIA 限量版|1G|1核|20G|500G|1Gbps|89.99 USD/年|[购买链接](https://bandwagonhost.com/aff.php?aff=64917&pid=105)
+CN2 GIA|1G|2核|20G|1T|2.5Gbps|169.99 USD/年|[购买链接](https://bandwagonhost.com/aff.php?aff=64917&pid=87)
+
+### 2.Gigsgigscloud
+- 老牌商家，成立较早，工单回复慢
+- 退款需要符合条件，需耐心等待，处理比较慢
+
+套餐名称|内存|CPU|硬盘|流量|带宽|价格|折扣码|购买链接
+---|---|---|---|---|---|---|---|---
+CLOUD K JP: JAPAN TOKYO SOFTBANK IP TRANSIT|512M|1核|10G|500G|100Mbps|8.2 USD/月|5% 折扣码 0P559NYMKTTW|[购买链接](https://clientarea.gigsgigscloud.com/?affid=3361)
+
+
+# 5.流媒体解锁
 
 ## 推荐商家
 ### 1.[centerhop](https://my.centerhop.com/aff.php?aff=190)
