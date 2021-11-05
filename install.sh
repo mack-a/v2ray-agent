@@ -2827,13 +2827,18 @@ unInstall() {
 
 	handleV2Ray stop
 	#	handleTrojanGo stop
+
+	if [[ -f "/root/.acme.sh/acme.sh.env" ]] && grep -q 'acme.sh.env' < /root/.bashrc ;then
+		sed -i 's/. "\/root\/.acme.sh\/acme.sh.env"//g' "$(grep '. "/root/.acme.sh/acme.sh.env"' -rl /root/.bashrc)"
+	fi
 	rm -rf /root/.acme.sh
 	echoContent green " ---> 删除acme.sh完成"
 	rm -rf /etc/systemd/system/v2ray.service
 	echoContent green " ---> 删除V2Ray开机自启完成"
 
-	rm -rf /etc/systemd/system/trojan-go.service
-	echoContent green " ---> 删除Trojan-Go开机自启完成"
+#	rm -rf /etc/systemd/system/trojan-go.service
+#	echoContent green " ---> 删除Trojan-Go开机自启完成"
+
 	rm -rf /tmp/v2ray-agent-tls/*
 	if [[ -d "/etc/v2ray-agent/tls" ]] && [[ -n $(find /etc/v2ray-agent/tls/ -name "*.key") ]] && [[ -n $(find /etc/v2ray-agent/tls/ -name "*.crt") ]]; then
 		mv /etc/v2ray-agent/tls /tmp/v2ray-agent-tls
@@ -4268,7 +4273,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.36"
+	echoContent green "当前版本：v2.5.37"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
