@@ -122,6 +122,7 @@ CLOUD K JP: JAPAN TOKYO SOFTBANK IP TRANSIT|512M|1核|10G|500G|100Mbps|8.2 USD/�
 
 ## 1.Dmit Tokyo
 - 目前处于OpenBeta阶段，路由还在部分调整
+- **建议等调试稳定后上车，性价比较低（口子小、流量少）**
 
 ### 1.推荐理由
 
