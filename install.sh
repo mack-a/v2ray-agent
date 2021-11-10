@@ -181,6 +181,12 @@ initVar() {
 
 	# tls安装失败后尝试的次数
 	installTLSCount=
+
+	# BTPanel状态
+	BTPanelStatus=
+
+	# nginx配置文件路径
+	nginxConfigPath=${nginxConfigPath}
 }
 
 # 检测安装方式
@@ -250,6 +256,13 @@ readInstallProtocolType() {
 	done < <(find ${configPath} -name "*inbounds.json" | awk -F "[.]" '{print $1}')
 }
 
+# 检查是否安装宝塔
+checkBTPanel() {
+	if pgrep -f "BT-Panel"; then
+		nginxConfigPath=/www/server/panel/vhost/nginx/
+		BTPanelStatus=true
+	fi
+}
 # 读取当前alpn的顺序
 readInstallAlpn() {
 	if [[ -n ${currentInstallProtocolType} ]]; then
@@ -476,6 +489,7 @@ readInstallType
 readInstallProtocolType
 readConfigHostPathUUID
 readInstallAlpn
+checkBTPanel
 
 # -------------------------------------------------------------
 
@@ -747,8 +761,8 @@ initTLSNginxConfig() {
 		initTLSNginxConfig
 	else
 		# 修改配置
-		touch /etc/nginx/conf.d/alone.conf
-		cat <<EOF >/etc/nginx/conf.d/alone.conf
+		touch ${nginxConfigPath}alone.conf
+		cat <<EOF >${nginxConfigPath}alone.conf
 server {
     listen 80;
     listen [::]:80;
@@ -779,24 +793,36 @@ EOF
 # 修改nginx重定向配置
 updateRedirectNginxConf() {
 
-	cat <<EOF >/etc/nginx/conf.d/alone.conf
-server {
-	listen 80;
-	listen [::]:80;
-	server_name ${domain};
-	# shellcheck disable=SC2154
-	return 301 https://${domain}\${request_uri};
-}
-server {
-		listen 127.0.0.1:31300;
-		server_name _;
-		return 403;
-}
+	if [[ ${BTPanelStatus} = "true" ]];then
+
+cat <<EOF >${nginxConfigPath}alone.conf
+        server {
+        		listen 127.0.0.1:31300;
+        		server_name _;
+        		return 403;
+        }
 EOF
+
+	else
+cat <<EOF >${nginxConfigPath}alone.conf
+        server {
+        	listen 80;
+        	listen [::]:80;
+        	server_name ${domain};
+        	# shellcheck disable=SC2154
+        	return 301 https://${domain}\${request_uri};
+        }
+        server {
+        		listen 127.0.0.1:31300;
+        		server_name _;
+        		return 403;
+        }
+EOF
+	fi
 
 	if echo "${selectCustomInstallType}" | grep -q 2 && echo "${selectCustomInstallType}" | grep -q 5 || [[ -z "${selectCustomInstallType}" ]]; then
 
-		cat <<EOF >>/etc/nginx/conf.d/alone.conf
+		cat <<EOF >>${nginxConfigPath}alone.conf
 server {
 	listen 127.0.0.1:31302 http2;
 	server_name ${domain};
@@ -832,7 +858,7 @@ server {
 }
 EOF
 	elif echo "${selectCustomInstallType}" | grep -q 5 || [[ -z "${selectCustomInstallType}" ]]; then
-		cat <<EOF >>/etc/nginx/conf.d/alone.conf
+		cat <<EOF >>${nginxConfigPath}alone.conf
 server {
 	listen 127.0.0.1:31302 http2;
 	server_name ${domain};
@@ -857,7 +883,7 @@ EOF
 
 	elif echo "${selectCustomInstallType}" | grep -q 2 || [[ -z "${selectCustomInstallType}" ]]; then
 
-		cat <<EOF >>/etc/nginx/conf.d/alone.conf
+		cat <<EOF >>${nginxConfigPath}alone.conf
 server {
 	listen 127.0.0.1:31302 http2;
 	server_name ${domain};
@@ -881,7 +907,7 @@ server {
 EOF
 	else
 
-		cat <<EOF >>/etc/nginx/conf.d/alone.conf
+		cat <<EOF >>${nginxConfigPath}alone.conf
 server {
 	listen 127.0.0.1:31302 http2;
 	server_name ${domain};
@@ -896,7 +922,7 @@ server {
 EOF
 	fi
 
-	cat <<EOF >>/etc/nginx/conf.d/alone.conf
+	cat <<EOF >>${nginxConfigPath}alone.conf
 server {
 	listen 127.0.0.1:31300;
 	server_name ${domain};
@@ -1001,7 +1027,7 @@ installTLS() {
 initNginxConfig() {
 	echoContent skyBlue "\n进度  $1/${totalProgress} : 配置Nginx"
 
-	cat <<EOF >/etc/nginx/conf.d/alone.conf
+	cat <<EOF >${nginxConfigPath}alone.conf
 server {
     listen 80;
     listen [::]:80;
@@ -2848,7 +2874,7 @@ unInstall() {
 	fi
 
 	rm -rf /etc/v2ray-agent
-	rm -rf /etc/nginx/conf.d/alone.conf
+	rm -rf ${nginxConfigPath}alone.conf
 	rm -rf /usr/bin/vasma
 	rm -rf /usr/sbin/vasma
 	echoContent green " ---> 卸载快捷方式完成"
@@ -4275,7 +4301,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.38"
+	echoContent green "当前版本：v2.5.39"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
