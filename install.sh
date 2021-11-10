@@ -186,7 +186,7 @@ initVar() {
 	BTPanelStatus=
 
 	# nginx配置文件路径
-	nginxConfigPath=${nginxConfigPath}
+	nginxConfigPath=/etc/nginx/conf.d/
 }
 
 # 检测安装方式
