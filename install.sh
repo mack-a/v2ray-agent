@@ -3700,7 +3700,7 @@ setDokodemoDoorUnblockNetflixOutbounds() {
 EOF
 		fi
 		reloadCore
-		echoContent green " ---> 添加Netflix出战解锁成功"
+		echoContent green " ---> 添加Netflix出站解锁成功"
 		#		echoContent yellow " ---> 不支持trojan的相关节点"
 		exit 0
 	fi
