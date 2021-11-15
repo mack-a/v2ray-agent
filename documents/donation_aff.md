@@ -58,6 +58,9 @@ LosAngles PVM.LAX.Pro.TINY|1G|1核|10G|650G|500Mbps|28.88 USD/季|[购买链接]
 半年付：仅需支付5个月（买半年只需要支付5个月） 半年付28刀 月均4.5刀
 年付：仅需支付9个月（买一年只需要支付9个月） 年付50刀 月均4刀多一点
 ```
+- 在线测速：http://speedtest.olink.cloud
+- 测试 IP（美国圣何塞）：104.165.62.200
+- 测试 IP（德国法兰克福）：31.22.111.254
 
 套餐名称|内存|CPU|硬盘|流量|带宽|价格|购买链接
 ---|---|---|---|---|---|---|---
@@ -118,25 +121,32 @@ CN2 GIA|1G|2核|20G|1T|2.5Gbps|169.99 USD/年|[购买链接](https://bandwagonho
 ---|---|---|---|---|---|---|---|---
 CLOUD K JP: JAPAN TOKYO SOFTBANK IP TRANSIT|512M|1核|10G|500G|100Mbps|8.2 USD/月|5% 折扣码 0P559NYMKTTW|[购买链接](https://clientarea.gigsgigscloud.com/?affid=3361)
 
-# 6.全能线路推荐
+[comment]: <> (# 6.全能线路推荐)
 
-## 1.Dmit Tokyo
-- 目前处于OpenBeta阶段，路由还在部分调整
-- **建议等调试稳定后上车，性价比较低（口子小、流量少）**
+[comment]: <> (## 1.Dmit Tokyo)
 
-### 1.推荐理由
+[comment]: <> (- 目前处于OpenBeta阶段，路由还在部分调整)
 
-- 会自动本地运营商选用最优的路由，回程比较重要，一般去程不堵
-- 例如：电信(CN2 GIA)/联通（AS9929/AS10099）/移动（CMI）
-- 建立读一下[ToS](https://www.dmit.io/pages/tos)和[AUP](https://www.dmit.io/pages/aup)
+[comment]: <> (- **建议等调试稳定后上车，性价比较低（口子小、流量少）**)
 
-套餐名称|内存|CPU|硬盘|流量|带宽|价格|折扣码|购买链接
----|---|---|---|---|---|---|---|---
-PVM.TYO.Pro.TINY|0.75G|1核|15G|300G|100Mbps|19.9 USD/月|年付八折折扣码：TYO-Pro-TINY-Open-Beta-Recur-20OFF|[购买链接](https://www.dmit.io/aff.php?aff=3084)
-PVM.TYO.Pro.STARTER|1.5G|1核|20G|500G|100Mbps|32.9 USD/月|非月付八折折扣码（支持非TYO-Pro-TINY系列）：TYO-Pro-Open-Beta-Recur-20OFF|[购买链接](https://www.dmit.io/aff.php?aff=3084)
+[comment]: <> (### 1.推荐理由)
+
+[comment]: <> (- 会自动本地运营商选用最优的路由，回程比较重要，一般去程不堵)
+
+[comment]: <> (- 例如：电信&#40;CN2 GIA&#41;/联通（AS9929/AS10099）/移动（CMI）)
+
+[comment]: <> (- 建立读一下[ToS]&#40;https://www.dmit.io/pages/tos&#41;和[AUP]&#40;https://www.dmit.io/pages/aup&#41;)
+
+[comment]: <> (套餐名称|内存|CPU|硬盘|流量|带宽|价格|折扣码|购买链接)
+
+[comment]: <> (---|---|---|---|---|---|---|---|---)
+
+[comment]: <> (PVM.TYO.Pro.TINY|0.75G|1核|15G|300G|100Mbps|19.9 USD/月|年付八折折扣码：TYO-Pro-TINY-Open-Beta-Recur-20OFF|[购买链接]&#40;https://www.dmit.io/aff.php?aff=3084&#41;)
+
+[comment]: <> (PVM.TYO.Pro.STARTER|1.5G|1核|20G|500G|100Mbps|32.9 USD/月|非月付八折折扣码（支持非TYO-Pro-TINY系列）：TYO-Pro-Open-Beta-Recur-20OFF|[购买链接]&#40;https://www.dmit.io/aff.php?aff=3084&#41;)
 
 
-# 7.流媒体解锁
+# 6.流媒体解锁
 
 ## 推荐商家
 ### 1.[centerhop](https://my.centerhop.com/aff.php?aff=190)
