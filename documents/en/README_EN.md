@@ -5,7 +5,7 @@
 - [Cloudflare Optimization Solutions](https://github.com/mack-a/v2ray-agent/blob/master/documents/optimize_V2Ray.md)
 - [Traffic Transit Tutorial](https://github.com/mack-a/v2ray-agent/blob/master/documents/traffic_relay.md)
 - [SSH Getting Started Tutorial](https://www.v2ray-agent.com/2020-12-16-ssh%E5%85%A5%E9%97%A8%E6%95%99%E7%A8%8B)
-- [TG Group](https://t.me/technologyshare)、[TG Channel](https://t.me/v2rayagentshare)、[Blog](https://www.v2ray-agent.com/)
+- [TG Group](https://t.me/technologyshare)、[TG Channel](https://t.me/joinchat/VuYxsKnlIQp3VRw-)、[Blog](https://www.v2ray-agent.com/)
 - Welcome Pull request
 
 * * *
