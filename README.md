@@ -113,13 +113,19 @@
 
 [支持通过虚拟币向我捐赠](https://github.com/mack-a/v2ray-agent/blob/master/documents/donation.md)
 
-## 客户端推荐
-- Android
-  - [AnXray](https://github.com/XTLS/AnXray/releases)
-- iOS
-  - Shadowrocket
-- windows/Mac/Linux
-  - [Qv2ray](https://github.com/Qv2ray/Qv2ray/actions)[推荐action版本]
+[comment]: <> (## 客户端推荐)
+
+[comment]: <> (- Android)
+
+[comment]: <> (  - [AnXray]&#40;https://github.com/XTLS/AnXray/releases&#41;)
+
+[comment]: <> (- iOS)
+
+[comment]: <> (  - Shadowrocket)
+
+[comment]: <> (- windows/Mac/Linux)
+
+[comment]: <> (  - [Qv2ray]&#40;https://github.com/Qv2ray/Qv2ray/actions&#41;[推荐action版本])
   
 ## 安装脚本
 
