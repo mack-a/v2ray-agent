@@ -111,6 +111,8 @@
 
 [您可以使用我的AFF进行购买VPS捐赠-Github](https://github.com/mack-a/v2ray-agent/blob/master/documents/donation_aff.md)
 
+[您可以使用我的 JustMySocks AFF 购买搬瓦工提供的代理](https://justmysocks.net/members/aff.php?aff=17181)
+
 [支持通过虚拟币向我捐赠](https://github.com/mack-a/v2ray-agent/blob/master/documents/donation.md)
 
 [comment]: <> (## 客户端推荐)
