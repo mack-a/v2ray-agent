@@ -3894,7 +3894,12 @@ checkNetflix() {
 
 # dns解锁Netflix
 dnsUnlockNetflix() {
-	echoContent skyBlue "\n功能 1/${totalProgress} : DNS解锁Netflix"
+	if [[ -z "${configPath}" ]]; then
+		echoContent red " ---> 未安装，请使用脚本安装"
+		menu
+		exit 0
+	fi
+	echoContent skyBlue "\n功能 1/${totalProgress} : DNS解锁流媒体"
 	echoContent red "\n=============================================================="
 	echoContent yellow "1.添加"
 	echoContent yellow "2.卸载"
@@ -3912,40 +3917,70 @@ dnsUnlockNetflix() {
 
 # 设置dns
 setUnlockDNS() {
-	read -r -p "请输入解锁Netflix的DNS:" setDNS
+	read -r -p "请输入解锁流媒体DNS:" setDNS
 	if [[ -n ${setDNS} ]]; then
-		cat <<EOF >${configPath}11_dns.json
-{
-	"dns": {
-		"servers": [
-			{
-				"address": "${setDNS}",
-				"port": 53,
-				"domains": [
-					"geosite:netflix",
-					"geosite:bahamut",
-					"geosite:hulu",
-					"geosite:hbo",
-					"geosite:disney",
-					"geosite:bbc",
-					"geosite:4chan",
-					"geosite:fox",
-					"geosite:abema",
-					"geosite:dmm",
-					"geosite:niconico",
-					"geosite:pixiv",
-					"geosite:bilibili",
-					"geosite:viu"
-				]
-			},
-		"localhost"
-		]
-	}
-}
+		echoContent red "=============================================================="
+		echoContent yellow "# 注意事项\n"
+		echoContent yellow "1.规则仅支持预定义域名列表[https://github.com/v2fly/domain-list-community]"
+		echoContent yellow "2.详细文档[https://www.v2fly.org/config/routing.html]"
+		echoContent yellow "3.如内核启动失败请检查域名后重新添加域名"
+		echoContent yellow "4.不允许有特殊字符，注意逗号的格式"
+		echoContent yellow "5.每次添加都是重新添加，不会保留上次域名"
+		echoContent yellow "6.录入示例:netflix,disney,hulu"
+		echoContent yellow "7.默认方案请输入1，默认方案包括以下内容"
+		echoContent yellow "netflix,bahamut,hulu,hbo,disney,bbc,4chan,fox,abema,dmm,niconico,pixiv,bilibili,viu"
+		read -r -p "请按照上面示例录入域名:" domainList
+		if [[ "${domainList}" = "1" ]];then
+			cat <<EOF >${configPath}11_dns.json
+            {
+            	"dns": {
+            		"servers": [
+            			{
+            				"address": "${setDNS}",
+            				"port": 53,
+            				"domains": [
+            					"geosite:netflix",
+            					"geosite:bahamut",
+            					"geosite:hulu",
+            					"geosite:hbo",
+            					"geosite:disney",
+            					"geosite:bbc",
+            					"geosite:4chan",
+            					"geosite:fox",
+            					"geosite:abema",
+            					"geosite:dmm",
+            					"geosite:niconico",
+            					"geosite:pixiv",
+            					"geosite:bilibili",
+            					"geosite:viu"
+            				]
+            			},
+            		"localhost"
+            		]
+            	}
+            }
 EOF
+		elif [[ -n "${domainList}" ]];then
+			cat <<EOF >${configPath}11_dns.json
+                        {
+                        	"dns": {
+                        		"servers": [
+                        			{
+                        				"address": "${setDNS}",
+                        				"port": 53,
+                        				"domains": [
+                        					"geosite:${domainList//,/\",\"geosite:}"
+                        				]
+                        			},
+                        		"localhost"
+                        		]
+                        	}
+                        }
+EOF
+		fi
+
 		reloadCore
 
-		echoContent green "\n ---> DNS解锁添加成功，该设置对Trojan-Go无效"
 		echoContent yellow "\n ---> 如还无法观看可以尝试以下两种方案"
 		echoContent yellow " 1.重启vps"
 		echoContent yellow " 2.卸载dns解锁后，修改本地的[/etc/resolv.conf]DNS设置并重启vps\n"
@@ -4305,7 +4340,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.40"
+	echoContent green "当前版本：v2.5.41"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
