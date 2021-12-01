@@ -63,24 +63,20 @@
 
 ## 线路推荐
 
-- 1.GIA
-- 2.上海CN2+HK
-- 3.上海联通+台湾TFN
-- 4.上海联通+Vultr东京
-- 5.广移/珠移+HKIX/CMI/NTT
-- 6.苏日IPLC+日本/美国
-- 7.莞港IPLC+HK
-- 8.广移/CN2+Cloudflare+全球
-- 9.广移/CN2/南联+香港AZ+全球
-- 10.北联+西伯利亚、伯力ttk/RT
-- 11.CN2+HE
-- 12.电信+台湾远传电信
-- 13.CN2+JP NTT
-- 14.中转+cloudflare+落地机【可拉全球】
+- GIA
+- 上海CN2+HK
+- AS4837
+- AS9929
+- 上海联通+台湾TFN
+- 上海联通+Vultr东京
+- 广移/珠移+HKIX/CMI/NTT
+- 广移/CN2+Cloudflare+全球
+- 广移/CN2/南联+香港AZ+全球
+- 中转+cloudflare+落地机【可拉全球】
 
 ## 组合推荐
 
-- 中转/gia ---> VLESS+TCP+TLS/XTLS、Trojan【推荐使用XTLS的xtls-rprx-direct】
+- 中转/gia/AS4837/AS9929 ---> VLESS+TCP+TLS/XTLS、Trojan【推荐使用XTLS的xtls-rprx-direct】
 - 移动宽带 ---> VMESS+WS+TLS/VLESS+WS+TLS/VLESS+gRPC+TLS/Trojan+gRPC+TLS + Cloudflare
 - cloudflare-> VLESS+gRPC+TLS/Trojan+gRPC+TLS[多路复用、延迟低]
 
@@ -115,20 +111,6 @@
 
 [支持通过虚拟币向我捐赠](https://github.com/mack-a/v2ray-agent/blob/master/documents/donation.md)
 
-[comment]: <> (## 客户端推荐)
-
-[comment]: <> (- Android)
-
-[comment]: <> (  - [AnXray]&#40;https://github.com/XTLS/AnXray/releases&#41;)
-
-[comment]: <> (- iOS)
-
-[comment]: <> (  - Shadowrocket)
-
-[comment]: <> (- windows/Mac/Linux)
-
-[comment]: <> (  - [Qv2ray]&#40;https://github.com/Qv2ray/Qv2ray/actions&#41;[推荐action版本])
-  
 ## 安装脚本
 
 - 支持快捷方式启动，安装完毕后，shell输入【**vasma**】即可打开脚本，脚本执行路径[**/etc/v2ray-agent/install.sh**]
