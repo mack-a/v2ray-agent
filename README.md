@@ -68,8 +68,8 @@
 - [AS9929](https://github.com/mack-a/v2ray-agent/blob/master/documents/donation_aff.md#2%E8%81%94%E9%80%9A-as9929a%E7%BD%91)
 - [AS4837](https://github.com/mack-a/v2ray-agent/blob/master/documents/donation_aff.md#3%E8%81%94%E9%80%9A-as4837%E6%99%AE%E9%80%9A%E6%B0%91%E7%94%A8%E7%BD%91)
 - [联通日本软银](https://github.com/mack-a/v2ray-agent/blob/master/documents/donation_aff.md#4%E8%81%94%E9%80%9A-%E6%97%A5%E6%9C%AC%E8%BD%AF%E9%93%B6)
-- 上海联通+台湾TFN
-- 上海联通+Vultr东京
+- 联通+台湾TFN
+- 联通+NTT
 - 广移/珠移+HKIX/CMI/NTT
 - 广移/CN2+Cloudflare+全球
 - 广移/CN2/南联+香港AZ+全球
