@@ -83,12 +83,10 @@ checkCPUVendor() {
 			'amd64' | 'x86_64')
 				xrayCoreCPUVendor="Xray-linux-64"
 				v2rayCoreCPUVendor="v2ray-linux-64"
-				trojanGoCPUVendor="trojan-go-linux-amd64"
 				;;
 			'armv8' | 'aarch64')
 				xrayCoreCPUVendor="Xray-linux-arm64-v8a"
 				v2rayCoreCPUVendor="v2ray-linux-arm64-v8a"
-				trojanGoCPUVendor="trojan-go-linux-armv8"
 				;;
 			*)
 				echo "  不支持此CPU架构--->"
@@ -100,7 +98,6 @@ checkCPUVendor() {
 		echoContent red "  无法识别此CPU架构，默认amd64、x86_64--->"
 		xrayCoreCPUVendor="Xray-linux-64"
 		v2rayCoreCPUVendor="v2ray-linux-64"
-		trojanGoCPUVendor="trojan-go-linux-amd64"
 	fi
 }
 
@@ -114,7 +111,6 @@ initVar() {
 	# 核心支持的cpu版本
 	xrayCoreCPUVendor=""
 	v2rayCoreCPUVendor=""
-	trojanGoCPUVendor=""
 	# 域名
 	domain=
 
@@ -1261,31 +1257,6 @@ installXray() {
 	fi
 }
 
-# 安装Trojan-go
-installTrojanGo() {
-	echoContent skyBlue "\n进度  $1/${totalProgress} : 安装Trojan-Go"
-	if [[ -z $(find /etc/v2ray-agent/trojan/ -name "trojan-go") ]]; then
-
-		version=$(curl -s https://api.github.com/repos/p4gefau1t/trojan-go/releases | jq -r .[0].tag_name)
-		echoContent green " ---> Trojan-Go版本:${version}"
-		if wget --help | grep -q show-progress; then
-			wget -c -q --show-progress -P /etc/v2ray-agent/trojan/ "https://github.com/p4gefau1t/trojan-go/releases/download/${version}/${trojanGoCPUVendor}.zip"
-		else
-			wget -c -P /etc/v2ray-agent/trojan/ "https://github.com/p4gefau1t/trojan-go/releases/download/${version}/${trojanGoCPUVendor}.zip" >/dev/null 2>&1
-		fi
-		unzip -o "/etc/v2ray-agent/trojan/${trojanGoCPUVendor}.zip" -d /etc/v2ray-agent/trojan >/dev/null
-		rm -rf "/etc/v2ray-agent/trojan/${trojanGoCPUVendor}.zip"
-	else
-		echoContent green " ---> Trojan-Go版本:$(/etc/v2ray-agent/trojan/trojan-go --version | awk '{print $2}' | head -1)"
-
-		read -r -p "是否重新安装？[y/n]:" reInstallTrojanStatus
-		if [[ "${reInstallTrojanStatus}" == "y" ]]; then
-			rm -rf /etc/v2ray-agent/trojan/trojan-go*
-			installTrojanGo "$1"
-		fi
-	fi
-}
-
 # v2ray版本管理
 v2rayVersionManageMenu() {
 	echoContent skyBlue "\n进度  $1/${totalProgress} : V2Ray版本管理"
@@ -1595,38 +1566,7 @@ EOF
 		echoContent green " ---> 配置Xray开机自启成功"
 	fi
 }
-# Trojan开机自启
-installTrojanService() {
-	echoContent skyBlue "\n进度  $1/${totalProgress} : 配置Trojan开机自启"
-	if [[ -n $(find /bin /usr/bin -name "systemctl") ]]; then
-		rm -rf /etc/systemd/system/trojan-go.service
-		touch /etc/systemd/system/trojan-go.service
 
-		cat <<EOF >/etc/systemd/system/trojan-go.service
-[Unit]
-Description=Trojan-Go - A unified platform for anti-censorship
-Documentation=Trojan-Go
-After=network.target nss-lookup.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-User=root
-CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_RAW
-NoNewPrivileges=yes
-ExecStart=/etc/v2ray-agent/trojan/trojan-go -config /etc/v2ray-agent/trojan/config_full.json
-Restart=on-failure
-RestartPreventExitStatus=23
-
-
-[Install]
-WantedBy=multi-user.target
-EOF
-		systemctl daemon-reload
-		systemctl enable trojan-go.service
-		echoContent green " ---> 配置Trojan开机自启成功"
-	fi
-}
 # 操作V2Ray
 handleV2Ray() {
 	# shellcheck disable=SC2010
@@ -1721,6 +1661,7 @@ initV2RayConfig() {
 	rm -rf /etc/v2ray-agent/v2ray/conf/*
 	rm -rf /etc/v2ray-agent/v2ray/config_full.json
 
+	# log
 	cat <<EOF >/etc/v2ray-agent/v2ray/conf/00_log.json
 {
   "log": {
@@ -1742,8 +1683,8 @@ EOF
     ]
 }
 EOF
-	else
 
+	else
 		cat <<EOF >/etc/v2ray-agent/v2ray/conf/10_ipv4_outbounds.json
 {
     "outbounds":[
@@ -1780,10 +1721,12 @@ EOF
   }
 }
 EOF
-	# VLESS_TCP_TLS/XTLS
+
+	# VLESS_TCP_TLS
 	# 回落nginx
 	local fallbacksList='{"dest":31300,"xver":0},{"alpn":"h2","dest":31302,"xver":0}'
 
+	# trojan
 	if echo "${selectCustomInstallType}" | grep -q 4 || [[ "$1" == "all" ]]; then
 		fallbacksList='{"dest":31296,"xver":1},{"alpn":"h2","dest":31302,"xver":0}'
 		cat <<EOF >/etc/v2ray-agent/v2ray/conf/04_trojan_TCP_inbounds.json
@@ -1852,6 +1795,45 @@ EOF
 EOF
 	fi
 
+	# trojan_grpc
+	if echo "${selectCustomInstallType}" | grep -q 2 || [[ "$1" == "all" ]]; then
+		if ! echo "${selectCustomInstallType}" | grep -q 5 && [[ -n ${selectCustomInstallType} ]]; then
+			fallbacksList=${fallbacksList//31302/31304}
+		fi
+
+		cat <<EOF >/etc/v2ray-agent/v2ray/conf/04_trojan_gRPC_inbounds.json
+{
+    "inbounds": [
+        {
+            "port": 31304,
+            "listen": "127.0.0.1",
+            "protocol": "trojan",
+            "tag": "trojangRPCTCP",
+            "settings": {
+                "clients": [
+                    {
+                        "password": "${uuid}",
+                        "email": "${domain}_trojan_gRPC"
+                    }
+                ],
+                "fallbacks": [
+                    {
+                        "dest": "31300"
+                    }
+                ]
+            },
+            "streamSettings": {
+                "network": "grpc",
+                "grpcSettings": {
+                    "serviceName": "${customPath}trojangrpc"
+                }
+            }
+        }
+    ]
+}
+EOF
+	fi
+
 	# VMess_WS
 	if echo "${selectCustomInstallType}" | grep -q 3 || [[ "$1" == "all" ]]; then
 		fallbacksList=${fallbacksList}',{"path":"/'${customPath}'vws","dest":31299,"xver":1}'
@@ -1886,7 +1868,7 @@ EOF
 }
 EOF
 	fi
-	# VLESS gRPC
+
 	if echo "${selectCustomInstallType}" | grep -q 5 || [[ "$1" == "all" ]]; then
 		cat <<EOF >/etc/v2ray-agent/v2ray/conf/06_VLESS_gRPC_inbounds.json
 {
@@ -1901,7 +1883,7 @@ EOF
                 {
                     "id": "${uuid}",
                     "add": "${add}",
-        			"email": "${domain}_VLESS_gRPC"
+                    "email": "${domain}_VLESS_gRPC"
                 }
             ],
             "decryption": "none"
@@ -1919,49 +1901,7 @@ EOF
 	fi
 
 	# VLESS_TCP
-	if [[ "${selectCoreType}" == "2" ]]; then
-		cat <<EOF >/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json
-{
-  "inbounds":[
-    {
-      "port": 443,
-      "protocol": "vless",
-      "tag":"VLESSTCP",
-      "settings": {
-        "clients": [
-          {
-            "id": "${uuid}",
-            "add": "${add}",
-            "email": "${domain}_VLESS_TLS_TCP"
-          }
-        ],
-        "decryption": "none",
-        "fallbacks": [
-        	${fallbacksList}
-        ]
-      },
-      "streamSettings": {
-        "network": "tcp",
-        "security": "tls",
-        "tlsSettings": {
-          "alpn": [
-            "http/1.1",
-            "h2"
-          ],
-          "certificates": [
-            {
-              "certificateFile": "/etc/v2ray-agent/tls/${domain}.crt",
-              "keyFile": "/etc/v2ray-agent/tls/${domain}.key"
-            }
-          ]
-        }
-      }
-    }
-  ]
-}
-EOF
-	elif [[ "${selectCoreType}" == "3" ]]; then
-		cat <<EOF >/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json
+	cat <<EOF >/etc/v2ray-agent/v2ray/conf/02_VLESS_TCP_inbounds.json
 {
 "inbounds":[
 {
@@ -1973,8 +1913,7 @@ EOF
      {
         "id": "${uuid}",
         "add":"${add}",
-        "flow":"xtls-rprx-direct",
-        "email": "${domain}_VLESS_XTLS/TLS-direct_TCP"
+        "email": "${domain}_VLESS_TLS-direct_TCP"
       }
     ],
     "decryption": "none",
@@ -1984,15 +1923,19 @@ EOF
   },
   "streamSettings": {
     "network": "tcp",
-    "security": "xtls",
-    "xtlsSettings": {
+    "security": "tls",
+    "tlsSettings": {
+      "minVersion": "1.2",
       "alpn": [
-        "http/1.1"
+        "http/1.1",
+        "h2"
       ],
       "certificates": [
         {
           "certificateFile": "/etc/v2ray-agent/tls/${domain}.crt",
-          "keyFile": "/etc/v2ray-agent/tls/${domain}.key"
+          "keyFile": "/etc/v2ray-agent/tls/${domain}.key",
+          "ocspStapling": 3600,
+          "usage":"encipherment"
         }
       ]
     }
@@ -2001,7 +1944,7 @@ EOF
 ]
 }
 EOF
-	fi
+
 }
 
 # 初始化Xray Trojan XTLS 配置文件
@@ -2625,27 +2568,6 @@ trojan://${id}@${host}:${port}?encryption=none&peer=${host}&security=tls&type=gr
 EOF
 		echoContent yellow " ---> 二维码 Trojan gRPC(TLS)"
 		echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${host}%3a${port}%3Fencryption%3Dnone%26security%3Dtls%26peer%3d${host}%26type%3Dgrpc%26sni%3d${host}%26path%3D${path}%26alpn%3D=h2%26serviceName%3D${path}%23${host}_Trojan_gRPC\n"
-
-	elif [[ "${type}" == "trojangows" ]]; then
-		# URLEncode
-		echoContent yellow " ---> Trojan-Go(WS+TLS) Shadowrocket"
-		echoContent green "    trojan://${id}@${add}:${port}?allowInsecure=0&&peer=${host}&sni=${host}&plugin=obfs-local;obfs=websocket;obfs-host=${host};obfs-uri=${path}#${host}_Trojan_ws\n"
-
-		cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
-trojan://${id}@${add}:${port}?allowInsecure=0&&peer=${host}&sni=${host}&plugin=obfs-local;obfs=websocket;obfs-host=${host};obfs-uri=${path}#${host}_Trojan_ws
-EOF
-		echoContent yellow " ---> 二维码 Trojan-Go(WS+TLS) Shadowrocket"
-		echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${add}%3a${port}%3fallowInsecure%3d0%26peer%3d${host}%26plugin%3dobfs-local%3bobfs%3dwebsocket%3bobfs-host%3d${host}%3bobfs-uri%3d${path}%23${host}_Trojan_ws\n"
-
-		path=$(echo "${path}" | awk -F "[/]" '{print $2}')
-		echoContent yellow " ---> Trojan-Go(WS+TLS) QV2ray"
-
-		cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
-trojan-go://${id}@${add}:${port}?sni=${host}&type=ws&host=${host}&path=%2F${path}#${host}_Trojan_ws
-EOF
-
-		echoContent green "    trojan-go://${id}@${add}:${port}?sni=${host}&type=ws&host=${host}&path=%2F${path}#${host}_Trojan_ws\n"
-
 	fi
 
 }
@@ -2685,10 +2607,10 @@ showAccounts() {
 				echoContent skyBlue "\n ---> 帐号：$(echo "${user}" | jq -r .email)_$(echo "${user}" | jq -r .id)"
 				echo
 				local path="${currentPath}ws"
-#				if [[ ${coreInstallType} == "1" ]]; then
-#					echoContent yellow "Xray的0-RTT path后面会有，不兼容以v2ray为核心的客户端，请手动删除后使用\n"
-#					path="${currentPath}ws"
-#				fi
+				#				if [[ ${coreInstallType} == "1" ]]; then
+				#					echoContent yellow "Xray的0-RTT path后面会有，不兼容以v2ray为核心的客户端，请手动删除后使用\n"
+				#					path="${currentPath}ws"
+				#				fi
 				defaultBase64Code vlessws "$(echo "${user}" | jq -r .email)" "$(echo "${user}" | jq -r .id)" "${currentHost}:${currentPort}" "${path}" "${currentAdd}"
 			done
 		fi
@@ -2866,9 +2788,6 @@ unInstall() {
 	echoContent green " ---> 删除acme.sh完成"
 	rm -rf /etc/systemd/system/v2ray.service
 	echoContent green " ---> 删除V2Ray开机自启完成"
-
-	#	rm -rf /etc/systemd/system/trojan-go.service
-	#	echoContent green " ---> 删除Trojan-Go开机自启完成"
 
 	rm -rf /tmp/v2ray-agent-tls/*
 	if [[ -d "/etc/v2ray-agent/tls" ]] && [[ -n $(find /etc/v2ray-agent/tls/ -name "*.key") ]] && [[ -n $(find /etc/v2ray-agent/tls/ -name "*.crt") ]]; then
@@ -4012,17 +3931,11 @@ EOF
 # v2ray-core个性化安装
 customV2RayInstall() {
 	echoContent skyBlue "\n========================个性化安装============================"
-	echoContent yellow "VLESS前置，必须安装0，如果只需要安装0，回车即可"
-	if [[ "${selectCoreType}" == "2" ]]; then
-		echoContent yellow "0.VLESS+TLS+TCP"
-	else
-		echoContent yellow "0.VLESS+TLS/XTLS+TCP"
-	fi
-
+	echoContent yellow "VLESS前置，默认安装0，如果只需要安装0，则只选择0即可"
+	echoContent yellow "0.VLESS+TLS/XTLS+TCP"
 	echoContent yellow "1.VLESS+TLS+WS[CDN]"
-	echoContent yellow "2.VMess+TLS+TCP"
+	echoContent yellow "2.Trojan+TLS+gRPC[CDN]"
 	echoContent yellow "3.VMess+TLS+WS[CDN]"
-	#	echoContent yellow "4.Trojan、Trojan+WS[CDN]"
 	echoContent yellow "4.Trojan"
 	echoContent yellow "5.VLESS+TLS+gRPC[CDN]"
 	read -r -p "请选择[多选]，[例如:123]:" selectCustomInstallType
@@ -4276,7 +4189,7 @@ subscribe() {
 		mv /etc/v2ray-agent/subscribe_tmp/* /etc/v2ray-agent/subscribe/
 
 		if [[ -n $(ls /etc/v2ray-agent/subscribe/) ]]; then
-			find /etc/v2ray-agent/subscribe | while read -r email; do
+			find /etc/v2ray-agent/subscribe/* | while read -r email; do
 				email=$(echo "${email}" | awk -F "[s][u][b][s][c][r][i][b][e][/]" '{print $2}')
 				local base64Result
 				base64Result=$(base64 -w 0 "/etc/v2ray-agent/subscribe/${email}")
@@ -4341,7 +4254,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.44"
+	echoContent green "当前版本：v2.5.45"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
