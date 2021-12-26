@@ -789,7 +789,7 @@ EOF
 # 修改nginx重定向配置
 updateRedirectNginxConf() {
 
-	if [[ ${BTPanelStatus} = "true" ]]; then
+	if [[ ${BTPanelStatus} == "true" ]]; then
 
 		cat <<EOF >${nginxConfigPath}alone.conf
         server {
@@ -976,13 +976,13 @@ installTLS() {
 	# 安装tls
 	if [[ -f "/etc/v2ray-agent/tls/${tlsDomain}.crt" && -f "/etc/v2ray-agent/tls/${tlsDomain}.key" && -n $(cat "/etc/v2ray-agent/tls/${tlsDomain}.crt") ]] || [[ -d "$HOME/.acme.sh/${tlsDomain}_ecc" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]]; then
 		echoContent green " ---> 检测到证书"
-		#		checkTLStatus
+		# checkTLStatus
 		renewalTLS
 
 		if [[ -z $(find /etc/v2ray-agent/tls/ -name "${tlsDomain}.crt") ]] || [[ -z $(find /etc/v2ray-agent/tls/ -name "${tlsDomain}.key") ]] || [[ -z $(cat "/etc/v2ray-agent/tls/${tlsDomain}.crt") ]]; then
 			sudo "$HOME/.acme.sh/acme.sh" --installcert -d "${tlsDomain}" --fullchainpath "/etc/v2ray-agent/tls/${tlsDomain}.crt" --keypath "/etc/v2ray-agent/tls/${tlsDomain}.key" --ecc >/dev/null
 		else
-			echoContent yellow " ---> 如未过期请选择[n]\n"
+			echoContent yellow " ---> 如未过期或者自定义证书请选择[n]\n"
 			read -r -p "是否重新安装？[y/n]:" reInstallStatus
 			if [[ "${reInstallStatus}" == "y" ]]; then
 				rm -rf /etc/v2ray-agent/tls/*
@@ -3850,7 +3850,7 @@ setUnlockDNS() {
 		echoContent yellow "7.默认方案请输入1，默认方案包括以下内容"
 		echoContent yellow "netflix,bahamut,hulu,hbo,disney,bbc,4chan,fox,abema,dmm,niconico,pixiv,bilibili,viu"
 		read -r -p "请按照上面示例录入域名:" domainList
-		if [[ "${domainList}" = "1" ]]; then
+		if [[ "${domainList}" == "1" ]]; then
 			cat <<EOF >${configPath}11_dns.json
             {
             	"dns": {
@@ -4254,7 +4254,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.45"
+	echoContent green "当前版本：v2.5.46"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
