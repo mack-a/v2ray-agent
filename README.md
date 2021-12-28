@@ -60,7 +60,6 @@
 - Trojan+gRPC+TLS【支持CDN、IPv6、延迟低】
 - VMess+WS+TLS【支持CDN、IPv6】
 
-
 ## 线路推荐
 
 - [CN2 GIA](https://github.com/mack-a/v2ray-agent/blob/master/documents/donation_aff.md#1cn2-gia)
@@ -85,6 +84,7 @@
 
 - **修改Cloudflare->SSL/TLS->Overview->Full**
 - **Cloudflare ---> A记录解析的云朵必须为灰色【如非灰色，会影响到定时任务自动续签证书】**
+- **如用CDN又同时使用直连，关闭云朵+自选IP，自选IP参考上方的[Cloudflare 优化方案](https://github.com/mack-a/v2ray-agent/blob/master/documents/optimize_V2Ray.md)**
 - **使用纯净系统安装，如使用其他脚本安装过，请重新build系统再安装**
 - wget: command not found [**这里需要自己手动安装下wget**]
   ，如未使用过Linux，[点击查看](https://github.com/mack-a/v2ray-agent/tree/master/documents/install_tools.md)安装教程
