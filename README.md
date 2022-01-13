@@ -127,7 +127,7 @@ wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-
 
 # 许可证
 
-[GPL-3.0](https://github.com/mack-a/v2ray-agent/blob/master/LICENSE)
+[AGPL-3.0](https://github.com/mack-a/v2ray-agent/blob/master/LICENSE)
 
 ## Stargazers over time
 
