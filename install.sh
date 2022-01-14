@@ -725,6 +725,9 @@ installWarp() {
 	warp-cli --accept-tos set-mode proxy
 	warp-cli --accept-tos set-proxy-port 31303
 	warp-cli --accept-tos connect
+	warp-cli --accept-tos enable-always-on
+
+
 	#	if [[]];then
 	#	fi
 	# todo curl --socks5 127.0.0.1:31303 https://www.cloudflare.com/cdn-cgi/trace
@@ -754,7 +757,7 @@ initTLSNginxConfig() {
 
 	if [[ -z ${domain} ]]; then
 		echoContent red "  域名不可为空--->"
-		initTLSNginxConfig
+		initTLSNginxConfig 3
 	else
 		# 修改配置
 		touch ${nginxConfigPath}alone.conf
@@ -3454,11 +3457,11 @@ installSniffing() {
 warpRouting() {
 	echoContent skyBlue "\n进度  $1/${totalProgress} : WARP分流"
 	echoContent red "=============================================================="
-	echoContent yellow "# 注意事项\n"
-	echoContent yellow "1.官方warp经过几轮测试有bug，重启会导致warp失效，并且无法启动，也有可能CPU使用率暴涨"
-	echoContent yellow "2.不重启机器可正常使用，如果非要使用官方warp，建议不重启机器"
-	echoContent yellow "3.有的机器重启后仍正常使用"
-	echoContent yellow "4.重启后无法使用，也可卸载重新安装"
+#	echoContent yellow "# 注意事项\n"
+#	echoContent yellow "1.官方warp经过几轮测试有bug，重启会导致warp失效，并且无法启动，也有可能CPU使用率暴涨"
+#	echoContent yellow "2.不重启机器可正常使用，如果非要使用官方warp，建议不重启机器"
+#	echoContent yellow "3.有的机器重启后仍正常使用"
+#	echoContent yellow "4.重启后无法使用，也可卸载重新安装"
 	# 安装warp
 	if [[ -z $(which warp-cli) ]]; then
 		echo
@@ -4254,7 +4257,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.47"
+	echoContent green "当前版本：v2.5.48"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
