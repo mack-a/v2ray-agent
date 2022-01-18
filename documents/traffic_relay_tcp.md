@@ -7,11 +7,8 @@
 # 1.准备工作
 - 1.需要一台VPS。
 - 2.这里建议使用shadowsocks。
-- 3.购买流量转发服务[点击购买](https://idc.wiki)
 
 # 2.购买流量转发服务
-- 1.注册-->[idc.wiki](https://idc.wiki)
-- 2.注册完成后，[点击购买](https://idc.wiki/exnetwork.php)，无aff。
 
 # 3.配置流量转发服务
 ## 1.配置idc.wiki流量转发

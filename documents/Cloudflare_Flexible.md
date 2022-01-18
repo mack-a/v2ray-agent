@@ -23,17 +23,7 @@
   * [1.MacOS](#1macos)
   * [2.windows](#2windows)
 
-
-# 技能点列表
-- [bandwagonhost[Ubuntu、Centos、Debian]链接一](https://bandwagonhost.com)
-- [bandwagonhost[Ubuntu、Centos、Debian]链接二](https://bwh1.net)【境外vps或者其他vps厂商】
-- [freenom](https://freenom.com/)【免费域名】
-- [godaddy](https://www.godaddy.com/)【域名厂商】
-- [cloudflare](cloudflare.com)【CDN】
-- [letsencrypt](https://letsencrypt.org/)【HTTPS】
-- [Nginx](https://www.nginx.com/)【反向代理】
-- [V2Ray](v2ray.com)【代理工具】
-
+  
 # 1.准备工作
 ## 1.注册[cloudflare](cloudflare.com)
 ## 2.注册[godaddy](https://www.godaddy.com/)并购买域名或者使用免费域名[freenom](https://freenom.com/)

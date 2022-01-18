@@ -12,18 +12,16 @@
 # 1.手动自选ip
 
 - 1.配置简单
-- 2.只需要客户端修改，也就是可以多账号实现自选IP。
+- 2.只需要客户端修改，可以多账号实现自选IP。
 - 3.需要保证在不自选ip的情况可以正常使用
-- 4.目前只有WS流量支持CDN
+- 4.目前只有WS、gRPC流量支持CDN
 
 ## 原理解析
 
 - 1.这里的伪装域名、SNI、Peer都是填写的自己真实的域名，当TLS验证域名进行握手时会通过这个进行握手，也就无需关心为什么address不是自己的域名但是还能TLS握手成功。
-- 2.domain08.mqcjuc.ml 这个域名是通过中国大陆的DNS解析服务商进行解析，众所周知中国大陆是一个局域网的环境，如果想要使用这个域名进行解析IP，则需要使用国内的DNS服务商，例如114.114.114.114
-- 3.当客户端请求DNS解析时，DNS服务商会根据你的本地电信运营商，进行对应设置的DNS解析，例如我设置domain08.mqcjuc.ml这个域名的中国移动解析ip为104.19.41.56，当本地电信运营商为中国移动，解析这个域名时会解析出104.19.41.56。
-- 4.如果既想要使用TCP+TLS又想要使用WS+TLS，则不需要开启云朵。
-- 5.不开启云朵时，当address为自己的域名时，ip解析为真实的vps服务器ip则为直连，当address为智能DNS解析的IP时，流量则会通过Cloudflare回源机制到Cloudflare服务器来实现CDN进行转发ws，则为CDN转发。
-- 6.不开云朵，自选ip同样适用于被阻断的ip。
+- 2.如果既想要使用TCP+TLS又想要使用WS+TLS，则不需要开启云朵。
+- 3.不开启云朵时，当address为自己的域名时，ip解析为真实的vps服务器ip则为直连，当address为智能DNS解析的IP时，流量则会通过Cloudflare回源机制到Cloudflare服务器来实现CDN进行转发ws，则为CDN转发。
+- 4.不开云朵，自选ip同样适用于被阻断的ip。
 
 ## 最优ip测试工具
 
@@ -37,12 +35,10 @@ https://github.com/badafans/better-cloudflare-ip
 
 # 智能解析DNS对应的IP[CNAME效果]
 
-- domain08.mqcjuc.ml是本项目提供的智能解析IP
 - www.cloudflare.com、www.digitalocean.com 这两个则是使用Cloudflare的服务的域名，他会根据本地运营商的不同，来分配不同的ip。
 
 域名|移动|联通|电信 
 -|-|-|- 
-domain08.mqcjuc.ml|104.19.41.56|www.cloudflare.com|www.digitalocean.com
 www.cloudflare.com|xx|xx|xx
 www.digitalocean.com|xx|xx|xx
 
