@@ -3380,9 +3380,9 @@ EOF
 
 		unInstallSniffing
 
-		unInstallRouting blackhole-out outboundTag
+		unInstallRouting blackhole-out outboundTag bittorrent
 
-		unInstallOutbounds blackhole-out
+		#		unInstallOutbounds blackhole-out
 
 		echoContent green " ---> BT下载打开成功"
 	else
@@ -3393,10 +3393,76 @@ EOF
 	reloadCore
 }
 
+# 域名黑名单
+blacklist() {
+	if [[ -z "${configPath}" ]]; then
+		echoContent red " ---> 未安装，请使用脚本安装"
+		menu
+		exit 0
+	fi
+
+	echoContent skyBlue "\n进度  $1/${totalProgress} : 域名黑名单"
+	echoContent red "\n=============================================================="
+	echoContent yellow "1.添加域名"
+	echoContent yellow "2.删除黑名单"
+	echoContent red "=============================================================="
+	read -r -p "请选择:" blacklistStatus
+	if [[ "${blacklistStatus}" == "1" ]]; then
+		echoContent red "=============================================================="
+		echoContent yellow "# 注意事项\n"
+		echoContent yellow "1.规则仅支持预定义域名列表[https://github.com/v2fly/domain-list-community]"
+		echoContent yellow "2.详细文档[https://www.v2fly.org/config/routing.html]"
+		echoContent yellow "3.如内核启动失败请检查域名后重新添加域名"
+		echoContent yellow "4.不允许有特殊字符，注意逗号的格式"
+		echoContent yellow "5.每次添加都是重新添加，不会保留上次域名"
+		echoContent yellow "6.录入示例:speedtest,facebook\n"
+		read -r -p "请按照上面示例录入域名:" domainList
+
+		if [[ -f "${configPath}09_routing.json" ]]; then
+			unInstallRouting blackhole-out outboundTag
+
+			routing=$(jq -r ".routing.rules += [{\"type\":\"field\",\"domain\":[\"geosite:${domainList//,/\",\"geosite:}\"],\"outboundTag\":\"blackhole-out\"}]" ${configPath}09_routing.json)
+
+			echo "${routing}" | jq . >${configPath}09_routing.json
+
+		else
+			cat <<EOF >${configPath}09_routing.json
+{
+    "routing":{
+        "domainStrategy": "IPOnDemand",
+        "rules": [
+          {
+            "type": "field",
+            "domain": [
+            	"geosite:${domainList//,/\",\"geosite:}"
+            ],
+            "outboundTag": "blackhole-out"
+          }
+        ]
+  }
+}
+EOF
+		fi
+
+		echoContent green " ---> 添加成功"
+
+	elif [[ "${blacklistStatus}" == "2" ]]; then
+
+		unInstallRouting blackhole-out outboundTag
+
+		echoContent green " ---> 域名黑名单删除成功"
+	else
+		echoContent red " ---> 选择错误"
+		exit 0
+	fi
+	reloadCore
+}
+
 # 根据tag卸载Routing
 unInstallRouting() {
 	local tag=$1
 	local type=$2
+	local protocol=$3
 
 	if [[ -f "${configPath}09_routing.json" ]]; then
 		local routing
@@ -3409,6 +3475,12 @@ unInstallRouting() {
 					delStatus=1
 				elif [[ "${type}" == "inboundTag" ]] && echo "${line}" | jq .inboundTag | grep -q "${tag}"; then
 					delStatus=1
+				fi
+
+				if [[ -n ${protocol} ]] && echo "${line}" | jq .protocol | grep -q "${protocol}"; then
+					delStatus=1
+				elif [[ -z ${protocol} ]] && [[ $(echo "${line}" | jq .protocol) != "null" ]]; then
+					delStatus=0
 				fi
 
 				if [[ ${delStatus} == 1 ]]; then
@@ -3457,11 +3529,11 @@ installSniffing() {
 warpRouting() {
 	echoContent skyBlue "\n进度  $1/${totalProgress} : WARP分流"
 	echoContent red "=============================================================="
-#	echoContent yellow "# 注意事项\n"
-#	echoContent yellow "1.官方warp经过几轮测试有bug，重启会导致warp失效，并且无法启动，也有可能CPU使用率暴涨"
-#	echoContent yellow "2.不重启机器可正常使用，如果非要使用官方warp，建议不重启机器"
-#	echoContent yellow "3.有的机器重启后仍正常使用"
-#	echoContent yellow "4.重启后无法使用，也可卸载重新安装"
+	#	echoContent yellow "# 注意事项\n"
+	#	echoContent yellow "1.官方warp经过几轮测试有bug，重启会导致warp失效，并且无法启动，也有可能CPU使用率暴涨"
+	#	echoContent yellow "2.不重启机器可正常使用，如果非要使用官方warp，建议不重启机器"
+	#	echoContent yellow "3.有的机器重启后仍正常使用"
+	#	echoContent yellow "4.重启后无法使用，也可卸载重新安装"
 	# 安装warp
 	if [[ -z $(which warp-cli) ]]; then
 		echo
@@ -4257,7 +4329,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.48"
+	echoContent green "当前版本：v2.5.49"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
@@ -4286,13 +4358,14 @@ menu() {
 	echoContent yellow "11.添加新端口"
 	echoContent yellow "12.BT下载管理"
 	echoContent yellow "13.切换alpn"
+	echoContent yellow "14.域名黑名单"
 	echoContent skyBlue "-------------------------版本管理-----------------------------"
-	echoContent yellow "14.core管理"
-	echoContent yellow "15.更新脚本"
-	echoContent yellow "16.安装BBR、DD脚本"
+	echoContent yellow "15.core管理"
+	echoContent yellow "16.更新脚本"
+	echoContent yellow "17.安装BBR、DD脚本"
 	echoContent skyBlue "-------------------------脚本管理-----------------------------"
-	echoContent yellow "17.查看日志"
-	echoContent yellow "18.卸载脚本"
+	echoContent yellow "18.查看日志"
+	echoContent yellow "19.卸载脚本"
 	echoContent red "=============================================================="
 	mkdirTools
 	aliasInstall
@@ -4338,18 +4411,21 @@ menu() {
 		switchAlpn 1
 		;;
 	14)
-		coreVersionManageMenu 1
+		blacklist 1
 		;;
 	15)
-		updateV2RayAgent 1
+		coreVersionManageMenu 1
 		;;
 	16)
-		bbrInstall
+		updateV2RayAgent 1
 		;;
 	17)
-		checkLog 1
+		bbrInstall
 		;;
 	18)
+		checkLog 1
+		;;
+	19)
 		unInstall 1
 		;;
 	esac
