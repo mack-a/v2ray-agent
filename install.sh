@@ -642,7 +642,7 @@ installTools() {
 			echoContent red "  acme安装失败--->"
 			tail -n 100 /etc/v2ray-agent/tls/acme.log
 			echoContent yellow "错误排查："
-			echoContent red "  1.获取Github文件失败，请等待Gitub恢复后尝试，恢复进度可查看 [https://www.githubstatus.com/]"
+			echoContent red "  1.获取Github文件失败，请等待Github恢复后尝试，恢复进度可查看 [https://www.githubstatus.com/]"
 			echoContent red "  2.acme.sh脚本出现bug，可查看[https://github.com/acmesh-official/acme.sh] issues"
 			exit 0
 		fi
@@ -726,7 +726,6 @@ installWarp() {
 	warp-cli --accept-tos set-proxy-port 31303
 	warp-cli --accept-tos connect
 	warp-cli --accept-tos enable-always-on
-
 
 	#	if [[]];then
 	#	fi
@@ -3270,7 +3269,7 @@ ipv6Routing() {
 
 		if [[ -f "${configPath}09_routing.json" ]]; then
 
-			unInstallRouting IPv6-out
+			unInstallRouting IPv6-out outboundTag
 
 			routing=$(jq -r ".routing.rules += [{\"type\":\"field\",\"domain\":[\"geosite:${domainList//,/\",\"geosite:}\"],\"outboundTag\":\"IPv6-out\"}]" ${configPath}09_routing.json)
 
@@ -3305,7 +3304,7 @@ EOF
 
 	elif [[ "${ipv6Status}" == "2" ]]; then
 
-		unInstallRouting IPv6-out
+		unInstallRouting IPv6-out outboundTag
 
 		unInstallOutbounds IPv6-out
 
@@ -3343,7 +3342,7 @@ btTools() {
 
 		if [[ -f "${configPath}09_routing.json" ]]; then
 
-			unInstallRouting blackhole-out
+			unInstallRouting blackhole-out outboundTag
 
 			routing=$(jq -r '.routing.rules += [{"type":"field","outboundTag":"blackhole-out","protocol":["bittorrent"]}]' ${configPath}09_routing.json)
 
@@ -3669,6 +3668,11 @@ setDokodemoDoorUnblockStreamingMediaOutbounds() {
 	echoContent yellow "5.每次添加都是重新添加，不会保留上次域名"
 	echoContent yellow "6.录入示例:netflix,disney,hulu\n"
 	read -r -p "请按照上面示例录入域名:" domainList
+
+	if [[ -z ${domainList} ]]; then
+		echoContent red " ---> 域名不可为空"
+		setDokodemoDoorUnblockStreamingMediaOutbounds
+	fi
 
 	if [[ -n "${setIP}" ]]; then
 
@@ -4329,7 +4333,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.49"
+	echoContent green "当前版本：v2.5.50"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
