@@ -1268,8 +1268,8 @@ v2rayVersionManageMenu() {
 		exit 0
 	fi
 	echoContent red "\n=============================================================="
-	echoContent yellow "1.升级"
-	echoContent yellow "2.回退"
+	echoContent yellow "1.升级v2ray-core"
+	echoContent yellow "2.回退v2ray-core"
 	echoContent yellow "3.关闭v2ray-core"
 	echoContent yellow "4.打开v2ray-core"
 	echoContent yellow "5.重启v2ray-core"
@@ -1311,8 +1311,8 @@ xrayVersionManageMenu() {
 		exit 0
 	fi
 	echoContent red "\n=============================================================="
-	echoContent yellow "1.升级"
-	echoContent yellow "2.回退"
+	echoContent yellow "1.升级Xray-core"
+	echoContent yellow "2.回退Xray-core"
 	echoContent yellow "3.关闭Xray-core"
 	echoContent yellow "4.打开Xray-core"
 	echoContent yellow "5.重启Xray-core"
@@ -1352,7 +1352,7 @@ updateV2Ray() {
 		if [[ -n "$1" ]]; then
 			version=$1
 		else
-			version=$(curl -s https://api.github.com/repos/v2fly/v2ray-core/releases | jq -r '.[0]|select (.prerelease==false)|.tag_name')
+			version=$(curl -s https://api.github.com/repos/v2fly/v2ray-core/releases | jq -r '.[]|select (.prerelease==false)|.tag_name' | head -1)
 		fi
 		# 使用锁定的版本
 		if [[ -n "${v2rayCoreVersion}" ]]; then
@@ -1376,7 +1376,7 @@ updateV2Ray() {
 		if [[ -n "$1" ]]; then
 			version=$1
 		else
-			version=$(curl -s https://api.github.com/repos/v2fly/v2ray-core/releases | jq -r '.[0]|select (.prerelease==false)|.tag_name')
+			version=$(curl -s https://api.github.com/repos/v2fly/v2ray-core/releases | jq -r '.[]|select (.prerelease==false)|.tag_name'|head -1)
 		fi
 
 		if [[ -n "${v2rayCoreVersion}" ]]; then
@@ -4333,7 +4333,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.50"
+	echoContent green "当前版本：v2.5.51"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
