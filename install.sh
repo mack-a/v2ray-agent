@@ -822,35 +822,37 @@ EOF
 
 		cat <<EOF >>${nginxConfigPath}alone.conf
 server {
-	listen 127.0.0.1:31302 http2;
+	listen 127.0.0.1:31302 http2 so_keepalive=on;
 	server_name ${domain};
 	root /usr/share/nginx/html;
+
+	client_header_timeout 1071906480m;
+    keepalive_timeout 1071906480m;
+
 	location /s/ {
-    		add_header Content-Type text/plain;
-    		alias /etc/v2ray-agent/subscribe/;
+    	add_header Content-Type text/plain;
+    	alias /etc/v2ray-agent/subscribe/;
     }
 
     location /${currentPath}grpc {
-		client_max_body_size 0;
-#		keepalive_time 1071906480m;
-		keepalive_requests 4294967296;
+    	if (\$content_type !~ "application/grpc") {
+    		return 404;
+    	}
+ 		client_max_body_size 0;
+		grpc_set_header X-Real-IP \$proxy_add_x_forwarded_for;
 		client_body_timeout 1071906480m;
- 		send_timeout 1071906480m;
- 		lingering_close always;
- 		grpc_read_timeout 1071906480m;
- 		grpc_send_timeout 1071906480m;
+		grpc_read_timeout 1071906480m;
 		grpc_pass grpc://127.0.0.1:31301;
 	}
 
 	location /${currentPath}trojangrpc {
-		client_max_body_size 0;
-		# keepalive_time 1071906480m;
-		keepalive_requests 4294967296;
+		if (\$content_type !~ "application/grpc") {
+            		return 404;
+		}
+ 		client_max_body_size 0;
+		grpc_set_header X-Real-IP \$proxy_add_x_forwarded_for;
 		client_body_timeout 1071906480m;
- 		send_timeout 1071906480m;
- 		lingering_close always;
- 		grpc_read_timeout 1071906480m;
- 		grpc_send_timeout 1071906480m;
+		grpc_read_timeout 1071906480m;
 		grpc_pass grpc://127.0.0.1:31304;
 	}
 }
@@ -1237,7 +1239,7 @@ installXray() {
 
 	if [[ "${coreInstallType}" != "1" ]]; then
 
-		version=$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases | jq -r .[].tag_name | head -1)
+		version=$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases | jq -r '.[]|select (.prerelease==false)|.tag_name' | head -1)
 
 		echoContent green " ---> Xray-core版本:${version}"
 		if wget --help | grep -q show-progress; then
@@ -1321,14 +1323,14 @@ xrayVersionManageMenu() {
 	if [[ "${selectXrayType}" == "1" ]]; then
 		updateXray
 	elif [[ "${selectXrayType}" == "2" ]]; then
-		echoContent yellow "\n1.由于Xray-core频繁更新，只可以回退最近的两个版本"
+		echoContent yellow "\n1.只可以回退最近的五个版本"
 		echoContent yellow "2.不保证回退后一定可以正常使用"
 		echoContent yellow "3.如果回退的版本不支持当前的config，则会无法连接，谨慎操作"
 		echoContent skyBlue "------------------------Version-------------------------------"
-		curl -s https://api.github.com/repos/XTLS/Xray-core/releases | jq -r .[].tag_name | head -2 | awk '{print ""NR""":"$0}'
+		curl -s https://api.github.com/repos/XTLS/Xray-core/releases | jq -r '.[]|select (.prerelease==false)|.tag_name' | head -5 | awk '{print ""NR""":"$0}'
 		echoContent skyBlue "--------------------------------------------------------------"
 		read -r -p "请输入要回退的版本：" selectXrayVersionType
-		version=$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases | jq -r .[].tag_name | head -2 | awk '{print ""NR""":"$0}' | grep "${selectXrayVersionType}:" | awk -F "[:]" '{print $2}')
+		version=$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases | jq -r '.[]|select (.prerelease==false)|.tag_name' | head -5 | awk '{print ""NR""":"$0}' | grep "${selectXrayVersionType}:" | awk -F "[:]" '{print $2}')
 		if [[ -n "${version}" ]]; then
 			updateXray "${version}"
 		else
@@ -1376,7 +1378,7 @@ updateV2Ray() {
 		if [[ -n "$1" ]]; then
 			version=$1
 		else
-			version=$(curl -s https://api.github.com/repos/v2fly/v2ray-core/releases | jq -r '.[]|select (.prerelease==false)|.tag_name'|head -1)
+			version=$(curl -s https://api.github.com/repos/v2fly/v2ray-core/releases | jq -r '.[]|select (.prerelease==false)|.tag_name' | head -1)
 		fi
 
 		if [[ -n "${v2rayCoreVersion}" ]]; then
@@ -1429,7 +1431,7 @@ updateXray() {
 		if [[ -n "$1" ]]; then
 			version=$1
 		else
-			version=$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases | jq -r .[0].tag_name)
+			version=$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases | jq -r '.[]|select (.prerelease==false)|.tag_name' | head -1)
 		fi
 
 		echoContent green " ---> Xray-core版本:${version}"
@@ -1451,7 +1453,7 @@ updateXray() {
 		if [[ -n "$1" ]]; then
 			version=$1
 		else
-			version=$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases | jq -r .[0].tag_name)
+			version=$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases | jq -r '.[]|select (.prerelease==false)|.tag_name' | head -1)
 		fi
 
 		if [[ -n "$1" ]]; then
@@ -4333,7 +4335,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.51"
+	echoContent green "当前版本：v2.5.52"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
