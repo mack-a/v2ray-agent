@@ -32,22 +32,16 @@
 - [Cloudflare入门教程](https://github.com/mack-a/v2ray-agent/blob/master/documents/cloudflare_init.md)
 
 ## 特性
-
-- 支持[Xray-core[XTLS]](https://github.com/XTLS/Xray-core)、v2ray-core
-- 支持切换前置[VLESS XTLS -> Trojan XTLS]、[Trojan XTLS -> VLESS XTLS]
+- 支持[Xray-core[XTLS]](https://github.com/XTLS/Xray-core)、[v2ray-core](https://github.com/v2fly/v2ray-core)
+- 支持VLESS/Trojan前置[VLESS XTLS -> Trojan XTLS]、[Trojan XTLS -> VLESS XTLS]
 - 支持不同核心之间的配置文件互相读取
 - 支持 VLESS/VMess/trojan 协议
-- 支持Debian、Ubuntu、Centos，支持主流的cpu架构。**不建议使用Centos以及低版本的系统，2.3.x后不再支持Centos6**
-- 支持个性化安装
-- 支持多用户管理
-- 支持Netflix检测、支持DNS流媒体解锁、支持任意门解锁Netflix
-- 无需卸载即可安装、重装任意组合
-- 支持卸载时保留Nginx、tls证书。如果acme.sh申请的证书在有效的情况下，不会重新签发
-- 支持纯IPv6，[IPv6注意事项](https://github.com/mack-a/v2ray-agent/blob/master/documents/ipv6_help.md)
-- 支持IPv4[入]->IPv6分流[出]
-- 支持WARP分流
-- 支持日志管理
-- 支持多端口配置
+- 支持Debian、Ubuntu、Centos系统，支持主流的cpu架构。
+- 支持任意组合安装、支持多用户管理、支持DNS流媒体解锁、支持添加多端口、[支持任意门解锁Netflix](https://github.com/mack-a/v2ray-agent/blob/master/documents/netflix/dokodemo-unblock_netflix.md)
+- 支持卸载后保留tls证书
+- 支持IPv6，[IPv6注意事项](https://github.com/mack-a/v2ray-agent/blob/master/documents/ipv6_help.md)
+- 支持WARP分流、支持IPv6分流
+- 支持BT下载管理、支持日志管理、支持域名黑名单管理、支持核心管理、支持切换伪装站点
 - [支持自定义证书安装](https://github.com/mack-a/v2ray-agent/blob/master/documents/install_tls.md)
 
 ## 支持的安装类型
@@ -77,7 +71,7 @@
 
 ## 组合推荐
 
-- 中转/gia/AS4837/AS9929 ---> VLESS+TCP+TLS/XTLS、Trojan【推荐使用XTLS的xtls-rprx-direct】
+- 中转/gia/AS4837/AS9929 ---> VLESS+TCP+TLS/XTLS、Trojan
 - 移动宽带 ---> VMESS+WS+TLS/VLESS+WS+TLS/VLESS+gRPC+TLS/Trojan+gRPC+TLS + Cloudflare
 - cloudflare-> VLESS+gRPC+TLS/Trojan+gRPC+TLS[多路复用、延迟低]
 
@@ -86,19 +80,18 @@
 - **修改Cloudflare->SSL/TLS->Overview->Full**
 - **Cloudflare ---> A记录解析的云朵必须为灰色【如非灰色，会影响到定时任务自动续签证书】**
 - **如用CDN又同时使用直连，关闭云朵+自选IP，自选IP参考上方的[Cloudflare 优化方案](https://github.com/mack-a/v2ray-agent/blob/master/documents/optimize_V2Ray.md)**
-- **使用纯净系统安装，如使用其他脚本安装过，请重新build系统再安装**
+- **使用纯净系统安装，如使用其他脚本安装过并且自己无法修改错误，请重新安装系统后再次尝试安装**
 - wget: command not found [**这里需要自己手动安装下wget**]
   ，如未使用过Linux，[点击查看](https://github.com/mack-a/v2ray-agent/tree/master/documents/install_tools.md)安装教程
 - 不支持非root账户
-- **中间的版本号升级意味可能不兼容之前安装的内容，如果不是追新用户或者必须升级的版本请谨慎升级。** 例如 2.2.\*，不兼容2.1.\*
-- **如发现Nginx相关问题，请卸载掉自编译的nginx或者重新build系统**
+- **如发现Nginx相关问题，请卸载掉自编译的nginx或者重新安装系统**
 - **为了节约时间，反馈请带上详细截图或者按照模版规范，无截图或者不按照规范的issue会被直接关闭**
-- **不建议GCP用户使用**
-- **不建议使用Centos以及低版本的系统，如果Centos安装失败，请切换至Debian10重新尝试，脚本不再支持Centos6、Ubuntu 16.x**
+- **不推荐GCP用户使用**
+- **不推荐使用Centos以及低版本的系统，如果Centos安装失败，请切换至Debian10重新尝试，脚本不再支持Centos6、Ubuntu 16.x**
 - **[如有使用不明白的地方请先查看脚本使用指南](https://github.com/mack-a/v2ray-agent/blob/master/documents/how_to_use.md)**
-- **Oracle vps有一个额外的防火墙，需要手动设置**
-- **Oracle vps仅支持Ubuntu**
-- **如果使用gRPC通过cloudflare转发,需要在cloudflare设置允许gRPC，cloudflare Network->gRPC**
+- **Oracle Cloud有一个额外的防火墙，需要手动设置**
+- **Oracle Cloud仅支持Ubuntu**
+- **如果使用gRPC通过cloudflare转发,需要在cloudflare设置允许gRPC，路径：cloudflare Network->gRPC**
 - **gRPC目前处于测试阶段，可能对你使用的客户端不兼容，如不能使用请忽略**
 - **低版本脚本升级高版本时无法启动问题，[请点击此链接查看解决方案](https://github.com/mack-a/v2ray-agent/blob/master/documents/how_to_use.md#4%E4%BD%8E%E7%89%88%E6%9C%AC%E5%8D%87%E7%BA%A7%E9%AB%98%E7%89%88%E6%9C%AC%E5%90%8E%E6%97%A0%E6%B3%95%E5%90%AF%E5%8A%A8%E6%A0%B8%E5%BF%83)**
 
