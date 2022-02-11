@@ -40,8 +40,8 @@
 - 支持任意组合安装、支持多用户管理、支持DNS流媒体解锁、支持添加多端口、[支持任意门解锁Netflix](https://github.com/mack-a/v2ray-agent/blob/master/documents/netflix/dokodemo-unblock_netflix.md)
 - 支持卸载后保留tls证书
 - 支持IPv6，[IPv6注意事项](https://github.com/mack-a/v2ray-agent/blob/master/documents/ipv6_help.md)
-- 支持WARP分流、支持IPv6分流
-- 支持BT下载管理、支持日志管理、支持域名黑名单管理、支持核心管理、支持切换伪装站点
+- 支持WARP分流、IPv6分流
+- 支持BT下载管理、日志管理、域名黑名单管理、核心管理、伪装站点管理
 - [支持自定义证书安装](https://github.com/mack-a/v2ray-agent/blob/master/documents/install_tls.md)
 
 ## 支持的安装类型
