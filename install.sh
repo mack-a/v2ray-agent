@@ -3743,7 +3743,8 @@ setDokodemoDoorUnblockStreamingMediaInbounds() {
 	echoContent yellow "5.每次添加都是重新添加，不会保留上次域名"
 	echoContent yellow "6.ip录入示例:1.1.1.1,1.1.1.2"
 	echoContent yellow "7.下面的域名一定要和出站的vps一致"
-	echoContent yellow "8.域名录入示例:netflix,disney,hulu\n"
+	echoContent yellow "8.如有防火墙请手动开启22387、22388端口"
+	echoContent yellow "9.域名录入示例:netflix,disney,hulu\n"
 	read -r -p "请输入允许访问该解锁 vps的IP:" setIPs
 	if [[ -n "${setIPs}" ]]; then
 		read -r -p "请按照上面示例录入域名:" domainList
