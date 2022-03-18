@@ -2083,8 +2083,6 @@ initXrayConfig() {
 			addClientsStatus=true
 			uuid=${currentUUID}
 			echoContent green "\n ---> 使用成功"
-		else
-			uuid=$(/etc/v2ray-agent/xray/xray uuid)
 		fi
 	fi
 
@@ -4410,7 +4408,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者：mack-a"
-	echoContent green "当前版本：v2.5.53"
+	echoContent green "当前版本：v2.5.54"
 	echoContent green "Github：https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述：八合一共存脚本\c"
 	showInstallStatus
