@@ -808,17 +808,21 @@ EOF
 
 	else
 		cat <<EOF >${nginxConfigPath}alone.conf
+		server {
+				listen 80;
+				server_name _;
+				return 403;
+        }
+		server {
+				listen 127.0.0.1:31300;
+				server_name _;
+				return 403;
+		}
         server {
         	listen 80;
         	listen [::]:80;
         	server_name ${domain};
-        	# shellcheck disable=SC2154
-        	return 301 https://${domain}\${request_uri};
-        }
-        server {
-        		listen 127.0.0.1:31300;
-        		server_name _;
-        		return 403;
+        	return 302 https://${domain}\${request_uri};
         }
 EOF
 	fi
@@ -1645,7 +1649,8 @@ getClients() {
 	if [[ ${addClientsStatus} == "true" ]]; then
 		if [[ ! -f "${path}" ]]; then
 			echo
-			local protocol=$(echo "${path}" | awk -F "[_]" '{print $2 $3}')
+			local protocol
+			protocol=$(echo "${path}" | awk -F "[_]" '{print $2 $3}')
 			echoContent yellow "没有读取到此协议[${protocol}]上一次安装的配置文件，采用配置文件的第一个uuid"
 		else
 			previousClients=$(jq -r ".inbounds[0].settings.clients" "${path}")
@@ -2872,6 +2877,12 @@ unInstall() {
 
 	rm -rf /etc/v2ray-agent
 	rm -rf ${nginxConfigPath}alone.conf
+
+	if [[ -d "/usr/share/nginx/html" && -f "/usr/share/nginx/html/check" ]]; then
+		rm -rf /usr/share/nginx/html
+		echoContent green " ---> 删除伪装网站完成"
+	fi
+
 	rm -rf /usr/bin/vasma
 	rm -rf /usr/sbin/vasma
 	echoContent green " ---> 卸载快捷方式完成"
@@ -2977,7 +2988,7 @@ customUserEmail() {
 	if [[ -z "${currentCustomEmail}" ]]; then
 		currentCustomEmail="${currentHost}_${currentCustomUUID}"
 		echoContent yellow "email: ${currentCustomEmail}\n"
-#		echoContent red " ---> email不可为空"
+		#		echoContent red " ---> email不可为空"
 	else
 		jq -r -c '.inbounds[0].settings.clients[].email' ${configPath}${frontingType}.json | while read -r line; do
 			if [[ "${line}" == "${currentCustomEmail}" ]]; then
@@ -4410,7 +4421,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者:mack-a"
-	echoContent green "当前版本:v2.5.55"
+	echoContent green "当前版本:v2.5.56"
 	echoContent green "Github:https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述:八合一共存脚本\c"
 	showInstallStatus
