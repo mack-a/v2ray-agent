@@ -36,7 +36,7 @@ server {
 		add_header Strict-Transport-Security "max-age=15552000; preload" always;
 		proxy_pass http://127.0.0.1:3003/;
 	}
-    location /test {
+    	location /test {
 		proxy_pass http://127.0.0.1:3003/;
 	}
 }
