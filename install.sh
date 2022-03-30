@@ -1626,7 +1626,7 @@ handleXray() {
 		if [[ -n $(pgrep -f "xray/xray") ]]; then
 			echoContent green " ---> Xray启动成功"
 		else
-			echoContent red "xray启动失败"
+			echoContent red "Xray启动失败"
 			echoContent red "请手动执行【/etc/v2ray-agent/xray/xray -confdir /etc/v2ray-agent/xray/conf】，查看错误日志"
 			exit 0
 		fi
@@ -1814,28 +1814,28 @@ EOF
 {
 "inbounds":[
     {
-  "port": 31297,
-  "listen": "127.0.0.1",
-  "protocol": "vless",
-  "tag":"VLESSWS",
-  "settings": {
-    "clients": [
-      {
-        "id": "${uuid}",
-        "email": "${domain}_VLESS_WS"
-      }
-    ],
-    "decryption": "none"
-  },
-  "streamSettings": {
-    "network": "ws",
-    "security": "none",
-    "wsSettings": {
-      "acceptProxyProtocol": true,
-      "path": "/${customPath}ws"
-    }
-  }
-}
+	  "port": 31297,
+	  "listen": "127.0.0.1",
+	  "protocol": "vless",
+	  "tag":"VLESSWS",
+	  "settings": {
+		"clients": [
+		  {
+			"id": "${uuid}",
+			"email": "${domain}_VLESS_WS"
+		  }
+		],
+		"decryption": "none"
+	  },
+	  "streamSettings": {
+		"network": "ws",
+		"security": "none",
+		"wsSettings": {
+		  "acceptProxyProtocol": true,
+		  "path": "/${customPath}ws"
+		}
+	  }
+	}
 ]
 }
 EOF
@@ -2222,28 +2222,28 @@ EOF
 {
 "inbounds":[
     {
-  "port": 31297,
-  "listen": "127.0.0.1",
-  "protocol": "vless",
-  "tag":"VLESSWS",
-  "settings": {
-    "clients": [
-      {
-        "id": "${uuid}",
-        "email": "${domain}_VLESS_WS"
-      }
-    ],
-    "decryption": "none"
-  },
-  "streamSettings": {
-    "network": "ws",
-    "security": "none",
-    "wsSettings": {
-      "acceptProxyProtocol": true,
-      "path": "/${customPath}ws"
-    }
-  }
-}
+	  "port": 31297,
+	  "listen": "127.0.0.1",
+	  "protocol": "vless",
+	  "tag":"VLESSWS",
+	  "settings": {
+		"clients": [
+		  {
+			"id": "${uuid}",
+			"email": "${domain}_VLESS_WS"
+		  }
+		],
+		"decryption": "none"
+	  },
+	  "streamSettings": {
+		"network": "ws",
+		"security": "none",
+		"wsSettings": {
+		  "acceptProxyProtocol": true,
+		  "path": "/${customPath}ws"
+		}
+	  }
+	}
 ]
 }
 EOF
@@ -2856,16 +2856,24 @@ unInstall() {
 		echoContent green " ---> 停止Nginx成功"
 	fi
 
-	handleV2Ray stop
-	#	handleTrojanGo stop
+	if [[ "${coreInstallType}" == "1" ]]; then
+		handleXray stop
+		rm -rf /etc/systemd/system/xray.service
+		echoContent green " ---> 删除Xray开机自启完成"
+
+	elif [[ "${coreInstallType}" == "2" ]]; then
+
+		handleV2Ray stop
+		rm -rf /etc/systemd/system/v2ray.service
+		echoContent green " ---> 删除V2Ray开机自启完成"
+
+	fi
 
 	if [[ -f "/root/.acme.sh/acme.sh.env" ]] && grep -q 'acme.sh.env' </root/.bashrc; then
 		sed -i 's/. "\/root\/.acme.sh\/acme.sh.env"//g' "$(grep '. "/root/.acme.sh/acme.sh.env"' -rl /root/.bashrc)"
 	fi
 	rm -rf /root/.acme.sh
 	echoContent green " ---> 删除acme.sh完成"
-	rm -rf /etc/systemd/system/v2ray.service
-	echoContent green " ---> 删除V2Ray开机自启完成"
 
 	rm -rf /tmp/v2ray-agent-tls/*
 	if [[ -d "/etc/v2ray-agent/tls" ]] && [[ -n $(find /etc/v2ray-agent/tls/ -name "*.key") ]] && [[ -n $(find /etc/v2ray-agent/tls/ -name "*.crt") ]]; then
@@ -4421,7 +4429,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者:mack-a"
-	echoContent green "当前版本:v2.5.56"
+	echoContent green "当前版本:v2.5.57"
 	echoContent green "Github:https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述:八合一共存脚本\c"
 	showInstallStatus
