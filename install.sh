@@ -357,6 +357,7 @@ checkFirewalldAllowPort() {
 # 检查文件目录以及path路径
 readConfigHostPathUUID() {
 	currentPath=
+	currentDefaultPort=
 	currentUUID=
 	currentHost=
 	currentPort=
@@ -376,6 +377,16 @@ readConfigHostPathUUID() {
 		elif [[ $(echo "${fallback}" | jq -r .dest) == 31299 ]]; then
 			currentPath=$(echo "${path}" | awk -F "[v][w][s]" '{print $1}')
 		fi
+
+		local defaultPortFile=
+		defaultPortFile=$(find ${configPath}* | grep "default")
+
+		if [[ -n "${defaultPortFile}" ]]; then
+			currentDefaultPort=$(echo "${defaultPortFile}" | awk -F [_] '{print $4}')
+		else
+			currentDefaultPort=443
+		fi
+
 	fi
 	if [[ "${coreInstallType}" == "1" ]]; then
 		currentHost=$(jq -r .inbounds[0].streamSettings.xtlsSettings.certificates[0].certificateFile ${configPath}${frontingType}.json | awk -F '[t][l][s][/]' '{print $2}' | awk -F '[.][c][r][t]' '{print $1}')
@@ -2485,11 +2496,13 @@ defaultBase64Code() {
 	local port=
 	if echo "${hostPort}" | grep -q ":"; then
 		host=$(echo "${hostPort}" | awk -F "[:]" '{print $1}')
-		port=$(echo "${hostPort}" | awk -F "[:]" '{print $2}')
+		# port=$(echo "${hostPort}" | awk -F "[:]" '{print $2}')
 	else
 		host=${hostPort}
-		port=443
+		# port=443
 	fi
+
+	port=${currentDefaultPort}
 
 	local path=$5
 	local add=$6
@@ -2747,7 +2760,12 @@ showAccounts() {
 		echoContent red " ---> 未安装"
 	fi
 }
-
+# 移除nginx302配置
+removeNginx302() {
+	if grep -q "return 302 http:" </etc/nginx/conf.d/alone.conf && [[ -f "/etc/nginx/conf.d/alone.conf" ]]; then
+		sed '/return 302 http:/d' /etc/nginx/conf.d/alone.conf >/etc/nginx/conf.d/tmpfile && mv /etc/nginx/conf.d/tmpfile /etc/nginx/conf.d/alone.conf
+	fi
+}
 # 更新伪装站
 updateNginxBlog() {
 	echoContent skyBlue "\n进度 $1/${totalProgress} : 更换伪装站点"
@@ -2762,11 +2780,34 @@ updateNginxBlog() {
 	echoContent yellow "7.企业站02"
 	echoContent yellow "8.个人博客02"
 	echoContent yellow "9.404自动跳转baidu"
+	echoContent yellow "10.302重定向网站"
 	echoContent red "=============================================================="
 	read -r -p "请选择:" selectInstallNginxBlogType
 
+	if [[ "${selectInstallNginxBlogType}" == "10" ]]; then
+		echoContent red "\n=============================================================="
+		echoContent yellow "重定向的优先级更高，配置302之后如果更改伪装站点，根路由下伪装站点将不起作用"
+		echoContent yellow "如想要伪装站点实现作用需删除302重定向配置\n"
+		echoContent yellow "1.添加"
+		echoContent yellow "2.删除"
+		echoContent red "=============================================================="
+		read -r -p "请选择:" redirectStatus
+
+		if [[ "${redirectStatus}" == "1" ]]; then
+			read -r -p "请输入要重定向的域名,例如 www.baidu.com:" redirectDomain
+			removeNginx302
+			sed -i 's/add_header Strict-Transport-Security "max-age=15552000; preload" always;/add_header Strict-Transport-Security "max-age=15552000; preload" always;\nreturn 302 http:\/\/'"${redirectDomain}"';/g' "$(grep 'add_header Strict-Transport-Security "max-age=15552000; preload" always;' -rl /etc/nginx/conf.d/alone.conf)"
+		fi
+
+		if [[ "${redirectStatus}" == "2" ]]; then
+			removeNginx302
+		fi
+
+		handleNginx stop
+		handleNginx start
+		exit 0
+	fi
 	if [[ "${selectInstallNginxBlogType}" =~ ^[1-9]$ ]]; then
-		#		rm -rf /usr/share/nginx/html
 		rm -rf /usr/share/nginx/*
 		if wget --help | grep -q show-progress; then
 			wget -c -q --show-progress -P /usr/share/nginx "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${selectInstallNginxBlogType}.zip" >/dev/null
@@ -2800,24 +2841,39 @@ addCorePort() {
 	read -r -p "请选择:" selectNewPortType
 	if [[ "${selectNewPortType}" == "1" ]]; then
 		read -r -p "请输入端口号:" newPort
+		read -r -p "请输入默认的端口号，同时会更改订阅端口以及节点端口，[回车]默认443:" defaultPort
+
+		if [[ -n "${defaultPort}" ]]; then
+			rm -rf "$(find ${configPath}* | grep "default")"
+		fi
+
 		if [[ -n "${newPort}" ]]; then
 
 			while read -r port; do
-				cat <<EOF >"${configPath}02_dokodemodoor_inbounds_${port}.json"
+				rm -rf "$(find ${configPath}* | grep "${port}")"
+
+				local fileName=
+				if [[ -n "${defaultPort}" && "${port}" == "${defaultPort}" ]]; then
+					fileName="${configPath}02_dokodemodoor_inbounds_${port}_default.json"
+				else
+					fileName="${configPath}02_dokodemodoor_inbounds_${port}.json"
+				fi
+
+				cat <<EOF >"${fileName}"
 {
   "inbounds": [
-    {
-      "listen": "0.0.0.0",
-      "port": ${port},
-      "protocol": "dokodemo-door",
-      "settings": {
-        "address": "127.0.0.1",
-        "port": 443,
-        "network": "tcp",
-        "followRedirect": false
-      },
-      "tag": "dokodemo-door-newPort-${port}"
-    }
+	{
+	  "listen": "0.0.0.0",
+	  "port": ${port},
+	  "protocol": "dokodemo-door",
+	  "settings": {
+		"address": "127.0.0.1",
+		"port": 443,
+		"network": "tcp",
+		"followRedirect": false
+	  },
+	  "tag": "dokodemo-door-newPort-${port}"
+	}
   ]
 }
 EOF
@@ -4371,9 +4427,15 @@ subscribe() {
 				echo "${base64Result}" >"/etc/v2ray-agent/subscribe/${email}"
 				echoContent skyBlue "--------------------------------------------------------------"
 				echoContent yellow "email:$(echo "${email}" | awk -F "[_]" '{print $1}')\n"
-				echoContent yellow "url:https://${currentHost}/s/${email}\n"
-				echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://${currentHost}/s/${email}\n"
-				echo "https://${currentHost}/s/${email}" | qrencode -s 10 -m 1 -t UTF8
+				local currentDomain=${currentHost}
+
+				if [[ -n "${currentDefaultPort}" && "${currentDefaultPort}" != "443" ]]; then
+					currentDomain="${currentHost}:${currentDefaultPort}"
+				fi
+
+				echoContent yellow "url:https://${currentDomain}/s/${email}\n"
+				echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://${currentDomain}/s/${email}\n"
+				echo "https://${currentDomain}/s/${email}" | qrencode -s 10 -m 1 -t UTF8
 				echoContent skyBlue "--------------------------------------------------------------"
 			done
 		fi
@@ -4429,7 +4491,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者:mack-a"
-	echoContent green "当前版本:v2.5.57"
+	echoContent green "当前版本:v2.5.58"
 	echoContent green "Github:https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述:八合一共存脚本\c"
 	showInstallStatus
