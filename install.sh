@@ -1124,12 +1124,14 @@ handleNginx() {
 			echoContent red " ---> 请手动尝试安装nginx后，再次执行脚本"
 			exit 0
 		fi
+		echoContent green " ---> Nginx启动成功"
 	elif [[ -n $(pgrep -f "nginx") ]] && [[ "$1" == "stop" ]]; then
 		systemctl stop nginx
 		sleep 0.5
 		if [[ -n $(pgrep -f "nginx") ]]; then
 			pgrep -f "nginx" | xargs kill -9
 		fi
+		echoContent green " ---> Nginx关闭成功"
 	fi
 }
 
@@ -2762,8 +2764,58 @@ showAccounts() {
 }
 # 移除nginx302配置
 removeNginx302() {
-	if grep -q "return 302 http:" </etc/nginx/conf.d/alone.conf && [[ -f "/etc/nginx/conf.d/alone.conf" ]]; then
-		sed '/return 302 http:/d' /etc/nginx/conf.d/alone.conf >/etc/nginx/conf.d/tmpfile && mv /etc/nginx/conf.d/tmpfile /etc/nginx/conf.d/alone.conf
+	# 查找到302那行并删除
+	local line302Result=
+	line302Result=$(grep -n "return 302" </etc/nginx/conf.d/alone.conf | tail -n 1)
+
+	if ! echo "${line302Result}" | grep -q "request_uri"; then
+		sed -i "$(echo "${line302Result}" | awk -F "[:]" '{print $1}')d" /etc/nginx/conf.d/alone.conf
+		echoContent green " ---> 移除302重定向成功"
+		exit 0
+	fi
+
+}
+
+# 检查302是否成功
+checkNginx302() {
+	local domain302Status=
+	domain302Status=$(curl -s "https://${currentHost}")
+	if echo "${domain302Status}" | grep -q "302"; then
+		local domain302Result=
+		domain302Result=$(curl -L -s "https://${currentHost}")
+		if [[ -n "${domain302Result}" ]]; then
+			echoContent green " ---> 302重定向设置成功"
+			exit 0
+		fi
+	fi
+	echoContent red " ---> 302重定向设置失败，请仔细检查是否和示例相同"
+	backupNginxConfig restoreBackup
+}
+
+# 备份恢复nginx文件
+backupNginxConfig() {
+	if [[ "$1" == "backup" ]]; then
+		cp /etc/nginx/conf.d/alone.conf /etc/v2ray-agent/alone_backup.conf
+		echoContent green " ---> nginx配置文件备份成功"
+	fi
+
+	if [[ "$1" == "restoreBackup" ]] && [[ -f "/etc/v2ray-agent/alone_backup.conf" ]]; then
+		cp /etc/v2ray-agent/alone_backup.conf /etc/nginx/conf.d/alone.conf
+		echoContent green " ---> nginx配置文件恢复备份成功"
+		rm /etc/v2ray-agent/alone_backup.conf
+	fi
+
+}
+# 添加302配置
+addNginx302() {
+	local line302Result=
+	line302Result=$(grep -n "Strict-Transport-Security" </etc/nginx/conf.d/alone.conf | tail -n 1)
+
+	if [[ -n "${line302Result}" ]]; then
+		sed "$(echo "${line302Result}" | awk -F "[:]" '{print $1}')i return 302 '$1';" /etc/nginx/conf.d/alone.conf >/etc/nginx/conf.d/tmpfile && mv /etc/nginx/conf.d/tmpfile /etc/nginx/conf.d/alone.conf
+	else
+		echoContent red " ---> 302添加失败"
+		backupNginxConfig restoreBackup
 	fi
 }
 # 更新伪装站
@@ -2794,18 +2846,25 @@ updateNginxBlog() {
 		read -r -p "请选择:" redirectStatus
 
 		if [[ "${redirectStatus}" == "1" ]]; then
-			read -r -p "请输入要重定向的域名,例如 www.baidu.com:" redirectDomain
+			backupNginxConfig backup
+			read -r -p "请输入要重定向的域名,例如 https://www.baidu.com:" redirectDomain
 			removeNginx302
-			sed -i 's/add_header Strict-Transport-Security "max-age=15552000; preload" always;/add_header Strict-Transport-Security "max-age=15552000; preload" always;\nreturn 302 http:\/\/'"${redirectDomain}"';/g' "$(grep 'add_header Strict-Transport-Security "max-age=15552000; preload" always;' -rl /etc/nginx/conf.d/alone.conf)"
+			addNginx302 "${redirectDomain}"
+			handleNginx stop
+			handleNginx start
+			if [[ -z $(pgrep -f nginx) ]]; then
+				backupNginxConfig restoreBackup
+				handleNginx start
+				exit 0
+			fi
+			checkNginx302
+			exit 0
 		fi
-
 		if [[ "${redirectStatus}" == "2" ]]; then
 			removeNginx302
+			echoContent green " ---> 移除302重定向成功"
+			exit 0
 		fi
-
-		handleNginx stop
-		handleNginx start
-		exit 0
 	fi
 	if [[ "${selectInstallNginxBlogType}" =~ ^[1-9]$ ]]; then
 		rm -rf /usr/share/nginx/*
@@ -4491,7 +4550,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者:mack-a"
-	echoContent green "当前版本:v2.5.58"
+	echoContent green "当前版本:v2.5.59"
 	echoContent green "Github:https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述:八合一共存脚本\c"
 	showInstallStatus
