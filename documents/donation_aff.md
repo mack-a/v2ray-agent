@@ -129,38 +129,60 @@ CN2 GIA|1G|2核|20G|1T|2.5Gbps|169.99 USD/年|[购买链接](https://bandwagonho
 ---|---|---|---|---|---|---|---|---
 CLOUD K JP: JAPAN TOKYO SOFTBANK IP TRANSIT|512M|1核|10G|500G|100Mbps|8.2 USD/月|5% 折扣码 0P559NYMKTTW|[购买链接](https://clientarea.gigsgigscloud.com/?affid=3361)
 
-[comment]: <> (# 6.全能线路推荐)
 
-[comment]: <> (## 1.Dmit Tokyo)
+# 5.CMI
+## 1.推荐理由
+- 回程三网CMI
+- 可用作主力机
+- 移动国际精品网络
+- 线路大多数情况下比较稳定，偶尔会被打
 
-[comment]: <> (- 目前处于OpenBeta阶段，路由还在部分调整)
+### 1.DMIT HongKong Lite
+- [TOS](https://t.me/DMIT_INC_CN/544)
+- 流量双向计费
+- 去程有可能更换
 
-[comment]: <> (- **建议等调试稳定后上车，性价比较低（口子小、流量少）**)
+#### 去程【截止发文日期2022-4-19】
 
-[comment]: <> (### 1.推荐理由)
+- 电信CN2-PCCW
+- 联通4837-4134-4809-PCCW
+- 移动CMI
 
-[comment]: <> (- 会自动本地运营商选用最优的路由，回程比较重要，一般去程不堵)
+#### 回程
+- 三网CMI
 
-[comment]: <> (- 例如：电信&#40;CN2 GIA&#41;/联通（AS9929/AS10099）/移动（CMI）)
-
-[comment]: <> (- 建立读一下[ToS]&#40;https://www.dmit.io/pages/tos&#41;和[AUP]&#40;https://www.dmit.io/pages/aup&#41;)
-
-[comment]: <> (套餐名称|内存|CPU|硬盘|流量|带宽|价格|折扣码|购买链接)
-
-[comment]: <> (---|---|---|---|---|---|---|---|---)
-
-[comment]: <> (PVM.TYO.Pro.TINY|0.75G|1核|15G|300G|100Mbps|19.9 USD/月|年付八折折扣码：TYO-Pro-TINY-Open-Beta-Recur-20OFF|[购买链接]&#40;https://www.dmit.io/aff.php?aff=3084&#41;)
-
-[comment]: <> (PVM.TYO.Pro.STARTER|1.5G|1核|20G|500G|100Mbps|32.9 USD/月|非月付八折折扣码（支持非TYO-Pro-TINY系列）：TYO-Pro-Open-Beta-Recur-20OFF|[购买链接]&#40;https://www.dmit.io/aff.php?aff=3084&#41;)
+#### 折扣码【仅适用于 STARTER 及以上规格的 Lite 产品，TINY 不包含在内】
+- 年付七折：Lite-Annually-Recur-30OFF
+- 半年付八折：Lite-Semi-Annually-Recur-20OFF
 
 
-# 6.流媒体解锁
+套餐名称| 内存 |CPU|硬盘(SSD)|流量|带宽|价格|购买链接
+---|---|---|---|---|---|---|---
+PVM.HKG.Lite.TINY| 0.75G |1 vCPU|10 GB SSD|2T|1Gbps|$6.9 USD/月|[购买链接](https://www.dmit.io/aff.php?aff=3084)
+PVM.HKG.Lite.STARTER| 1.5G |1 vCPU|20 GB SSD|4T|1Gbps|$12.9 USD/月|[购买链接](https://www.dmit.io/aff.php?aff=3084)
+PVM.HKG.Lite.MINI| 2G |2 vCPU|40 GB SSD|6T|2Gbps|$21.9 USD/月|[购买链接](https://www.dmit.io/aff.php?aff=3084)
 
-## 推荐商家
-### 1.[centerhop](https://my.centerhop.com/aff.php?aff=190)
-- 不适合直连，适合当落地流媒体解锁机【由于netflix严查，不一定解锁，可以先买一个月试错】，可参考脚本中的任意门解锁，或者使用中专拉
-- 购买位置Services->Order New Services->Cloud VPS - KVM S
 
-套餐名称|内存|CPU|硬盘(SSD)|流量|带宽|价格|推荐理由|购买链接
----|---|---|---|---|---|---|---|---
-VN01-A Price|1G|1核|10G SAN|1T|10Mbps-200Mbps|$3 USD|解锁新加坡区Netflix|[购买链接](https://my.centerhop.com/aff.php?aff=190)
+### 2.RFCHOST Hong Kong 3 Premium
+#### 去程【截止发文日期2022-4-19】
+
+- 电信CN2-PCCW
+- 联通去程4837-4134-CN2-PCCW
+- 移动CMI
+
+#### 回程
+- 三网CMI
+
+#### 折扣码（九折）
+- hkg3openup
+
+#### TestIP
+- 199.15.77.1
+
+
+套餐名称| 内存 |CPU|硬盘(SSD)|流量|带宽|价格|购买链接
+---|---|---|---|---|---|---|---
+HKG3-Premium-Micro| 512MB |1 CPU|8 GB SSD|500G（只计算出方向流量）|500Mbps|$9.9 USD/月|[购买链接](https://my.rfchost.com/aff.php?aff=899)
+HKG3-Premium-Mini| 1.5G |1 CPU|10 GB SSD|1T|1Gbps|$12.99 USD/月|[购买链接](https://my.rfchost.com/aff.php?aff=899)
+HKG3-Premium-Medium| 2G |2 CPU|20 GB SSD|2T|1Gbps|$21.9 USD/月|[购买链接](https://my.rfchost.com/aff.php?aff=899)
+
