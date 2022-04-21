@@ -1993,7 +1993,7 @@ EOF
     "network": "tcp",
     "security": "tls",
     "tlsSettings": {
-      "minVersion": "1.3",
+      "minVersion": "1.2",
       "alpn": [
         "http/1.1",
         "h2"
@@ -2400,7 +2400,7 @@ EOF
     "network": "tcp",
     "security": "xtls",
     "xtlsSettings": {
-      "minVersion": "1.3",
+      "minVersion": "1.2",
       "alpn": [
         "http/1.1",
         "h2"
