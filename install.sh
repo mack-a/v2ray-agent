@@ -278,42 +278,42 @@ allowPort() {
 	# 如果防火墙启动状态则添加相应的开放端口
 	if systemctl status netfilter-persistent 2>/dev/null | grep -q "active (exited)"; then
 		local updateFirewalldStatus=
-		if ! iptables -L | grep -q "http(mack-a)"; then
+		if ! iptables -L | grep -q "$1(mack-a)"; then
 			updateFirewalldStatus=true
-			iptables -I INPUT -p tcp --dport 80 -m comment --comment "allow http(mack-a)" -j ACCEPT
+			iptables -I INPUT -p tcp --dport "$1" -m comment --comment "allow $1(mack-a)" -j ACCEPT
 		fi
 
-		if ! iptables -L | grep -q "https(mack-a)"; then
-			updateFirewalldStatus=true
-			iptables -I INPUT -p tcp --dport 443 -m comment --comment "allow https(mack-a)" -j ACCEPT
-		fi
+		#		if ! iptables -L | grep -q "$1(mack-a)"; then
+		#			updateFirewalldStatus=true
+		#			iptables -I INPUT -p tcp --dport $1 -m comment --comment "allow $1(mack-a)" -j ACCEPT
+		#		fi
 
 		if echo "${updateFirewalldStatus}" | grep -q "true"; then
 			netfilter-persistent save
 		fi
 	elif systemctl status ufw 2>/dev/null | grep -q "active (exited)"; then
-		if ! ufw status | grep -q 443; then
-			sudo ufw allow https
-			checkUFWAllowPort 443
+		if ! ufw status | grep -q "$1"; then
+			sudo ufw allow "$1"
+			checkUFWAllowPort "$1"
 		fi
-
-		if ! ufw status | grep -q 80; then
-			sudo ufw allow 80
-			checkUFWAllowPort 80
-		fi
+		#		if ! ufw status | grep -q $1; then
+		#			sudo ufw allow $1
+		#			checkUFWAllowPort $1
+		#		fi
 	elif systemctl status firewalld 2>/dev/null | grep -q "active (running)"; then
 		local updateFirewalldStatus=
-		if ! firewall-cmd --list-ports --permanent | grep -qw "80/tcp"; then
+		if ! firewall-cmd --list-ports --permanent | grep -qw "$1/tcp"; then
 			updateFirewalldStatus=true
-			firewall-cmd --zone=public --add-port=80/tcp --permanent
-			checkFirewalldAllowPort 80
+			firewall-cmd --zone=public --add-port="$1/tcp" --permanent
+			checkFirewalldAllowPort "$1"
 		fi
 
-		if ! firewall-cmd --list-ports --permanent | grep -qw "443/tcp"; then
-			updateFirewalldStatus=true
-			firewall-cmd --zone=public --add-port=443/tcp --permanent
-			checkFirewalldAllowPort 443
-		fi
+		#		if ! firewall-cmd --list-ports --permanent | grep -qw "$1/tcp"; then
+		#			updateFirewalldStatus=true
+		#			firewall-cmd --zone=public --add-port=$1/tcp --permanent
+		#			checkFirewalldAllowPort $1
+		#		fi
+
 		if echo "${updateFirewalldStatus}" | grep -q "true"; then
 			firewall-cmd --reload
 		fi
@@ -976,7 +976,8 @@ checkIP() {
 		echoContent red " ---> 请检查防火墙规则是否开放443、80\n"
 		read -r -p "是否通过脚本修改防火墙规则开放443、80端口？[y/n]:" allPortFirewallStatus
 		if [[ ${allPortFirewallStatus} == "y" ]]; then
-			allowPort
+			allowPort 80
+			allowPort 443
 			handleNginx start
 			checkIP
 		else
@@ -1032,7 +1033,8 @@ installTLS() {
 				exit 0
 			fi
 			echoContent red " ---> TLS安装失败，正在检查80、443端口是否开放"
-			allowPort
+			allowPort 80
+			allowPort 443
 			echoContent yellow " ---> 重新尝试安装TLS证书"
 			installTLSCount=1
 			installTLS "$1"
@@ -2918,6 +2920,9 @@ addCorePort() {
 					fileName="${configPath}02_dokodemodoor_inbounds_${port}.json"
 				fi
 
+				# 开放端口
+				allowPort "${port}"
+
 				cat <<EOF >"${fileName}"
 {
   "inbounds": [
@@ -3951,11 +3956,13 @@ setDokodemoDoorUnblockStreamingMediaInbounds() {
 	echoContent yellow "5.每次添加都是重新添加，不会保留上次域名"
 	echoContent yellow "6.ip录入示例:1.1.1.1,1.1.1.2"
 	echoContent yellow "7.下面的域名一定要和出站的vps一致"
-	echoContent yellow "8.如有防火墙请手动开启22387、22388端口"
-	echoContent yellow "9.域名录入示例:netflix,disney,hulu\n"
+	#	echoContent yellow "8.如有防火墙请手动开启22387、22388端口"
+	echoContent yellow "8.域名录入示例:netflix,disney,hulu\n"
 	read -r -p "请输入允许访问该解锁 vps的IP:" setIPs
 	if [[ -n "${setIPs}" ]]; then
 		read -r -p "请按照上面示例录入域名:" domainList
+		allowPort 22387
+		allowPort 22388
 
 		cat <<EOF >${configPath}01_netflix_inbounds.json
 {
@@ -4550,7 +4557,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者:mack-a"
-	echoContent green "当前版本:v2.5.60"
+	echoContent green "当前版本:v2.5.61"
 	echoContent green "Github:https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述:八合一共存脚本\c"
 	showInstallStatus
