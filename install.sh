@@ -83,10 +83,12 @@ checkCPUVendor() {
 			'amd64' | 'x86_64')
 				xrayCoreCPUVendor="Xray-linux-64"
 				v2rayCoreCPUVendor="v2ray-linux-64"
+				hysteriaCoreCPUVendor="hysteria-linux-amd64"
 				;;
 			'armv8' | 'aarch64')
 				xrayCoreCPUVendor="Xray-linux-arm64-v8a"
 				v2rayCoreCPUVendor="v2ray-linux-arm64-v8a"
+				hysteriaCoreCPUVendor="hysteria-linux-arm64"
 				;;
 			*)
 				echo "  不支持此CPU架构--->"
@@ -111,6 +113,8 @@ initVar() {
 	# 核心支持的cpu版本
 	xrayCoreCPUVendor=""
 	v2rayCoreCPUVendor=""
+	hysteriaCoreCPUVendor=""
+
 	# 域名
 	domain=
 
@@ -513,6 +517,7 @@ mkdirTools() {
 	mkdir -p /etc/v2ray-agent/xray/conf
 	mkdir -p /etc/v2ray-agent/xray/tmp
 	mkdir -p /etc/v2ray-agent/trojan
+	mkdir -p /etc/v2ray-agent/hysteria/conf
 	mkdir -p /etc/systemd/system/
 	mkdir -p /tmp/v2ray-agent-tls/
 }
@@ -1685,6 +1690,11 @@ addClients() {
 		config=$(jq -r ".inbounds[0].settings.clients = ${previousClients}" "${path}")
 		echo "${config}" | jq . >"${path}"
 	fi
+}
+
+# 初始化Hysteria配置
+initHysteriaConfig() {
+	echoContent skyBlue "\n进度 $2/${totalProgress} : 初始化Hysteria配置"
 }
 
 # 初始化V2Ray 配置文件
