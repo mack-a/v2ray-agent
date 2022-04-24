@@ -360,7 +360,7 @@ readConfigHostPathUUID() {
 	currentDefaultPort=
 	currentUUID=
 	currentHost=
-	currentPort=
+	#	currentPort=
 	currentAdd=
 	# 读取path
 	if [[ -n "${configPath}" ]]; then
@@ -395,7 +395,7 @@ readConfigHostPathUUID() {
 		if [[ "${currentAdd}" == "null" ]]; then
 			currentAdd=${currentHost}
 		fi
-		currentPort=$(jq .inbounds[0].port ${configPath}${frontingType}.json)
+		#		currentPort=$(jq .inbounds[0].port ${configPath}${frontingType}.json)
 
 	elif [[ "${coreInstallType}" == "2" || "${coreInstallType}" == "3" ]]; then
 		if [[ "${coreInstallType}" == "3" ]]; then
@@ -410,7 +410,7 @@ readConfigHostPathUUID() {
 			currentAdd=${currentHost}
 		fi
 		currentUUID=$(jq -r .inbounds[0].settings.clients[0].id ${configPath}${frontingType}.json)
-		currentPort=$(jq .inbounds[0].port ${configPath}${frontingType}.json)
+		#		currentPort=$(jq .inbounds[0].port ${configPath}${frontingType}.json)
 	fi
 }
 
@@ -875,6 +875,9 @@ server {
 		grpc_read_timeout 1071906480m;
 		grpc_pass grpc://127.0.0.1:31304;
 	}
+	location / {
+        	add_header Strict-Transport-Security "max-age=15552000; preload" always;
+    }
 }
 EOF
 	elif echo "${selectCustomInstallType}" | grep -q 5 || [[ -z "${selectCustomInstallType}" ]]; then
@@ -2712,8 +2715,8 @@ showAccounts() {
 		if echo ${currentInstallProtocolType} | grep -q 5; then
 			echoContent skyBlue "\n=============================== VLESS gRPC TLS CDN ===============================\n"
 			echoContent red "\n --->gRPC处于测试阶段，可能对你使用的客户端不兼容，如不能使用请忽略"
-			local serviceName
-			serviceName=$(jq -r .inbounds[0].streamSettings.grpcSettings.serviceName ${configPath}06_VLESS_gRPC_inbounds.json)
+			#			local serviceName
+			#			serviceName=$(jq -r .inbounds[0].streamSettings.grpcSettings.serviceName ${configPath}06_VLESS_gRPC_inbounds.json)
 			jq .inbounds[0].settings.clients ${configPath}06_VLESS_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
 				echoContent skyBlue "\n ---> 帐号:$(echo "${user}" | jq -r .email)_$(echo "${user}" | jq -r .id)"
 				echo
@@ -2735,8 +2738,8 @@ showAccounts() {
 	if echo ${currentInstallProtocolType} | grep -q 2; then
 		echoContent skyBlue "\n================================  Trojan gRPC TLS  ================================\n"
 		echoContent red "\n --->gRPC处于测试阶段，可能对你使用的客户端不兼容，如不能使用请忽略"
-		local serviceName=
-		serviceName=$(jq -r .inbounds[0].streamSettings.grpcSettings.serviceName ${configPath}04_trojan_gRPC_inbounds.json)
+		#		local serviceName=
+		#		serviceName=$(jq -r .inbounds[0].streamSettings.grpcSettings.serviceName ${configPath}04_trojan_gRPC_inbounds.json)
 		jq .inbounds[0].settings.clients ${configPath}04_trojan_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
 			echoContent skyBlue "\n ---> 帐号:$(echo "${user}" | jq -r .email)_$(echo "${user}" | jq -r .password)"
 			echo
@@ -2751,15 +2754,19 @@ showAccounts() {
 # 移除nginx302配置
 removeNginx302() {
 	# 查找到302那行并删除
-	local line302Result=
-	line302Result=$(grep -n "return 302" </etc/nginx/conf.d/alone.conf | tail -n 1)
+	#	local line302Result=
+	#	line302Result=$(grep -n "return 302" </etc/nginx/conf.d/alone.conf | tail -n 1)
+	local count=0
+	grep -n "return 302" <"/etc/nginx/conf.d/alone.conf" | while read -r line; do
 
-	if ! echo "${line302Result}" | grep -q "request_uri"; then
-		sed -i "$(echo "${line302Result}" | awk -F "[:]" '{print $1}')d" /etc/nginx/conf.d/alone.conf
-		echoContent green " ---> 移除302重定向成功"
-		exit 0
-	fi
-
+		if ! echo "${line}" | grep -q "request_uri"; then
+			local removeIndex=
+			removeIndex=$(echo "${line}" | awk -F "[:]" '{print $1}')
+			removeIndex=$((removeIndex + count))
+			sed -i "${removeIndex}d" /etc/nginx/conf.d/alone.conf
+			count=$((count - 1))
+		fi
+	done
 }
 
 # 检查302是否成功
@@ -2794,16 +2801,24 @@ backupNginxConfig() {
 }
 # 添加302配置
 addNginx302() {
-	local line302Result=
-	line302Result=$(grep -n "Strict-Transport-Security" </etc/nginx/conf.d/alone.conf | tail -n 1)
+	#	local line302Result=
+	#	line302Result=$(| tail -n 1)
+	local count=1
+	grep -n "Strict-Transport-Security" <"/etc/nginx/conf.d/alone.conf" | while read -r line; do
+		if [[ -n "${line}" ]]; then
+			local insertIndex=
+			insertIndex="$(echo "${line}" | awk -F "[:]" '{print $1}')"
+			insertIndex=$((insertIndex + count))
+			sed "${insertIndex}i return 302 '$1';" /etc/nginx/conf.d/alone.conf >/etc/nginx/conf.d/tmpfile && mv /etc/nginx/conf.d/tmpfile /etc/nginx/conf.d/alone.conf
+			count=$((count + 1))
+		else
+			echoContent red " ---> 302添加失败"
+			backupNginxConfig restoreBackup
+		fi
 
-	if [[ -n "${line302Result}" ]]; then
-		sed "$(echo "${line302Result}" | awk -F "[:]" '{print $1}')i return 302 '$1';" /etc/nginx/conf.d/alone.conf >/etc/nginx/conf.d/tmpfile && mv /etc/nginx/conf.d/tmpfile /etc/nginx/conf.d/alone.conf
-	else
-		echoContent red " ---> 302添加失败"
-		backupNginxConfig restoreBackup
-	fi
+	done
 }
+
 # 更新伪装站
 updateNginxBlog() {
 	echoContent skyBlue "\n进度 $1/${totalProgress} : 更换伪装站点"
@@ -4541,7 +4556,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者:mack-a"
-	echoContent green "当前版本:v2.5.62"
+	echoContent green "当前版本:v2.5.63"
 	echoContent green "Github:https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述:八合一共存脚本\c"
 	showInstallStatus
