@@ -2668,8 +2668,8 @@ showAccounts() {
 		if echo "${currentInstallProtocolType}" | grep -q trojan; then
 			echoContent skyBlue "===================== Trojan TCP TLS/XTLS-direct/XTLS-splice ======================\n"
 			jq .inbounds[0].settings.clients ${configPath}02_trojan_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
-				echoContent skyBlue "\n ---> 帐号:$(echo "${user}" | jq -r .email)_$(echo "${user}" | jq -r .password)"
-				defaultBase64Code trojanTCPXTLS "$(echo "${user}" | jq -r .email)_$(echo "${user}" | jq -r .password)" "$(echo "${user}" | jq -r .password)"
+				echoContent skyBlue "\n ---> 帐号:$(echo "${user}" | jq -r .email)"
+				defaultBase64Code trojanTCPXTLS "$(echo "${user}" | jq -r .email)" "$(echo "${user}" | jq -r .password)"
 			done
 
 		else
@@ -2729,9 +2729,9 @@ showAccounts() {
 	if echo ${currentInstallProtocolType} | grep -q 4; then
 		echoContent skyBlue "\n==================================  Trojan TLS  ==================================\n"
 		jq .inbounds[0].settings.clients ${configPath}04_trojan_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
-			echoContent skyBlue "\n ---> 帐号:$(echo "${user}" | jq -r .email)_$(echo "${user}" | jq -r .password)"
+			echoContent skyBlue "\n ---> 帐号:$(echo "${user}" | jq -r .email)"
 
-			defaultBase64Code trojan "$(echo "${user}" | jq -r .email)_$(echo "${user}" | jq -r .password)" "$(echo "${user}" | jq -r .password)"
+			defaultBase64Code trojan "$(echo "${user}" | jq -r .email)" "$(echo "${user}" | jq -r .password)"
 		done
 	fi
 
@@ -2741,9 +2741,9 @@ showAccounts() {
 		#		local serviceName=
 		#		serviceName=$(jq -r .inbounds[0].streamSettings.grpcSettings.serviceName ${configPath}04_trojan_gRPC_inbounds.json)
 		jq .inbounds[0].settings.clients ${configPath}04_trojan_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
-			echoContent skyBlue "\n ---> 帐号:$(echo "${user}" | jq -r .email)_$(echo "${user}" | jq -r .password)"
+			echoContent skyBlue "\n ---> 帐号:$(echo "${user}" | jq -r .email)"
 			echo
-			defaultBase64Code trojangrpc "$(echo "${user}" | jq -r .email)_$(echo "${user}" | jq -r .password)" "$(echo "${user}" | jq -r .password)"
+			defaultBase64Code trojangrpc "$(echo "${user}" | jq -r .email)" "$(echo "${user}" | jq -r .password)"
 		done
 	fi
 
@@ -3832,6 +3832,7 @@ streamingToolbox() {
 	#	echoContent yellow "1.Netflix检测"
 	echoContent yellow "1.任意门落地机解锁流媒体"
 	echoContent yellow "2.DNS解锁流媒体"
+	echoContent yellow "3.VMess+WS+TLS解锁流媒体"
 	read -r -p "请选择:" selectType
 
 	case ${selectType} in
@@ -3840,6 +3841,9 @@ streamingToolbox() {
 		;;
 	2)
 		dnsUnlockNetflix
+		;;
+	3)
+		unblockVMessWSTLSStreamingMedia
 		;;
 	esac
 
@@ -3868,6 +3872,106 @@ dokodemoDoorUnblockStreamingMedia() {
 		removeDokodemoDoorUnblockStreamingMedia
 		;;
 	esac
+}
+
+# VMess+WS+TLS 出战解锁流媒体【仅出站】
+unblockVMessWSTLSStreamingMedia() {
+	echoContent skyBlue "\n功能 1/${totalProgress} : VMess+WS+TLS 出站解锁流媒体"
+	echoContent red "\n=============================================================="
+	echoContent yellow "# 注意事项"
+	echoContent yellow "适合通过其他服务商提供的VMess解锁服务\n"
+
+	echoContent yellow "1.添加出站"
+	echoContent yellow "2.卸载"
+	read -r -p "请选择:" selectType
+
+	case ${selectType} in
+	1)
+		setVMessWSTLSUnblockStreamingMediaOutbounds
+		;;
+	2)
+		removeVMessWSTLSUnblockStreamingMedia
+		;;
+	esac
+}
+
+# 设置VMess+WS+TLS解锁Netflix【仅出站】
+setVMessWSTLSUnblockStreamingMediaOutbounds() {
+	read -r -p "请输入解锁流媒体VMess+WS+TLS的地址:" setVMessWSTLSAddress
+	echoContent red "=============================================================="
+	echoContent yellow "# 注意事项\n"
+	echoContent yellow "1.规则仅支持预定义域名列表[https://github.com/v2fly/domain-list-community]"
+	echoContent yellow "2.详细文档[https://www.v2fly.org/config/routing.html]"
+	echoContent yellow "3.如内核启动失败请检查域名后重新添加域名"
+	echoContent yellow "4.不允许有特殊字符，注意逗号的格式"
+	echoContent yellow "5.每次添加都是重新添加，不会保留上次域名"
+	echoContent yellow "6.录入示例:netflix,disney,hulu\n"
+	read -r -p "请按照上面示例录入域名:" domainList
+
+	if [[ -z ${domainList} ]]; then
+		echoContent red " ---> 域名不可为空"
+		setVMessWSTLSUnblockStreamingMediaOutbounds
+	fi
+
+	if [[ -n "${setVMessWSTLSAddress}" ]]; then
+
+		unInstallOutbounds VMess-out
+
+		echo
+		read -r -p "请输入VMess+WS+TLS的端口:" setVMessWSTLSPort
+		echo
+		if [[ -z "${setVMessWSTLSPort}" ]]; then
+			echoContent red " ---> 端口不可为空"
+		fi
+
+		read -r -p "请输入VMess+WS+TLS的UUID:" setVMessWSTLSUUID
+		echo
+		if [[ -z "${setVMessWSTLSUUID}" ]]; then
+			echoContent red " ---> UUID不可为空"
+		fi
+
+		read -r -p "请输入VMess+WS+TLS的Path路径:" setVMessWSTLSPath
+		echo
+		if [[ -z "${setVMessWSTLSPath}" ]]; then
+			echoContent red " ---> 路径不可为空"
+		fi
+
+		outbounds=$(jq -r ".outbounds += [{\"tag\":\"VMess-out\",\"protocol\":\"vmess\",\"streamSettings\":{\"network\":\"ws\",\"security\":\"tls\",\"tlsSettings\":{\"allowInsecure\":false},\"wsSettings\":{\"path\":\"${setVMessWSTLSPath}\"}},\"mux\":{\"enabled\":true,\"concurrency\":8},\"settings\":{\"vnext\":[{\"address\":\"${setVMessWSTLSAddress}\",\"port\":${setVMessWSTLSPort},\"users\":[{\"id\":\"${setVMessWSTLSUUID}\",\"security\":\"auto\",\"alterId\":0}]}]}}]" ${configPath}10_ipv4_outbounds.json)
+
+		echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
+
+		if [[ -f "${configPath}09_routing.json" ]]; then
+			unInstallRouting VMess-out outboundTag
+
+			local routing
+
+			routing=$(jq -r ".routing.rules += [{\"type\":\"field\",\"domain\":[\"ip.sb\",\"geosite:${domainList//,/\",\"geosite:}\"],\"outboundTag\":\"VMess-out\"}]" ${configPath}09_routing.json)
+
+			echo "${routing}" | jq . >${configPath}09_routing.json
+		else
+			cat <<EOF >${configPath}09_routing.json
+{
+  "routing": {
+    "rules": [
+      {
+        "type": "field",
+        "domain": [
+          "ip.sb",
+          "geosite:${domainList//,/\",\"geosite:}"
+        ],
+        "outboundTag": "VMess-out"
+      }
+    ]
+  }
+}
+EOF
+		fi
+		reloadCore
+		echoContent green " ---> 添加出站解锁成功"
+		exit 0
+	fi
+	echoContent red " ---> 地址不可为空"
+	setVMessWSTLSUnblockStreamingMediaOutbounds
 }
 
 # 设置任意门解锁Netflix【出站】
@@ -4092,6 +4196,17 @@ removeDokodemoDoorUnblockStreamingMedia() {
 	unInstallRouting streamingMedia-443 outboundTag
 
 	rm -rf ${configPath}01_netflix_inbounds.json
+
+	reloadCore
+	echoContent green " ---> 卸载成功"
+}
+
+# 移除VMess+WS+TLS解锁流媒体
+removeVMessWSTLSUnblockStreamingMedia() {
+
+	unInstallOutbounds VMess-out
+
+	unInstallRouting VMess-out outboundTag
 
 	reloadCore
 	echoContent green " ---> 卸载成功"
@@ -4556,7 +4671,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者:mack-a"
-	echoContent green "当前版本:v2.5.64"
+	echoContent green "当前版本:v2.5.65"
 	echoContent green "Github:https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述:八合一共存脚本\c"
 	showInstallStatus
