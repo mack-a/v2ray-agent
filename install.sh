@@ -1112,19 +1112,51 @@ nginxBlog() {
 	fi
 
 }
+
+# 修改http_port_t端口
+updateSELinuxHTTPPortT() {
+
+	$(find /usr/bin /usr/sbin | grep -w journalctl) -xe >/etc/v2ray-agent/nginx_error.log 2>&1
+
+	if find /usr/bin /usr/sbin | grep -q -w semanage && find /usr/bin /usr/sbin | grep -q -w getenforce && grep -E "31300|31302" </etc/v2ray-agent/nginx_error.log | grep -q "Permission denied"; then
+		echoContent red " ---> 检查SELinux端口是否开放"
+		if ! $(find /usr/bin /usr/sbin | grep -w semanage) port -l | grep http_port | grep -q 31300; then
+			$(find /usr/bin /usr/sbin | grep -w semanage) port -a -t http_port_t -p tcp 31300
+			echoContent green " ---> http_port_t 31300 端口开放成功"
+		fi
+
+		if ! $(find /usr/bin /usr/sbin | grep -w semanage) port -l | grep http_port | grep -q 31302; then
+			$(find /usr/bin /usr/sbin | grep -w semanage) port -a -t http_port_t -p tcp 31302
+			echoContent green " ---> http_port_t 31302 端口开放成功"
+		fi
+		handleNginx start
+
+	else
+		exit 0
+	fi
+}
+
 # 操作Nginx
 handleNginx() {
 
 	if [[ -z $(pgrep -f "nginx") ]] && [[ "$1" == "start" ]]; then
-		systemctl start nginx
+		systemctl start nginx 2>/etc/v2ray-agent/nginx_error.log
+
 		sleep 0.5
 
 		if [[ -z $(pgrep -f nginx) ]]; then
 			echoContent red " ---> Nginx启动失败"
 			echoContent red " ---> 请手动尝试安装nginx后，再次执行脚本"
-			exit 0
+
+			if grep -q "journalctl -xe" </etc/v2ray-agent/nginx_error.log; then
+				updateSELinuxHTTPPortT
+			fi
+
+			# exit 0
+		else
+			echoContent green " ---> Nginx启动成功"
 		fi
-		echoContent green " ---> Nginx启动成功"
+
 	elif [[ -n $(pgrep -f "nginx") ]] && [[ "$1" == "stop" ]]; then
 		systemctl stop nginx
 		sleep 0.5
@@ -4607,7 +4639,7 @@ subscribe() {
 				base64Result=$(base64 -w 0 "/etc/v2ray-agent/subscribe/${email}")
 				echo "${base64Result}" >"/etc/v2ray-agent/subscribe/${email}"
 				echoContent skyBlue "--------------------------------------------------------------"
-				echoContent yellow "email:$(echo "${email}")\n"
+				echoContent yellow "email:${email}\n"
 				local currentDomain=${currentHost}
 
 				if [[ -n "${currentDefaultPort}" && "${currentDefaultPort}" != "443" ]]; then
@@ -4672,7 +4704,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者:mack-a"
-	echoContent green "当前版本:v2.5.66"
+	echoContent green "当前版本:v2.5.67"
 	echoContent green "Github:https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述:八合一共存脚本\c"
 	showInstallStatus
