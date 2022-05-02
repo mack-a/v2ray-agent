@@ -2675,9 +2675,9 @@ showAccounts() {
 		else
 			echoContent skyBlue "===================== VLESS TCP TLS/XTLS-direct/XTLS-splice ======================\n"
 			jq .inbounds[0].settings.clients ${configPath}02_VLESS_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
-				echoContent skyBlue "\n ---> 帐号:$(echo "${user}" | jq -r .email)_$(echo "${user}" | jq -r .id)"
+				echoContent skyBlue "\n ---> 帐号:$(echo "${user}" | jq -r .email)"
 				echo
-				defaultBase64Code vlesstcp "$(echo "${user}" | jq -r .email)_$(echo "${user}" | jq -r .id)" "$(echo "${user}" | jq -r .id)"
+				defaultBase64Code vlesstcp "$(echo "${user}" | jq -r .email)" "$(echo "${user}" | jq -r .id)"
 			done
 		fi
 
@@ -2686,14 +2686,14 @@ showAccounts() {
 			echoContent skyBlue "\n================================ VLESS WS TLS CDN ================================\n"
 
 			jq .inbounds[0].settings.clients ${configPath}03_VLESS_WS_inbounds.json | jq -c '.[]' | while read -r user; do
-				echoContent skyBlue "\n ---> 帐号:$(echo "${user}" | jq -r .email)_$(echo "${user}" | jq -r .id)"
+				echoContent skyBlue "\n ---> 帐号:$(echo "${user}" | jq -r .email)"
 				echo
 				local path="${currentPath}ws"
 				#	if [[ ${coreInstallType} == "1" ]]; then
 				#		echoContent yellow "Xray的0-RTT path后面会有，不兼容以v2ray为核心的客户端，请手动删除后使用\n"
 				#		path="${currentPath}ws"
 				#	fi
-				defaultBase64Code vlessws "$(echo "${user}" | jq -r .email)_$(echo "${user}" | jq -r .id)" "$(echo "${user}" | jq -r .id)"
+				defaultBase64Code vlessws "$(echo "${user}" | jq -r .email)" "$(echo "${user}" | jq -r .id)"
 			done
 		fi
 
@@ -2705,9 +2705,9 @@ showAccounts() {
 				path="${currentPath}vws"
 			fi
 			jq .inbounds[0].settings.clients ${configPath}05_VMess_WS_inbounds.json | jq -c '.[]' | while read -r user; do
-				echoContent skyBlue "\n ---> 帐号:$(echo "${user}" | jq -r .email)_$(echo "${user}" | jq -r .id)"
+				echoContent skyBlue "\n ---> 帐号:$(echo "${user}" | jq -r .email)"
 				echo
-				defaultBase64Code vmessws "$(echo "${user}" | jq -r .email)_$(echo "${user}" | jq -r .id)" "$(echo "${user}" | jq -r .id)"
+				defaultBase64Code vmessws "$(echo "${user}" | jq -r .email)" "$(echo "${user}" | jq -r .id)"
 			done
 		fi
 
@@ -2718,9 +2718,9 @@ showAccounts() {
 			#			local serviceName
 			#			serviceName=$(jq -r .inbounds[0].streamSettings.grpcSettings.serviceName ${configPath}06_VLESS_gRPC_inbounds.json)
 			jq .inbounds[0].settings.clients ${configPath}06_VLESS_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
-				echoContent skyBlue "\n ---> 帐号:$(echo "${user}" | jq -r .email)_$(echo "${user}" | jq -r .id)"
+				echoContent skyBlue "\n ---> 帐号:$(echo "${user}" | jq -r .email)"
 				echo
-				defaultBase64Code vlessgrpc "$(echo "${user}" | jq -r .email)_$(echo "${user}" | jq -r .id)" "$(echo "${user}" | jq -r .id)"
+				defaultBase64Code vlessgrpc "$(echo "${user}" | jq -r .email)" "$(echo "${user}" | jq -r .id)"
 			done
 		fi
 	fi
@@ -4601,12 +4601,13 @@ subscribe() {
 
 		if [[ -n $(ls /etc/v2ray-agent/subscribe/) ]]; then
 			find /etc/v2ray-agent/subscribe/* | while read -r email; do
-				email=$(echo "${email}" | awk -F "[s][u][b][s][c][r][i][b][e][/]" '{print $2}')
+				email=$(echo "${email}" | awk -F "[b][e][/]" '{print $2}')
+
 				local base64Result
 				base64Result=$(base64 -w 0 "/etc/v2ray-agent/subscribe/${email}")
 				echo "${base64Result}" >"/etc/v2ray-agent/subscribe/${email}"
 				echoContent skyBlue "--------------------------------------------------------------"
-				echoContent yellow "email:$(echo "${email}" | awk -F "[_]" '{print $1}')\n"
+				echoContent yellow "email:$(echo "${email}")\n"
 				local currentDomain=${currentHost}
 
 				if [[ -n "${currentDefaultPort}" && "${currentDefaultPort}" != "443" ]]; then
@@ -4671,7 +4672,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者:mack-a"
-	echoContent green "当前版本:v2.5.65"
+	echoContent green "当前版本:v2.5.66"
 	echoContent green "Github:https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述:八合一共存脚本\c"
 	showInstallStatus
