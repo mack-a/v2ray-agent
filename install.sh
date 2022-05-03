@@ -371,6 +371,17 @@ readConfigHostPathUUID() {
 		elif [[ $(echo "${fallback}" | jq -r .dest) == 31299 ]]; then
 			currentPath=$(echo "${path}" | awk -F "[v][w][s]" '{print $1}')
 		fi
+		# 尝试读取alpn h2 Path
+		if [[ -z "${currentPath}" ]]; then
+			dest=$(jq -r -c '.inbounds[0].settings.fallbacks[]|select(.alpn)|.dest' ${configPath}${frontingType}.json | head -1)
+			if [[ "${dest}" == "31302" ]]; then
+				if grep -q "trojangrpc {" <${nginxConfigPath}alone.conf; then
+					currentPath=$(grep "trojangrpc {" <${nginxConfigPath}alone.conf | awk -F "[/]" '{print $2}' | awk -F "[t][r][o][j][a][n]" '{print $1}')
+				elif grep -q "grpc {" <${nginxConfigPath}alone.conf; then
+					currentPath=$(grep "grpc {" <${nginxConfigPath}alone.conf | head -1 | awk -F "[/]" '{print $2}' | awk -F "[g][r][p][c]" '{print $1}')
+				fi
+			fi
+		fi
 
 		local defaultPortFile=
 		defaultPortFile=$(find ${configPath}* | grep "default")
@@ -514,7 +525,6 @@ mkdirTools() {
 
 # 安装工具包
 installTools() {
-	echo '安装工具'
 	echoContent skyBlue "\n进度  $1/${totalProgress} : 安装工具"
 	# 修复ubuntu个别系统问题
 	if [[ "${release}" == "ubuntu" ]]; then
@@ -4704,7 +4714,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者:mack-a"
-	echoContent green "当前版本:v2.5.67"
+	echoContent green "当前版本:v2.5.68"
 	echoContent green "Github:https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述:八合一共存脚本\c"
 	showInstallStatus
