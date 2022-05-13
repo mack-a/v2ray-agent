@@ -42,7 +42,7 @@ CLOUD V JP:Japan Tokyo Premium 三网 CN2 GIA|1G|1核|20G|250G|100Mbps|48 USD/�
 
 套餐名称|内存|CPU|硬盘|流量|带宽|价格|购买链接
 ---|---|---|---|---|---|---|---
-LosAngles PVM.LAX.Pro.TINY|1G|1核|10G|650G|500Mbps|28.88 USD/季|[购买链接](https://www.dmit.io/aff.php?aff=3084)
+LosAngles PVM.LAX.Pro.TINY|1G|1核|10G|650G|500Mbps|28.88 USD/季|[购买链接](https://www.dmit.io/aff.php?aff=3084&a=add&pid=100)
 
 # 2.联通 AS9929（A网）
 
@@ -141,11 +141,13 @@ CLOUD K JP: JAPAN TOKYO SOFTBANK IP TRANSIT|512M|1核|10G|500G|100Mbps|8.2 USD/�
 - [TOS](https://t.me/DMIT_INC_CN/544)
 - 流量双向计费
 - 去程有可能更换
+- 线路实测为主
+- [speedtest](http://dmit-hkg-lite.gubo.org/speedtest/)
+- 测试ip：103.135.248.22
 
-#### 去程【截止发文日期2022-4-19】
+#### 去程
 
-- 电信CN2-PCCW
-- 联通4837-4134-4809-PCCW
+- 联通、电信 绕日NTT（4837->日本NTT->HK PCCW【2022-5-9】
 - 移动CMI
 
 #### 回程
@@ -156,11 +158,16 @@ CLOUD K JP: JAPAN TOKYO SOFTBANK IP TRANSIT|512M|1核|10G|500G|100Mbps|8.2 USD/�
 - 半年付八折：Lite-Semi-Annually-Recur-20OFF
 
 
+
 套餐名称| 内存 |CPU|硬盘(SSD)|流量|带宽|价格|购买链接
 ---|---|---|---|---|---|---|---
-PVM.HKG.Lite.TINY| 0.75G |1 vCPU|10 GB SSD|2T|1Gbps|$6.9 USD/月|[购买链接](https://www.dmit.io/aff.php?aff=3084)
-PVM.HKG.Lite.STARTER| 1.5G |1 vCPU|20 GB SSD|4T|1Gbps|$12.9 USD/月|[购买链接](https://www.dmit.io/aff.php?aff=3084)
-PVM.HKG.Lite.MINI| 2G |2 vCPU|40 GB SSD|6T|2Gbps|$21.9 USD/月|[购买链接](https://www.dmit.io/aff.php?aff=3084)
+PVM.HKG.Lite.TINY| 0.75G |1 vCPU|10 GB SSD|2T|1Gbps|$6.9 USD/月|[购买链接](https://www.dmit.io/aff.php?aff=3084&a=add&pid=109)
+PVM.HKG.Lite.STARTER| 1.5G |1 vCPU|20 GB SSD|4T|1Gbps|$12.9 USD/月|[购买链接](https://www.dmit.io/aff.php?aff=3084&a=add&pid=110)
+PVM.HKG.Lite.MINI| 2G |2 vCPU|40 GB SSD|6T|2Gbps|$21.9 USD/月|[购买链接](https://www.dmit.io/aff.php?aff=3084&a=add&pid=111)
+
+PVM.HKG.Lite.MICRO| 4G |2 vCPU|60 GB SSD|8T|2Gbps|$32.9 USD/月|[购买链接](https://www.dmit.io/aff.php?aff=3084&a=add&pid=111)
+
+PVM.HKG.Lite.MINI| 4G |4 vCPU|80 GB SSD|6T|2Gbps|$49.9 USD/月|[购买链接](https://www.dmit.io/aff.php?aff=3084&a=add&pid=111)
 
 
 ### 2.RFCHOST Hong Kong 3 Premium
@@ -185,4 +192,3 @@ PVM.HKG.Lite.MINI| 2G |2 vCPU|40 GB SSD|6T|2Gbps|$21.9 USD/月|[购买链接](ht
 HKG3-Premium-Micro| 512MB |1 CPU|8 GB SSD|500G（只计算出方向流量）|500Mbps|$9.9 USD/月|[购买链接](https://my.rfchost.com/aff.php?aff=899)
 HKG3-Premium-Mini| 1.5G |1 CPU|10 GB SSD|1T|1Gbps|$12.99 USD/月|[购买链接](https://my.rfchost.com/aff.php?aff=899)
 HKG3-Premium-Medium| 2G |2 CPU|20 GB SSD|2T|1Gbps|$21.9 USD/月|[购买链接](https://my.rfchost.com/aff.php?aff=899)
-
