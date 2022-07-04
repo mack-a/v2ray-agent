@@ -977,10 +977,12 @@ checkIP() {
 	handleNginx stop
 	if [[ -z ${localIP} ]] || ! echo "${localIP}" | sed '1{s/[^(]*(//;s/).*//;q}' | grep -q '\.' && ! echo "${localIP}" | sed '1{s/[^(]*(//;s/).*//;q}' | grep -q ':'; then
 		echoContent red "\n ---> 未检测到当前域名的ip"
-		echoContent yellow " ---> 请检查域名是否书写正确"
-		echoContent yellow " ---> 请检查域名dns解析是否正确"
-		echoContent yellow " ---> 如解析正确，请等待dns生效，预计三分钟内生效"
-		echoContent yellow " ---> 如以上设置都正确，请重新安装纯净系统后再次尝试"
+		echoContent skyBlue " ---> 请依次进行下列检查"
+		echoContent yellow " --->  1.检查域名是否书写正确"
+		echoContent yellow " --->  2.检查域名dns解析是否正确"
+		echoContent yellow " --->  3.如解析正确，请等待dns生效，预计三分钟内生效"
+		echoContent yellow " --->  4.如报Nginx启动问题，请手动启动nginx查看错误，如自己无法处理请提issues"
+		echoContent skyBlue " ---> 如以上设置都正确，请重新安装纯净系统后再次尝试"
 		if [[ -n ${localIP} ]]; then
 			echoContent yellow " ---> 检测返回值异常，建议手动卸载nginx后重新执行脚本"
 		fi
@@ -4719,12 +4721,12 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者:mack-a"
-	echoContent green "当前版本:v2.5.71"
+	echoContent green "当前版本:v2.5.72"
 	echoContent green "Github:https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述:八合一共存脚本\c"
 	showInstallStatus
 	echoContent red "\n=============================================================="
-	echoContent red "                        推广区【试运行】                         "
+	echoContent red "                        推广区                      "
 	echoContent green "AFF捐赠：https://github.com/mack-a/v2ray-agent/blob/master/documents/donation_aff.md\n"
 	echoContent green "虚拟币捐赠：0xB08b731653515b083deE362fefFc45d5eb96c35d\n"
 	echoContent green "推广可联系TG：https://t.me/mackaff"
