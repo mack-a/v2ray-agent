@@ -47,11 +47,11 @@
 ## 支持的安装类型
 
 - VLESS+TCP+TLS
-- VLESS+TCP+xtls-rprx-direct【**推荐**】
+- VLESS+TCP+xtls-rprx-direct
 - VLESS+gRPC+TLS【支持CDN、IPv6、延迟低】
 - VLESS+WS+TLS【支持CDN、IPv6】
 - Trojan+TCP+TLS【**推荐**】
-- Trojan+TCP+xtls-rprx-direct【**推荐**】
+- Trojan+TCP+xtls-rprx-direct
 - Trojan+gRPC+TLS【支持CDN、IPv6、延迟低】
 - VMess+WS+TLS【支持CDN、IPv6】
 
