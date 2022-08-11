@@ -668,6 +668,8 @@ installTools() {
 			echoContent yellow "错误排查:"
 			echoContent red "  1.获取Github文件失败，请等待Github恢复后尝试，恢复进度可查看 [https://www.githubstatus.com/]"
 			echoContent red "  2.acme.sh脚本出现bug，可查看[https://github.com/acmesh-official/acme.sh] issues"
+			echoContent red "  3.如纯IPv6机器，请设置NAT64,可执行下方命令"
+			echoContent skyBlue "  echo -e \"nameserver 2001:67c:2b0::4\\\nnameserver 2001:67c:2b0::6\" >> /etc/resolv.conf"
 			exit 0
 		fi
 	fi
@@ -1364,11 +1366,11 @@ v2rayVersionManageMenu() {
 			echoContent red "\n ---> 输入有误，请重新输入"
 			v2rayVersionManageMenu 1
 		fi
-	elif [[ "${selectXrayType}" == "3" ]]; then
+	elif [[ "${selectV2RayType}" == "3" ]]; then
 		handleV2Ray stop
-	elif [[ "${selectXrayType}" == "4" ]]; then
+	elif [[ "${selectV2RayType}" == "4" ]]; then
 		handleV2Ray start
-	elif [[ "${selectXrayType}" == "5" ]]; then
+	elif [[ "${selectV2RayType}" == "5" ]]; then
 		reloadCore
 	fi
 }
@@ -4721,7 +4723,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者:mack-a"
-	echoContent green "当前版本:v2.5.72"
+	echoContent green "当前版本:v2.5.73"
 	echoContent green "Github:https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述:八合一共存脚本\c"
 	showInstallStatus
