@@ -190,6 +190,9 @@ initVar() {
 
 	# nginx配置文件路径
 	nginxConfigPath=/etc/nginx/conf.d/
+
+	# 是否为预览版
+	prereleaseStatus=false
 }
 
 # 检测安装方式
@@ -384,7 +387,6 @@ readConfigHostPathUUID() {
 				fi
 			fi
 		fi
-
 
 		local defaultPortFile=
 		defaultPortFile=$(find ${configPath}* | grep "default")
@@ -1385,15 +1387,21 @@ xrayVersionManageMenu() {
 	fi
 	echoContent red "\n=============================================================="
 	echoContent yellow "1.升级Xray-core"
-	echoContent yellow "2.回退Xray-core"
-	echoContent yellow "3.关闭Xray-core"
-	echoContent yellow "4.打开Xray-core"
-	echoContent yellow "5.重启Xray-core"
+	echoContent yellow "2.升级Xray-core 预览版"
+	echoContent yellow "3.回退Xray-core"
+	echoContent yellow "4.关闭Xray-core"
+	echoContent yellow "5.打开Xray-core"
+	echoContent yellow "6.重启Xray-core"
 	echoContent red "=============================================================="
 	read -r -p "请选择:" selectXrayType
 	if [[ "${selectXrayType}" == "1" ]]; then
 		updateXray
 	elif [[ "${selectXrayType}" == "2" ]]; then
+
+		prereleaseStatus=true
+		updateXray
+
+	elif [[ "${selectXrayType}" == "3" ]]; then
 		echoContent yellow "\n1.只可以回退最近的五个版本"
 		echoContent yellow "2.不保证回退后一定可以正常使用"
 		echoContent yellow "3.如果回退的版本不支持当前的config，则会无法连接，谨慎操作"
@@ -1408,11 +1416,11 @@ xrayVersionManageMenu() {
 			echoContent red "\n ---> 输入有误，请重新输入"
 			xrayVersionManageMenu 1
 		fi
-	elif [[ "${selectXrayType}" == "3" ]]; then
-		handleXray stop
 	elif [[ "${selectXrayType}" == "4" ]]; then
-		handleXray start
+		handleXray stop
 	elif [[ "${selectXrayType}" == "5" ]]; then
+		handleXray start
+	elif [[ "${selectXrayType}" == "6" ]]; then
 		reloadCore
 	fi
 
@@ -1502,7 +1510,7 @@ updateXray() {
 		if [[ -n "$1" ]]; then
 			version=$1
 		else
-			version=$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases | jq -r '.[]|select (.prerelease==false)|.tag_name' | head -1)
+			version=$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases | jq -r ".[]|select (.prerelease==${prereleaseStatus})|.tag_name" | head -1)
 		fi
 
 		echoContent green " ---> Xray-core版本:${version}"
@@ -1524,7 +1532,7 @@ updateXray() {
 		if [[ -n "$1" ]]; then
 			version=$1
 		else
-			version=$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases | jq -r '.[]|select (.prerelease==false)|.tag_name' | head -1)
+			version=$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases | jq -r ".[]|select (.prerelease==${prereleaseStatus})|.tag_name" | head -1)
 		fi
 
 		if [[ -n "$1" ]]; then
@@ -4723,7 +4731,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者:mack-a"
-	echoContent green "当前版本:v2.5.73"
+	echoContent green "当前版本:v2.5.74"
 	echoContent green "Github:https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述:八合一共存脚本\c"
 	showInstallStatus
