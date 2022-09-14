@@ -22,69 +22,50 @@
 
 * * *
 
-# 1.Seven-in-One Coexistence Script+Camouflage site
+# 1.Eight-in-One Coexistence Script+Camouflage site
 
 - [Cloudflare Introductory tutorial](https://github.com/mack-a/v2ray-agent/blob/master/documents/cloudflare_init.md)
 
 ## Characteristics
 
-- Support [Xray-core[XTLS]](https://github.com/XTLS/Xray-core)、v2ray-core [XTLS]、v2ray-core
+- Support [Xray-core[XTLS]](https://github.com/XTLS/Xray-core) and [v2ray-core](https://github.com/v2fly/v2ray-core)
+- Support VLESS/Trojan Forward Proxy [VLESS XTLS -> Trojan XTLS]、[Trojan XTLS -> VLESS XTLS]
 - Support for reading configuration files from different cores to each other
-- Support VLESS/VMess/trojan/trojan-go[ws]
-- Support Debian、Ubuntu、Centos,Support mainstream cpu architecture。**Centos and lower versions of systems are not recommended,Centos6 is no longer supported after 2.3.x**
-- Support for personalized installation
-- Install and reinstall any combination without uninstalling. No extra files left when uninstalling the script
-- Support IPv6，[IPv6 Notes](https://github.com/mack-a/v2ray-agent/blob/master/documents/IPv6_help.md)
-- Support for human verification using IPv6 to exclude Google,**You need to apply for IPv6 tunnel by yourself, it is not recommended to use the IPv6 that comes with the vps**
+- Support VLESS/VMess/trojan
+- Support Debian, Ubuntu, and Centos. Support mainstream cpu architecture
+- Support any combination of installation, multi-user management, adding multiple ports
+- Support IPv6，[IPv6 Notes](https://github.com/mack-a/v2ray-agent/blob/master/documents/ipv6_help.md)
 - [Support custom certificate installation](https://github.com/mack-a/v2ray-agent/blob/master/documents/install_tls.md)
 
-## Architecture
+## Supported installation types
 
 - VLESS+TCP+TLS
-- VLESS+TCP+xtls-rprx-direct【**Recommended**】
-- VLESS+WS+TLS【Support CDN、IPv6】
-- VMess+TCP+TLS
-- VMess+WS+TLS【Support CDN、IPv6】
-- Trojan【**Recommended**】
-- Trojan-Go+WS【Support CDN、不支持IPv6】
-
-## Line recommendation(China)
-
-- 1.GIA
-- 2.Shanghai CN2+HK
-- 3.Shanghai Unicom+Taiwan TFN
-- 4.Shanghai Unicom+Vultr Tokyo
-- 5.Guangdong Mobile/Zhuhai Mobile+HKIX/CMI/NTT
-- 6.Suzhou->Japan IPLC+Japan/US
-- 7.Dongguan->HongKong IPLC+HK
-- 8.Guangdong Mobile/Shanghai CN2+Cloudflare+Global
-- 9.Guangdong Mobile/CN2/South China Unicom+HK AZ+Global
-- 10.North China Unicom+Siberia、Burley ttk/RT
-- 11.CN2+HE
-- 12.China Telecom+Far EasTone Taiwan
-
-## Combination recommendation
-
-- Transit/gia ---> VLESS+TCP+TLS/XTLS、Trojan【Recommended Use XTLS->xtls-rprx-direct】
-- China Mobile Broadband ---> VMESS+WS+TLS/Trojan-Go+WS + Cloudflare
-- Trojan recommends turning on Mux【**Multiplexing**】，Client-side on only, server-side adaptive
-- VMess/VLESS can also open Mux, the effect needs to be tried by yourself, XTLS does not support Mux. only the client needs to open, the server side adaptive.
+- VLESS+TCP+xtls-rprx-direct
+- VLESS+gRPC+TLS [Support CDN, IPv6, low latency]
+- VLESS+WS+TLS [Support CDN, IPv6]
+- Trojan+TCP+TLS [**Recommended**]
+- Trojan+TCP+xtls-rprx-direct
+- Trojan+gRPC+TLS [Support CDN, IPv6, low latency]
+- VMess+WS+TLS [Support CDN, IPv6]
 
 ## Cautions
 
-- Modify Cloudflare->SSL/TLS->Overview->Full
-- Cloudflare ---> A record resolution of clouds must be gray
+- **Modify Cloudflare->SSL/TLS->Overview->Full**
+- **Cloudflare ---> A record resolution of clouds must be gray**
+- **If you use CDN and direct connection at the same time, turn off cloud and use self-selected IP. More info in [Cloudflare Optimization Solutions](https://github.com/mack-a/v2ray-agent/blob/master/documents/optimize_V2Ray.md)**
 - **Use the pure system installation, if you have installed using other scripts, please re-build the system and then install**
 - wget: command not found [**Here you need to manually install the wget yourself**]
-  ，If you have not used Linux，[Click to view](https://github.com/mack-a/v2ray-agent/tree/master/documents/install_tools.md)Installation Tutorial
+  , If you have not used Linux，[Click to view](https://github.com/mack-a/v2ray-agent/tree/master/documents/install_tools.md)Installation Tutorial
 - Non-root accounts are not supported
-- **The version number upgrade in the middle means that it may not be compatible with the previously installed content, so please upgrade carefully if you are not chasing new users or must upgrade the
-  version. ** For example, 2.2.\*, not compatible with 2.1.\*
 - **If you find Nginx-related problems, please uninstall the self-compiled nginx or re-build the system**
-- **In order to save time, feedback please bring detailed screenshots or in accordance with the template specifications, no screenshots or not in accordance with the specifications of the issue will
-  be directly closed**
+- **If you want to give feedback, please show detailed screenshots or in accordance with the template specifications. No screenshots or not in accordance with the specifications of the issue will be directly closed**
 - **Not recommended for GCP users**
-- **Centos and lower versions are not recommended, Centos6 is no longer supported after 2.3.x**
+- **Centos and lower versions are not recommended, Centos6 and Ubuntu 16.x are no longer supported**
+- **Oracle Cloud has an additional firewall that needs to be set manually**
+- **Oracle Cloud only supports Ubuntu**
+- **If you use gRPC to forward through cloudflare, you need to allow gRPC in cloudflare settings, path: cloudflare Network->gRPC**
+- **gRPC is currently in beta and may not be compatible with the client you are using. Ignore it if you have any problems**
+- **The issue about not starting when the script is upgraded from lower version, [Here is solution](https://github.com/mack-a/v2ray-agent/blob/master/documents/how_to_use.md#4%E4%BD%8E%E7%89%88%E6%9C%AC%E5%8D%87%E7%BA%A7%E9%AB%98%E7%89%88%E6%9C%AC%E5%90%8E%E6%97%A0%E6%B3%95%E5%90%AF%E5%8A%A8%E6%A0%B8%E5%BF%83)**
 
 ## Script Catalog
 
@@ -93,10 +74,6 @@
 - Trojan 【**/etc/v2ray-agent/trojan**】
 - TLS 【**/etc/v2ray-agent/tls**】
 - Nginx Configuration file 【**/etc/nginx/conf.d/alone.conf**】、Nginx fake site directory 【**/usr/share/nginx/html**】
-
-## [Scripting Common Commands](https://github.com/mack-a/v2ray-agent/blob/master/documents/common_commands.md)
-
-## [Common script errors handling](https://github.com/mack-a/v2ray-agent/blob/master/documents/shell_error.md)
 
 ## Usage
 
