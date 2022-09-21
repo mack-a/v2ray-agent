@@ -1021,7 +1021,7 @@ checkIP() {
 # 自定义email
 customSSLEmail() {
 	if [[ -d "/root/.acme.sh" && -f "/root/.acme.sh/account.conf" ]]; then
-		if ! grep -q "ACCOUNT_EMAIL" <"/root/.acme.sh/account.conf"; then
+		if ! grep -q "ACCOUNT_EMAIL" <"/root/.acme.sh/account.conf" && ! echo "${sslType}" | grep -q "letsencrypt"; then
 			read -r -p "请输入邮箱地址:" sslEmail
 			if echo "${sslEmail}" | grep -q "@"; then
 				echo "ACCOUNT_EMAIL='${sslEmail}'" >>/root/.acme.sh/account.conf
@@ -1039,28 +1039,25 @@ customSSLEmail() {
 switchSSLType() {
 	if [[ -z "${sslType}" ]]; then
 		echoContent red "\n=============================================================="
-		echoContent yellow "1.letsencrypt"
+		echoContent yellow "1.letsencrypt[默认]"
 		echoContent yellow "2.zerossl"
 		echoContent yellow "3.buypass"
 		echoContent red "=============================================================="
-		read -r -p "请选择:" selectSSLType
-		if [[ "${selectSSLType}" =~ ^[1-3]$ ]]; then
-
-			case ${selectSSLType} in
-			1)
-				sslType="letsencrypt"
-				;;
-			2)
-				sslType="zerossl"
-				;;
-			3)
-				sslType="buypass"
-				;;
-			esac
-		else
-			echoContent red " ---> 选择错误，请重新选择"
-			switchSSLType
-		fi
+		read -r -p "请选择[回车]使用默认:" selectSSLType
+		case ${selectSSLType} in
+		1)
+			sslType="letsencrypt"
+			;;
+		2)
+			sslType="zerossl"
+			;;
+		3)
+			sslType="buypass"
+			;;
+		*)
+			sslType="letsencrypt"
+			;;
+		esac
 	fi
 }
 # 安装TLS
@@ -4787,7 +4784,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者:mack-a"
-	echoContent green "当前版本:v2.5.76"
+	echoContent green "当前版本:v2.5.77"
 	echoContent green "Github:https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述:八合一共存脚本\c"
 	showInstallStatus
