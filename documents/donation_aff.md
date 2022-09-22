@@ -103,6 +103,33 @@ LAX:SimpleCloud V01 电信gia 联通AS9929|500M|1核|20G|1T|1Gbps|12 USD/月|5% 
 XMas Sale - 1.5GB KVM|1.5G|1核|20 GB SSD Cached RAID-10 Storage|4.5T|1Gbps|$15.71 USD|联通去程回程都走AS4837，大流量机器|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=52)
 [6.18 SALE - 2021] 1.8 GB KVM VPS Special |1.8G|2核|18 GB Pure SSD|5T|1Gbps|$17.88 USD|联通去程回程都走AS4837，大流量机器|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=508)
 
+### 2.dmit
+- 位置：sanjose
+- 流量双向计费
+- 联通4837，10Gbps超大带宽
+- 数据中心目前处于OpenBeta，不保证SLA
+- 新购享受年付7折优惠、半年付8折优惠
+- 年付七折优惠码：Lite-Annually-Recur-30OFF
+- 半年付八折优惠码：Lite-Semi-Annually-Recur-20OFF
+
+#### 非使用优惠介绍
+- 如果再不使用优惠码的情况下订购年付产品可享受【买一赠一】
+- 赠品第一年免费（仅限首年，这意味着赠品也要求为年付）
+- 赠品可以拆分为多个订单（要求不高于原订单价格）
+- 赠品可以请求创建在其他账户（工单内备注）
+- 通过工单请求赠品，每个订单只允许请求一次，10月26日 23：59（UTC）之前提交工单，不支持TINY系列
+
+套餐名称| 内存    |CPU|硬盘(SSD)|流量|带宽|价格|购买链接
+---|-------|---|---|---|---|---|---
+PVM.SJC.TINY| 768MB |1vCPU|10G|2T|10Gbps|$6.9 USD/月|[点击购买](https://www.dmit.io/aff.php?aff=3084&a=add&pid=145)
+PVM.SJC.STARTER| 1.5G  |1vCPU|20G|4T|10Gbps|$12.9 USD/月|[点击购买](https://www.dmit.io/aff.php?aff=3084&a=add&pid=146)
+PVM.SJC.MINI| 2G    |2vCPU|40G|6T|10Gbps|$21.9 USD/月|[点击购买](https://www.dmit.io/aff.php?aff=3084&a=add&pid=147)
+PVM.SJC.MICRO| 4G    |2vCPU|80G|8T|10Gbps|$32.9 USD/月|[点击购买](https://www.dmit.io/aff.php?aff=3084&a=add&pid=148)
+PVM.SJC.MEDIUM| 4G    |4vCPU|120G|12T|10Gbps|$49.9 USD/月|[点击购买](https://www.dmit.io/aff.php?aff=3084&a=add&pid=149)
+PVM.SJC.LARGE| 8G    |4vCPU|200G|22T|10Gbps|$99.9 USD/月|[点击购买](https://www.dmit.io/aff.php?aff=3084&a=add&pid=150)
+PVM.SJC.GIANT| 16G   |8vCPU|400G|44T|10Gbps|$199.9 USD/月|[点击购买](https://www.dmit.io/aff.php?aff=3084&a=add&pid=151)
+
+
 # 4.联通 日本软银
 
 ## 1.推荐理由
