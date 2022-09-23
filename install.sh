@@ -202,6 +202,9 @@ initVar() {
 
 	# 检查天数
 	sslRenewalDays=90
+
+	# dns ssl状态
+	dnsSSLStatus=
 }
 
 # 检测安装方式
@@ -630,6 +633,11 @@ installTools() {
 		echoContent green " ---> 安装lsof"
 		${installType} lsof >/dev/null 2>&1
 	fi
+
+	if ! find /usr/bin /usr/sbin | grep -q -w nslookup; then
+    		echoContent green " ---> 安装nslookup"
+    		${installType} nslookup >/dev/null 2>&1
+    	fi
 
 	# 检测nginx版本，并提供是否卸载的选项
 
@@ -1071,8 +1079,41 @@ switchSSLType() {
 		esac
 		touch /etc/v2ray-agent/tls
 		echo "${sslType}" >/etc/v2ray-agent/tls/ssl_type
+
 	fi
 }
+acmeInstallSSL() {
+	local installSSLIPv6=
+	if echo "${localIP}" | grep -q ":"; then
+		installSSLIPv6="--listen-v6"
+	fi
+	read -r -p "是否使用DNS申请证书[y/n]:" installSSLDNStatus
+	if [[ ${installSSLDNStatus} == 'y' ]]; then
+		dnsSSLStatus=true
+	fi
+
+	if [[ "${dnsSSLStatus}" == "true" ]]; then
+		local dnsTLSDomain=$(echo "${tlsDomain}"|awk -F "[.]" '{print $(NF-1)"."$NF}')
+		sudo "$HOME/.acme.sh/acme.sh" --issue -d "*.${dnsTLSDomain}" --dns --yes-I-know-dns-manual-mode-enough-go-ahead-please --standalone -k ec-256 --server "${sslType}" "${installSSLIPv6}" 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
+		local txtValue=$(tail -n 10 /etc/v2ray-agent/tls/acme.log | grep "TXT value" | awk -F "'" '{print $2}')
+		if [[ -n "${txtValue}" ]]; then
+			echoContent green " ---> 请手动添加DNS TXT记录"
+			echoContent green " --->  name：_acme-challenge"
+			echoContent green " --->  value：${txtValue}"
+			echoContent yellow " ---> 添加完成后等请等待1-2分钟"
+			read -r -p "是否添加完成[y/n]:" addDNSTXTRecordStatus
+			if [[ "${addDNSTXTRecordStatus}" == "y" ]]; then
+				# n
+			else
+				echoContent red " ---> 放弃"
+				exit 0
+			fi
+		fi
+	fi
+
+	# sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --server "${sslType}" "${installSSLIPv6}" 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
+}
+
 # 安装TLS
 installTLS() {
 	echoContent skyBlue "\n进度  $1/${totalProgress} : 申请TLS证书\n"
@@ -1100,11 +1141,7 @@ installTLS() {
 		switchSSLType
 		customSSLEmail
 
-		if echo "${localIP}" | grep -q ":"; then
-			sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --server "${sslType}" --listen-v6 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
-		else
-			sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --server "${sslType}" 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
-		fi
+		# todo
 
 		if [[ -d "$HOME/.acme.sh/${tlsDomain}_ecc" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]]; then
 			sudo "$HOME/.acme.sh/acme.sh" --installcert -d "${tlsDomain}" --fullchainpath "/etc/v2ray-agent/tls/${tlsDomain}.crt" --keypath "/etc/v2ray-agent/tls/${tlsDomain}.key" --ecc >/dev/null
