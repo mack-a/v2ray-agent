@@ -144,9 +144,10 @@ PVM.SJC.GIANT| 16G   |8vCPU|400G|44T|10Gbps|$199.9 USD/月|[点击购买](https:
 - location是【JP-Equinix Osaka Softbank】
 
 套餐名称|内存|CPU|硬盘|流量|带宽|价格|购买链接
----|---|---|---|---|---|---|---
-CN2 GIA 限量版|1G|1核|20G|500G|1Gbps|89.99 USD/年|[购买链接](https://bandwagonhost.com/aff.php?aff=64917&pid=105)
-CN2 GIA|1G|2核|20G|1T|2.5Gbps|169.99 USD/年|[购买链接](https://bandwagonhost.com/aff.php?aff=64917&pid=87)
+---|---|---|--|---|---|---|---
+软银/CN2 GIA 限量版|1G|1核|20G|500G|1Gbps|89.99 USD/年|[购买链接](https://bandwagonhost.com/aff.php?aff=64917&pid=105)
+软银/CN2 GIA|1G|2核|20G|1T|2.5Gbps|169.99 USD/年|[购买链接](https://bandwagonhost.com/aff.php?aff=64917&pid=87)
+软银/CN2 GIA|1G|3核|40G|2T|2.5Gbps|299.99 USD/年|[购买链接](https://bandwagonhost.com/aff.php?aff=64917&pid=88)
 
 ### 2.Gigsgigscloud
 - 老牌商家，成立较早，工单回复慢
