@@ -205,8 +205,18 @@ initVar() {
 
 	# dns ssl状态
 	dnsSSLStatus=
+
+	# dns tls domain
+	dnsTLSDomain=
 }
 
+# 读取tls证书详情
+readAcmeTLS() {
+	# todo
+	if [[ -d "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc" && -f "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.key" && -f "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.cer" ]]; then
+		dnsTLSDomain=true
+	fi
+}
 # 检测安装方式
 readInstallType() {
 	coreInstallType=
@@ -634,10 +644,14 @@ installTools() {
 		${installType} lsof >/dev/null 2>&1
 	fi
 
-	if ! find /usr/bin /usr/sbin | grep -q -w nslookup; then
-    		echoContent green " ---> 安装nslookup"
-    		${installType} nslookup >/dev/null 2>&1
-    	fi
+	if ! find /usr/bin /usr/sbin | grep -q -w dig; then
+		echoContent green " ---> 安装dig"
+		if [[ "${installType}" == "apt" ]]; then
+			${installType} dnsutils >/dev/null 2>&1
+		elif [[ "${installType}" == "yum" ]]; then
+			${installType} bind-utils >/dev/null 2>&1
+		fi
+	fi
 
 	# 检测nginx版本，并提供是否卸载的选项
 
@@ -804,6 +818,7 @@ initTLSNginxConfig() {
 		echoContent red "  域名不可为空--->"
 		initTLSNginxConfig 3
 	else
+		dnsTLSDomain=$(echo "${domain}" | awk -F "[.]" '{print $(NF-1)"."$NF}')
 		# 修改配置
 		touch ${nginxConfigPath}alone.conf
 		cat <<EOF >${nginxConfigPath}alone.conf
@@ -1087,15 +1102,18 @@ acmeInstallSSL() {
 	if echo "${localIP}" | grep -q ":"; then
 		installSSLIPv6="--listen-v6"
 	fi
+	echo
 	read -r -p "是否使用DNS申请证书[y/n]:" installSSLDNStatus
 	if [[ ${installSSLDNStatus} == 'y' ]]; then
 		dnsSSLStatus=true
 	fi
 
 	if [[ "${dnsSSLStatus}" == "true" ]]; then
-		local dnsTLSDomain=$(echo "${tlsDomain}"|awk -F "[.]" '{print $(NF-1)"."$NF}')
-		sudo "$HOME/.acme.sh/acme.sh" --issue -d "*.${dnsTLSDomain}" --dns --yes-I-know-dns-manual-mode-enough-go-ahead-please --standalone -k ec-256 --server "${sslType}" "${installSSLIPv6}" 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
-		local txtValue=$(tail -n 10 /etc/v2ray-agent/tls/acme.log | grep "TXT value" | awk -F "'" '{print $2}')
+
+		sudo "$HOME/.acme.sh/acme.sh" --issue -d "*.${dnsTLSDomain}" --dns --yes-I-know-dns-manual-mode-enough-go-ahead-please --standalone -k ec-256 --server "${sslType}" ${installSSLIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
+
+		local txtValue=
+		txtValue=$(tail -n 10 /etc/v2ray-agent/tls/acme.log | grep "TXT value" | awk -F "'" '{print $2}')
 		if [[ -n "${txtValue}" ]]; then
 			echoContent green " ---> 请手动添加DNS TXT记录"
 			echoContent green " --->  name：_acme-challenge"
@@ -1103,21 +1121,31 @@ acmeInstallSSL() {
 			echoContent yellow " ---> 添加完成后等请等待1-2分钟"
 			read -r -p "是否添加完成[y/n]:" addDNSTXTRecordStatus
 			if [[ "${addDNSTXTRecordStatus}" == "y" ]]; then
-				# n
+				local txtAnswer=
+				txtAnswer=$(dig +nocmd "_acme-challenge.${dnsTLSDomain}" txt +noall +answer | awk -F "[\"]" '{print $2}')
+				if [[ "${txtAnswer}" == "${txtValue}" ]]; then
+					echoContent green " ---> TXT记录验证通过"
+					echoContent green " ---> 生成证书中"
+					sudo "$HOME/.acme.sh/acme.sh" --renew -d "*.${dnsTLSDomain}" --yes-I-know-dns-manual-mode-enough-go-ahead-please --ecc --server "${sslType}" ${installSSLIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
+				else
+					echoContent red " ---> 验证失败，请等待1-2分钟后重新尝试"
+					exit 0
+				fi
 			else
 				echoContent red " ---> 放弃"
 				exit 0
 			fi
 		fi
+	else
+		sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --server "${sslType}" "${installSSLIPv6}" 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
 	fi
-
-	# sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --server "${sslType}" "${installSSLIPv6}" 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
 }
 
 # 安装TLS
 installTLS() {
 	echoContent skyBlue "\n进度  $1/${totalProgress} : 申请TLS证书\n"
 	local tlsDomain=${domain}
+
 	# 安装tls
 	if [[ -f "/etc/v2ray-agent/tls/${tlsDomain}.crt" && -f "/etc/v2ray-agent/tls/${tlsDomain}.key" && -n $(cat "/etc/v2ray-agent/tls/${tlsDomain}.crt") ]] || [[ -d "$HOME/.acme.sh/${tlsDomain}_ecc" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]]; then
 		echoContent green " ---> 检测到证书"
@@ -1140,12 +1168,18 @@ installTLS() {
 
 		switchSSLType
 		customSSLEmail
+		acmeInstallSSL
 
-		# todo
+		if [[ "${dnsSSLStatus}" == "true" ]]; then
+			echo
+			if [[ -d "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc" && -f "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.key" && -f "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.cer" ]]; then
+				sudo "$HOME/.acme.sh/acme.sh" --installcert -d "*.${dnsTLSDomain}" --fullchainpath "/etc/v2ray-agent/tls/${tlsDomain}.crt" --keypath "/etc/v2ray-agent/tls/${tlsDomain}.key" --ecc >/dev/null
+			fi
 
-		if [[ -d "$HOME/.acme.sh/${tlsDomain}_ecc" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]]; then
+		elif [[ -d "$HOME/.acme.sh/${tlsDomain}_ecc" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]]; then
 			sudo "$HOME/.acme.sh/acme.sh" --installcert -d "${tlsDomain}" --fullchainpath "/etc/v2ray-agent/tls/${tlsDomain}.crt" --keypath "/etc/v2ray-agent/tls/${tlsDomain}.key" --ecc >/dev/null
 		fi
+
 		if [[ ! -f "/etc/v2ray-agent/tls/${tlsDomain}.crt" || ! -f "/etc/v2ray-agent/tls/${tlsDomain}.key" ]] || [[ -z $(cat "/etc/v2ray-agent/tls/${tlsDomain}.key") || -z $(cat "/etc/v2ray-agent/tls/${tlsDomain}.crt") ]]; then
 			tail -n 10 /etc/v2ray-agent/tls/acme.log
 			if [[ ${installTLSCount} == "1" ]]; then
@@ -1165,10 +1199,12 @@ installTLS() {
 				echo
 				customSSLEmail "validate email"
 				installTLS "$1"
+			else
+				installTLS "$1"
 			fi
 
-			installTLS "$1"
 		fi
+
 		echoContent green " ---> TLS生成成功"
 	else
 		echoContent yellow " ---> 未安装acme.sh"
