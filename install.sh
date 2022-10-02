@@ -208,13 +208,15 @@ initVar() {
 
 	# dns tls domain
 	dnsTLSDomain=
+
+	#
+	dnsTLSDomainStatus=
 }
 
 # 读取tls证书详情
 readAcmeTLS() {
-	# todo
 	if [[ -d "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc" && -f "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.key" && -f "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.cer" ]]; then
-		dnsTLSDomain=true
+		dnsTLSDomainStatus=true
 	fi
 }
 # 检测安装方式
@@ -847,6 +849,8 @@ EOF
 		handleNginx start
 		checkIP
 	fi
+
+	readAcmeTLS
 }
 
 # 修改nginx重定向配置
@@ -1168,6 +1172,7 @@ installTLS() {
 
 		switchSSLType
 		customSSLEmail
+		## todo 添加证书已安装判断
 		acmeInstallSSL
 
 		if [[ "${dnsSSLStatus}" == "true" ]]; then
@@ -1363,8 +1368,15 @@ renewalTLS() {
 		fi
 	fi
 
-	if [[ -d "$HOME/.acme.sh/${domain}_ecc" ]] && [[ -f "$HOME/.acme.sh/${domain}_ecc/${domain}.key" ]] && [[ -f "$HOME/.acme.sh/${domain}_ecc/${domain}.cer" ]]; then
-		modifyTime=$(stat "$HOME/.acme.sh/${domain}_ecc/${domain}.cer" | sed -n '7,6p' | awk '{print $2" "$3" "$4" "$5}')
+	if [[ -d "$HOME/.acme.sh/${domain}_ecc" && -f "$HOME/.acme.sh/${domain}_ecc/${domain}.key" && -f "$HOME/.acme.sh/${domain}_ecc/${domain}.cer" ]] || [[ "${dnsTLSDomainStatus}" == "true" ]]; then
+		modifyTime=
+
+		if [[ "${dnsTLSDomainStatus}" == "true" ]]; then
+			modifyTime=$(stat "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.cer" | sed -n '7,6p' | awk '{print $2" "$3" "$4" "$5}')
+		else
+			modifyTime=$(stat "$HOME/.acme.sh/${domain}_ecc/${domain}.cer" | sed -n '7,6p' | awk '{print $2" "$3" "$4" "$5}')
+		fi
+
 
 		modifyTime=$(date +%s -d "${modifyTime}")
 		currentTime=$(date +%s)
