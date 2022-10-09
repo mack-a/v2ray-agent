@@ -209,14 +209,14 @@ initVar() {
 	# dns tls domain
 	dnsTLSDomain=
 
-	#
-	dnsTLSDomainStatus=
+	# 该域名是否通过dns安装通配符证书
+	installDNSACMEStatus=
 }
 
 # 读取tls证书详情
 readAcmeTLS() {
 	if [[ -d "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc" && -f "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.key" && -f "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.cer" ]]; then
-		dnsTLSDomainStatus=true
+		installDNSACMEStatus=true
 	fi
 }
 # 检测安装方式
@@ -1123,6 +1123,7 @@ acmeInstallSSL() {
 			echoContent green " --->  name：_acme-challenge"
 			echoContent green " --->  value：${txtValue}"
 			echoContent yellow " ---> 添加完成后等请等待1-2分钟"
+			echo
 			read -r -p "是否添加完成[y/n]:" addDNSTXTRecordStatus
 			if [[ "${addDNSTXTRecordStatus}" == "y" ]]; then
 				local txtAnswer=
@@ -1143,6 +1144,7 @@ acmeInstallSSL() {
 	else
 		sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --server "${sslType}" "${installSSLIPv6}" 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
 	fi
+	readAcmeTLS
 }
 
 # 安装TLS
@@ -1170,12 +1172,15 @@ installTLS() {
 	elif [[ -d "$HOME/.acme.sh" ]] && [[ ! -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" || ! -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" ]]; then
 		echoContent green " ---> 安装TLS证书"
 
-		switchSSLType
-		customSSLEmail
-		## todo 添加证书已安装判断
-		acmeInstallSSL
+		if [[ "${installDNSACMEStatus}" != "true" ]]; then
+			switchSSLType
+			customSSLEmail
+			acmeInstallSSL
+		else
+			echoContent green " ---> 检测到已安装通配符证书，自动生成中"
+		fi
 
-		if [[ "${dnsSSLStatus}" == "true" ]]; then
+		if [[ "${installDNSACMEStatus}" == "true" ]]; then
 			echo
 			if [[ -d "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc" && -f "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.key" && -f "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.cer" ]]; then
 				sudo "$HOME/.acme.sh/acme.sh" --installcert -d "*.${dnsTLSDomain}" --fullchainpath "/etc/v2ray-agent/tls/${tlsDomain}.crt" --keypath "/etc/v2ray-agent/tls/${tlsDomain}.key" --ecc >/dev/null
@@ -1376,7 +1381,6 @@ renewalTLS() {
 		else
 			modifyTime=$(stat "$HOME/.acme.sh/${domain}_ecc/${domain}.cer" | sed -n '7,6p' | awk '{print $2" "$3" "$4" "$5}')
 		fi
-
 
 		modifyTime=$(date +%s -d "${modifyTime}")
 		currentTime=$(date +%s)
