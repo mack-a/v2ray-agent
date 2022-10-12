@@ -1102,7 +1102,7 @@ switchSSLType() {
 		echoContent red "\n=============================================================="
 		echoContent yellow "1.letsencrypt[默认]"
 		echoContent yellow "2.zerossl"
-		echoContent yellow "3.buypass"
+		echoContent yellow "3.buypass[不支持DNS申请]"
 		echoContent red "=============================================================="
 		read -r -p "请选择[回车]使用默认:" selectSSLType
 		case ${selectSSLType} in
@@ -1131,6 +1131,11 @@ acmeInstallSSL() {
 	fi
 	echo
 	if [[ -n "${customPort}" ]]; then
+		if [[ "${selectSSLType}" == "3" ]]; then
+			echoContent red " ---> buypass不支持免费通配符证书"
+			echo
+			exit
+		fi
 		dnsSSLStatus=true
 	else
 		read -r -p "是否使用DNS申请证书[y/n]:" installSSLDNStatus
