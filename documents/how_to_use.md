@@ -64,7 +64,7 @@
 
 ### 7.添加智能DNS智能解析
 
-如果选择y，则查看帐号的时候 address是优选后的域名解析，则会出现address是脚本提供的域名，伪装域名或SNI或peer则是个人的域名，详情原理解析请查看[此文章](https://github.com/mack-a/v2ray-agent/blob/master/documents/optimize_V2Ray.md)，仅支持ws的传输方式
+如果选择y，则查看账号的时候 address是优选后的域名解析，则会出现address是脚本提供的域名，伪装域名或SNI或peer则是个人的域名，详情原理解析请查看[此文章](https://github.com/mack-a/v2ray-agent/blob/master/documents/optimize_V2Ray.md)，仅支持ws的传输方式
 
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/07.png" width=700>
 
@@ -86,7 +86,7 @@
 
 ### 11.完成
 
-恭喜到这里就是最后一步了，接下来会检测服务是否正常，正常则会展示帐号
+恭喜到这里就是最后一步了，接下来会检测服务是否正常，正常则会展示账号
 
 # 2.进阶教学
 
@@ -94,7 +94,7 @@
 
 ### 1.查看订阅
 
-当【查看订阅】时脚本会自动创建一个唯一的订阅地址，不【查看订阅】时不会自动生成。 每次帐号更改时需要重新【查看订阅】才会生成新的内容。 此操作完全在你的服务器存放，不需要担心是否泄漏。
+当【查看订阅】时脚本会自动创建一个唯一的订阅地址，不【查看订阅】时不会自动生成。 每次账号更改时需要重新【查看订阅】才会生成新的内容。 此操作完全在你的服务器存放，不需要担心是否泄漏。
 
 ### 2.添加用户/删除用户
 
@@ -135,7 +135,7 @@ netflix、bahamut、hulu、hbo、disney、bbc、4chan、fox、abema、dmm、nico
 
 
 ### 7.添加新端口
-不影响443端口的使用，查看帐号时仅展示443端口的帐号，支持多个端口的添加和删除。
+不影响443端口的使用，查看账号时仅展示443端口的账号，支持多个端口的添加和删除。
 
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/14.png" width=700>
 

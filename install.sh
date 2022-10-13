@@ -2342,7 +2342,7 @@ initXrayFrontingConfig() {
 	echoContent red "\n=============================================================="
 	echoContent yellow "# 注意事项\n"
 	echoContent yellow "会将前置替换为${xtlsType}"
-	echoContent yellow "如果前置是Trojan，查看帐号时则会出现两个Trojan协议的节点，有一个不可用xtls"
+	echoContent yellow "如果前置是Trojan，查看账号时则会出现两个Trojan协议的节点，有一个不可用xtls"
 	echoContent yellow "再次执行可切换至上一次的前置\n"
 
 	echoContent yellow "1.切换至${xtlsType}"
@@ -2972,14 +2972,14 @@ showAccounts() {
 		if echo "${currentInstallProtocolType}" | grep -q trojan; then
 			echoContent skyBlue "===================== Trojan TCP TLS/XTLS-direct/XTLS-splice ======================\n"
 			jq .inbounds[0].settings.clients ${configPath}02_trojan_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
-				echoContent skyBlue "\n ---> 帐号:$(echo "${user}" | jq -r .email)"
+				echoContent skyBlue "\n ---> 账号:$(echo "${user}" | jq -r .email)"
 				defaultBase64Code trojanTCPXTLS "$(echo "${user}" | jq -r .email)" "$(echo "${user}" | jq -r .password)"
 			done
 
 		else
 			echoContent skyBlue "===================== VLESS TCP TLS/XTLS-direct/XTLS-splice ======================\n"
 			jq .inbounds[0].settings.clients ${configPath}02_VLESS_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
-				echoContent skyBlue "\n ---> 帐号:$(echo "${user}" | jq -r .email)"
+				echoContent skyBlue "\n ---> 账号:$(echo "${user}" | jq -r .email)"
 				echo
 				defaultBase64Code vlesstcp "$(echo "${user}" | jq -r .email)" "$(echo "${user}" | jq -r .id)"
 			done
@@ -2990,7 +2990,7 @@ showAccounts() {
 			echoContent skyBlue "\n================================ VLESS WS TLS CDN ================================\n"
 
 			jq .inbounds[0].settings.clients ${configPath}03_VLESS_WS_inbounds.json | jq -c '.[]' | while read -r user; do
-				echoContent skyBlue "\n ---> 帐号:$(echo "${user}" | jq -r .email)"
+				echoContent skyBlue "\n ---> 账号:$(echo "${user}" | jq -r .email)"
 				echo
 				local path="${currentPath}ws"
 				#	if [[ ${coreInstallType} == "1" ]]; then
@@ -3009,7 +3009,7 @@ showAccounts() {
 				path="${currentPath}vws"
 			fi
 			jq .inbounds[0].settings.clients ${configPath}05_VMess_WS_inbounds.json | jq -c '.[]' | while read -r user; do
-				echoContent skyBlue "\n ---> 帐号:$(echo "${user}" | jq -r .email)"
+				echoContent skyBlue "\n ---> 账号:$(echo "${user}" | jq -r .email)"
 				echo
 				defaultBase64Code vmessws "$(echo "${user}" | jq -r .email)" "$(echo "${user}" | jq -r .id)"
 			done
@@ -3022,7 +3022,7 @@ showAccounts() {
 			#			local serviceName
 			#			serviceName=$(jq -r .inbounds[0].streamSettings.grpcSettings.serviceName ${configPath}06_VLESS_gRPC_inbounds.json)
 			jq .inbounds[0].settings.clients ${configPath}06_VLESS_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
-				echoContent skyBlue "\n ---> 帐号:$(echo "${user}" | jq -r .email)"
+				echoContent skyBlue "\n ---> 账号:$(echo "${user}" | jq -r .email)"
 				echo
 				defaultBase64Code vlessgrpc "$(echo "${user}" | jq -r .email)" "$(echo "${user}" | jq -r .id)"
 			done
@@ -3033,7 +3033,7 @@ showAccounts() {
 	if echo ${currentInstallProtocolType} | grep -q 4; then
 		echoContent skyBlue "\n==================================  Trojan TLS  ==================================\n"
 		jq .inbounds[0].settings.clients ${configPath}04_trojan_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
-			echoContent skyBlue "\n ---> 帐号:$(echo "${user}" | jq -r .email)"
+			echoContent skyBlue "\n ---> 账号:$(echo "${user}" | jq -r .email)"
 
 			defaultBase64Code trojan "$(echo "${user}" | jq -r .email)" "$(echo "${user}" | jq -r .password)"
 		done
@@ -3045,7 +3045,7 @@ showAccounts() {
 		#		local serviceName=
 		#		serviceName=$(jq -r .inbounds[0].streamSettings.grpcSettings.serviceName ${configPath}04_trojan_gRPC_inbounds.json)
 		jq .inbounds[0].settings.clients ${configPath}04_trojan_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
-			echoContent skyBlue "\n ---> 帐号:$(echo "${user}" | jq -r .email)"
+			echoContent skyBlue "\n ---> 账号:$(echo "${user}" | jq -r .email)"
 			echo
 			defaultBase64Code trojangrpc "$(echo "${user}" | jq -r .email)" "$(echo "${user}" | jq -r .password)"
 		done
@@ -3195,7 +3195,7 @@ addCorePort() {
 	echoContent yellow "# 注意事项\n"
 	echoContent yellow "支持批量添加"
 	echoContent yellow "不影响443端口的使用"
-	echoContent yellow "查看帐号时，只会展示默认端口443的帐号"
+	echoContent yellow "查看账号时，只会展示默认端口443的账号"
 	echoContent yellow "不允许有特殊字符，注意逗号的格式"
 	echoContent yellow "录入示例:2053,2083,2087\n"
 
