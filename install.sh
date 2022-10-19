@@ -1174,7 +1174,8 @@ acmeInstallSSL() {
 			fi
 		fi
 	else
-		sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --server "${sslType}" "${installSSLIPv6}" 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
+		echoContent green " ---> 生成证书中"
+		sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --server "${sslType}" ${installSSLIPv6}  2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
 	fi
 	readAcmeTLS
 }
@@ -1193,11 +1194,15 @@ customPortFunction() {
 		echo
 		echoContent yellow "请输入自定义端口[例: 2083]，自定义端口后只允许使用DNS申请证书，[回车]使用443"
 		read -r -p "端口:" customPort
-		if ((customPort >= 1 && customPort <= 65535)); then
-			checkCustomPort
+		if [[ -n "${customPort}" ]]; then
+			if ((customPort >= 1 && customPort <= 65535)); then
+				checkCustomPort
+			else
+				echoContent green " ---> 端口输入错误"
+				exit
+			fi
 		else
-			echoContent green " ---> 端口输入错误"
-			exit
+			echoContent yellow "\n ---> 端口: 443"
 		fi
 	fi
 
