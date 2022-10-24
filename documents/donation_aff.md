@@ -94,14 +94,15 @@ LAX:SimpleCloud V01 电信gia 联通AS9929|500M|1核|20G|1T|1Gbps|12 USD/月|5% 
 - 洛杉矶动态路由，有时候会很拉垮
 - sanjose大概率会跳Google人机验证，可通过warp或者任意门解锁解决此问题
 
-套餐名称|内存|CPU|硬盘(SSD)|流量|带宽|价格|推荐理由|购买链接
----|---|---|---|---|---|---|---|---
-[INTEL-SSD] 768 MB KVM VPS Special|768M|1核|12 GB Pure SSD|2T|1Gbps|$9.49 USD|此机器价格比较便宜，有可能出现人机验证，联通去程回程都走AS4837，路由一般不会变，位置建议【San Jose】|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=476)
-1GB KVM VPS Special|1G|1核|17 GB Pure SSD|3T|1Gbps|$10.98 USD|价格便宜，联通去程回程都走AS4837|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=358)
-1 GB RAM - LA-DC02 PURE SSD PROMO|1.5G|1核|20 GB Pure SSD|3T|1Gbps|$12.79 USD|价格便宜，联通去程回程都走AS4837，本人使用|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=498)
-[RYZEN-NVMe] 512MB Ryzen KVM VPS |0.5G|1x AMD Ryzen 3900X CPU Core|10 GB NVMe SSD Storage|2T|1Gbps|$14.18 USD|价格、流量比较适中，联通去程回程都走AS4837|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=461)
-XMas Sale - 1.5GB KVM|1.5G|1核|20 GB SSD Cached RAID-10 Storage|4.5T|1Gbps|$15.71 USD|联通去程回程都走AS4837，大流量机器|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=52)
-[6.18 SALE - 2021] 1.8 GB KVM VPS Special |1.8G|2核|18 GB Pure SSD|5T|1Gbps|$17.88 USD|联通去程回程都走AS4837，大流量机器|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=508)
+套餐名称|内存|CPU| 硬盘(SSD) |流量|带宽|价格|购买链接
+---|-------|---|---|---|---|---|---
+512 MB KVM VPS (New Year 2022)|768M|1核| 10 GB SSD|1T|1Gbps|$9.89 USD|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=620)
+768 MB KVM VPS Special|768MB|1核| 10 GB NVMe SSD Storage           |2T|1Gbps|$11.88 USD|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=679)
+1 GB KVM VPS (New Year 2022)|1G|1核| 20 GB Pure SSD                   |2T|1Gbps|$13.98 USD|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=621)
+1 GB KVM VPS Special |1G|1核| 20 GB SSD Cached RAID-10 Storage |3T|1Gbps|$14.98 USD|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=680)
+2 GB KVM VPS Special |2G|2核| 25 GB Pure SSD                   |4T|1Gbps|$29.98 USD|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=681)
+3 GB KVM VPS (New Year 2022)|3G|1核| 50 GB Pure SSD                   |6T|1Gbps|$31.98 USD|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=623)
+
 
 ### 2.dmit
 - 位置：sanjose
