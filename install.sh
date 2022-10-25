@@ -430,7 +430,7 @@ readConfigHostPathUUID() {
 		if [[ -n "${defaultPortFile}" ]]; then
 			currentDefaultPort=$(echo "${defaultPortFile}" | awk -F [_] '{print $4}')
 		else
-			currentDefaultPort=443
+			currentDefaultPort=$(jq -r .inbounds[0].port ${configPath}02_VLESS_TCP_inbounds.json)
 		fi
 
 	fi
@@ -1198,7 +1198,7 @@ customPortFunction() {
 			if ((customPort >= 1 && customPort <= 65535)); then
 				checkCustomPort
 			else
-				echoContent green " ---> 端口输入错误"
+				echoContent red " ---> 端口输入错误"
 				exit
 			fi
 		else
@@ -5000,7 +5000,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者:mack-a"
-	echoContent green "当前版本:v2.6.2"
+	echoContent green "当前版本:v2.6.3"
 	echoContent green "Github:https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述:八合一共存脚本\c"
 	showInstallStatus
