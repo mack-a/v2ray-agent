@@ -661,9 +661,9 @@ installTools() {
 
 	if ! find /usr/bin /usr/sbin | grep -q -w dig; then
 		echoContent green " ---> 安装dig"
-		if [[ "${installType}" == "apt" ]]; then
+		if echo "${installType}" | grep -q -w "apt"; then
 			${installType} dnsutils >/dev/null 2>&1
-		elif [[ "${installType}" == "yum" ]]; then
+		elif echo "${installType}" | grep -q -w "yum"; then
 			${installType} bind-utils >/dev/null 2>&1
 		fi
 	fi
@@ -1175,7 +1175,7 @@ acmeInstallSSL() {
 		fi
 	else
 		echoContent green " ---> 生成证书中"
-		sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --server "${sslType}" ${installSSLIPv6}  2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
+		sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --server "${sslType}" ${installSSLIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
 	fi
 	readAcmeTLS
 }
@@ -5000,7 +5000,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者:mack-a"
-	echoContent green "当前版本:v2.6.1"
+	echoContent green "当前版本:v2.6.2"
 	echoContent green "Github:https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述:八合一共存脚本\c"
 	showInstallStatus
