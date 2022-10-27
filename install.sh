@@ -3795,7 +3795,8 @@ ipv6Routing() {
 		echoContent yellow "3.如内核启动失败请检查域名后重新添加域名"
 		echoContent yellow "4.不允许有特殊字符，注意逗号的格式"
 		echoContent yellow "5.每次添加都是重新添加，不会保留上次域名"
-		echoContent yellow "6.录入示例:google,youtube,facebook\n"
+		echoContent yellow "6.强烈建议屏蔽国内的网站，下方输入【cn】即可屏蔽"
+		echoContent yellow "7.录入示例:google,youtube,facebook,cn\n"
 		read -r -p "请按照上面示例录入域名:" domainList
 
 		if [[ -f "${configPath}09_routing.json" ]]; then
