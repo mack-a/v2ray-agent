@@ -218,6 +218,9 @@ initVar() {
 
 # 读取tls证书详情
 readAcmeTLS() {
+	if [[ -n "${currentHost}" ]]; then
+		dnsTLSDomain=$(echo "${currentHost}" | awk -F "[.]" '{print $(NF-1)"."$NF}')
+	fi
 	if [[ -d "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc" && -f "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.key" && -f "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.cer" ]]; then
 		installDNSACMEStatus=true
 	fi
@@ -1427,9 +1430,11 @@ installCronTLS() {
 
 # 更新证书
 renewalTLS() {
+
 	if [[ -n $1 ]]; then
 		echoContent skyBlue "\n进度  $1/1 : 更新证书"
 	fi
+	readAcmeTLS
 	local domain=${currentHost}
 	if [[ -z "${currentHost}" && -n "${tlsDomain}" ]]; then
 		domain=${tlsDomain}
@@ -1440,7 +1445,6 @@ renewalTLS() {
 			sslRenewalDays=180
 		fi
 	fi
-
 	if [[ -d "$HOME/.acme.sh/${domain}_ecc" && -f "$HOME/.acme.sh/${domain}_ecc/${domain}.key" && -f "$HOME/.acme.sh/${domain}_ecc/${domain}.cer" ]] || [[ "${installDNSACMEStatus}" == "true" ]]; then
 		modifyTime=
 
@@ -4999,7 +5003,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者:mack-a"
-	echoContent green "当前版本:v2.6.4"
+	echoContent green "当前版本:v2.6.5"
 	echoContent green "Github:https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述:八合一共存脚本\c"
 	showInstallStatus
