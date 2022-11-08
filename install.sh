@@ -2142,8 +2142,21 @@ addClientsHysteria() {
 
 # 初始化hysteria端口
 initHysteriaPort() {
-	echoContent yellow "请输入Hysteria端口[例: 10000]，不可与其他服务重复"
-	read -r -p "端口:" hysteriaPort
+	readHysteriaConfig
+	if [[ -n "${hysteriaPort}" ]]; then
+		read -r -p "读取到上次安装时的端口，是否使用上次安装时的端口 ？[y/n]:" historyHysteriaPortStatus
+		if [[ "${historyHysteriaPortStatus}" == "y" ]]; then
+			echoContent yellow "\n ---> 端口: ${hysteriaPort}"
+		else
+			hysteriaPort=
+		fi
+	fi
+
+	if [[ -z "${hysteriaPort}" ]]; then
+		echoContent yellow "请输入Hysteria端口[例: 10000]，不可与其他服务重复"
+		read -r -p "端口:" hysteriaPort
+	fi
+
 	if [[ -z ${hysteriaPort} ]]; then
 		echoContent red "\n ---> 端口不可为空"
 		initHysteriaPort "$2"
@@ -2177,6 +2190,7 @@ initHysteriaProtocol() {
 		hysteriaProtocol="udp"
 		;;
 	esac
+	echoContent yellow "\n ---> 协议: ${hysteriaProtocol}\n"
 }
 
 # 初始化hysteria网络信息
@@ -2186,18 +2200,21 @@ initHysteriaNetwork() {
 	read -r -p "延迟:" hysteriaLag
 	if [[ -z "${hysteriaLag}" ]]; then
 		hysteriaLag=180
+		echoContent yellow "\n ---> 延迟: ${hysteriaLag}\n"
 	fi
 
 	echoContent yellow "请输入本地带宽峰值的下行速度（默认：100，单位：Mbps）"
-	read -r -p "延迟:" hysteriaClientDownloadSpeed
+	read -r -p "下行速度:" hysteriaClientDownloadSpeed
 	if [[ -z "${hysteriaClientDownloadSpeed}" ]]; then
 		hysteriaClientDownloadSpeed=100
+		echoContent yellow "\n ---> 下行速度: ${hysteriaClientDownloadSpeed}\n"
 	fi
 
 	echoContent yellow "请输入本地带宽峰值的上行速度（默认：50，单位：Mbps）"
-	read -r -p "延迟:" hysteriaClientUploadSpeed
+	read -r -p "上行速度:" hysteriaClientUploadSpeed
 	if [[ -z "${hysteriaClientUploadSpeed}" ]]; then
 		hysteriaClientUploadSpeed=50
+		echoContent yellow "\n ---> 上行速度: ${hysteriaClientUploadSpeed}\n"
 	fi
 
 	cat <<EOF >/etc/v2ray-agent/hysteria/conf/client_network.json
@@ -2221,7 +2238,7 @@ initHysteriaConfig() {
 	cat <<EOF >/etc/v2ray-agent/hysteria/conf/config.json
 {
 	"listen": ":${hysteriaPort}",
-	"protocol": "udp",
+	"protocol": "${hysteriaProtocol}",
 	"disable_udp": false,
 	"cert": "/etc/v2ray-agent/tls/${currentHost}.crt",
 	"key": "/etc/v2ray-agent/tls/${currentHost}.key",
@@ -5352,18 +5369,26 @@ switchAlpn() {
 
 # hysteria管理
 manageHysteria() {
+
 	echoContent skyBlue "\n进度  1/1 : Hysteria管理"
 	echoContent red "\n=============================================================="
-	echoContent yellow "1.安装"
-	echoContent yellow "2.卸载"
-	echoContent yellow "3.更新core"
+	local hysteriaStatus=
+	if [[ -n "${hysteriaConfigPath}" ]]; then
+		echoContent yellow "1.重新安装"
+		echoContent yellow "2.卸载"
+		echoContent yellow "3.更新core"
+		hysteriaStatus=true
+	else
+		echoContent yellow "1.安装"
+	fi
+
 	echoContent red "=============================================================="
 	read -r -p "请选择:" installHysteriaStatus
 	if [[ "${installHysteriaStatus}" == "1" ]]; then
 		hysteriaCoreInstall
-	elif [[ "${installHysteriaStatus}" == "2" ]]; then
+	elif [[ "${installHysteriaStatus}" == "2" && "${hysteriaStatus}" == "true" ]]; then
 		unInstallHysteriaCore
-	elif [[ "${installHysteriaStatus}" == "3" ]]; then
+	elif [[ "${installHysteriaStatus}" == "3" && "${hysteriaStatus}" == "true" ]]; then
 		installHysteria 1
 		handleHysteria start
 	fi
@@ -5373,7 +5398,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者:mack-a"
-	echoContent green "当前版本:v2.6.6"
+	echoContent green "当前版本:v2.6.7"
 	echoContent green "Github:https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述:八合一共存脚本\c"
 	showInstallStatus
