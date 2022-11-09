@@ -5377,6 +5377,7 @@ manageHysteria() {
 		echoContent yellow "1.重新安装"
 		echoContent yellow "2.卸载"
 		echoContent yellow "3.更新core"
+		echoContent yellow "4.查看日志"
 		hysteriaStatus=true
 	else
 		echoContent yellow "1.安装"
@@ -5391,6 +5392,8 @@ manageHysteria() {
 	elif [[ "${installHysteriaStatus}" == "3" && "${hysteriaStatus}" == "true" ]]; then
 		installHysteria 1
 		handleHysteria start
+	elif [[ "${installHysteriaStatus}" == "4" && "${hysteriaStatus}" == "true" ]]; then
+		journalctl -fu hysteria
 	fi
 }
 # 主菜单
@@ -5398,7 +5401,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者:mack-a"
-	echoContent green "当前版本:v2.6.8"
+	echoContent green "当前版本:v2.6.9"
 	echoContent green "Github:https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述:八合一共存脚本\c"
 	showInstallStatus
