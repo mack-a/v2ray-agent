@@ -189,7 +189,7 @@ initVar() {
 	installTLSCount=
 
 	# BTPanel状态
-	BTPanelStatus=
+	#	BTPanelStatus=
 
 	# nginx配置文件路径
 	nginxConfigPath=/etc/nginx/conf.d/
@@ -337,7 +337,7 @@ readInstallProtocolType() {
 checkBTPanel() {
 	if pgrep -f "BT-Panel"; then
 		nginxConfigPath=/www/server/panel/vhost/nginx/
-		BTPanelStatus=true
+		#		BTPanelStatus=true
 	fi
 }
 # 读取当前alpn的顺序
@@ -918,25 +918,41 @@ EOF
 # 修改nginx重定向配置
 updateRedirectNginxConf() {
 
-	if [[ ${BTPanelStatus} == "true" ]]; then
-
-		cat <<EOF >${nginxConfigPath}alone.conf
-        server {
-        		listen 127.0.0.1:31300;
-        		server_name _;
-        		return 403;
-        }
-EOF
-
-	elif [[ -n "${customPort}" ]]; then
-		cat <<EOF >${nginxConfigPath}alone.conf
-                server {
-                		listen 127.0.0.1:31300;
-                		server_name _;
-                		return 403;
-                }
-EOF
+	#	if [[ ${BTPanelStatus} == "true" ]]; then
+	#
+	#		cat <<EOF >${nginxConfigPath}alone.conf
+	#        server {
+	#        		listen 127.0.0.1:31300;
+	#        		server_name _;
+	#        		return 403;
+	#        }
+	#EOF
+	#
+	#	elif [[ -n "${customPort}" ]]; then
+	#		cat <<EOF >${nginxConfigPath}alone.conf
+	#                server {
+	#                		listen 127.0.0.1:31300;
+	#                		server_name _;
+	#                		return 403;
+	#                }
+	#EOF
+	#	fi
+	local redirectDomain=${domain}
+	if [[ -n "${customPort}" ]]; then
+		redirectDomain=${domain}:${customPort}
 	fi
+	cat <<EOF >${nginxConfigPath}alone.conf
+server {
+	listen 80;
+	server_name ${domain};
+	return 302 https://${redirectDomain};
+}
+server {
+		listen 127.0.0.1:31300;
+		server_name _;
+		return 403;
+}
+EOF
 
 	if echo "${selectCustomInstallType}" | grep -q 2 && echo "${selectCustomInstallType}" | grep -q 5 || [[ -z "${selectCustomInstallType}" ]]; then
 
@@ -1252,6 +1268,7 @@ customPortFunction() {
 		if [[ -n "${customPort}" ]]; then
 			if ((customPort >= 1 && customPort <= 65535)); then
 				checkCustomPort
+				allowPort "${customPort}"
 			else
 				echoContent red " ---> 端口输入错误"
 				exit
@@ -1259,9 +1276,11 @@ customPortFunction() {
 		else
 			echoContent yellow "\n ---> 端口: 443"
 		fi
+	else
+		echoContent yellow "\n ---> 端口: ${currentPort}"
 	fi
-
 }
+
 # 检测端口是否占用
 checkCustomPort() {
 	if lsof -i "tcp:${customPort}" | grep -q LISTEN; then
@@ -1307,7 +1326,7 @@ installTLS() {
 		if [[ "${installDNSACMEStatus}" == "true" ]]; then
 			echo
 			if [[ -d "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc" && -f "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.key" && -f "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.cer" ]]; then
-				sudo "$HOME/.acme.sh/acme.sh" --installcert -d "*.${dnsTLSDomain}" --fullchainpath "/etc/v2ray-agent/tls/${tlsDomain}.crt" --keypath "/etc/v2ray-agent/tls/${tlsDomain}.key" --ecc >/dev/null
+				sudo "$HOME/.acme.sh/acme.sh" --installcert -d "${dnsTLSDomain}" -d "*.${dnsTLSDomain}" --fullchainpath "/etc/v2ray-agent/tls/${tlsDomain}.crt" --keypath "/etc/v2ray-agent/tls/${tlsDomain}.key" --ecc >/dev/null
 			fi
 
 		elif [[ -d "$HOME/.acme.sh/${tlsDomain}_ecc" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]]; then
@@ -5401,7 +5420,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者:mack-a"
-	echoContent green "当前版本:v2.6.9"
+	echoContent green "当前版本:v2.6.10"
 	echoContent green "Github:https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述:八合一共存脚本\c"
 	showInstallStatus
