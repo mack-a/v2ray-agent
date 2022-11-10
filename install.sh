@@ -248,7 +248,7 @@ readAcmeTLS() {
 readCustomPort() {
 	if [[ -n "${configPath}" ]]; then
 		local port=
-		port=$(jq -r .inbounds[0].port "${configPath}02_VLESS_TCP_inbounds.json")
+		port=$(jq -r .inbounds[0].port "${configPath}${frontingType}.json")
 		if [[ "${port}" != "443" ]]; then
 			customPort=${port}
 		fi
@@ -439,7 +439,7 @@ readConfigHostPathUUID() {
 	currentDefaultPort=
 	currentUUID=
 	currentHost=
-	#	currentPort=
+	currentPort=
 	currentAdd=
 	# 读取path
 	if [[ -n "${configPath}" ]]; then
@@ -476,7 +476,7 @@ readConfigHostPathUUID() {
 		if [[ -n "${defaultPortFile}" ]]; then
 			currentDefaultPort=$(echo "${defaultPortFile}" | awk -F [_] '{print $4}')
 		else
-			currentDefaultPort=$(jq -r .inbounds[0].port ${configPath}02_VLESS_TCP_inbounds.json)
+			currentDefaultPort=$(jq -r .inbounds[0].port ${configPath}${frontingType}.json)
 		fi
 
 	fi
@@ -487,7 +487,7 @@ readConfigHostPathUUID() {
 		if [[ "${currentAdd}" == "null" ]]; then
 			currentAdd=${currentHost}
 		fi
-		#		currentPort=$(jq .inbounds[0].port ${configPath}${frontingType}.json)
+		currentPort=$(jq .inbounds[0].port ${configPath}${frontingType}.json)
 
 	elif [[ "${coreInstallType}" == "2" || "${coreInstallType}" == "3" ]]; then
 		if [[ "${coreInstallType}" == "3" ]]; then
@@ -502,7 +502,7 @@ readConfigHostPathUUID() {
 			currentAdd=${currentHost}
 		fi
 		currentUUID=$(jq -r .inbounds[0].settings.clients[0].id ${configPath}${frontingType}.json)
-		#		currentPort=$(jq .inbounds[0].port ${configPath}${frontingType}.json)
+		currentPort=$(jq .inbounds[0].port ${configPath}${frontingType}.json)
 	fi
 }
 
@@ -588,12 +588,11 @@ initVar "$1"
 checkSystem
 checkCPUVendor
 readInstallType
-readCustomPort
 readInstallProtocolType
 readConfigHostPathUUID
 readInstallAlpn
+readCustomPort
 checkBTPanel
-
 # -------------------------------------------------------------
 
 # 初始化安装目录
@@ -1253,15 +1252,20 @@ acmeInstallSSL() {
 # 自定义端口
 customPortFunction() {
 	local historyCustomPortStatus=
-	if [[ -n "${customPort}" ]]; then
+	local showPort=
+	if [[ -n "${customPort}" || -n "${currentPort}" ]]; then
 		echo
 		read -r -p "读取到上次安装时的端口，是否使用上次安装时的端口 ？[y/n]:" historyCustomPortStatus
 		if [[ "${historyCustomPortStatus}" == "y" ]]; then
-			echoContent yellow "\n ---> 端口: ${customPort}"
+			showPort="${currentPort}"
+			if [[ -n "${customPort}" ]]; then
+				showPort="${customPort}"
+			fi
+			echoContent yellow "\n ---> 端口: ${showPort}"
 		fi
 	fi
 
-	if [[ "${historyCustomPortStatus}" == "n" || -z "${customPort}" ]]; then
+	if [[ "${historyCustomPortStatus}" == "n" ]] && [[ -z "${customPort}" && -z "${currentPort}" ]]; then
 		echo
 		echoContent yellow "请输入端口[默认: 443]，如自定义端口，只允许使用DNS申请证书[回车使用默认]"
 		read -r -p "端口:" customPort
@@ -1276,8 +1280,6 @@ customPortFunction() {
 		else
 			echoContent yellow "\n ---> 端口: 443"
 		fi
-	else
-		echoContent yellow "\n ---> 端口: ${currentPort}"
 	fi
 }
 
@@ -2154,6 +2156,11 @@ addClientsHysteria() {
 	if [[ ${addClientsStatus} == "true" && -n "${previousClients}" ]]; then
 		local uuids=
 		uuids=$(echo "${previousClients}" | jq -r [.[].id])
+
+
+		if [[ "${frontingType}" == "02_trojan_TCP_inbounds" ]]; then
+			uuids=$(echo "${previousClients}" | jq -r [.[].password])
+		fi
 		config=$(jq -r ".auth.config = ${uuids}" "${path}")
 		echo "${config}" | jq . >"${path}"
 	fi
@@ -2252,7 +2259,7 @@ initHysteriaConfig() {
 	initHysteriaProtocol
 	initHysteriaNetwork
 
-	getClients "${configPath}/02_VLESS_TCP_inbounds.json" true
+	getClients "${configPath}${frontingType}.json" true
 	cat <<EOF >/etc/v2ray-agent/hysteria/conf/config.json
 {
 	"listen": ":${hysteriaPort}",
@@ -2264,8 +2271,6 @@ initHysteriaConfig() {
 		"mode": "passwords",
 		"config": []
 	},
-	"up_mbps":${hysteriaClientUploadSpeed},
-	"down_mbps":${hysteriaClientDownloadSpeed},
 	"alpn": "h3",
 	"recv_window_conn": 15728640,
 	"recv_window_client": 67108864,
@@ -3379,13 +3384,21 @@ showAccounts() {
 	if echo ${currentInstallProtocolType} | grep -q 6; then
 		echoContent skyBlue "\n================================  Hysteria TLS  ================================\n"
 		echoContent red "\n --->Hysteria速度依赖与本地的网络环境，如果被QoS使用体验会非常差。IDC也有可能认为是攻击，请谨慎使用"
-		jq .auth.config ${hysteriaConfigPath}config.json | jq -r '.[]' | while read -r user; do
-			local vlessUser=
-			vlessUser=$(jq '.inbounds[0].settings.clients[]|select(.id=="'"${user}"'")' ${configPath}02_VLESS_TCP_inbounds.json)
-			local email=
-			email=$(echo "${vlessUser}" | jq -r .email)
 
-			if [[ -n ${vlessUser} ]]; then
+		jq .auth.config ${hysteriaConfigPath}config.json | jq -r '.[]' | while read -r user; do
+			local defaultUser=
+			local uuidType=
+			uuidType=".id"
+
+			if [[ "${frontingType}" == "02_trojan_TCP_inbounds" ]]; then
+				uuidType=".password"
+			fi
+
+			defaultUser=$(jq '.inbounds[0].settings.clients[]|select('${uuidType}'=="'"${user}"'")' ${configPath}${frontingType}.json)
+			local email=
+			email=$(echo "${defaultUser}" | jq -r .email)
+
+			if [[ -n ${defaultUser} ]]; then
 				echoContent skyBlue "\n ---> 账号:${email}"
 				echo
 				defaultBase64Code hysteria "${email}" "${user}"
