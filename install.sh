@@ -1216,13 +1216,14 @@ selectAcmeInstallSSL() {
 acmeInstallSSL() {
 	if [[ "${dnsSSLStatus}" == "true" ]]; then
 
-		sudo "$HOME/.acme.sh/acme.sh" --issue -d "*.${dnsTLSDomain}" -d "${dnsTLSDomain}"  --dns --yes-I-know-dns-manual-mode-enough-go-ahead-please --standalone -k ec-256 --server "${sslType}" ${installSSLIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
+		sudo "$HOME/.acme.sh/acme.sh" --issue -d "*.${dnsTLSDomain}" -d "${dnsTLSDomain}" --dns --yes-I-know-dns-manual-mode-enough-go-ahead-please -k ec-256 --server "${sslType}" ${installSSLIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
 
 		local txtValue=
 		txtValue=$(tail -n 10 /etc/v2ray-agent/tls/acme.log | grep "TXT value" | awk -F "'" '{print $2}')
 		if [[ -n "${txtValue}" ]]; then
 			echoContent green " ---> 请手动添加DNS TXT记录"
 			echoContent yellow " ---> 添加方法请参考此教程，https://github.com/mack-a/v2ray-agent/blob/master/documents/dns_txt.md"
+			echoContent yellow " ---> 如同一个域名多台机器安装通配符证书，请添加多个TXT记录，不需要修改以前添加的TXT记录"
 			echoContent green " --->  name：_acme-challenge"
 			echoContent green " --->  value：${txtValue}"
 			echoContent yellow " ---> 添加完成后等请等待1-2分钟"
@@ -1231,7 +1232,7 @@ acmeInstallSSL() {
 			if [[ "${addDNSTXTRecordStatus}" == "y" ]]; then
 				local txtAnswer=
 				txtAnswer=$(dig +nocmd "_acme-challenge.${dnsTLSDomain}" txt +noall +answer | awk -F "[\"]" '{print $2}')
-				if [[ "${txtAnswer}" == "${txtValue}" ]]; then
+				if echo "${txtAnswer}" | grep -q "${txtValue}"; then
 					echoContent green " ---> TXT记录验证通过"
 					echoContent green " ---> 生成证书中"
 					sudo "$HOME/.acme.sh/acme.sh" --renew -d "*.${dnsTLSDomain}" -d "${dnsTLSDomain}" --yes-I-know-dns-manual-mode-enough-go-ahead-please --ecc --server "${sslType}" ${installSSLIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
@@ -1327,7 +1328,7 @@ installTLS() {
 		if [[ "${installDNSACMEStatus}" == "true" ]]; then
 			echo
 			if [[ -d "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc" && -f "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.key" && -f "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.cer" ]]; then
-				sudo "$HOME/.acme.sh/acme.sh" --installcert  -d "*.${dnsTLSDomain}" --fullchainpath "/etc/v2ray-agent/tls/${tlsDomain}.crt" --keypath "/etc/v2ray-agent/tls/${tlsDomain}.key" --ecc >/dev/null
+				sudo "$HOME/.acme.sh/acme.sh" --installcert -d "*.${dnsTLSDomain}" --fullchainpath "/etc/v2ray-agent/tls/${tlsDomain}.crt" --keypath "/etc/v2ray-agent/tls/${tlsDomain}.key" --ecc >/dev/null
 			fi
 
 		elif [[ -d "$HOME/.acme.sh/${tlsDomain}_ecc" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]]; then
@@ -2155,7 +2156,6 @@ addClientsHysteria() {
 	if [[ ${addClientsStatus} == "true" && -n "${previousClients}" ]]; then
 		local uuids=
 		uuids=$(echo "${previousClients}" | jq -r [.[].id])
-
 
 		if [[ "${frontingType}" == "02_trojan_TCP_inbounds" ]]; then
 			uuids=$(echo "${previousClients}" | jq -r [.[].password])
@@ -5432,7 +5432,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者:mack-a"
-	echoContent green "当前版本:v2.6.11"
+	echoContent green "当前版本:v2.6.12"
 	echoContent green "Github:https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述:八合一共存脚本\c"
 	showInstallStatus
