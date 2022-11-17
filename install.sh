@@ -1629,13 +1629,13 @@ installHysteria() {
 
 	if [[ -z "${hysteriaConfigPath}" ]]; then
 
-		version=$(curl -s https://api.github.com/repos/HyNetwork/hysteria/releases | jq -r '.[]|select (.prerelease==false)|.tag_name' | head -1)
+		version=$(curl -s https://api.github.com/repos/apernet/hysteria/releases | jq -r '.[]|select (.prerelease==false)|.tag_name' | head -1)
 
 		echoContent green " ---> Hysteria版本:${version}"
 		if wget --help | grep -q show-progress; then
-			wget -c -q --show-progress -P /etc/v2ray-agent/hysteria/ "https://github.com/HyNetwork/hysteria/releases/download/${version}/${hysteriaCoreCPUVendor}"
+			wget -c -q --show-progress -P /etc/v2ray-agent/hysteria/ "https://github.com/apernet/hysteria/releases/download/${version}/${hysteriaCoreCPUVendor}"
 		else
-			wget -c -P /etc/v2ray-agent/hysteria/ "https://github.com/HyNetwork/hysteria/releases/download/${version}/${hysteriaCoreCPUVendor}" >/dev/null 2>&1
+			wget -c -P /etc/v2ray-agent/hysteria/ "https://github.com/apernet/hysteria/releases/download/${version}/${hysteriaCoreCPUVendor}" >/dev/null 2>&1
 		fi
 		mv "/etc/v2ray-agent/hysteria/${hysteriaCoreCPUVendor}" /etc/v2ray-agent/hysteria/hysteria
 		chmod 655 /etc/v2ray-agent/hysteria/hysteria
@@ -1972,7 +1972,7 @@ installHysteriaService() {
 		cat <<EOF >/etc/systemd/system/hysteria.service
     [Unit]
     Description=Hysteria Service
-    Documentation=https://github.com/HyNetwork/hysteria/wiki
+    Documentation=https://github.com/apernet/hysteria/wiki
     After=network.target nss-lookup.target
     Wants=network-online.target
 
@@ -5432,7 +5432,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者:mack-a"
-	echoContent green "当前版本:v2.6.12"
+	echoContent green "当前版本:v2.6.13"
 	echoContent green "Github:https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述:八合一共存脚本\c"
 	showInstallStatus

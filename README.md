@@ -33,7 +33,7 @@
 - 支持[Xray-core[XTLS]](https://github.com/XTLS/Xray-core)、[v2ray-core](https://github.com/v2fly/v2ray-core)
 - 支持VLESS/Trojan前置[VLESS XTLS -> Trojan XTLS]、[Trojan XTLS -> VLESS XTLS]
 - 支持不同核心之间的配置文件互相读取
-- 支持 VLESS/VMess/trojan 协议
+- 支持 VLESS/VMess/trojan/hysteria 协议
 - 支持Debian、Ubuntu、Centos系统，支持主流的cpu架构。
 - 支持任意组合安装、支持多用户管理、支持DNS流媒体解锁、支持添加多端口、[支持任意门解锁Netflix](https://github.com/mack-a/v2ray-agent/blob/master/documents/netflix/dokodemo-unblock_netflix.md)
 - 支持卸载后保留tls证书
