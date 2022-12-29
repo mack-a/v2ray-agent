@@ -3636,6 +3636,7 @@ EOF
 
             echoContent green " ---> 添加成功"
             reloadCore
+            addCorePort
         fi
     elif [[ "${selectNewPortType}" == "2" ]]; then
 
@@ -3646,6 +3647,7 @@ EOF
         if [[ -n "${dokoConfig}" ]]; then
             rm "${configPath}/$(echo "${dokoConfig}" | awk -F "[:]" '{print $2}')"
             reloadCore
+            addCorePort
         else
             echoContent yellow "\n ---> 编号输入错误，请重新选择"
             addCorePort
