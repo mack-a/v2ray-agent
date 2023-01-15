@@ -5071,7 +5071,7 @@ customXrayInstall() {
     echoContent yellow "1.VLESS+TLS+WS[CDN]"
     echoContent yellow "2.Trojan+TLS+gRPC[CDN]"
     echoContent yellow "3.VMess+TLS+WS[CDN]"
-    echoContent yellow "4.Trojan"
+    echoContent yellow "4.Trojan+TLS"
     echoContent yellow "5.VLESS+TLS+gRPC[CDN]"
     read -r -p "请选择[多选]，[例如:123]:" selectCustomInstallType
     echoContent skyBlue "--------------------------------------------------------------"

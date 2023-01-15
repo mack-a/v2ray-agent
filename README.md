@@ -50,6 +50,7 @@
 - Trojan+TCP+TLS
 - Trojan+gRPC+TLS【支持CDN、IPv6、延迟低】
 - VMess+WS+TLS【支持CDN、IPv6】
+- Hysteria【推荐】
 
 ## 线路推荐
 
