@@ -1258,7 +1258,7 @@ customPortFunction() {
         fi
     fi
 
-    if [[ "${historyCustomPortStatus}" == "n" ]] && [[ -z "${customPort}" ]]; then
+    if [[ -z "${currentPort}" && -z "${customPort}" ]] || [[ "${historyCustomPortStatus}" == "n" ]];then
         echo
         echoContent yellow "请输入端口[默认: 443]，如自定义端口，只允许使用DNS申请证书[回车使用默认]"
         read -r -p "端口:" customPort
@@ -5415,7 +5415,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者:mack-a"
-    echoContent green "当前版本:v2.6.17"
+    echoContent green "当前版本:v2.6.18"
     echoContent green "Github:https://github.com/mack-a/v2ray-agent"
     echoContent green "描述:八合一共存脚本\c"
     showInstallStatus
