@@ -1248,7 +1248,7 @@ customPortFunction() {
     local showPort=
     if [[ -n "${customPort}" || -n "${currentPort}" ]]; then
         echo
-        read -r -p "读取到上次安装时的端口，是否使用上次安装时的端口 ？[y/n]:" historyCustomPortStatus
+        read -r -p "读取到上次安装时的端口，是否使用上次安装时的端口？[y/n]:" historyCustomPortStatus
         if [[ "${historyCustomPortStatus}" == "y" ]]; then
             showPort="${currentPort}"
             if [[ -n "${customPort}" ]]; then
@@ -1258,7 +1258,7 @@ customPortFunction() {
         fi
     fi
 
-    if [[ "${historyCustomPortStatus}" == "n" ]] && [[ -z "${customPort}" && -z "${currentPort}" ]]; then
+    if [[ "${historyCustomPortStatus}" == "n" ]] && [[ -z "${customPort}" ]]; then
         echo
         echoContent yellow "请输入端口[默认: 443]，如自定义端口，只允许使用DNS申请证书[回车使用默认]"
         read -r -p "端口:" customPort
@@ -2161,7 +2161,7 @@ addClientsHysteria() {
 initHysteriaPort() {
     readHysteriaConfig
     if [[ -n "${hysteriaPort}" ]]; then
-        read -r -p "读取到上次安装时的端口，是否使用上次安装时的端口 ？[y/n]:" historyHysteriaPortStatus
+        read -r -p "读取到上次安装时的端口，是否使用上次安装时的端口？[y/n]:" historyHysteriaPortStatus
         if [[ "${historyHysteriaPortStatus}" == "y" ]]; then
             echoContent yellow "\n ---> 端口: ${hysteriaPort}"
         else
@@ -2391,7 +2391,7 @@ EOF
 		"clients": [
 		  {
 			"password": "${uuid}",
-			"email": "${domain}_${uuid}"
+			"email": "${domain}_${uuid}_Trojan_TCP"
 		  }
 		],
 		"fallbacks":[
@@ -2428,7 +2428,7 @@ EOF
 		"clients": [
 		  {
 			"id": "${uuid}",
-			"email": "${domain}_${uuid}"
+			"email": "${domain}_${uuid}_VLESS_WS"
 		  }
 		],
 		"decryption": "none"
@@ -2466,7 +2466,7 @@ EOF
                 "clients": [
                     {
                         "password": "${uuid}",
-                        "email": "${domain}_${uuid}"
+                        "email": "${domain}_${uuid}_Trojan_gRPC"
                     }
                 ],
                 "fallbacks": [
@@ -2508,7 +2508,7 @@ EOF
         "id": "${uuid}",
         "alterId": 0,
         "add": "${add}",
-        "email": "${domain}_${uuid}"
+        "email": "${domain}_${uuid}_VMess_WS"
       }
     ]
   },
@@ -2542,7 +2542,7 @@ EOF
                 {
                     "id": "${uuid}",
                     "add": "${add}",
-                    "email": "${domain}_${uuid}"
+                    "email": "${domain}_${uuid}_VLESS_gRPC"
                 }
             ],
             "decryption": "none"
@@ -2579,7 +2579,7 @@ EOF
      {
         "id": "${uuid}",
         "add":"${add}",
-        "email": "${domain}_VLESS_TLS-direct_TCP"
+        "email": "${domain}_${uuid}_VLESS_TCP"
       }
     ],
     "decryption": "none",
@@ -2617,7 +2617,7 @@ EOF
 # 初始化Xray Trojan XTLS 配置文件
 initXrayFrontingConfig() {
     echoContent red " ---> Trojan暂不支持 xtls-rprx-vision"
-    exit 0;
+    exit 0
     if [[ -z "${configPath}" ]]; then
         echoContent red " ---> 未安装，请使用脚本安装"
         menu
@@ -2806,7 +2806,7 @@ EOF
 		"clients": [
 		  {
 			"password": "${uuid}",
-			"email": "${domain}_${uuid}"
+			"email": "${domain}_${uuid}_Trojan_TCP"
 		  }
 		],
 		"fallbacks":[
@@ -2843,7 +2843,7 @@ EOF
 		"clients": [
 		  {
 			"id": "${uuid}",
-			"email": "${domain}_${uuid}"
+			"email": "${domain}_${uuid}_VLESS_WS"
 		  }
 		],
 		"decryption": "none"
@@ -2881,7 +2881,7 @@ EOF
                 "clients": [
                     {
                         "password": "${uuid}",
-                        "email": "${domain}_${uuid}"
+                        "email": "${domain}_${uuid}_Trojan_gRPC"
                     }
                 ],
                 "fallbacks": [
@@ -2921,7 +2921,7 @@ EOF
         "id": "${uuid}",
         "alterId": 0,
         "add": "${add}",
-        "email": "${domain}_${uuid}"
+        "email": "${domain}_${uuid}_VMess_WS"
       }
     ]
   },
@@ -2955,7 +2955,7 @@ EOF
                 {
                     "id": "${uuid}",
                     "add": "${add}",
-                    "email": "${domain}_${uuid}"
+                    "email": "${domain}_${uuid}_VLESS_gRPC"
                 }
             ],
             "decryption": "none"
@@ -2993,7 +2993,7 @@ EOF
         "id": "${uuid}",
         "add":"${add}",
         "flow":"xtls-rprx-vision,none",
-        "email": "${domain}_${uuid}"
+        "email": "${domain}_${uuid}_VLESS_TCP/XTLS"
       }
     ],
     "decryption": "none",
@@ -3811,7 +3811,7 @@ addUser() {
         fi
 
         if [[ -n "${currentCustomEmail}" ]]; then
-            email=${currentCustomEmail}
+            email=${currentCustomEmail}_${uuid}
         else
             email=${currentHost}_${uuid}
         fi
@@ -3825,7 +3825,7 @@ addUser() {
 
         if echo ${currentInstallProtocolType} | grep -q 0; then
             local vlessUsers="${users//\,\"alterId\":0/}"
-
+            vlessUsers="${users//${email}/${email}_VLESS_TCP}"
             local vlessTcpResult
             vlessTcpResult=$(jq -r ".inbounds[0].settings.clients += [${vlessUsers}]" ${configPath}${frontingType}.json)
             echo "${vlessTcpResult}" | jq . >${configPath}${frontingType}.json
@@ -3833,6 +3833,7 @@ addUser() {
 
         if echo ${currentInstallProtocolType} | grep -q trojan; then
             local trojanXTLSUsers="${users//\,\"alterId\":0/}"
+            trojanXTLSUsers="${trojanXTLSUsers//${email}/${email}_Trojan_TCP}"
             trojanXTLSUsers=${trojanXTLSUsers//"id"/"password"}
 
             local trojanXTLSResult
@@ -3842,6 +3843,7 @@ addUser() {
 
         if echo ${currentInstallProtocolType} | grep -q 1; then
             local vlessUsers="${users//\,\"alterId\":0/}"
+            vlessUsers="${vlessUsers//${email}/${email}_VLESS_TCP}"
             vlessUsers="${vlessUsers//\"flow\":\"xtls-rprx-vision,none\"\,/}"
             local vlessWsResult
             vlessWsResult=$(jq -r ".inbounds[0].settings.clients += [${vlessUsers}]" ${configPath}03_VLESS_WS_inbounds.json)
@@ -3850,6 +3852,7 @@ addUser() {
 
         if echo ${currentInstallProtocolType} | grep -q 2; then
             local trojangRPCUsers="${users//\"flow\":\"xtls-rprx-vision,none\"\,/}"
+            trojangRPCUsers="${trojangRPCUsers//${email}/${email}_Trojan_gRPC}"
             trojangRPCUsers="${trojangRPCUsers//\,\"alterId\":0/}"
             trojangRPCUsers=${trojangRPCUsers//"id"/"password"}
 
@@ -3860,7 +3863,7 @@ addUser() {
 
         if echo ${currentInstallProtocolType} | grep -q 3; then
             local vmessUsers="${users//\"flow\":\"xtls-rprx-vision,none\"\,/}"
-
+            vmessUsers="${vmessUsers//${email}/${email}_VMess_TCP}"
             local vmessWsResult
             vmessWsResult=$(jq -r ".inbounds[0].settings.clients += [${vmessUsers}]" ${configPath}05_VMess_WS_inbounds.json)
             echo "${vmessWsResult}" | jq . >${configPath}05_VMess_WS_inbounds.json
@@ -3869,7 +3872,7 @@ addUser() {
         if echo ${currentInstallProtocolType} | grep -q 5; then
             local vlessGRPCUsers="${users//\"flow\":\"xtls-rprx-vision,none\"\,/}"
             vlessGRPCUsers="${vlessGRPCUsers//\,\"alterId\":0/}"
-
+            vlessGRPCUsers="${vlessGRPCUsers//${email}/${email}_VLESS_gRPC}"
             local vlessGRPCResult
             vlessGRPCResult=$(jq -r ".inbounds[0].settings.clients += [${vlessGRPCUsers}]" ${configPath}06_VLESS_gRPC_inbounds.json)
             echo "${vlessGRPCResult}" | jq . >${configPath}06_VLESS_gRPC_inbounds.json
@@ -3879,6 +3882,7 @@ addUser() {
             local trojanUsers="${users//\"flow\":\"xtls-rprx-vision,none\"\,/}"
             trojanUsers="${trojanUsers//id/password}"
             trojanUsers="${trojanUsers//\,\"alterId\":0/}"
+            trojanUsers="${trojanUsers//${email}/${email}_Trojan_TCP}"
 
             local trojanTCPResult
             trojanTCPResult=$(jq -r ".inbounds[0].settings.clients += [${trojanUsers}]" ${configPath}04_trojan_TCP_inbounds.json)
@@ -5018,7 +5022,7 @@ customV2RayInstall() {
     echoContent yellow "1.VLESS+TLS+WS[CDN]"
     echoContent yellow "2.Trojan+TLS+gRPC[CDN]"
     echoContent yellow "3.VMess+TLS+WS[CDN]"
-    echoContent yellow "4.Trojan"
+    echoContent yellow "4.Trojan+TLS"
     echoContent yellow "5.VLESS+TLS+gRPC[CDN]"
     read -r -p "请选择[多选]，[例如:123]:" selectCustomInstallType
     echoContent skyBlue "--------------------------------------------------------------"
@@ -5411,7 +5415,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者:mack-a"
-    echoContent green "当前版本:v2.6.16"
+    echoContent green "当前版本:v2.6.17"
     echoContent green "Github:https://github.com/mack-a/v2ray-agent"
     echoContent green "描述:八合一共存脚本\c"
     showInstallStatus
