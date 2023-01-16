@@ -1258,7 +1258,7 @@ customPortFunction() {
         fi
     fi
 
-    if [[ -z "${currentPort}" && -z "${customPort}" ]] || [[ "${historyCustomPortStatus}" == "n" ]];then
+    if [[ -z "${currentPort}" && -z "${customPort}" ]] || [[ "${historyCustomPortStatus}" == "n" ]]; then
         echo
         echoContent yellow "请输入端口[默认: 443]，如自定义端口，只允许使用DNS申请证书[回车使用默认]"
         read -r -p "端口:" customPort
@@ -1684,6 +1684,7 @@ v2rayVersionManageMenu() {
     echoContent yellow "3.关闭v2ray-core"
     echoContent yellow "4.打开v2ray-core"
     echoContent yellow "5.重启v2ray-core"
+    echoContent yellow "6.更新geosite、geoip"
     echoContent red "=============================================================="
     read -r -p "请选择:" selectV2RayType
     if [[ "${selectV2RayType}" == "1" ]]; then
@@ -1710,6 +1711,8 @@ v2rayVersionManageMenu() {
         handleV2Ray start
     elif [[ "${selectV2RayType}" == "5" ]]; then
         reloadCore
+    elif [[ "${selectXrayType}" == "6" ]]; then
+        updateGeoSite
     fi
 }
 
@@ -1728,6 +1731,7 @@ xrayVersionManageMenu() {
     echoContent yellow "4.关闭Xray-core"
     echoContent yellow "5.打开Xray-core"
     echoContent yellow "6.重启Xray-core"
+    echoContent yellow "7.更新geosite、geoip"
     echoContent red "=============================================================="
     read -r -p "请选择:" selectXrayType
     if [[ "${selectXrayType}" == "1" ]]; then
@@ -1758,7 +1762,23 @@ xrayVersionManageMenu() {
         handleXray start
     elif [[ "${selectXrayType}" == "6" ]]; then
         reloadCore
+    elif [[ "${selectXrayType}" == "7" ]]; then
+        updateGeoSite
     fi
+
+}
+
+# 更新 geosite
+updateGeoSite() {
+    echoContent yellow "\n来源 https://github.com/Loyalsoldier/v2ray-rules-dat"
+
+    version=$(curl -s https://api.github.com/repos/Loyalsoldier/v2ray-rules-dat/releases | jq -r '.[]|.tag_name' | head -1)
+    echoContent skyBlue "------------------------Version-------------------------------"
+    echo "version:${version}"
+    wget -c -q --show-progress -P ${configPath}../ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geosite.data"
+    wget -c -q --show-progress -P ${configPath}../ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geoip.data"
+    reloadCore
+    echoContent green " ---> 更新完毕"
 
 }
 # 更新V2Ray
@@ -5415,7 +5435,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者:mack-a"
-    echoContent green "当前版本:v2.6.18"
+    echoContent green "当前版本:v2.6.19"
     echoContent green "Github:https://github.com/mack-a/v2ray-agent"
     echoContent green "描述:八合一共存脚本\c"
     showInstallStatus
