@@ -1173,7 +1173,6 @@ switchSSLType() {
             sslType="letsencrypt"
             ;;
         esac
-        touch /etc/v2ray-agent/tls
         echo "${sslType}" >/etc/v2ray-agent/tls/ssl_type
 
     fi
@@ -3711,7 +3710,7 @@ updateV2RayCDN() {
             setDomain="who.int"
             ;;
         3)
-            setDomain="blog.hostmonit.co"
+            setDomain="blog.hostmonit.com"
             ;;
         4)
             read -r -p "请输入想要自定义CDN IP或者域名:" setDomain
@@ -5435,7 +5434,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者:mack-a"
-    echoContent green "当前版本:v2.6.21"
+    echoContent green "当前版本:v2.6.22"
     echoContent green "Github:https://github.com/mack-a/v2ray-agent"
     echoContent green "描述:八合一共存脚本\c"
     showInstallStatus
