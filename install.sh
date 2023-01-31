@@ -3698,8 +3698,8 @@ updateV2RayCDN() {
     if [[ -n "${currentAdd}" ]]; then
         echoContent red "=============================================================="
         echoContent yellow "1.CNAME www.digitalocean.com"
-        echoContent yellow "2.CNAME www.cloudflare.com"
-        echoContent yellow "3.CNAME hostmonit.com"
+        echoContent yellow "2.CNAME who.int"
+        echoContent yellow "3.CNAME blog.hostmonit.com"
         echoContent yellow "4.手动输入"
         echoContent red "=============================================================="
         read -r -p "请选择:" selectCDNType
@@ -3708,10 +3708,10 @@ updateV2RayCDN() {
             setDomain="www.digitalocean.com"
             ;;
         2)
-            setDomain="www.cloudflare.com"
+            setDomain="who.int"
             ;;
         3)
-            setDomain="hostmonit.com"
+            setDomain="blog.hostmonit.co"
             ;;
         4)
             read -r -p "请输入想要自定义CDN IP或者域名:" setDomain
@@ -5435,7 +5435,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者:mack-a"
-    echoContent green "当前版本:v2.6.20"
+    echoContent green "当前版本:v2.6.21"
     echoContent green "Github:https://github.com/mack-a/v2ray-agent"
     echoContent green "描述:八合一共存脚本\c"
     showInstallStatus
