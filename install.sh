@@ -1222,11 +1222,15 @@ acmeInstallSSL() {
             read -r -p "是否添加完成[y/n]:" addDNSTXTRecordStatus
             if [[ "${addDNSTXTRecordStatus}" == "y" ]]; then
                 local txtAnswer=
-                txtAnswer=$(dig +nocmd "_acme-challenge.${dnsTLSDomain}" txt +noall +answer | awk -F "[\"]" '{print $2}')
+                txtAnswer=$(dig @1.1.1.1 +nocmd "_acme-challenge.${dnsTLSDomain}" txt +noall +answer | awk -F "[\"]" '{print $2}')
                 if echo "${txtAnswer}" | grep -q "^${txtValue}"; then
                     echoContent green " ---> TXT记录验证通过"
                     echoContent green " ---> 生成证书中"
-                    sudo "$HOME/.acme.sh/acme.sh" --renew -d "*.${dnsTLSDomain}" -d "${dnsTLSDomain}" --yes-I-know-dns-manual-mode-enough-go-ahead-please --ecc --server "${sslType}" ${installSSLIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
+                    if [[ -n "${installSSLIPv6}" ]]; then
+                        sudo "$HOME/.acme.sh/acme.sh" --renew -d "*.${dnsTLSDomain}" -d "${dnsTLSDomain}" --yes-I-know-dns-manual-mode-enough-go-ahead-please --ecc --server "${sslType}" ${installSSLIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
+                    else
+                        sudo "$HOME/.acme.sh/acme.sh" --renew -d "*.${dnsTLSDomain}" -d "${dnsTLSDomain}" --yes-I-know-dns-manual-mode-enough-go-ahead-please --ecc --server "${sslType}" 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
+                    fi
                 else
                     echoContent red " ---> 验证失败，请等待1-2分钟后重新尝试"
                     acmeInstallSSL
@@ -1335,9 +1339,12 @@ installTLS() {
 
             installTLSCount=1
             echo
-            echoContent red " ---> TLS安装失败，正在检查80、443端口是否开放"
-            allowPort 80
-            allowPort 443
+            if [[ -z "${customPort}" ]]; then
+                echoContent red " ---> TLS安装失败，正在检查80、443端口是否开放"
+                allowPort 80
+                allowPort 443
+            fi
+
             echoContent yellow " ---> 重新尝试安装TLS证书"
 
             if tail -n 10 /etc/v2ray-agent/tls/acme.log | grep -q "Could not validate email address as valid"; then
@@ -5434,7 +5441,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者:mack-a"
-    echoContent green "当前版本:v2.6.22"
+    echoContent green "当前版本:v2.6.23"
     echoContent green "Github:https://github.com/mack-a/v2ray-agent"
     echoContent green "描述:八合一共存脚本\c"
     showInstallStatus
