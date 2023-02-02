@@ -3098,20 +3098,21 @@ customCDNIP() {
     echoContent yellow "\n教程地址:"
     echoContent skyBlue "https://github.com/mack-a/v2ray-agent/blob/master/documents/optimize_V2Ray.md"
     echoContent red "\n如对Cloudflare优化不了解，请不要使用"
-    echoContent yellow "\n 1.移动:104.16.123.96"
-    echoContent yellow " 2.联通:www.cloudflare.com"
-    echoContent yellow " 3.电信:www.digitalocean.com"
+    echoContent yellow "\n 1.CNAME www.digitalocean.com"
+    echoContent yellow " 2.CNAME who.int"
+    echoContent yellow " 3.CNAME blog.hostmonit.com"
+
     echoContent skyBlue "----------------------------"
     read -r -p "请选择[回车不使用]:" selectCloudflareType
     case ${selectCloudflareType} in
     1)
-        add="104.16.123.96"
+        add="www.digitalocean.com"
         ;;
     2)
-        add="www.cloudflare.com"
+        add="who.int"
         ;;
     3)
-        add="www.digitalocean.com"
+        add="blog.hostmonit.com"
         ;;
     *)
         add="${domain}"
@@ -3530,7 +3531,7 @@ addCorePort() {
     echoContent yellow "不影响默认端口的使用"
     echoContent yellow "查看账号时，只会展示默认端口的账号"
     echoContent yellow "不允许有特殊字符，注意逗号的格式"
-    echoContent yellow "会同时安装hysteria新端口"
+    echoContent yellow "如已安装hysteria，会同时安装hysteria新端口"
     echoContent yellow "录入示例:2053,2083,2087\n"
 
     echoContent yellow "1.添加端口"
@@ -4324,7 +4325,7 @@ blacklist() {
         echoContent yellow "3.如内核启动失败请检查域名后重新添加域名"
         echoContent yellow "4.不允许有特殊字符，注意逗号的格式"
         echoContent yellow "5.每次添加都是重新添加，不会保留上次域名"
-        echoContent yellow "6.录入示例:speedtest,facebook\n"
+        echoContent yellow "6.录入示例:speedtest,facebook,cn\n"
         read -r -p "请按照上面示例录入域名:" domainList
 
         if [[ -f "${configPath}09_routing.json" ]]; then
@@ -5441,7 +5442,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者:mack-a"
-    echoContent green "当前版本:v2.6.23"
+    echoContent green "当前版本:v2.6.24"
     echoContent green "Github:https://github.com/mack-a/v2ray-agent"
     echoContent green "描述:八合一共存脚本\c"
     showInstallStatus

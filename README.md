@@ -38,7 +38,7 @@
 - 支持卸载后保留tls证书
 - 支持IPv6，[IPv6注意事项](https://github.com/mack-a/v2ray-agent/blob/master/documents/ipv6_help.md)
 - 支持WARP分流、IPv6分流、任意门分流
-- 支持BT下载管理、日志管理、域名黑名单管理、核心管理、伪装站点管理
+- 支持BT下载管理、日志管理、域名黑名单管理、核心管理、伪装站点管理、路由规则文件管理
 - [支持自定义证书安装](https://github.com/mack-a/v2ray-agent/blob/master/documents/install_tls.md)
 
 ## 支持的安装类型
@@ -55,14 +55,10 @@
 ## 线路推荐
 
 - [CN2 GIA](https://github.com/mack-a/v2ray-agent/blob/master/documents/donation_aff.md#1cn2-gia)
-- 上海CN2+HK
 - [AS9929](https://github.com/mack-a/v2ray-agent/blob/master/documents/donation_aff.md#2%E8%81%94%E9%80%9A-as9929a%E7%BD%91)
 - [AS4837](https://github.com/mack-a/v2ray-agent/blob/master/documents/donation_aff.md#3%E8%81%94%E9%80%9A-as4837%E6%99%AE%E9%80%9A%E6%B0%91%E7%94%A8%E7%BD%91)
-- [联通日本软银](https://github.com/mack-a/v2ray-agent/blob/master/documents/donation_aff.md#4%E8%81%94%E9%80%9A-%E6%97%A5%E6%9C%AC%E8%BD%AF%E9%93%B6)
-- 联通+NTT
-- 广移/珠移+HKIX/CMI/NTT
-- 广移/CN2+Cloudflare+全球
-- 广移/CN2/南联+香港AZ+全球
+- [日本软银](https://github.com/mack-a/v2ray-agent/blob/master/documents/donation_aff.md#4%E8%81%94%E9%80%9A-%E6%97%A5%E6%9C%AC%E8%BD%AF%E9%93%B6)
+- [CMI](https://github.com/mack-a/v2ray-agent/blob/master/documents/donation_aff.md#5cmi)
 - 中转+cloudflare+落地机【可拉全球】
 
 ## 注意事项
@@ -83,7 +79,6 @@
 - **Oracle Cloud仅支持Ubuntu**
 - **如果使用gRPC通过cloudflare转发,需要在cloudflare设置允许gRPC，路径：cloudflare Network->gRPC**
 - **gRPC目前处于测试阶段，可能对你使用的客户端不兼容，如不能使用请忽略**
-- **低版本脚本升级高版本时无法启动问题，[请点击此链接查看解决方案](https://github.com/mack-a/v2ray-agent/blob/master/documents/how_to_use.md#4%E4%BD%8E%E7%89%88%E6%9C%AC%E5%8D%87%E7%BA%A7%E9%AB%98%E7%89%88%E6%9C%AC%E5%90%8E%E6%97%A0%E6%B3%95%E5%90%AF%E5%8A%A8%E6%A0%B8%E5%BF%83)**
 
 ## [脚本使用指南](https://github.com/mack-a/v2ray-agent/blob/master/documents/how_to_use.md)、[脚本目录](https://github.com/mack-a/v2ray-agent/blob/master/documents/how_to_use.md#5脚本目录)
 
