@@ -32,7 +32,7 @@
 - 如果自定义端口后只可使用dns申请证书
 - 如回车默认，则申请证书时会提示是否使用dns申请证书
 
-- <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/02_02.png" width=700>
+<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/how_to_use/02_02.png" width=700>
 
 ### 4.检测域名的ip
 
