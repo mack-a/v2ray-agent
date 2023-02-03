@@ -1193,10 +1193,16 @@ selectAcmeInstallSSL() {
         fi
         dnsSSLStatus=true
     else
-        read -r -p "是否使用DNS申请证书[y/n]:" installSSLDNStatus
-        if [[ ${installSSLDNStatus} == 'y' ]]; then
-            dnsSSLStatus=true
+        if [[ -z "${dnsSSLStatus}" ]]; then
+            read -r -p "是否使用DNS申请证书，如不会使用DNS申请证书请输入n[y/n]:" installSSLDNStatus
+
+            if [[ ${installSSLDNStatus} == 'y' ]]; then
+                dnsSSLStatus=true
+            else
+                dnsSSLStatus=false
+            fi
         fi
+
     fi
     acmeInstallSSL
 
@@ -1265,7 +1271,7 @@ customPortFunction() {
         echo
         echoContent yellow "请输入端口[默认: 443]，如自定义端口，只允许使用DNS申请证书[回车使用默认]"
         read -r -p "端口:" customPort
-        if [[ -n "${customPort}" ]]; then
+        if [[ -n "${customPort}" && "${customPort}" != "443" ]]; then
             if ((customPort >= 1 && customPort <= 65535)); then
                 checkCustomPort
                 allowPort "${customPort}"
@@ -1274,6 +1280,7 @@ customPortFunction() {
                 exit
             fi
         else
+            customPort=
             echoContent yellow "\n ---> 端口: 443"
         fi
     fi
@@ -2417,7 +2424,7 @@ EOF
 		"clients": [
 		  {
 			"password": "${uuid}",
-			"email": "${domain}_${uuid}_Trojan_TCP"
+			"email": "default_Trojan_TCP"
 		  }
 		],
 		"fallbacks":[
@@ -2454,7 +2461,7 @@ EOF
 		"clients": [
 		  {
 			"id": "${uuid}",
-			"email": "${domain}_${uuid}_VLESS_WS"
+			"email": "default_VLESS_WS"
 		  }
 		],
 		"decryption": "none"
@@ -2492,7 +2499,7 @@ EOF
                 "clients": [
                     {
                         "password": "${uuid}",
-                        "email": "${domain}_${uuid}_Trojan_gRPC"
+                        "email": "default_Trojan_gRPC"
                     }
                 ],
                 "fallbacks": [
@@ -2534,7 +2541,7 @@ EOF
         "id": "${uuid}",
         "alterId": 0,
         "add": "${add}",
-        "email": "${domain}_${uuid}_VMess_WS"
+        "email": "default_VMess_WS"
       }
     ]
   },
@@ -2568,7 +2575,7 @@ EOF
                 {
                     "id": "${uuid}",
                     "add": "${add}",
-                    "email": "${domain}_${uuid}_VLESS_gRPC"
+                    "email": "default_VLESS_gRPC"
                 }
             ],
             "decryption": "none"
@@ -2605,7 +2612,7 @@ EOF
      {
         "id": "${uuid}",
         "add":"${add}",
-        "email": "${domain}_${uuid}_VLESS_TCP"
+        "email": "default_VLESS_TCP"
       }
     ],
     "decryption": "none",
@@ -2832,7 +2839,7 @@ EOF
 		"clients": [
 		  {
 			"password": "${uuid}",
-			"email": "${domain}_${uuid}_Trojan_TCP"
+			"email": "default_Trojan_TCP"
 		  }
 		],
 		"fallbacks":[
@@ -2869,7 +2876,7 @@ EOF
 		"clients": [
 		  {
 			"id": "${uuid}",
-			"email": "${domain}_${uuid}_VLESS_WS"
+			"email": "default_VLESS_WS"
 		  }
 		],
 		"decryption": "none"
@@ -2907,7 +2914,7 @@ EOF
                 "clients": [
                     {
                         "password": "${uuid}",
-                        "email": "${domain}_${uuid}_Trojan_gRPC"
+                        "email": "default_Trojan_gRPC"
                     }
                 ],
                 "fallbacks": [
@@ -2947,7 +2954,7 @@ EOF
         "id": "${uuid}",
         "alterId": 0,
         "add": "${add}",
-        "email": "${domain}_${uuid}_VMess_WS"
+        "email": "default_VMess_WS"
       }
     ]
   },
@@ -2981,7 +2988,7 @@ EOF
                 {
                     "id": "${uuid}",
                     "add": "${add}",
-                    "email": "${domain}_${uuid}_VLESS_gRPC"
+                    "email": "default_VLESS_gRPC"
                 }
             ],
             "decryption": "none"
@@ -3019,7 +3026,7 @@ EOF
         "id": "${uuid}",
         "add":"${add}",
         "flow":"xtls-rprx-vision,none",
-        "email": "${domain}_${uuid}_VLESS_TCP/XTLS"
+        "email": "default_VLESS_TCP/XTLS"
       }
     ],
     "decryption": "none",
@@ -3272,6 +3279,7 @@ showAccounts() {
 
         else
             echoContent skyBlue "===================== VLESS TCP TLS/XTLS-vision ======================\n"
+            echoContent red "\n --->如客户端不支持vision会使用默认的VLESS TCP TLS，vision可以有效规避端口封禁，非vision则没有此功能，请确认后再使用"
             jq .inbounds[0].settings.clients ${configPath}02_VLESS_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
                 local email=
                 email=$(echo "${user}" | jq -r .email)
@@ -3793,9 +3801,8 @@ customUserEmail() {
     read -r -p "请输入合法的email，[回车]随机email:" currentCustomEmail
     echo
     if [[ -z "${currentCustomEmail}" ]]; then
-        currentCustomEmail="${currentHost}_${currentCustomUUID}"
+        currentCustomEmail="${currentCustomUUID}"
         echoContent yellow "email: ${currentCustomEmail}\n"
-        #		echoContent red " ---> email不可为空"
     else
         jq -r -c '.inbounds[0].settings.clients[].email' ${configPath}${frontingType}.json | while read -r line; do
             if [[ "${line}" == "${currentCustomEmail}" ]]; then
@@ -5308,6 +5315,7 @@ manageAccount() {
     echoContent skyBlue "\n功能 1/${totalProgress} : 账号管理"
     echoContent red "\n=============================================================="
     echoContent yellow "# 每次删除、添加账号后，需要重新查看订阅生成订阅"
+    echoContent yellow "# 添加单个用户时可自定义email和uuid"
     echoContent yellow "# 如安装了Hysteria，账号会同时添加到Hysteria\n"
     echoContent yellow "1.查看账号"
     echoContent yellow "2.查看订阅"
@@ -5442,7 +5450,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者:mack-a"
-    echoContent green "当前版本:v2.6.24"
+    echoContent green "当前版本:v2.6.25"
     echoContent green "Github:https://github.com/mack-a/v2ray-agent"
     echoContent green "描述:八合一共存脚本\c"
     showInstallStatus
