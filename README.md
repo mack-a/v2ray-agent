@@ -97,7 +97,7 @@
 - Latest Version [Recommended]
 
 ```
-wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/IRAN-install.sh" && chmod 700 /root/IRAN-install.sh && / root/IRAN-install.sh
+wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/ExtremeDot/v2ray-agent/patch-1/IRAN-install.sh" && chmod 700 /root/IRAN-install.sh && bash / root/IRAN-install.sh
 ```
 
 
