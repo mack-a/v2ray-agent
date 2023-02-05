@@ -118,7 +118,7 @@ hysteriaCoreCPUVendor=""
 # domain name
 domain=
 
-address of the CDN node
+#address of the CDN node
 add=
 
 #Installation progress _
