@@ -349,7 +349,7 @@ readInstallAlpn() {
 # 检查防火墙
 allowPort() {
     local type=$2
-    if [[ -z ${type} ]]; then
+    if [[ -z "${type}" ]]; then
         type=tcp
     fi
     # 如果防火墙启动状态则添加相应的开放端口
@@ -365,7 +365,7 @@ allowPort() {
         fi
     elif systemctl status ufw 2>/dev/null | grep -q "active (exited)"; then
         if ufw status | grep -q "Status: active"; then
-            if ! ufw status | grep -q "$1"; then
+            if ! ufw status | grep -q "$1/${type}"; then
                 sudo ufw allow "$1/${type}"
                 checkUFWAllowPort "$1"
             fi
@@ -2214,6 +2214,7 @@ initHysteriaPort() {
         initHysteriaPort "$2"
     fi
     allowPort "${hysteriaPort}"
+    allowPort "${hysteriaPort}" "udp"
 }
 
 # 初始化hysteria的协议
@@ -2282,7 +2283,8 @@ initHysteriaConfig() {
     initHysteriaPort
     initHysteriaProtocol
     initHysteriaNetwork
-
+    local uuid=
+    uuid=$(${ctlPath} uuid)
     getClients "${configPath}${frontingType}.json" true
     cat <<EOF >/etc/v2ray-agent/hysteria/conf/config.json
 {
@@ -2295,6 +2297,11 @@ initHysteriaConfig() {
 		"mode": "passwords",
 		"config": []
 	},
+	"socks5_outbound":{
+	    "server":"127.0.0.1:31295",
+	    "user":"hysteria_socks5_outbound",
+	    "password":"${uuid}"
+	},
 	"alpn": "h3",
 	"recv_window_conn": 15728640,
 	"recv_window_client": 67108864,
@@ -2306,6 +2313,31 @@ initHysteriaConfig() {
 EOF
 
     addClientsHysteria "/etc/v2ray-agent/hysteria/conf/config.json" true
+
+    # 添加socks入站
+    cat <<EOF >${configPath}/02_socks_inbounds_hysteria.json
+{
+  "inbounds": [
+    {
+      "listen": "127.0.0.1",
+      "port": 31295,
+      "protocol": "Socks",
+      "tag": "socksHysteriaOutbound",
+      "settings": {
+        "auth": "password",
+        "accounts": [
+          {
+            "user": "hysteria_socks5_outbound",
+            "pass": "${uuid}"
+          }
+        ],
+        "udp": true,
+        "ip": "127.0.0.1"
+      }
+    }
+  ]
+}
+EOF
 }
 
 # 初始化V2Ray 配置文件
@@ -3246,13 +3278,15 @@ EOF
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${currentAdd}%3a${currentDefaultPort}%3Fencryption%3Dnone%26security%3Dtls%26peer%3d${currentHost}%26type%3Dgrpc%26sni%3d${currentHost}%26path%3D${currentPath}trojangrpc%26alpn%3Dh2%26serviceName%3D${currentPath}trojangrpc%23${email}\n"
 
     elif [[ "${type}" == "hysteria" ]]; then
+        local hysteriaEmail=
+        hysteriaEmail=$(echo "${email}" | awk -F "[_]" '{print $1}')_hysteria
         echoContent yellow " ---> Hysteria(TLS)"
-        echoContent green "    hysteria://${currentHost}:${hysteriaPort}?protocol=${hysteriaProtocol}&auth=${id}&peer=${currentHost}&insecure=0&alpn=h3&upmbps=${hysteriaClientUploadSpeed}&downmbps=${hysteriaClientDownloadSpeed}#${email}\n"
+        echoContent green "    hysteria://${currentHost}:${hysteriaPort}?protocol=${hysteriaProtocol}&auth=${id}&peer=${currentHost}&insecure=0&alpn=h3&upmbps=${hysteriaClientUploadSpeed}&downmbps=${hysteriaClientDownloadSpeed}#${hysteriaEmail}\n"
         cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
-hysteria://${currentHost}:${hysteriaPort}?protocol=${hysteriaProtocol}&auth=${id}&peer=${currentHost}&insecure=0&alpn=h3&upmbps=${hysteriaClientUploadSpeed}&downmbps=${hysteriaClientDownloadSpeed}#${email}
+hysteria://${currentHost}:${hysteriaPort}?protocol=${hysteriaProtocol}&auth=${id}&peer=${currentHost}&insecure=0&alpn=h3&upmbps=${hysteriaClientUploadSpeed}&downmbps=${hysteriaClientDownloadSpeed}#${hysteriaEmail}
 EOF
         echoContent yellow " ---> 二维码 Hysteria(TLS)"
-        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=hysteria%3A%2F%2F${currentHost}%3A${hysteriaPort}%3Fprotocol%3D${hysteriaProtocol}%26auth%3D${id}%26peer%3D${currentHost}%26insecure%3D0%26alpn%3Dh3%26upmbps%3D${hysteriaClientUploadSpeed}%26downmbps%3D${hysteriaClientDownloadSpeed}%23${email}\n"
+        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=hysteria%3A%2F%2F${currentHost}%3A${hysteriaPort}%3Fprotocol%3D${hysteriaProtocol}%26auth%3D${id}%26peer%3D${currentHost}%26insecure%3D0%26alpn%3Dh3%26upmbps%3D${hysteriaClientUploadSpeed}%26downmbps%3D${hysteriaClientDownloadSpeed}%23${hysteriaEmail}\n"
     fi
 
 }
@@ -3384,11 +3418,13 @@ showAccounts() {
             defaultUser=$(jq '.inbounds[0].settings.clients[]|select('${uuidType}'=="'"${user}"'")' ${configPath}${frontingType}.json)
             local email=
             email=$(echo "${defaultUser}" | jq -r .email)
+            local hysteriaEmail=
+            hysteriaEmail=$(echo "${email}" | awk -F "[_]" '{print $1}')_hysteria
 
             if [[ -n ${defaultUser} ]]; then
-                echoContent skyBlue "\n ---> 账号:${email}"
+                echoContent skyBlue "\n ---> 账号:${hysteriaEmail}"
                 echo
-                defaultBase64Code hysteria "${email}" "${user}"
+                defaultBase64Code hysteria "${hysteriaEmail}" "${user}"
             fi
 
         done
@@ -3542,11 +3578,15 @@ addCorePort() {
     echoContent yellow "如已安装hysteria，会同时安装hysteria新端口"
     echoContent yellow "录入示例:2053,2083,2087\n"
 
-    echoContent yellow "1.添加端口"
-    echoContent yellow "2.删除端口"
+    echoContent yellow "1.查看已添加端口"
+    echoContent yellow "2.添加端口"
+    echoContent yellow "3.删除端口"
     echoContent red "=============================================================="
     read -r -p "请选择:" selectNewPortType
     if [[ "${selectNewPortType}" == "1" ]]; then
+        find ${configPath} -name "*dokodemodoor*" | grep -v "hysteria" | awk -F "[c][o][n][f][/]" '{print $2}' | awk -F "[_]" '{print $4}' | awk -F "[.]" '{print ""NR""":"$1}'
+        exit 0
+    elif [[ "${selectNewPortType}" == "2" ]]; then
         read -r -p "请输入端口号:" newPort
         read -r -p "请输入默认的端口号，同时会更改订阅端口以及节点端口，[回车]默认443:" defaultPort
 
@@ -3624,14 +3664,20 @@ EOF
             reloadCore
             addCorePort
         fi
-    elif [[ "${selectNewPortType}" == "2" ]]; then
-
-        find ${configPath} -name "*dokodemodoor*" | awk -F "[c][o][n][f][/]" '{print ""NR""":"$2}'
+    elif [[ "${selectNewPortType}" == "3" ]]; then
+        find ${configPath} -name "*dokodemodoor*" | grep -v "hysteria" | awk -F "[c][o][n][f][/]" '{print $2}' | awk -F "[_]" '{print $4}' | awk -F "[.]" '{print ""NR""":"$1}'
         read -r -p "请输入要删除的端口编号:" portIndex
         local dokoConfig
-        dokoConfig=$(find ${configPath} -name "*dokodemodoor*" | awk -F "[c][o][n][f][/]" '{print ""NR""":"$2}' | grep "${portIndex}:")
+        dokoConfig=$(find ${configPath} -name "*dokodemodoor*" | grep -v "hysteria" | awk -F "[c][o][n][f][/]" '{print $2}' | awk -F "[_]" '{print $4}' | awk -F "[.]" '{print ""NR""":"$1}' | grep "${portIndex}:")
         if [[ -n "${dokoConfig}" ]]; then
-            rm "${configPath}/$(echo "${dokoConfig}" | awk -F "[:]" '{print $2}')"
+            rm "${configPath}02_dokodemodoor_inbounds_$(echo "${dokoConfig}" | awk -F "[:]" '{print $2}').json"
+            local hysteriaDokodemodoorFilePath=
+
+            hysteriaDokodemodoorFilePath="${configPath}02_dokodemodoor_inbounds_hysteria_$(echo "${dokoConfig}" | awk -F "[:]" '{print $2}').json"
+            if [[ -f "${hysteriaDokodemodoorFilePath}" ]]; then
+                rm "${hysteriaDokodemodoorFilePath}"
+            fi
+
             reloadCore
             addCorePort
         else
@@ -3707,7 +3753,6 @@ unInstall() {
 # 修改V2Ray CDN节点
 updateV2RayCDN() {
 
-    # todo 重构此方法
     echoContent skyBlue "\n进度 $1/${totalProgress} : 修改CDN节点"
 
     if [[ -n "${currentAdd}" ]]; then
@@ -3716,6 +3761,7 @@ updateV2RayCDN() {
         echoContent yellow "2.CNAME who.int"
         echoContent yellow "3.CNAME blog.hostmonit.com"
         echoContent yellow "4.手动输入"
+        echoContent yellow "5.移除CDN节点"
         echoContent red "=============================================================="
         read -r -p "请选择:" selectCDNType
         case ${selectCDNType} in
@@ -3730,6 +3776,9 @@ updateV2RayCDN() {
             ;;
         4)
             read -r -p "请输入想要自定义CDN IP或者域名:" setDomain
+            ;;
+        5)
+            setDomain=${currentHost}
             ;;
         esac
 
@@ -4169,11 +4218,16 @@ ipv6Routing() {
     checkIPv6
     echoContent skyBlue "\n功能 1/${totalProgress} : IPv6分流"
     echoContent red "\n=============================================================="
-    echoContent yellow "1.添加域名"
-    echoContent yellow "2.卸载IPv6分流"
+    echoContent yellow "1.查看已分流域名"
+    echoContent yellow "2.添加域名"
+    echoContent yellow "3.卸载IPv6分流"
     echoContent red "=============================================================="
     read -r -p "请选择:" ipv6Status
     if [[ "${ipv6Status}" == "1" ]]; then
+
+        jq -r -c '.routing.rules[]|select (.outboundTag=="IPv6-out")|.domain' ${configPath}09_routing.json | jq -r
+        exit 0
+    elif [[ "${ipv6Status}" == "2" ]]; then
         echoContent red "=============================================================="
         echoContent yellow "# 注意事项\n"
         echoContent yellow "1.规则仅支持预定义域名列表[https://github.com/v2fly/domain-list-community]"
@@ -4182,7 +4236,8 @@ ipv6Routing() {
         echoContent yellow "4.不允许有特殊字符，注意逗号的格式"
         echoContent yellow "5.每次添加都是重新添加，不会保留上次域名"
         echoContent yellow "6.强烈建议屏蔽国内的网站，下方输入【cn】即可屏蔽"
-        echoContent yellow "7.录入示例:google,youtube,facebook,cn\n"
+        echoContent yellow "8.支持hysteria"
+        echoContent yellow "9.录入示例:google,youtube,facebook,cn\n"
         read -r -p "请按照上面示例录入域名:" domainList
 
         if [[ -f "${configPath}09_routing.json" ]]; then
@@ -4220,7 +4275,7 @@ EOF
 
         echoContent green " ---> 添加成功"
 
-    elif [[ "${ipv6Status}" == "2" ]]; then
+    elif [[ "${ipv6Status}" == "3" ]]; then
 
         unInstallRouting IPv6-out outboundTag
 
@@ -4320,11 +4375,16 @@ blacklist() {
 
     echoContent skyBlue "\n进度  $1/${totalProgress} : 域名黑名单"
     echoContent red "\n=============================================================="
-    echoContent yellow "1.添加域名"
-    echoContent yellow "2.删除黑名单"
+    echoContent yellow "1.查看已屏蔽域名"
+    echoContent yellow "2.添加域名"
+    echoContent yellow "3.删除黑名单"
     echoContent red "=============================================================="
+
     read -r -p "请选择:" blacklistStatus
     if [[ "${blacklistStatus}" == "1" ]]; then
+        jq -r -c '.routing.rules[]|select (.outboundTag=="blackhole-out")|.domain' ${configPath}09_routing.json | jq -r
+        exit 0
+    elif [[ "${blacklistStatus}" == "2" ]]; then
         echoContent red "=============================================================="
         echoContent yellow "# 注意事项\n"
         echoContent yellow "1.规则仅支持预定义域名列表[https://github.com/v2fly/domain-list-community]"
@@ -4332,7 +4392,8 @@ blacklist() {
         echoContent yellow "3.如内核启动失败请检查域名后重新添加域名"
         echoContent yellow "4.不允许有特殊字符，注意逗号的格式"
         echoContent yellow "5.每次添加都是重新添加，不会保留上次域名"
-        echoContent yellow "6.录入示例:speedtest,facebook,cn\n"
+        echoContent yellow "6.支持hysteria"
+        echoContent yellow "7.录入示例:speedtest,facebook,cn\n"
         read -r -p "请按照上面示例录入域名:" domainList
 
         if [[ -f "${configPath}09_routing.json" ]]; then
@@ -4363,7 +4424,7 @@ EOF
 
         echoContent green " ---> 添加成功"
 
-    elif [[ "${blacklistStatus}" == "2" ]]; then
+    elif [[ "${blacklistStatus}" == "3" ]]; then
 
         unInstallRouting blackhole-out outboundTag
 
@@ -4447,10 +4508,6 @@ warpRouting() {
     echoContent skyBlue "\n进度  $1/${totalProgress} : WARP分流"
     echoContent red "=============================================================="
     #	echoContent yellow "# 注意事项\n"
-    #	echoContent yellow "1.官方warp经过几轮测试有bug，重启会导致warp失效，并且无法启动，也有可能CPU使用率暴涨"
-    #	echoContent yellow "2.不重启机器可正常使用，如果非要使用官方warp，建议不重启机器"
-    #	echoContent yellow "3.有的机器重启后仍正常使用"
-    #	echoContent yellow "4.重启后无法使用，也可卸载重新安装"
     # 安装warp
     if [[ -z $(which warp-cli) ]]; then
         echo
@@ -4464,11 +4521,15 @@ warpRouting() {
     fi
 
     echoContent red "\n=============================================================="
-    echoContent yellow "1.添加域名"
-    echoContent yellow "2.卸载WARP分流"
+    echoContent yellow "1.查看已分流域名"
+    echoContent yellow "2.添加域名"
+    echoContent yellow "3.卸载WARP分流"
     echoContent red "=============================================================="
     read -r -p "请选择:" warpStatus
     if [[ "${warpStatus}" == "1" ]]; then
+        jq -r -c '.routing.rules[]|select (.outboundTag=="warp-socks-out")|.domain' ${configPath}09_routing.json | jq -r
+        exit 0
+    elif [[ "${warpStatus}" == "2" ]]; then
         echoContent red "=============================================================="
         echoContent yellow "# 注意事项\n"
         echoContent yellow "1.规则仅支持预定义域名列表[https://github.com/v2fly/domain-list-community]"
@@ -4477,7 +4538,8 @@ warpRouting() {
         echoContent yellow "4.如内核启动失败请检查域名后重新添加域名"
         echoContent yellow "5.不允许有特殊字符，注意逗号的格式"
         echoContent yellow "6.每次添加都是重新添加，不会保留上次域名"
-        echoContent yellow "7.录入示例:google,youtube,facebook\n"
+        echoContent yellow "7.支持hysteria"
+        echoContent yellow "8.录入示例:google,youtube,facebook,cn\n"
         read -r -p "请按照上面示例录入域名:" domainList
 
         if [[ -f "${configPath}09_routing.json" ]]; then
@@ -4514,7 +4576,7 @@ EOF
 
         echoContent green " ---> 添加成功"
 
-    elif [[ "${warpStatus}" == "2" ]]; then
+    elif [[ "${warpStatus}" == "3" ]]; then
 
         ${removeType} cloudflare-warp >/dev/null 2>&1
 
@@ -5284,6 +5346,7 @@ unInstallHysteriaCore() {
     fi
     handleHysteria stop
     rm -rf /etc/v2ray-agent/hysteria/*
+    rm ${configPath}02_socks_inbounds_hysteria.json
     rm -rf /etc/systemd/system/hysteria.service
     echoContent green " ---> 卸载完成"
 }
@@ -5450,7 +5513,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者:mack-a"
-    echoContent green "当前版本:v2.6.25"
+    echoContent green "当前版本:v2.7.1"
     echoContent green "Github:https://github.com/mack-a/v2ray-agent"
     echoContent green "描述:八合一共存脚本\c"
     showInstallStatus
