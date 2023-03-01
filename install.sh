@@ -5501,7 +5501,7 @@ manageHysteria() {
     if [[ -n "${hysteriaConfigPath}" ]]; then
         echoContent yellow "1.重新安装"
         echoContent yellow "2.卸载"
-        echoContent yellow "3.更新core"
+        echoContent yellow "3.core管理"
         echoContent yellow "4.查看日志"
         hysteriaStatus=true
     else
@@ -5515,10 +5515,37 @@ manageHysteria() {
     elif [[ "${installHysteriaStatus}" == "2" && "${hysteriaStatus}" == "true" ]]; then
         unInstallHysteriaCore
     elif [[ "${installHysteriaStatus}" == "3" && "${hysteriaStatus}" == "true" ]]; then
-        installHysteria 1
-        handleHysteria start
+        hysteriaVersionManageMenu 1
     elif [[ "${installHysteriaStatus}" == "4" && "${hysteriaStatus}" == "true" ]]; then
         journalctl -fu hysteria
+    fi
+}
+# hysteria版本管理
+hysteriaVersionManageMenu() {
+    echoContent skyBlue "\n进度  $1/${totalProgress} : Hysteria版本管理"
+    if [[ ! -d "/etc/v2ray-agent/hysteria/" ]]; then
+        echoContent red " ---> 没有检测到安装目录，请执行脚本安装内容"
+        menu
+        exit 0
+    fi
+    echoContent red "\n=============================================================="
+    echoContent yellow "1.升级Hysteria"
+    echoContent yellow "2.关闭Hysteria"
+    echoContent yellow "3.打开Hysteria"
+    echoContent yellow "4.重启Hysteria"
+    echoContent red "=============================================================="
+
+    read -r -p "请选择:" selectHysteriaType
+    if [[ "${selectHysteriaType}" == "1" ]]; then
+        installHysteria 1
+        handleHysteria start
+    elif [[ "${selectHysteriaType}" == "2" ]]; then
+        handleHysteria stop
+    elif [[ "${selectHysteriaType}" == "3" ]]; then
+        handleHysteria start
+    elif [[ "${selectHysteriaType}" == "4" ]]; then
+        handleHysteria stop
+        handleHysteria start
     fi
 }
 # 主菜单
@@ -5526,7 +5553,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者:mack-a"
-    echoContent green "当前版本:v2.7.6"
+    echoContent green "当前版本:v2.7.7"
     echoContent green "Github:https://github.com/mack-a/v2ray-agent"
     echoContent green "描述:八合一共存脚本\c"
     showInstallStatus
