@@ -1413,9 +1413,8 @@ randomPathFunction() {
     else
         echoContent yellow "请输入自定义路径[例: alone]，不需要斜杠，[回车]随机路径"
         read -r -p '路径:' customPath
-
         if [[ -z "${customPath}" ]]; then
-            customPath=$(initRandomPath)
+            initRandomPath
             currentPath=${customPath}
         else
             if [[ "${customPath: -2}" == "ws" ]]; then
@@ -1686,6 +1685,14 @@ installXray() {
 
         unzip -o "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip" -d /etc/v2ray-agent/xray >/dev/null
         rm -rf "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip"
+
+        version=$(curl -s https://api.github.com/repos/Loyalsoldier/v2ray-rules-dat/releases | jq -r '.[]|.tag_name' | head -1)
+        echoContent skyBlue "------------------------Version-------------------------------"
+        echo "version:${version}"
+        rm /etc/v2ray-agent/xray/geo* >/dev/null 2>&1
+        wget -c -q --show-progress -P /etc/v2ray-agent/xray/ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geosite.dat"
+        wget -c -q --show-progress -P /etc/v2ray-agent/xray/ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geoip.dat"
+
         chmod 655 /etc/v2ray-agent/xray/xray
     else
         echoContent green " ---> Xray-core版本:$(/etc/v2ray-agent/xray/xray --version | awk '{print $2}' | head -1)"
@@ -2846,6 +2853,11 @@ EOF
             "tag":"IPv6-out"
         },
         {
+            "protocol":"freedom",
+            "settings": {},
+            "tag":"direct"
+        },
+        {
             "protocol":"blackhole",
             "tag":"blackhole-out"
         }
@@ -2864,7 +2876,22 @@ EOF
   }
 }
 EOF
-
+    # routing
+    cat <<EOF >/etc/v2ray-agent/xray/conf/09_routing.json
+{
+  "routing": {
+    "rules": [
+      {
+        "type": "field",
+        "domain": [
+          "domain:gstatic.com"
+        ],
+        "outboundTag": "direct"
+      }
+    ]
+  }
+}
+EOF
     # VLESS_TCP_TLS/XTLS
     # 回落nginx
     local fallbacksList='{"dest":31300,"xver":0},{"alpn":"h2","dest":31302,"xver":0}'
@@ -5553,7 +5580,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者:mack-a"
-    echoContent green "当前版本:v2.7.7"
+    echoContent green "当前版本:v2.7.8"
     echoContent green "Github:https://github.com/mack-a/v2ray-agent"
     echoContent green "描述:八合一共存脚本\c"
     showInstallStatus
