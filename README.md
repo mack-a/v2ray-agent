@@ -43,8 +43,7 @@
 
 ## 支持的安装类型
 
-- VLESS+TCP+TLS
-- VLESS+TCP+xtls-rprx-vision【推荐】
+- VLESS+TCP+TLS_Vision【推荐】
 - VLESS+gRPC+TLS【支持CDN、IPv6、延迟低】
 - VLESS+WS+TLS【支持CDN、IPv6】
 - Trojan+TCP+TLS
