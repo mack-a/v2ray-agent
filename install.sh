@@ -190,7 +190,8 @@ initVar() {
 
     # BTPanel状态
     #	BTPanelStatus=
-
+    # 宝塔域名
+    btDomain=
     # nginx配置文件路径
     nginxConfigPath=/etc/nginx/conf.d/
 
@@ -330,9 +331,17 @@ readInstallProtocolType() {
 
 # 检查是否安装宝塔
 checkBTPanel() {
-    if pgrep -f "BT-Panel"; then
-        nginxConfigPath=/www/server/panel/vhost/nginx/
-        #		BTPanelStatus=true
+    if [[ -n $(pgrep -f "BT-Panel") ]]; then
+        # 读取域名
+        if [[ -d '/www/server/panel/vhost/cert/' ]]; then
+            btDomain=$(find /www/server/panel/vhost/cert/* | head -1 | awk -F "[/]" '{print $7}')
+            domain=${btDomain}
+            if [[ ! -L "/etc/v2ray-agent/tls/${btDomain}.key" && ! -L "/etc/v2ray-agent/tls/${btDomain}.crt" ]]; then
+                ln -s "/www/server/panel/vhost/cert/${btDomain}/privkey.pem" "/etc/v2ray-agent/tls/${btDomain}.key"
+                ln -s "/www/server/panel/vhost/cert/${btDomain}/fullchain.pem" "/etc/v2ray-agent/tls/${btDomain}.crt"
+            fi
+            nginxConfigPath="/www/server/panel/vhost/nginx/"
+        fi
     fi
 }
 # 读取当前alpn的顺序
@@ -525,13 +534,13 @@ showInstallStatus() {
             if [[ "${coreInstallType}" == 2 ]]; then
                 echoContent yellow "VLESS+TCP[TLS] \c"
             else
-                echoContent yellow "VLESS+TCP[TLS/XTLS] \c"
+                echoContent yellow "VLESS+TCP[TLS_Vision] \c"
             fi
         fi
 
         if echo ${currentInstallProtocolType} | grep -q trojan; then
             if [[ "${coreInstallType}" == 1 ]]; then
-                echoContent yellow "Trojan+TCP[TLS/XTLS] \c"
+                echoContent yellow "Trojan+TCP[TLS_Vision] \c"
             fi
         fi
 
@@ -908,43 +917,27 @@ EOF
 
 # 修改nginx重定向配置
 updateRedirectNginxConf() {
-
-    #	if [[ ${BTPanelStatus} == "true" ]]; then
-    #
-    #		cat <<EOF >${nginxConfigPath}alone.conf
-    #        server {
-    #        		listen 127.0.0.1:31300;
-    #        		server_name _;
-    #        		return 403;
-    #        }
-    #EOF
-    #
-    #	elif [[ -n "${customPort}" ]]; then
-    #		cat <<EOF >${nginxConfigPath}alone.conf
-    #                server {
-    #                		listen 127.0.0.1:31300;
-    #                		server_name _;
-    #                		return 403;
-    #                }
-    #EOF
-    #	fi
     local redirectDomain=${domain}
     if [[ -n "${customPort}" ]]; then
         redirectDomain=${domain}:${customPort}
     fi
-    cat <<EOF >${nginxConfigPath}alone.conf
+    if [[ -z "${btDomain}" ]]; then
+        cat <<EOF >${nginxConfigPath}alone.conf
 server {
 	listen 80;
 	server_name ${domain};
 	return 302 https://${redirectDomain};
 }
+EOF
+    fi
+
+    cat <<EOF >${nginxConfigPath}alone.conf
 server {
 		listen 127.0.0.1:31300;
 		server_name _;
 		return 403;
 }
 EOF
-
     if echo "${selectCustomInstallType}" | grep -q 2 && echo "${selectCustomInstallType}" | grep -q 5 || [[ -z "${selectCustomInstallType}" ]]; then
 
         cat <<EOF >>${nginxConfigPath}alone.conf
@@ -1266,14 +1259,19 @@ customPortFunction() {
             echoContent yellow "\n ---> 端口: ${showPort}"
         fi
     fi
-
     if [[ -z "${currentPort}" && -z "${customPort}" ]] || [[ "${historyCustomPortStatus}" == "n" ]]; then
         echo
-        echoContent yellow "请输入端口[默认: 443]，如自定义端口，只允许使用DNS申请证书[回车使用默认]"
+
+        if [[ -n "${btnDomain}" ]]; then
+            echoContent yellow "请输入端口[不可于BT Panel端口相同]"
+        else
+            echoContent yellow "请输入端口[默认: 443]，如自定义端口，只允许使用DNS申请证书[回车使用默认]"
+        fi
         read -r -p "端口:" customPort
+        checkCustomPort
         if [[ -n "${customPort}" && "${customPort}" != "443" ]]; then
             if ((customPort >= 1 && customPort <= 65535)); then
-                checkCustomPort
+
                 allowPort "${customPort}"
             else
                 echoContent red " ---> 端口输入错误"
@@ -1284,11 +1282,12 @@ customPortFunction() {
             echoContent yellow "\n ---> 端口: 443"
         fi
     fi
+
 }
 
 # 检测端口是否占用
 checkCustomPort() {
-    if lsof -i "tcp:${customPort}" | grep -q LISTEN; then
+    if [[ -n "${customPort}" ]] && lsof -i "tcp:${customPort}" | grep -q LISTEN; then
         echoContent red "\n ---> ${customPort}端口被占用，请手动关闭后安装\n"
         lsof -i tcp:80 | grep LISTEN
         exit 0
@@ -1510,14 +1509,16 @@ handleNginx() {
 
 # 定时任务更新tls证书
 installCronTLS() {
-    echoContent skyBlue "\n进度 $1/${totalProgress} : 添加定时维护证书"
-    crontab -l >/etc/v2ray-agent/backup_crontab.cron
-    local historyCrontab
-    historyCrontab=$(sed '/v2ray-agent/d;/acme.sh/d' /etc/v2ray-agent/backup_crontab.cron)
-    echo "${historyCrontab}" >/etc/v2ray-agent/backup_crontab.cron
-    echo "30 1 * * * /bin/bash /etc/v2ray-agent/install.sh RenewTLS >> /etc/v2ray-agent/crontab_tls.log 2>&1" >>/etc/v2ray-agent/backup_crontab.cron
-    crontab /etc/v2ray-agent/backup_crontab.cron
-    echoContent green "\n ---> 添加定时维护证书成功"
+    if [[ -z "${btDomain}" ]]; then
+        echoContent skyBlue "\n进度 $1/${totalProgress} : 添加定时维护证书"
+        crontab -l >/etc/v2ray-agent/backup_crontab.cron
+        local historyCrontab
+        historyCrontab=$(sed '/v2ray-agent/d;/acme.sh/d' /etc/v2ray-agent/backup_crontab.cron)
+        echo "${historyCrontab}" >/etc/v2ray-agent/backup_crontab.cron
+        echo "30 1 * * * /bin/bash /etc/v2ray-agent/install.sh RenewTLS >> /etc/v2ray-agent/crontab_tls.log 2>&1" >>/etc/v2ray-agent/backup_crontab.cron
+        crontab /etc/v2ray-agent/backup_crontab.cron
+        echoContent green "\n ---> 添加定时维护证书成功"
+    fi
 }
 
 # 更新证书
@@ -2017,25 +2018,19 @@ installHysteriaService() {
         touch /etc/systemd/system/hysteria.service
         execStart='/etc/v2ray-agent/hysteria/hysteria --log-level info -c /etc/v2ray-agent/hysteria/conf/config.json server'
         cat <<EOF >/etc/systemd/system/hysteria.service
-    [Unit]
-    Description=Hysteria Service
-    Documentation=https://github.com/apernet/hysteria/wiki
-    After=network.target nss-lookup.target
-    Wants=network-online.target
-
-    [Service]
-    Type=simple
-    User=root
-    CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_RAW
-    NoNewPrivileges=yes
-    ExecStart=${execStart}
-    Restart=on-failure
-    RestartPreventExitStatus=23
-    LimitNPROC=10000
-    LimitNOFILE=1000000
-
-    [Install]
-    WantedBy=multi-user.target
+[Unit]
+Description=Hysteria Service
+Documentation=https://github.com/apernet
+After=network.target nss-lookup.target
+[Service]
+User=root
+ExecStart=${execStart}
+Restart=on-failure
+RestartPreventExitStatus=23
+LimitNPROC=10000
+LimitNOFILE=1000000
+[Install]
+WantedBy=multi-user.target
 EOF
         systemctl daemon-reload
         systemctl enable hysteria.service
@@ -2052,21 +2047,15 @@ installXrayService() {
         cat <<EOF >/etc/systemd/system/xray.service
 [Unit]
 Description=Xray Service
-Documentation=https://github.com/XTLS/Xray-core
+Documentation=https://github.com/xtls
 After=network.target nss-lookup.target
-Wants=network-online.target
-
 [Service]
-Type=simple
 User=root
-CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_RAW
-NoNewPrivileges=yes
 ExecStart=${execStart}
 Restart=on-failure
 RestartPreventExitStatus=23
 LimitNPROC=10000
 LimitNOFILE=1000000
-
 [Install]
 WantedBy=multi-user.target
 EOF
@@ -2892,7 +2881,7 @@ EOF
   }
 }
 EOF
-    # VLESS_TCP_TLS/XTLS
+    # VLESS_TCP_TLS_Vision
     # 回落nginx
     local fallbacksList='{"dest":31300,"xver":0},{"alpn":"h2","dest":31302,"xver":0}'
 
@@ -3100,7 +3089,7 @@ EOF
         "id": "${uuid}",
         "add":"${add}",
         "flow":"xtls-rprx-vision",
-        "email": "default_VLESS_TCP/XTLS"
+        "email": "default_VLESS_TCP/TLS_Vision"
       }
     ],
     "decryption": "none",
@@ -3132,43 +3121,6 @@ EOF
 }
 EOF
     addClients "/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json" "${addClientsStatus}"
-}
-
-# 初始化Trojan-Go配置
-initTrojanGoConfig() {
-
-    echoContent skyBlue "\n进度 $1/${totalProgress} : 初始化Trojan配置"
-    cat <<EOF >/etc/v2ray-agent/trojan/config_full.json
-{
-    "run_type": "server",
-    "local_addr": "127.0.0.1",
-    "local_port": 31296,
-    "remote_addr": "127.0.0.1",
-    "remote_port": 31300,
-    "disable_http_check":true,
-    "log_level":3,
-    "log_file":"/etc/v2ray-agent/trojan/trojan.log",
-    "password": [
-        "${uuid}"
-    ],
-    "dns":[
-        "localhost"
-    ],
-    "transport_plugin":{
-        "enabled":true,
-        "type":"plaintext"
-    },
-    "websocket": {
-        "enabled": true,
-        "path": "/${customPath}tws",
-        "host": "${domain}",
-        "add":"${add}"
-    },
-    "router": {
-        "enabled": false
-    }
-}
-EOF
 }
 
 # 自定义CDN IP
@@ -3214,18 +3166,16 @@ defaultBase64Code() {
     if [[ "${type}" == "vlesstcp" ]]; then
 
         if [[ "${coreInstallType}" == "1" ]] && echo "${currentInstallProtocolType}" | grep -q 0; then
-            echoContent yellow " ---> 通用格式(VLESS+TCP+TLS/xtls-rprx-vision)"
+            echoContent yellow " ---> 通用格式(VLESS+TCP+TLS_Vision)"
             echoContent green "    vless://${id}@${currentHost}:${currentDefaultPort}?encryption=none&security=tls&type=tcp&host=${currentHost}&headerType=none&sni=${currentHost}&flow=xtls-rprx-vision#${email}\n"
 
-            echoContent yellow " ---> 格式化明文(VLESS+TCP+TLS/xtls-rprx-vision)"
+            echoContent yellow " ---> 格式化明文(VLESS+TCP+TLS_Vision)"
             echoContent green "协议类型:VLESS，地址:${currentHost}，端口:${currentDefaultPort}，用户ID:${id}，安全:tls，传输方式:tcp，flow:xtls-rprx-vision，账户名:${email}\n"
             cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
 vless://${id}@${currentHost}:${currentDefaultPort}?encryption=none&security=tls&type=tcp&host=${currentHost}&headerType=none&sni=${currentHost}&flow=xtls-rprx-vision#${email}
 EOF
-            echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS/xtls-rprx-vision)"
+            echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS_Vision)"
             echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${currentHost}%3A${currentDefaultPort}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dtcp%26${currentHost}%3D${currentHost}%26headerType%3Dnone%26sni%3D${currentHost}%26flow%3Dxtls-rprx-vision%23${email}\n"
-
-            echoContent skyBlue "----------------------------------------------------------------------------------"
 
         elif [[ "${coreInstallType}" == 2 ]]; then
             echoContent yellow " ---> 通用格式(VLESS+TCP+TLS)"
@@ -3242,15 +3192,15 @@ EOF
         fi
 
     elif [[ "${type}" == "trojanTCPXTLS" ]]; then
-        echoContent yellow " ---> 通用格式(Trojan+TCP+TLS/xtls-rprx-vision)"
+        echoContent yellow " ---> 通用格式(Trojan+TCP+TLS_Vision)"
         echoContent green "    trojan://${id}@${currentHost}:${currentDefaultPort}?encryption=none&security=xtls&type=tcp&host=${currentHost}&headerType=none&sni=${currentHost}&flow=xtls-rprx-vision#${email}\n"
 
-        echoContent yellow " ---> 格式化明文(Trojan+TCP+TLS/xtls-rprx-vision)"
+        echoContent yellow " ---> 格式化明文(Trojan+TCP+TLS_Vision)"
         echoContent green "协议类型:Trojan，地址:${currentHost}，端口:${currentDefaultPort}，用户ID:${id}，安全:xtls，传输方式:tcp，flow:xtls-rprx-vision，账户名:${email}\n"
         cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
 trojan://${id}@${currentHost}:${currentDefaultPort}?encryption=none&security=xtls&type=tcp&host=${currentHost}&headerType=none&sni=${currentHost}&flow=xtls-rprx-vision#${email}
 EOF
-        echoContent yellow " ---> 二维码 Trojan(Trojan+TCP+TLS/xtls-rprx-vision)"
+        echoContent yellow " ---> 二维码 Trojan(Trojan+TCP+TLS_Vision)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3A%2F%2F${id}%40${currentHost}%3A${currentDefaultPort}%3Fencryption%3Dnone%26security%3Dxtls%26type%3Dtcp%26${currentHost}%3D${currentHost}%26headerType%3Dnone%26sni%3D${currentHost}%26flow%3Dxtls-rprx-vision%23${email}\n"
 
     elif [[ "${type}" == "vmessws" ]]; then
@@ -3345,7 +3295,7 @@ showAccounts() {
     if [[ -n "${configPath}" ]]; then
         show=1
         if echo "${currentInstallProtocolType}" | grep -q trojan; then
-            echoContent skyBlue "===================== Trojan TCP TLS/XTLS-vision ======================\n"
+            echoContent skyBlue "===================== Trojan TCP TLS_Vision ======================\n"
             jq .inbounds[0].settings.clients ${configPath}02_trojan_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
                 local email=
                 email=$(echo "${user}" | jq -r .email)
@@ -3354,7 +3304,7 @@ showAccounts() {
             done
 
         else
-            echoContent skyBlue "===================== VLESS TCP TLS/XTLS-vision ======================\n"
+            echoContent skyBlue "============================= VLESS TCP TLS_Vision ==============================\n"
             jq .inbounds[0].settings.clients ${configPath}02_VLESS_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
                 local email=
                 email=$(echo "${user}" | jq -r .email)
@@ -3479,13 +3429,13 @@ showAccounts() {
 # 移除nginx302配置
 removeNginx302() {
     local count=0
-    grep -n "return 302" <"/etc/nginx/conf.d/alone.conf" | while read -r line; do
+    grep -n "return 302" <"${nginxConfigPath}alone.conf" | while read -r line; do
 
         if ! echo "${line}" | grep -q "request_uri"; then
             local removeIndex=
             removeIndex=$(echo "${line}" | awk -F "[:]" '{print $1}')
             removeIndex=$((removeIndex + count))
-            sed -i "${removeIndex}d" /etc/nginx/conf.d/alone.conf
+            sed -i "${removeIndex}d" ${nginxConfigPath}alone.conf
             count=$((count - 1))
         fi
     done
@@ -3510,12 +3460,12 @@ checkNginx302() {
 # 备份恢复nginx文件
 backupNginxConfig() {
     if [[ "$1" == "backup" ]]; then
-        cp /etc/nginx/conf.d/alone.conf /etc/v2ray-agent/alone_backup.conf
+        cp ${nginxConfigPath}alone.conf /etc/v2ray-agent/alone_backup.conf
         echoContent green " ---> nginx配置文件备份成功"
     fi
 
     if [[ "$1" == "restoreBackup" ]] && [[ -f "/etc/v2ray-agent/alone_backup.conf" ]]; then
-        cp /etc/v2ray-agent/alone_backup.conf /etc/nginx/conf.d/alone.conf
+        cp /etc/v2ray-agent/alone_backup.conf ${nginxConfigPath}alone.conf
         echoContent green " ---> nginx配置文件恢复备份成功"
         rm /etc/v2ray-agent/alone_backup.conf
     fi
@@ -3526,12 +3476,12 @@ addNginx302() {
     #	local line302Result=
     #	line302Result=$(| tail -n 1)
     local count=1
-    grep -n "Strict-Transport-Security" <"/etc/nginx/conf.d/alone.conf" | while read -r line; do
+    grep -n "Strict-Transport-Security" <"${nginxConfigPath}alone.conf" | while read -r line; do
         if [[ -n "${line}" ]]; then
             local insertIndex=
             insertIndex="$(echo "${line}" | awk -F "[:]" '{print $1}')"
             insertIndex=$((insertIndex + count))
-            sed "${insertIndex}i return 302 '$1';" /etc/nginx/conf.d/alone.conf >/etc/nginx/conf.d/tmpfile && mv /etc/nginx/conf.d/tmpfile /etc/nginx/conf.d/alone.conf
+            sed "${insertIndex}i return 302 '$1';" ${nginxConfigPath}alone.conf >${nginxConfigPath}tmpfile && mv ${nginxConfigPath}tmpfile ${nginxConfigPath}alone.conf
             count=$((count + 1))
         else
             echoContent red " ---> 302添加失败"
@@ -5155,7 +5105,7 @@ EOF
 customV2RayInstall() {
     echoContent skyBlue "\n========================个性化安装============================"
     echoContent yellow "VLESS前置，默认安装0，如果只需要安装0，则只选择0即可"
-    echoContent yellow "0.VLESS+TLS/XTLS+TCP"
+    echoContent yellow "0.VLESS+TLS_Vision+TCP"
     echoContent yellow "1.VLESS+TLS+WS[CDN]"
     echoContent yellow "2.Trojan+TLS+gRPC[CDN]"
     echoContent yellow "3.VMess+TLS+WS[CDN]"
@@ -5204,7 +5154,7 @@ customV2RayInstall() {
 customXrayInstall() {
     echoContent skyBlue "\n========================个性化安装============================"
     echoContent yellow "VLESS前置，默认安装0，如果只需要安装0，则只选择0即可"
-    echoContent yellow "0.VLESS+TLS/XTLS+TCP"
+    echoContent yellow "0.VLESS+TLS_Vision+TCP"
     echoContent yellow "1.VLESS+TLS+WS[CDN]"
     echoContent yellow "2.Trojan+TLS+gRPC[CDN]"
     echoContent yellow "3.VMess+TLS+WS[CDN]"
@@ -5217,37 +5167,43 @@ customXrayInstall() {
         customXrayInstall
     elif [[ "${selectCustomInstallType}" =~ ^[0-5]+$ ]]; then
         cleanUp v2rayClean
-        totalProgress=17
+        totalProgress=12
         installTools 1
-        # 申请tls
-        initTLSNginxConfig 2
-        handleXray stop
-        handleNginx start
-        checkIP
+        if [[ -n "${btDomain}" ]]; then
+            echoContent skyBlue "\n进度  3/${totalProgress} : 检测到宝塔面板，跳过申请TLS步骤"
+            handleXray stop
+            customPortFunction
+        else
+            # 申请tls
+            initTLSNginxConfig 2
+            handleXray stop
+            handleNginx start
+            checkIP
+            installTLS 3
+        fi
 
-        installTLS 3
         handleNginx stop
         # 随机path
         if echo "${selectCustomInstallType}" | grep -q 1 || echo "${selectCustomInstallType}" | grep -q 2 || echo "${selectCustomInstallType}" | grep -q 3 || echo "${selectCustomInstallType}" | grep -q 5; then
-            randomPathFunction 5
-            customCDNIP 6
+            randomPathFunction 4
+            customCDNIP 5
         fi
-        nginxBlog 7
+        nginxBlog 6
         updateRedirectNginxConf
         handleNginx start
 
         # 安装V2Ray
-        installXray 8
-        installXrayService 9
-        initXrayConfig custom 10
+        installXray 7
+        installXrayService 8
+        initXrayConfig custom 9
         cleanUp v2rayDel
 
-        installCronTLS 14
+        installCronTLS 10
         handleXray stop
         handleXray start
         # 生成账号
-        checkGFWStatue 15
-        showAccounts 16
+        checkGFWStatue 11
+        showAccounts 12
     else
         echoContent red " ---> 输入不合法"
         customXrayInstall
@@ -5334,14 +5290,23 @@ xrayCoreInstall() {
     selectCustomInstallType=
     totalProgress=13
     installTools 2
-    # 申请tls
-    initTLSNginxConfig 3
+    if [[ -n "${btDomain}" ]]; then
+        echoContent skyBlue "\n进度  3/${totalProgress} : 检测到宝塔面板，跳过申请TLS步骤"
+        handleXray stop
+        customPortFunction
 
-    handleXray stop
-    handleNginx start
-    checkIP
+    else
+        # 申请tls
+        initTLSNginxConfig 3
 
-    installTLS 4
+        handleXray stop
+        handleNginx start
+        checkIP
+
+        installTLS 4
+
+    fi
+
     handleNginx stop
     randomPathFunction 5
     # 安装Xray
@@ -5579,13 +5544,14 @@ hysteriaVersionManageMenu() {
 menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
-    echoContent green "作者:mack-a"
-    echoContent green "当前版本:v2.7.8"
-    echoContent green "Github:https://github.com/mack-a/v2ray-agent"
-    echoContent green "描述:八合一共存脚本\c"
+    echoContent green "作者：mack-a"
+    echoContent green "当前版本：v2.7.9"
+    echoContent green "Github：https://github.com/mack-a/v2ray-agent"
+    echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
     echoContent red "\n=============================================================="
     echoContent red "                        推广区                      "
+    echoContent green "推广请联系TG：@mackaff\n"
     echoContent green "AFF捐赠：https://github.com/mack-a/v2ray-agent/blob/master/documents/donation_aff.md\n"
     echoContent red "=============================================================="
     if [[ -n "${coreInstallType}" ]]; then
