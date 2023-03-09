@@ -337,7 +337,7 @@ checkBTPanel() {
         if [[ -d '/www/server/panel/vhost/cert/' ]]; then
             btDomain=$(find /www/server/panel/vhost/cert/* | head -1 | awk -F "[/]" '{print $7}')
             domain=${btDomain}
-            if [[ ! -L "/etc/v2ray-agent/tls/${btDomain}.key" && ! -L "/etc/v2ray-agent/tls/${btDomain}.crt" ]]; then
+            if [[ ! -f "/etc/v2ray-agent/tls/${btDomain}.key" && ! -f "/etc/v2ray-agent/tls/${btDomain}.crt" && ! -L "/etc/v2ray-agent/tls/${btDomain}.key" && ! -L "/etc/v2ray-agent/tls/${btDomain}.crt" ]]; then
                 ln -s "/www/server/panel/vhost/cert/${btDomain}/privkey.pem" "/etc/v2ray-agent/tls/${btDomain}.key"
                 ln -s "/www/server/panel/vhost/cert/${btDomain}/fullchain.pem" "/etc/v2ray-agent/tls/${btDomain}.crt"
             fi
@@ -5570,7 +5570,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.7.11"
+    echoContent green "当前版本：v2.7.12"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
