@@ -194,6 +194,7 @@ initVar() {
     btDomain=
     # nginx配置文件路径
     nginxConfigPath=/etc/nginx/conf.d/
+    nginxStaticPath=/usr/share/nginx/html/
 
     # 是否为预览版
     prereleaseStatus=false
@@ -340,6 +341,11 @@ checkBTPanel() {
                 ln -s "/www/server/panel/vhost/cert/${btDomain}/privkey.pem" "/etc/v2ray-agent/tls/${btDomain}.key"
                 ln -s "/www/server/panel/vhost/cert/${btDomain}/fullchain.pem" "/etc/v2ray-agent/tls/${btDomain}.crt"
             fi
+            nginxStaticPath="/www/wwwroot/${btDomain}/"
+            if [[ -f "/www/wwwroot/${btDomain}/.user.ini" ]]; then
+                chattr -i "/www/wwwroot/${btDomain}/.user.ini"
+            fi
+
             nginxConfigPath="/www/server/panel/vhost/nginx/"
         fi
     fi
@@ -893,7 +899,7 @@ server {
     listen ${port};
     listen [::]:${port};
     server_name ${domain};
-    root /usr/share/nginx/html;
+    root ${nginxStaticPath};
     location ~ /.well-known {
     	allow all;
     }
@@ -944,7 +950,7 @@ EOF
 server {
 	listen 127.0.0.1:31302 http2 so_keepalive=on;
 	server_name ${domain};
-	root /usr/share/nginx/html;
+	root ${nginxStaticPath};
 
 	client_header_timeout 1071906480m;
     keepalive_timeout 1071906480m;
@@ -985,7 +991,7 @@ EOF
 server {
 	listen 127.0.0.1:31302 http2;
 	server_name ${domain};
-	root /usr/share/nginx/html;
+	root ${nginxStaticPath};
 	location /s/ {
     		add_header Content-Type text/plain;
     		alias /etc/v2ray-agent/subscribe/;
@@ -1010,7 +1016,7 @@ EOF
 server {
 	listen 127.0.0.1:31302 http2;
 	server_name ${domain};
-	root /usr/share/nginx/html;
+	root ${nginxStaticPath};
 	location /s/ {
     		add_header Content-Type text/plain;
     		alias /etc/v2ray-agent/subscribe/;
@@ -1034,7 +1040,7 @@ EOF
 server {
 	listen 127.0.0.1:31302 http2;
 	server_name ${domain};
-	root /usr/share/nginx/html;
+	root ${nginxStaticPath};
 	location /s/ {
     		add_header Content-Type text/plain;
     		alias /etc/v2ray-agent/subscribe/;
@@ -1049,7 +1055,7 @@ EOF
 server {
 	listen 127.0.0.1:31300;
 	server_name ${domain};
-	root /usr/share/nginx/html;
+	root ${nginxStaticPath};
 	location /s/ {
 		add_header Content-Type text/plain;
 		alias /etc/v2ray-agent/subscribe/;
@@ -1262,7 +1268,7 @@ customPortFunction() {
     if [[ -z "${currentPort}" && -z "${customPort}" ]] || [[ "${historyCustomPortStatus}" == "n" ]]; then
         echo
 
-        if [[ -n "${btnDomain}" ]]; then
+        if [[ -n "${btDomain}" ]]; then
             echoContent yellow "请输入端口[不可于BT Panel端口相同]"
         else
             echoContent yellow "请输入端口[默认: 443]，如自定义端口，只允许使用DNS申请证书[回车使用默认]"
@@ -1379,7 +1385,7 @@ server {
     listen 80;
     listen [::]:80;
     server_name ${domain};
-    root /usr/share/nginx/html;
+    root ${nginxStaticPath};
     location ~ /.well-known {allow all;}
     location /test {return 200 'fjkvymb6len';}
 }
@@ -1431,23 +1437,23 @@ randomPathFunction() {
 # Nginx伪装博客
 nginxBlog() {
     echoContent skyBlue "\n进度 $1/${totalProgress} : 添加伪装站点"
-    if [[ -d "/usr/share/nginx/html" && -f "/usr/share/nginx/html/check" ]]; then
+    if [[ -d "${nginxStaticPath}" && -f "${nginxStaticPath}/check" ]]; then
         echo
         read -r -p "检测到安装伪装站点，是否需要重新安装[y/n]:" nginxBlogInstallStatus
         if [[ "${nginxBlogInstallStatus}" == "y" ]]; then
-            rm -rf /usr/share/nginx/html
+            rm -rf "${nginxStaticPath}"
             randomNum=$((RANDOM % 6 + 1))
-            wget -q -P /usr/share/nginx https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${randomNum}.zip >/dev/null
-            unzip -o /usr/share/nginx/html${randomNum}.zip -d /usr/share/nginx/html >/dev/null
-            rm -f /usr/share/nginx/html${randomNum}.zip*
+            wget -q -P "${nginxStaticPath}" https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${randomNum}.zip >/dev/null
+            unzip -o "${nginxStaticPath}html${randomNum}.zip" -d "${nginxStaticPath}" >/dev/null
+            rm -f "${nginxStaticPath}html${randomNum}.zip*"
             echoContent green " ---> 添加伪装站点成功"
         fi
     else
         randomNum=$((RANDOM % 6 + 1))
-        rm -rf /usr/share/nginx/html
-        wget -q -P /usr/share/nginx https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${randomNum}.zip >/dev/null
-        unzip -o /usr/share/nginx/html${randomNum}.zip -d /usr/share/nginx/html >/dev/null
-        rm -f /usr/share/nginx/html${randomNum}.zip*
+        rm -rf "${nginxStaticPath}"
+        wget -q -P "${nginxStaticPath}" https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${randomNum}.zip >/dev/null
+        unzip -o "${nginxStaticPath}html${randomNum}.zip" -d "${nginxStaticPath}" >/dev/null
+        rm -f "${nginxStaticPath}html${randomNum}.zip*"
         echoContent green " ---> 添加伪装站点成功"
     fi
 
@@ -3495,7 +3501,7 @@ addNginx302() {
 updateNginxBlog() {
     echoContent skyBlue "\n进度 $1/${totalProgress} : 更换伪装站点"
     echoContent red "=============================================================="
-    echoContent yellow "# 如需自定义，请手动复制模版文件到 /usr/share/nginx/html \n"
+    echoContent yellow "# 如需自定义，请手动复制模版文件到 ${nginxStaticPath} \n"
     echoContent yellow "1.新手引导"
     echoContent yellow "2.游戏网站"
     echoContent yellow "3.个人博客01"
@@ -3547,8 +3553,8 @@ updateNginxBlog() {
             wget -c -P /usr/share/nginx "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${selectInstallNginxBlogType}.zip" >/dev/null
         fi
 
-        unzip -o "/usr/share/nginx/html${selectInstallNginxBlogType}.zip" -d /usr/share/nginx/html >/dev/null
-        rm -f "/usr/share/nginx/html${selectInstallNginxBlogType}.zip*"
+        unzip -o "${nginxStaticPath}${selectInstallNginxBlogType}.zip" -d "${nginxStaticPath}" >/dev/null
+        rm -f "${nginxStaticPath}${selectInstallNginxBlogType}.zip*"
         echoContent green " ---> 更换伪站成功"
     else
         echoContent red " ---> 选择错误，请重新选择"
@@ -3728,8 +3734,8 @@ unInstall() {
     rm -rf /etc/v2ray-agent
     rm -rf ${nginxConfigPath}alone.conf
 
-    if [[ -d "/usr/share/nginx/html" && -f "/usr/share/nginx/html/check" ]]; then
-        rm -rf /usr/share/nginx/html
+    if [[ -d "${nginxStaticPath}" && -f "${nginxStaticPath}/check" ]]; then
+        rm -rf "${nginxStaticPath}"
         echoContent green " ---> 删除伪装网站完成"
     fi
 
@@ -5188,7 +5194,18 @@ customXrayInstall() {
             randomPathFunction 4
             customCDNIP 5
         fi
-        nginxBlog 6
+        if [[ -n "${btDomain}" ]]; then
+            echoContent skyBlue "\n进度  6/${totalProgress} : 检测到宝塔面板，是否 安装/重新安装 伪装站点？"
+            echoContent red "=============================================================="
+            echoContent yellow "# 注意事项"
+            echoContent yellow "会清空当前安装网站下面的静态目录，如已自定义安装过请选择 [n]\n"
+            read -r -p "请选择[y/n]:" nginxBlogBTStatus
+            if [[ "${nginxBlogBTStatus}" == "y" ]]; then
+                nginxBlog 6
+            fi
+        else
+            nginxBlog 6
+        fi
         updateRedirectNginxConf
         handleNginx start
 
@@ -5294,17 +5311,13 @@ xrayCoreInstall() {
         echoContent skyBlue "\n进度  3/${totalProgress} : 检测到宝塔面板，跳过申请TLS步骤"
         handleXray stop
         customPortFunction
-
     else
         # 申请tls
         initTLSNginxConfig 3
-
         handleXray stop
         handleNginx start
         checkIP
-
         installTLS 4
-
     fi
 
     handleNginx stop
@@ -5317,7 +5330,19 @@ xrayCoreInstall() {
     initXrayConfig all 9
     cleanUp v2rayDel
     installCronTLS 10
-    nginxBlog 11
+    if [[ -n "${btDomain}" ]]; then
+        echoContent skyBlue "\n进度  11/${totalProgress} : 检测到宝塔面板，是否 安装/重新安装 伪装站点？"
+        echoContent red "=============================================================="
+        echoContent yellow "# 注意事项"
+        echoContent yellow "会清空当前安装网站下面的静态目录，如已自定义安装过请选择 [n]\n"
+        read -r -p "请选择[y/n]:" nginxBlogBTStatus
+        if [[ "${nginxBlogBTStatus}" == "y" ]]; then
+            nginxBlog 11
+        fi
+    else
+        nginxBlog 11
+    fi
+
     updateRedirectNginxConf
     handleXray stop
     sleep 2
@@ -5545,7 +5570,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.7.10"
+    echoContent green "当前版本：v2.7.11"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
