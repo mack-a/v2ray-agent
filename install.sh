@@ -234,6 +234,10 @@ initVar() {
     # hysteria上行速度
     hysteriaClientUploadSpeed=
 
+    # Reality
+    realityPrivateKey=
+    realityServerNames=
+    realityDestDomain=
 }
 
 # 读取tls证书详情
@@ -321,6 +325,10 @@ readInstallProtocolType() {
         fi
         if echo "${row}" | grep -q VLESS_gRPC_inbounds; then
             currentInstallProtocolType=${currentInstallProtocolType}'5'
+        fi
+        if echo "${row}" | grep -q VLESS_reality_inbounds; then
+            currentInstallProtocolType=${currentInstallProtocolType}'7'
+            frontingType=02_VLESS_reality_inbounds
         fi
     done < <(find ${configPath} -name "*inbounds.json" | awk -F "[.]" '{print $1}')
 
@@ -3069,60 +3077,110 @@ EOF
         addClients "/etc/v2ray-agent/xray/conf/06_VLESS_gRPC_inbounds.json" "${addClientsStatus}"
     fi
 
-    # VLESS_TCP
-    getClients "${configPath}../tmp/02_VLESS_TCP_inbounds.json" "${addClientsStatus}"
-    local defaultPort=443
-    if [[ -n "${customPort}" ]]; then
-        defaultPort=${customPort}
-    fi
+    # VLESS_TCP/reality
+    if echo "${selectCustomInstallType}" | grep -q 7; then
+        getClients "${configPath}../tmp/02_VLESS_TCP_inbounds.json" "${addClientsStatus}"
+        local defaultPort=443
+        if [[ -n "${customPort}" ]]; then
+            defaultPort=${customPort}
+        fi
 
-    cat <<EOF >/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json
+        cat <<EOF >/etc/v2ray-agent/xray/conf/02_VLESS_reality_inbounds.json
 {
-"inbounds":[
-{
-  "port": ${defaultPort},
-  "protocol": "vless",
-  "tag":"VLESSTCP",
-  "settings": {
-    "clients": [
-     {
-        "id": "${uuid}",
-        "add":"${add}",
-        "flow":"xtls-rprx-vision",
-        "email": "default_VLESS_TCP/TLS_Vision"
-      }
-    ],
-    "decryption": "none",
-    "fallbacks": [
-        ${fallbacksList}
-    ]
-  },
-  "streamSettings": {
-    "network": "tcp",
-    "security": "tls",
-    "tlsSettings": {
-      "minVersion": "1.2",
-      "alpn": [
-        "http/1.1",
-        "h2"
-      ],
-      "certificates": [
-        {
-          "certificateFile": "/etc/v2ray-agent/tls/${domain}.crt",
-          "keyFile": "/etc/v2ray-agent/tls/${domain}.key",
-          "ocspStapling": 3600,
-          "usage":"encipherment"
+  "inbounds": [
+    {
+      "port": ${defaultPort},
+      "protocol": "vless",
+      "tag": "VLESSReality",
+      "settings": {
+        "clients": [
+          {
+            "id": "${uuid}",
+            "add": "${add}",
+            "flow": "xtls-rprx-vision",
+            "email": "default_VLESS_reality_Vision"
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+            "show": false,
+            "dest": "${realityDestDomain}",
+            "xver": 0,
+            "serverNames": [
+                ${realityServerNames}
+            ],
+            "privateKey": "${realityPrivateKey}",
+            "maxTimeDiff": 0,
+            "shortIds": [
+                ""
+            ]
         }
-      ]
+      }
     }
-  }
-}
-]
+  ]
 }
 EOF
-    addClients "/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json" "${addClientsStatus}"
-}
+        addClients "/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json" "${addClientsStatus}"
+    else
+        getClients "${configPath}../tmp/02_VLESS_TCP_inbounds.json" "${addClientsStatus}"
+        local defaultPort=443
+        if [[ -n "${customPort}" ]]; then
+            defaultPort=${customPort}
+        fi
 
+        cat <<EOF >/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json
+        {
+        "inbounds":[
+        {
+          "port": ${defaultPort},
+          "protocol": "vless",
+          "tag":"VLESSTCP",
+          "settings": {
+            "clients": [
+             {
+                "id": "${uuid}",
+                "add":"${add}",
+                "flow":"xtls-rprx-vision",
+                "email": "default_VLESS_TCP/TLS_Vision"
+              }
+            ],
+            "decryption": "none",
+            "fallbacks": [
+                ${fallbacksList}
+            ]
+          },
+          "streamSettings": {
+            "network": "tcp",
+            "security": "tls",
+            "tlsSettings": {
+              "minVersion": "1.2",
+              "alpn": [
+                "http/1.1",
+                "h2"
+              ],
+              "certificates": [
+                {
+                  "certificateFile": "/etc/v2ray-agent/tls/${domain}.crt",
+                  "keyFile": "/etc/v2ray-agent/tls/${domain}.key",
+                  "ocspStapling": 3600,
+                  "usage":"encipherment"
+                }
+              ]
+            }
+          }
+        }
+        ]
+        }
+EOF
+        addClients "/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json" "${addClientsStatus}"
+    fi
+
+}
+# 初始化Xray Reality配置
 # 自定义CDN IP
 customCDNIP() {
     echoContent skyBlue "\n进度 $1/${totalProgress} : 添加cloudflare自选CNAME"
@@ -5328,6 +5386,7 @@ xrayCoreInstall() {
     checkGFWStatue 12
     showAccounts 13
 }
+
 # Hysteria安装
 hysteriaCoreInstall() {
     if [[ -z "${coreInstallType}" ]]; then
@@ -5483,6 +5542,87 @@ switchAlpn() {
     fi
     reloadCore
 }
+# 初始化 reality 配置
+initXrayRealityConfig() {
+    echoContent skyBlue "\n进度 $1/${totalProgress} : 初始化 Xray-core reality配置"
+    echoContent skyBlue "\n ---> 生成 reality privateKey\n"
+    realityPrivateKey=$(${ctlPath} x25519)
+
+    echoContent skyBlue "\n ---> 配置回落的域名\n"
+    read -r -p "请输入:" realityDestDomain
+
+    echoContent skyBlue "\n ---> 配置客户端可用的serverName\n"
+    echoContent red "\n=============================================================="
+    echoContent yellow "# 注意事项\n"
+    echoContent yellow "录入示例:bing.com,www.bing.com\n"
+    read -r -p "请输入:" realityServerNames
+    realityServerNames=\"${realityServerNames//,/\",\"}\"
+}
+
+# xray-core Reality 安装
+xrayCoreRealityInstall() {
+    totalProgress=13
+    installTools 2
+    # 下载核心
+    installXray 6
+    # 生成 privateKey、配置回落地址、配置serverNames
+    initXrayRealityConfig 2
+    # 初始化配置
+    initXrayConfig custom 7
+    # 启动
+    handleXray start
+    # 展示账号
+    cleanUp v2rayClean
+    selectCustomInstallType=
+
+    randomPathFunction 5
+    # 安装Xray
+    # handleV2Ray stop
+
+    installXrayService 7
+    customCDNIP 8
+    initXrayConfig all 9
+    cleanUp v2rayDel
+    installCronTLS 10
+    nginxBlog 11
+    updateRedirectNginxConf
+    handleXray stop
+    sleep 2
+    handleXray start
+
+    handleNginx start
+    # 生成账号
+    checkGFWStatue 12
+    showAccounts 13
+}
+# reality管理
+manageReality() {
+
+    echoContent skyBlue "\n进度  1/1 : reality管理"
+    echoContent red "\n=============================================================="
+    local hysteriaStatus=
+    if [[ -n "${hysteriaConfigPath}" ]]; then
+        echoContent yellow "1.重新安装"
+        echoContent yellow "2.卸载"
+        hysteriaStatus=true
+    else
+        echoContent yellow "1.安装"
+    fi
+
+    echoContent red "=============================================================="
+    read -r -p "请选择:" installRealityStatus
+
+    if [[ "${installRealityStatus}" == "1" ]]; then
+        selectCustomInstallType="7"
+        hysteriaCoreInstall
+    elif [[ "${installRealityStatus}" == "2" && "${hysteriaStatus}" == "true" ]]; then
+        unInstallHysteriaCore
+    elif [[ "${installRealityStatus}" == "3" && "${hysteriaStatus}" == "true" ]]; then
+        hysteriaVersionManageMenu 1
+    elif [[ "${installRealityStatus}" == "4" && "${hysteriaStatus}" == "true" ]]; then
+        journalctl -fu hysteria
+    fi
+}
 
 # hysteria管理
 manageHysteria() {
@@ -5568,25 +5708,26 @@ menu() {
     fi
 
     echoContent yellow "4.Hysteria管理"
+    echoContent yellow "5.REALITY管理"
     echoContent skyBlue "-------------------------工具管理-----------------------------"
-    echoContent yellow "5.账号管理"
-    echoContent yellow "6.更换伪装站"
-    echoContent yellow "7.更新证书"
-    echoContent yellow "8.更换CDN节点"
-    echoContent yellow "9.IPv6分流"
-    echoContent yellow "10.WARP分流"
-    echoContent yellow "11.流媒体工具"
-    echoContent yellow "12.添加新端口"
-    echoContent yellow "13.BT下载管理"
-    echoContent yellow "14.切换alpn"
-    echoContent yellow "15.域名黑名单"
+    echoContent yellow "6.账号管理"
+    echoContent yellow "7.更换伪装站"
+    echoContent yellow "8.更新证书"
+    echoContent yellow "9.更换CDN节点"
+    echoContent yellow "10.IPv6分流"
+    echoContent yellow "11.WARP分流"
+    echoContent yellow "12.流媒体工具"
+    echoContent yellow "13.添加新端口"
+    echoContent yellow "14.BT下载管理"
+    echoContent yellow "15.切换alpn"
+    echoContent yellow "16.域名黑名单"
     echoContent skyBlue "-------------------------版本管理-----------------------------"
-    echoContent yellow "16.core管理"
-    echoContent yellow "17.更新脚本"
-    echoContent yellow "18.安装BBR、DD脚本"
+    echoContent yellow "17.core管理"
+    echoContent yellow "18.更新脚本"
+    echoContent yellow "19.安装BBR、DD脚本"
     echoContent skyBlue "-------------------------脚本管理-----------------------------"
-    echoContent yellow "19.查看日志"
-    echoContent yellow "20.卸载脚本"
+    echoContent yellow "20.查看日志"
+    echoContent yellow "21.卸载脚本"
     echoContent red "=============================================================="
     mkdirTools
     aliasInstall
@@ -5605,51 +5746,54 @@ menu() {
         manageHysteria
         ;;
     5)
-        manageAccount 1
+        manageReality 1
         ;;
     6)
-        updateNginxBlog 1
+        manageAccount 1
         ;;
     7)
-        renewalTLS 1
+        updateNginxBlog 1
         ;;
     8)
-        updateV2RayCDN 1
+        renewalTLS 1
         ;;
     9)
-        ipv6Routing 1
+        updateV2RayCDN 1
         ;;
     10)
-        warpRouting 1
+        ipv6Routing 1
         ;;
     11)
-        streamingToolbox 1
+        warpRouting 1
         ;;
     12)
-        addCorePort 1
+        streamingToolbox 1
         ;;
     13)
-        btTools 1
+        addCorePort 1
         ;;
     14)
-        switchAlpn 1
+        btTools 1
         ;;
     15)
-        blacklist 1
+        switchAlpn 1
         ;;
     16)
-        coreVersionManageMenu 1
+        blacklist 1
         ;;
     17)
-        updateV2RayAgent 1
+        coreVersionManageMenu 1
         ;;
     18)
-        bbrInstall
+        updateV2RayAgent 1
         ;;
     19)
-        checkLog 1
+        bbrInstall
         ;;
     20)
+        checkLog 1
+        ;;
+    21)
         unInstall 1
         ;;
     esac
