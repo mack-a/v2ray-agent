@@ -17,7 +17,7 @@
 ## 2.推荐商家
 ### 1.[搬瓦工](https://bandwagonhost.com/cart.php?aff=64917)
 - 老牌商家在vps圈声望比较高，非常稳定，补货后基本很快会被抢空
-- 6.58%折扣码：BWH3HYATVBJW
+- 6.81%折扣码：BWHNCXNVXV
 - 12%优惠码：BWHNY2022
 
 
@@ -141,7 +141,7 @@ PVM.SJC.GIANT| 16G   |8vCPU|400G|44T|10Gbps|$199.9 USD/月|[点击购买](https:
 ### 1.[搬瓦工](https://bandwagonhost.com/cart.php?aff=64917)
 - 老牌商家在vps圈声望比较高，非常稳定，补货后基本很快会被抢空
 - 不接受退款
-- 6.58%折扣码：BWH3HYATVBJW
+- 6.81%折扣码：BWHNCXNVXV
 - location是【JP-Equinix Osaka Softbank】
 
 套餐名称|内存|CPU|硬盘|流量|带宽|价格|购买链接
