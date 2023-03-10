@@ -172,6 +172,8 @@ CLOUD K JP: JAPAN TOKYO SOFTBANK IP TRANSIT|512M|1核|10G|500G|100Mbps|8.2 USD/�
 - 去程有可能更换
 - 线路实测为主
 - [speedtest](http://dmit-hkg-lite.gubo.org/speedtest/)
+- 不建议非移动用户购买
+- lite路由可能会随时更改，买之前请多次测试回程和去程路由
 - 测试ip：103.135.248.22
 
 #### 去程
@@ -180,7 +182,7 @@ CLOUD K JP: JAPAN TOKYO SOFTBANK IP TRANSIT|512M|1核|10G|500G|100Mbps|8.2 USD/�
 - 移动CMI
 
 #### 回程
-- 三网CMI
+- 移动CMI
 
 #### 折扣码【仅适用于 STARTER 及以上规格的 Lite 产品，TINY 不包含在内】
 - 年付七折：Lite-Annually-Recur-30OFF
