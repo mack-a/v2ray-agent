@@ -153,7 +153,8 @@ initVar() {
     # v2ray-core、xray-core配置文件的路径
     configPath=
 
-    xrayCoreRealityConfigPath=
+    # xray-core reality状态
+    realityStatus=
 
     # hysteria 配置文件的路径
     hysteriaConfigPath=
@@ -254,7 +255,7 @@ readAcmeTLS() {
 }
 # 读取默认自定义端口
 readCustomPort() {
-    if [[ -n "${configPath}" ]]; then
+    if [[ -n "${configPath}" && -z "${realityStatus}" ]]; then
         local port=
         port=$(jq -r .inbounds[0].port "${configPath}${frontingType}.json")
         if [[ "${port}" != "443" ]]; then
@@ -283,17 +284,14 @@ readInstallType() {
 
         if [[ -d "/etc/v2ray-agent/xray" && -f "/etc/v2ray-agent/xray/xray" ]]; then
             # 这里检测xray-core
-            if [[ -d "/etc/v2ray-agent/xray/conf" ]] && [[ -f "/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/02_trojan_TCP_inbounds.json" ]]; then
+            if [[ -d "/etc/v2ray-agent/xray/conf" ]] && [[ -f "/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/02_trojan_TCP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/02_VLESS_reality_inbounds.json" ]]; then
                 # xray-core
                 configPath=/etc/v2ray-agent/xray/conf/
                 ctlPath=/etc/v2ray-agent/xray/xray
                 coreInstallType=1
-            elif [[ -d "/etc/v2ray-agent/xray/conf" ]] && [[ -f "/etc/v2ray-agent/xray/conf/02_VLESS_reality_inbounds.json" ]]; then
-                # xray-core
-                # configPath=/etc/v2ray-agent/xray/conf/
-                xrayCoreRealityConfigPath=/etc/v2ray-agent/xray/conf/
-                ctlPath=/etc/v2ray-agent/xray/xray
-                coreInstallType=1
+                if [[ -f "${configPath}02_VLESS_reality_inbounds.json" ]]; then
+                    realityStatus=1
+                fi
             fi
         fi
 
@@ -309,12 +307,6 @@ readInstallType() {
 
 # 读取协议类型
 readInstallProtocolType() {
-    local configPathLocal=
-    if [[ -n "${xrayCoreRealityConfigPath}" ]]; then
-        configPathLocal=${xrayCoreRealityConfigPath}
-    else
-        configPathLocal=${configPath}
-    fi
     currentInstallProtocolType=
 
     while read -r row; do
@@ -343,9 +335,9 @@ readInstallProtocolType() {
         fi
         if echo "${row}" | grep -q VLESS_reality_inbounds; then
             currentInstallProtocolType=${currentInstallProtocolType}'7'
-            frontingType=02_VLESS_reality_inbounds
         fi
-    done < <(find ${configPathLocal} -name "*inbounds.json" | awk -F "[.]" '{print $1}')
+
+    done < <(find ${configPath} -name "*inbounds.json" | awk -F "[.]" '{print $1}')
 
     if [[ -n "${hysteriaConfigPath}" ]]; then
         currentInstallProtocolType=${currentInstallProtocolType}'6'
@@ -374,7 +366,7 @@ checkBTPanel() {
 }
 # 读取当前alpn的顺序
 readInstallAlpn() {
-    if [[ -n "${currentInstallProtocolType}" && -n "${configPath}" ]]; then
+    if [[ -n "${currentInstallProtocolType}" && -z "${realityStatus}" ]]; then
         local alpn
         alpn=$(jq -r .inbounds[0].streamSettings.tlsSettings.alpn[0] ${configPath}${frontingType}.json)
         if [[ -n ${alpn} ]]; then
@@ -469,10 +461,10 @@ readHysteriaConfig() {
 }
 # 读取xray reality配置
 readXrayCoreRealityConfig() {
-    if [[ -n "${xrayCoreRealityConfigPath}" ]]; then
-        currentRealityServerNames=$(jq -r .inbounds[0].streamSettings.realitySettings.serverNames "${xrayCoreRealityConfigPath}02_VLESS_reality_inbounds.json")
-        currentRealityPublicKey=$(jq -r .inbounds[0].streamSettings.realitySettings.publicKey "${xrayCoreRealityConfigPath}02_VLESS_reality_inbounds.json")
-        currentRealityPort=$(jq -r .inbounds[0].port "${xrayCoreRealityConfigPath}02_VLESS_reality_inbounds.json")
+    if [[ -n "${realityStatus}" ]]; then
+        currentRealityServerNames=$(jq -r .inbounds[0].streamSettings.realitySettings.serverNames "${configPath}02_VLESS_reality_inbounds.json")
+        currentRealityPublicKey=$(jq -r .inbounds[0].streamSettings.realitySettings.publicKey "${configPath}02_VLESS_reality_inbounds.json")
+        currentRealityPort=$(jq -r .inbounds[0].port "${configPath}02_VLESS_reality_inbounds.json")
     fi
 }
 
@@ -485,7 +477,7 @@ readConfigHostPathUUID() {
     currentPort=
     currentAdd=
     # 读取path
-    if [[ -n "${configPath}" ]]; then
+    if [[ -n "${configPath}" && -z "${realityStatus}" ]]; then
         local fallback
         fallback=$(jq -r -c '.inbounds[0].settings.fallbacks[]|select(.path)' ${configPath}${frontingType}.json | head -1)
 
@@ -524,7 +516,7 @@ readConfigHostPathUUID() {
 
     fi
 
-    if [[ "${coreInstallType}" == "1" && -n "${configPath}" ]]; then
+    if [[ "${coreInstallType}" == "1" && -n "${configPath}" && -z "${realityStatus}" ]]; then
         currentHost=$(jq -r .inbounds[0].streamSettings.tlsSettings.certificates[0].certificateFile ${configPath}${frontingType}.json | awk -F '[t][l][s][/]' '{print $2}' | awk -F '[.][c][r][t]' '{print $1}')
         currentUUID=$(jq -r .inbounds[0].settings.clients[0].id ${configPath}${frontingType}.json)
         currentAdd=$(jq -r .inbounds[0].settings.clients[0].add ${configPath}${frontingType}.json)
@@ -532,7 +524,6 @@ readConfigHostPathUUID() {
             currentAdd=${currentHost}
         fi
         currentPort=$(jq .inbounds[0].port ${configPath}${frontingType}.json)
-
     elif [[ "${coreInstallType}" == "2" ]]; then
         currentHost=$(jq -r .inbounds[0].streamSettings.tlsSettings.certificates[0].certificateFile ${configPath}${frontingType}.json | awk -F '[t][l][s][/]' '{print $2}' | awk -F '[.][c][r][t]' '{print $1}')
         currentAdd=$(jq -r .inbounds[0].settings.clients[0].add ${configPath}${frontingType}.json)
@@ -632,6 +623,7 @@ readConfigHostPathUUID
 readInstallAlpn
 readCustomPort
 checkBTPanel
+readXrayCoreRealityConfig
 # -------------------------------------------------------------
 
 # 初始化安装目录
@@ -1709,11 +1701,16 @@ installHysteria() {
 # 安装xray
 installXray() {
     readInstallType
+    local prereleaseStatus=false
+    if [[ "$2" == "true" ]]; then
+        prereleaseStatus=true
+    fi
+
     echoContent skyBlue "\n进度  $1/${totalProgress} : 安装Xray"
 
     if [[ "${coreInstallType}" != "1" ]]; then
 
-        version=$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases | jq -r '.[]|select (.prerelease==false)|.tag_name' | head -1)
+        version=$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases | jq -r '.[]|select (.prerelease=='${prereleaseStatus}')|.tag_name' | head -1)
 
         echoContent green " ---> Xray-core版本:${version}"
         if wget --help | grep -q show-progress; then
@@ -1738,7 +1735,7 @@ installXray() {
         read -r -p "是否更新、升级？[y/n]:" reInstallXrayStatus
         if [[ "${reInstallXrayStatus}" == "y" ]]; then
             rm -f /etc/v2ray-agent/xray/xray
-            installXray "$1"
+            installXray "$1" "$2"
         fi
     fi
 }
@@ -3392,7 +3389,7 @@ showAccounts() {
     echoContent skyBlue "\n进度 $1/${totalProgress} : 账号"
     local show
     # VLESS TCP
-    if [[ -n "${configPath}" ]]; then
+    if [[ -n "${configPath}" && -z "${realityStatus}" ]]; then
         show=1
         if echo "${currentInstallProtocolType}" | grep -q trojan; then
             echoContent skyBlue "===================== Trojan TCP TLS_Vision ======================\n"
@@ -3524,7 +3521,7 @@ showAccounts() {
     if echo ${currentInstallProtocolType} | grep -q 7; then
         show=1
         echoContent skyBlue "================================ VLESS reality  =================================\n"
-        jq .inbounds[0].settings.clients ${xrayCoreRealityConfigPath}02_VLESS_reality_inbounds.json | jq -c '.[]' | while read -r user; do
+        jq .inbounds[0].settings.clients ${configPath}02_VLESS_reality_inbounds.json | jq -c '.[]' | while read -r user; do
             local email=
             email=$(echo "${user}" | jq -r .email)
 
@@ -4198,7 +4195,7 @@ bbrInstall() {
 
 # 查看、检查日志
 checkLog() {
-    if [[ -z "${configPath}" || -z "${xrayCoreRealityConfigPath}" ]]; then
+    if [[ -z "${configPath}" || -z "${realityStatus}" ]]; then
         echoContent red " ---> 没有检测到安装目录，请执行脚本安装内容"
         exit 0
     fi
@@ -5526,9 +5523,9 @@ cronRenewTLS() {
 }
 # 账号管理
 manageAccount() {
-    echoContent skyBlue "\n功能
-
-    # 每次删除、添加账号后，需要重新查看订阅生成订阅"
+    echoContent skyBlue "\n功能 1/${totalProgress} : 账号管理"
+    echoContent red "\n=============================================================="
+    echoContent yellow "# 每次删除、添加账号后，需要重新查看订阅生成订阅"
     echoContent yellow "# 添加单个用户时可自定义email和uuid"
     echoContent yellow "# 如安装了Hysteria，账号会同时添加到Hysteria\n"
     echoContent yellow "1.查看账号"
@@ -5632,18 +5629,33 @@ switchAlpn() {
 # 初始化 reality 配置
 initXrayRealityConfig() {
     echoContent skyBlue "\n进度 $1/${totalProgress} : 初始化 Xray-core reality配置"
-    echoContent skyBlue "\n ---> 生成 reality key\n"
+    echoContent yellow "请输入端口"
+
+    read -r -p "端口:" realityPort
+
+    checkCustomPort "${realityPort}"
+
+    echoContent skyBlue "\n --- reality key\n"
     realityX25519Key=$(/etc/v2ray-agent/xray/xray x25519)
 
     realityPrivateKey=$(echo "${realityX25519Key}" | head -1 | awk '{print $3}')
     realityPublicKey=$(echo "${realityX25519Key}" | tail -n 1 | awk '{print $3}')
 
-    echoContent skyBlue "\n ---> 配置回落的域名\n"
+    echoContent skyBlue "\n --- \
+        \
+        \
+        --- >生成 \
+        > \
+        \
+        \
+        \
+        \
+        配置回落的域名\n"
     read -r -p "请输入:" realityDestDomain
 
-    echoContent skyBlue "\n ---> 配置客户端可用的serverNames\n"
+    echoContent skyBlue "\n >配置客户端可用的serverNames\n"
     echoContent red "\n=============================================================="
-    echoContent yellow "# 注意事项\n"
+    echoContent yellow " # 注意事项\n"
     echoContent yellow "录入示例:bing.com,www.bing.com\n"
     read -r -p "请输入:" realityServerNames
     realityServerNames=\"${realityServerNames//,/\",\"}\"
@@ -5656,23 +5668,17 @@ xrayCoreRealityInstall() {
     # 下载核心
     #    prereleaseStatus=true
     #    updateXray
-    #    installXray 3
+    installXray 3 true
     # 生成 privateKey、配置回落地址、配置serverNames
     installXrayService 6
     initXrayRealityConfig 5
     # 初始化配置
     initXrayConfig custom 7
+    handleXray stop
+    cleanUp v2rayClean
+    sleep 2
     # 启动
     handleXray start
-    # 展示账号
-    cleanUp v2rayClean
-    selectCustomInstallType=7
-
-    cleanUp v2rayDel
-    handleXray stop
-    sleep 2
-    handleXray start
-
     # 生成账号
     showAccounts 8
 }
@@ -5681,11 +5687,10 @@ manageReality() {
 
     echoContent skyBlue "\n进度  1/1 : reality管理"
     echoContent red "\n=============================================================="
-    local xrayCoreRealityStatus=
-    if [[ -n "${xrayCoreRealityConfigPath}" ]]; then
+
+    if [[ -n "${realityStatus}" ]]; then
         echoContent yellow "1.重新安装"
         echoContent yellow "2.卸载"
-        xrayCoreRealityStatus=true
     else
         echoContent yellow "1.安装"
     fi
@@ -5702,7 +5707,6 @@ manageReality() {
 
 # hysteria管理
 manageHysteria() {
-
     echoContent skyBlue "\n进度  1/1 : Hysteria管理"
     echoContent red "\n=============================================================="
     local hysteriaStatus=
