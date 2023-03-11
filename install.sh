@@ -284,12 +284,12 @@ readInstallType() {
 
         if [[ -d "/etc/v2ray-agent/xray" && -f "/etc/v2ray-agent/xray/xray" ]]; then
             # 这里检测xray-core
-            if [[ -d "/etc/v2ray-agent/xray/conf" ]] && [[ -f "/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/02_trojan_TCP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/02_VLESS_reality_inbounds.json" ]]; then
+            if [[ -d "/etc/v2ray-agent/xray/conf" ]] && [[ -f "/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/02_trojan_TCP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/07_VLESS_reality_inbounds.json" ]]; then
                 # xray-core
                 configPath=/etc/v2ray-agent/xray/conf/
                 ctlPath=/etc/v2ray-agent/xray/xray
                 coreInstallType=1
-                if [[ -f "${configPath}02_VLESS_reality_inbounds.json" ]]; then
+                if [[ -f "${configPath}07_VLESS_reality_inbounds.json" ]]; then
                     realityStatus=1
                 fi
             fi
@@ -462,9 +462,9 @@ readHysteriaConfig() {
 # 读取xray reality配置
 readXrayCoreRealityConfig() {
     if [[ -n "${realityStatus}" ]]; then
-        currentRealityServerNames=$(jq -r .inbounds[0].streamSettings.realitySettings.serverNames "${configPath}02_VLESS_reality_inbounds.json")
-        currentRealityPublicKey=$(jq -r .inbounds[0].streamSettings.realitySettings.publicKey "${configPath}02_VLESS_reality_inbounds.json")
-        currentRealityPort=$(jq -r .inbounds[0].port "${configPath}02_VLESS_reality_inbounds.json")
+        currentRealityServerNames=$(jq -r .inbounds[0].streamSettings.realitySettings.serverNames "${configPath}07_VLESS_reality_inbounds.json")
+        currentRealityPublicKey=$(jq -r .inbounds[0].streamSettings.realitySettings.publicKey "${configPath}07_VLESS_reality_inbounds.json")
+        currentRealityPort=$(jq -r .inbounds[0].port "${configPath}07_VLESS_reality_inbounds.json")
     fi
 }
 
@@ -516,9 +516,16 @@ readConfigHostPathUUID() {
 
     fi
 
+    if [[ -n "${configPath}" ]]; then
+        if [[ -z "${realityStatus}" ]]; then
+            currentUUID=$(jq -r .inbounds[0].settings.clients[0].id ${configPath}${frontingType}.json)
+        else
+            currentUUID=$(jq -r .inbounds[0].settings.clients[0].id ${configPath}07_VLESS_reality_inbounds.json)
+        fi
+    fi
+
     if [[ "${coreInstallType}" == "1" && -n "${configPath}" && -z "${realityStatus}" ]]; then
         currentHost=$(jq -r .inbounds[0].streamSettings.tlsSettings.certificates[0].certificateFile ${configPath}${frontingType}.json | awk -F '[t][l][s][/]' '{print $2}' | awk -F '[.][c][r][t]' '{print $1}')
-        currentUUID=$(jq -r .inbounds[0].settings.clients[0].id ${configPath}${frontingType}.json)
         currentAdd=$(jq -r .inbounds[0].settings.clients[0].add ${configPath}${frontingType}.json)
         if [[ "${currentAdd}" == "null" ]]; then
             currentAdd=${currentHost}
@@ -540,14 +547,14 @@ readConfigHostPathUUID() {
 showInstallStatus() {
     if [[ -n "${coreInstallType}" ]]; then
         if [[ "${coreInstallType}" == 1 ]]; then
-            if [[ -n $(pgrep -f xray/xray) ]]; then
+            if [[ -n $(pgrep -f "xray/xray") ]]; then
                 echoContent yellow "\n核心: Xray-core[运行中]"
             else
                 echoContent yellow "\n核心: Xray-core[未运行]"
             fi
 
         elif [[ "${coreInstallType}" == 2 || "${coreInstallType}" == 3 ]]; then
-            if [[ -n $(pgrep -f v2ray/v2ray) ]]; then
+            if [[ -n $(pgrep -f "v2ray/v2ray") ]]; then
                 echoContent yellow "\n核心: v2ray-core[运行中]"
             else
                 echoContent yellow "\n核心: v2ray-core[未运行]"
@@ -1308,6 +1315,8 @@ customPortFunction() {
                 exit
             fi
         else
+            allowPort 80
+            allowPort 443
             customPort=
             echoContent yellow "\n ---> 端口: 443"
         fi
@@ -1514,7 +1523,7 @@ handleNginx() {
 
         sleep 0.5
 
-        if [[ -z $(pgrep -f nginx) ]]; then
+        if [[ -z $(pgrep -f "nginx") ]]; then
             echoContent red " ---> Nginx启动失败"
             echoContent red " ---> 请手动尝试安装nginx后，再次执行脚本"
 
@@ -1999,9 +2008,9 @@ updateXray() {
 checkGFWStatue() {
     readInstallType
     echoContent skyBlue "\n进度 $1/${totalProgress} : 验证服务启动状态"
-    if [[ "${coreInstallType}" == "1" ]] && [[ -n $(pgrep -f xray/xray) ]]; then
+    if [[ "${coreInstallType}" == "1" ]] && [[ -n $(pgrep -f "xray/xray") ]]; then
         echoContent green " ---> 服务启动成功"
-    elif [[ "${coreInstallType}" == "2" ]] && [[ -n $(pgrep -f v2ray/v2ray) ]]; then
+    elif [[ "${coreInstallType}" == "2" ]] && [[ -n $(pgrep -f "v2ray/v2ray") ]]; then
         echoContent green " ---> 服务启动成功"
     else
         echoContent red " ---> 服务启动失败，请检查终端是否有日志打印"
@@ -2789,11 +2798,10 @@ initXrayFrontingConfig() {
 
 # 移动上次配置文件至临时文件
 movePreviousConfig() {
-    if [[ -n "${configPath}" ]] && [[ -f "${configPath}02_VLESS_TCP_inbounds.json" ]]; then
-        rm -rf ${configPath}../tmp/*
-        mv ${configPath}* ${configPath}../tmp/
+    if [[ -n "${configPath}" && -z "${realityStatus}" ]]; then
+        rm -rf "${configPath}../tmp/*"
+        mv ${configPath}[0][2-6]* ${configPath}../tmp/
     fi
-
 }
 
 # 初始化Xray 配置文件
@@ -2834,7 +2842,9 @@ initXrayConfig() {
     movePreviousConfig
 
     # log
-    cat <<EOF >/etc/v2ray-agent/xray/conf/00_log.json
+    if [[ ! -f "/etc/v2ray-agent/xray/conf/00_log.json" ]]; then
+
+        cat <<EOF >/etc/v2ray-agent/xray/conf/00_log.json
 {
   "log": {
     "error": "/etc/v2ray-agent/xray/error.log",
@@ -2842,10 +2852,12 @@ initXrayConfig() {
   }
 }
 EOF
+    fi
 
     # outbounds
-    if [[ -n "${pingIPv6}" ]]; then
-        cat <<EOF >/etc/v2ray-agent/xray/conf/10_ipv6_outbounds.json
+    if [[ ! -f "/etc/v2ray-agent/xray/conf/10_ipv6_outbounds.json" ]]; then
+        if [[ -n "${pingIPv6}" ]]; then
+            cat <<EOF >/etc/v2ray-agent/xray/conf/10_ipv6_outbounds.json
 {
     "outbounds": [
         {
@@ -2857,8 +2869,8 @@ EOF
 }
 EOF
 
-    else
-        cat <<EOF >/etc/v2ray-agent/xray/conf/10_ipv4_outbounds.json
+        else
+            cat <<EOF >/etc/v2ray-agent/xray/conf/10_ipv4_outbounds.json
 {
     "outbounds":[
         {
@@ -2887,10 +2899,12 @@ EOF
     ]
 }
 EOF
+        fi
     fi
 
     # dns
-    cat <<EOF >/etc/v2ray-agent/xray/conf/11_dns.json
+    if [[ ! -f "/etc/v2ray-agent/xray/conf/11_dns.json" ]]; then
+        cat <<EOF >/etc/v2ray-agent/xray/conf/11_dns.json
 {
     "dns": {
         "servers": [
@@ -2899,8 +2913,10 @@ EOF
   }
 }
 EOF
+    fi
     # routing
-    cat <<EOF >/etc/v2ray-agent/xray/conf/09_routing.json
+    if [[ ! -f "/etc/v2ray-agent/xray/conf/09_routing.json" ]]; then
+        cat <<EOF >/etc/v2ray-agent/xray/conf/09_routing.json
 {
   "routing": {
     "rules": [
@@ -2915,6 +2931,7 @@ EOF
   }
 }
 EOF
+    fi
     # VLESS_TCP_TLS_Vision
     # 回落nginx
     local fallbacksList='{"dest":31300,"xver":0},{"alpn":"h2","dest":31302,"xver":0}'
@@ -3111,11 +3128,11 @@ EOF
             defaultPort=${customPort}
         fi
 
-        cat <<EOF >/etc/v2ray-agent/xray/conf/02_VLESS_reality_inbounds.json
+        cat <<EOF >/etc/v2ray-agent/xray/conf/07_VLESS_reality_inbounds.json
 {
   "inbounds": [
     {
-      "port": ${defaultPort},
+      "port": ${realityPort},
       "protocol": "vless",
       "tag": "VLESSReality",
       "settings": {
@@ -3133,7 +3150,7 @@ EOF
         "network": "tcp",
         "security": "reality",
         "realitySettings": {
-            "show": false,
+            "show": true,
             "dest": "${realityDestDomain}",
             "xver": 0,
             "serverNames": [
@@ -3141,7 +3158,7 @@ EOF
             ],
             "privateKey": "${realityPrivateKey}",
             "publicKey": "${realityPublicKey}",
-            "maxTimeDiff": 0,
+            "maxTimeDiff": 70000,
             "shortIds": [
                 ""
             ]
@@ -3518,10 +3535,11 @@ showAccounts() {
         done
 
     fi
+    # VLESS reality
     if echo ${currentInstallProtocolType} | grep -q 7; then
         show=1
         echoContent skyBlue "================================ VLESS reality  =================================\n"
-        jq .inbounds[0].settings.clients ${configPath}02_VLESS_reality_inbounds.json | jq -c '.[]' | while read -r user; do
+        jq .inbounds[0].settings.clients ${configPath}07_VLESS_reality_inbounds.json | jq -c '.[]' | while read -r user; do
             local email=
             email=$(echo "${user}" | jq -r .email)
 
@@ -3633,7 +3651,7 @@ updateNginxBlog() {
             addNginx302 "${redirectDomain}"
             handleNginx stop
             handleNginx start
-            if [[ -z $(pgrep -f nginx) ]]; then
+            if [[ -z $(pgrep -f "nginx") ]]; then
                 backupNginxConfig restoreBackup
                 handleNginx start
                 exit 0
@@ -3791,7 +3809,7 @@ unInstall() {
         menu
         exit 0
     fi
-
+    echoContent red " ---> 脚本不会删除acme相关配置，删除请手动执行 [rm -rf /root/.acme.sh]"
     handleNginx stop
     if [[ -z $(pgrep -f "nginx") ]]; then
         echoContent green " ---> 停止Nginx成功"
@@ -3816,19 +3834,18 @@ unInstall() {
         echoContent green " ---> 删除Hysteria开机自启完成"
     fi
 
-    if [[ -f "/root/.acme.sh/acme.sh.env" ]] && grep -q 'acme.sh.env' </root/.bashrc; then
-        sed -i 's/. "\/root\/.acme.sh\/acme.sh.env"//g' "$(grep '. "/root/.acme.sh/acme.sh.env"' -rl /root/.bashrc)"
-    fi
-    rm -rf /root/.acme.sh
-    echoContent green " ---> 删除acme.sh完成"
+    #    if [[ -f "/root/.acme.sh/acme.sh.env" ]] && grep -q 'acme.sh.env' </root/.bashrc; then
+    #        sed -i 's/. "\/root\/.acme.sh\/acme.sh.env"//g' "$(grep '. "/root/.acme.sh/acme.sh.env"' -rl /root/.bashrc)"
+    #    fi
+    #    rm -rf /root/.acme.sh
 
-    rm -rf /tmp/v2ray-agent-tls/*
-    if [[ -d "/etc/v2ray-agent/tls" ]] && [[ -n $(find /etc/v2ray-agent/tls/ -name "*.key") ]] && [[ -n $(find /etc/v2ray-agent/tls/ -name "*.crt") ]]; then
-        mv /etc/v2ray-agent/tls /tmp/v2ray-agent-tls
-        if [[ -n $(find /tmp/v2ray-agent-tls -name '*.key') ]]; then
-            echoContent yellow " ---> 备份证书成功，请注意留存。[/tmp/v2ray-agent-tls]"
-        fi
-    fi
+    #    rm -rf /tmp/v2ray-agent-tls/*
+    #    if [[ -d "/etc/v2ray-agent/tls" ]] && [[ -n $(find /etc/v2ray-agent/tls/ -name "*.key") ]] && [[ -n $(find /etc/v2ray-agent/tls/ -name "*.crt") ]]; then
+    #        mv /etc/v2ray-agent/tls /tmp/v2ray-agent-tls
+    #        if [[ -n $(find /tmp/v2ray-agent-tls -name '*.key') ]]; then
+    #            echoContent yellow " ---> 备份证书成功，请注意留存。[/tmp/v2ray-agent-tls]"
+    #        fi
+    #    fi
 
     rm -rf /etc/v2ray-agent
     rm -rf ${nginxConfigPath}alone.conf
@@ -5492,7 +5509,7 @@ unInstallXrayCoreReality() {
     echoContent yellow "# 仅删除VLESS Reality相关配置，不会删除其他内容。"
     echoContent yellow "# 如果需要卸载其他内容，请卸载脚本功能"
     handleXray stop
-    rm -rf /etc/v2ray-agent/xray/conf/02_VLESS_reality_inbounds.json
+    rm -rf /etc/v2ray-agent/xray/conf/07_VLESS_reality_inbounds.json
     echoContent yellow " >卸载完成"
 }
 
@@ -5631,29 +5648,23 @@ initXrayRealityConfig() {
     read -r -p "端口:" realityPort
 
     checkCustomPort "${realityPort}"
-
-    echoContent skyBlue "\n --- reality key\n"
+    allowPort "${realityPort}"
+    echoContent skyBlue "\n --->生成key\n"
     realityX25519Key=$(/etc/v2ray-agent/xray/xray x25519)
 
     realityPrivateKey=$(echo "${realityX25519Key}" | head -1 | awk '{print $3}')
     realityPublicKey=$(echo "${realityX25519Key}" | tail -n 1 | awk '{print $3}')
 
-    echoContent skyBlue "\n --- \
-        \
-        \
-        --- >生成 \
-        > \
-        \
-        \
-        \
-        \
-        配置回落的域名\n"
+    echoContent green "\n privateKey:${realityPrivateKey}"
+    echoContent green "\n publicKey:${realityPublicKey}"
+
+    echoContent skyBlue "\n --->生成配置回落的域名 例如:[addons.mozilla.org:443]\n"
     read -r -p "请输入:" realityDestDomain
 
     echoContent skyBlue "\n >配置客户端可用的serverNames\n"
     echoContent red "\n=============================================================="
     echoContent yellow " # 注意事项\n"
-    echoContent yellow "录入示例:bing.com,www.bing.com\n"
+    echoContent yellow "录入示例:addons.mozilla.org\n"
     read -r -p "请输入:" realityServerNames
     realityServerNames=\"${realityServerNames//,/\",\"}\"
 }
@@ -5762,14 +5773,14 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.7.13"
+    echoContent green "当前版本：v2.7.13_reality_beta"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
-    echoContent red "\n=============================================================="
-    echoContent red "                        推广区                      "
+    echoContent red "\n=========================== 推广区============================"
+    echoContent red "                                              "
     echoContent green "推广请联系TG：@mackaff\n"
-    echoContent green "AFF捐赠：https://github.com/mack-a/v2ray-agent/blob/master/documents/donation_aff.md\n"
+    echoContent green "AFF捐赠：https://github.com/mack-a/v2ray-agent/blob/master/documents/donation_aff.md"
     echoContent red "=============================================================="
     if [[ -n "${coreInstallType}" ]]; then
         echoContent yellow "1.重新安装"
