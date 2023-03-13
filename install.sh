@@ -3140,29 +3140,33 @@ EOF
           {
             "id": "${uuid}",
             "add": "${add}",
-            "flow": "xtls-rprx-vision",
+            "flow": "",
             "email": "default_VLESS_reality_Vision"
           }
         ],
         "decryption": "none"
       },
       "streamSettings": {
-        "network": "tcp",
-        "security": "reality",
-        "realitySettings": {
-            "show": true,
-            "dest": "${realityDestDomain}",
-            "xver": 0,
-            "serverNames": [
-                ${realityServerNames}
-            ],
-            "privateKey": "${realityPrivateKey}",
-            "publicKey": "${realityPublicKey}",
-            "maxTimeDiff": 70000,
-            "shortIds": [
-                ""
-            ]
-        }
+            "network": "grpc",
+            "security": "reality",
+            "grpcSettings": {
+                "serviceName": "grpc"
+            },
+            "realitySettings": {
+                "show": true,
+                "dest": "${realityDestDomain}",
+                "xver": 0,
+                "minClientVer": "",
+                "serverNames": [
+                    ${realityServerNames}
+                ],
+                "privateKey": "${realityPrivateKey}",
+                "publicKey": "${realityPublicKey}",
+                "maxTimeDiff": 70000,
+                "shortIds": [
+                    ""
+                ]
+            }
       }
     }
   ]
@@ -5773,7 +5777,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.7.13_reality_beta"
+    echoContent green "当前版本：v2.7.14_reality_beta"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
