@@ -18,14 +18,14 @@
 
 # کاتالوگ
 
-- [1.اسکریپت‌نصب](#اسکریپت‌هشت‌در‌یک‌همزیستی‌+‌سایت‌ساختگی)
+- [1.اسکریپت‌نصب](#اسکریپت_هشت_در_یک_همزیستی_+_سایت_ساختگی)
   - [امکانات](#امکانات)
-  - [اقدام‌احتیاطی](#اقدام‌احتیاطی)
-  - [اسکریپت‌نصب](#اسکریپت‌نصب)
+  - [اقدام‌احتیاطی](#اقدام_احتیاطی)
+  - [اسکریپت‌نصب](#اسکریپت_نصب)
 
 * * * 
 
-# 1.اسکریپت‌هشت‌در‌یک‌همزیستی‌+‌سایت‌ساختگی
+# 1.اسکریپت_هشت_در_یک_همزیستی_+_سایت_ساختگی
 
 - [آموزش شروع به کار با Cloudflare](https://github.com/mack-a/v2ray-agent/blob/master/documents/cloudflare_init.md)
 
@@ -67,7 +67,7 @@
 - Guangzhou Mobile/CN2/South Union+Hong Kong AZ+Global
 - Transit+cloudflare+Landing Machine【Kela Global】
 
-## اقدام‌احتیاطی
+## اقدام_احتیاطی
 
 - **Cloudflare->SSL/TLS->Overview->Full را تغییر دهید**
 - **Cloudflare ---> ابرهای تجزیه شده توسط یک رکورد باید خاکستری باشد [اگر خاکستری نباشد، بر گواهی تمدید خودکار وظایف برنامه ریزی شده تأثیر می گذارد]**
@@ -95,7 +95,7 @@
 
 [Support donations to me via virtual currency](https://github.com/mack-a/v2ray-agent/blob/master/documents/donation.md)
 
-## اسکریپت‌نصب
+## اسکریپت_نصب
 
 - supports shortcut startup, after installation, enter [**vasma**] in the shell You can open the script, the script execution path [**/etc/v2ray-agent/install.sh**]
 
