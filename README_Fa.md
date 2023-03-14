@@ -16,7 +16,7 @@
 
 * * *
 
-# 目录
+# فهرست مطالب
 
 - [1.脚本安装](#1vlesstcptlsvlesswstlsvmesstcptlsvmesswstlstrojan-伪装站点-五合一共存脚本)
     - [特性](#特性)
@@ -29,7 +29,7 @@
 
 - [Cloudflare入门教程](https://github.com/mack-a/v2ray-agent/blob/master/documents/cloudflare_init.md)
 
-## 特性
+## مشخصه
 - 支持[Xray-core[XTLS]](https://github.com/XTLS/Xray-core)、[v2ray-core](https://github.com/v2fly/v2ray-core)、[hysteria](https://github.com/apernet/hysteria)
 - 支持不同核心之间的配置文件互相读取
 - 支持 VLESS/VMess/Trojan/hysteria 协议
@@ -39,9 +39,9 @@
 - 支持IPv6，[IPv6注意事项](https://github.com/mack-a/v2ray-agent/blob/master/documents/ipv6_help.md)
 - 支持WARP分流、IPv6分流、任意门分流
 - 支持BT下载管理、日志管理、域名黑名单管理、核心管理、伪装站点管理、路由规则文件管理
-- [支持自定义证书安装](https://github.com/mack-a/v2ray-agent/blob/master/documents/install_tls.md)
+- [پشتیبانی از نصب گواهی سفارشی](https://github.com/mack-a/v2ray-agent/blob/master/documents/install_tls.md)
 
-## 支持的安装类型
+## انواع نصب پشتیبانی شده
 
 - VLESS+TCP+TLS_Vision【推荐】
 - VLESS+gRPC+TLS【支持CDN、IPv6、延迟低】
@@ -60,7 +60,7 @@
 - [CMI](https://github.com/mack-a/v2ray-agent/blob/master/documents/donation_aff.md#5cmi)
 - 中转+cloudflare+落地机【可拉全球】
 
-## 注意事项
+## موارد احتیاط
 
 - **修改Cloudflare->SSL/TLS->Overview->Full**
 - **Cloudflare ---> A记录解析的云朵必须为灰色【如非灰色，会影响到定时任务自动续签证书】**
@@ -89,7 +89,7 @@
 
 [支持通过虚拟币向我捐赠](https://github.com/mack-a/v2ray-agent/blob/master/documents/donation.md)
 
-## 安装脚本
+## نصب اسکریپت
 
 - 支持快捷方式启动，安装完毕后，shell输入【**vasma**】即可打开脚本，脚本执行路径[**/etc/v2ray-agent/install.sh**]
 
@@ -100,11 +100,11 @@ wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-
 ```
 
 
-# 示例图
+# نمودار نمونه
 
 <img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/install.jpg" width=700>
 
-# 许可证
+# مجوز
 
 [AGPL-3.0](https://github.com/mack-a/v2ray-agent/blob/master/LICENSE)
 
