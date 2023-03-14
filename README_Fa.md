@@ -19,9 +19,9 @@
 # کاتالوگ
 
 - [1.اسکریپت‌نصب](#1vlesstcptlsvlesswstlsvmesstcptlsvmesswstlstrojan-camouflage site-five-in-one coexistence script)
-  - [امکانات](#Features)
-  - [اقدام‌احتیاطی](#Notes)
-  - [اسکریپت‌نصب](#installation-script)
+  - [امکانات](#امکانات)
+  - [اقدام‌احتیاطی](#اقدام‌احتیاطی)
+  - [اسکریپت‌نصب](#اسکریپت نصب)
 
 * * * 
 
