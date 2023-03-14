@@ -18,14 +18,14 @@
 
 # کاتالوگ
 
-- [1.اسکریپت‌نصب](#1vlesstcptlsvlesswstlsvmesstcptlsvmesswstlstrojan-camouflage site-five-in-one coexistence script)
+- [1.اسکریپت‌نصب](#اسکریپت‌هشت‌در‌یک‌همزیستی‌+‌سایت‌ساختگی)
   - [امکانات](#امکانات)
   - [اقدام‌احتیاطی](#اقدام‌احتیاطی)
-  - [اسکریپت‌نصب](#اسکریپت نصب)
+  - [اسکریپت‌نصب](#اسکریپت‌نصب)
 
 * * * 
 
-# 1.اسکریپت هشت در یک همزیستی + سایت ساختگی
+# 1.اسکریپت‌هشت‌در‌یک‌همزیستی‌+‌سایت‌ساختگی
 
 - [آموزش شروع به کار با Cloudflare](https://github.com/mack-a/v2ray-agent/blob/master/documents/cloudflare_init.md)
 
@@ -95,7 +95,7 @@
 
 [Support donations to me via virtual currency](https://github.com/mack-a/v2ray-agent/blob/master/documents/donation.md)
 
-## اسکریپت نصب
+## اسکریپت‌نصب
 
 - supports shortcut startup, after installation, enter [**vasma**] in the shell You can open the script, the script execution path [**/etc/v2ray-agent/install.sh**]
 
