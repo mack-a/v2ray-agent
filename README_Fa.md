@@ -18,10 +18,10 @@
 
 # کاتالوگ
 
-- [1.اسکریپت نصب](#1vlesstcptlsvlesswstlsvmesstcptlsvmesswstlstrojan-camouflage site-five-in-one coexistence script)
-  - [ویژگی ها](#Features)
-  - [تبصره ها](#Notes)
-  - [اسکریپت نصب](#installation-script)
+- [1.اسکریپت‌نصب](#1vlesstcptlsvlesswstlsvmesstcptlsvmesswstlstrojan-camouflage site-five-in-one coexistence script)
+  - [امکانات](#Features)
+  - [اقدام‌احتیاطی](#Notes)
+  - [اسکریپت‌نصب](#installation-script)
 
 * * * 
 
@@ -67,7 +67,7 @@
 - Guangzhou Mobile/CN2/South Union+Hong Kong AZ+Global
 - Transit+cloudflare+Landing Machine【Kela Global】
 
-## اقدام احتیاطی
+## اقدام‌احتیاطی
 
 - **Cloudflare->SSL/TLS->Overview->Full را تغییر دهید**
 - **Cloudflare ---> ابرهای تجزیه شده توسط یک رکورد باید خاکستری باشد [اگر خاکستری نباشد، بر گواهی تمدید خودکار وظایف برنامه ریزی شده تأثیر می گذارد]**
