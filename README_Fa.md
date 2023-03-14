@@ -30,7 +30,7 @@
 - [آموزش شروع به کار با Cloudflare](https://github.com/mack-a/v2ray-agent/blob/master/documents/cloudflare_init.md)
 
 ## امکانات
--پشتیبانی از [Xray-core[XTLS]](https ://github.com/XTLS/Xray-core), [v2ray-core](https://github.com/v2fly/v2ray-core)
+- پشتیبانی از [Xray-core[XTLS]](https ://github.com/XTLS/Xray-core), [v2ray-core](https://github.com/v2fly/v2ray-core)
 - پشتیبانی از پروتکل VLESS/VMess/trojan
 - از VLESS/Trojan prepending پشتیبانی می کند [VLESS XTLS -> Trojan XTLS], [Trojan XTLS -> VLESS XTLS]
 - پشتیبانی از خواندن متقابل فایل های پیکربندی بین هسته های مختلف
