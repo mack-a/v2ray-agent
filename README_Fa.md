@@ -72,10 +72,10 @@
 - **Cloudflare->SSL/TLS->Overview->Full را تغییر دهید**
 - **Cloudflare ---> ابرهای تجزیه شده توسط یک رکورد باید خاکستری باشد [اگر خاکستری نباشد، بر گواهی تمدید خودکار وظایف برنامه ریزی شده تأثیر می گذارد]**
 - **اگر از CDN و اتصال مستقیم به طور همزمان استفاده می کنید، Yunduo + IP خود انتخابی را خاموش کنید، به قسمت بالا مراجعه کنید [طرح بهینه سازی Cloudflare](https://github.com/mack-a/v2ray-agent/blob/master/documents/optimize_V2Ray.md)**
-- **Use the pure system to install, if you have installed it with other scripts and you cannot modify the error yourself, please reinstall the system and try to install again**
+- **برای نصب از سیستم خالص استفاده کنید، اگر آن را با اسکریپت های دیگر نصب کرده اید و خودتان نمی توانید خطا را اصلاح کنید، لطفاً سیستم را دوباره نصب کنید و دوباره سعی کنید نصب کنید.**
 - wget: command not found [**Here you need to do it manually Install wget**]
-  , if you have not used Linux, [click to view](https://github.com/mack-a/v2ray-agent/tree/master/documents/install_tools.md) installation tutorial
-- does not support non- root account
+  , اگر از لینوکس استفاده نکرده اید، [برای مشاهده کلیک کنید](https://github.com/mack-a/v2ray-agent/tree/master/documents/install_tools.md) آموزش نصب
+- از حساب غیر روت پشتیبانی نمی کند
 - **اگر مشکلات مربوط به Nginx را پیدا کردید، لطفا nginx خودکامپایل شده را حذف نصب کنید یا سیستم را دوباره نصب کنید.**
 - **به منظور صرفه جویی در زمان، لطفاً اسکرین شات های دقیق بیاورید یا مشخصات الگو را برای بازخورد دنبال کنید، هیچ اسکرین شات یا مشکلی که از مشخصات پیروی نمی کند مستقیما بسته می شود.**
 - **برای کاربران GCP توصیه نمی شود**
@@ -97,7 +97,7 @@
 
 ## اسکریپت_نصب
 
-- supports shortcut startup, after installation, enter [**vasma**] in the shell You can open the script, the script execution path [**/etc/v2ray-agent/install.sh**]
+- از راه اندازی میانبر پشتیبانی می کند، پس از نصب، [**vasma**] را در پوسته وارد کنید، می توانید اسکریپت، مسیر اجرای اسکریپت را باز کنید [**/etc/v2ray-agent/install.sh**]
 
 - آخرین نسخه [توصیه شده]
 
