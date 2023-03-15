@@ -284,12 +284,12 @@ readInstallType() {
 
         if [[ -d "/etc/v2ray-agent/xray" && -f "/etc/v2ray-agent/xray/xray" ]]; then
             # 这里检测xray-core
-            if [[ -d "/etc/v2ray-agent/xray/conf" ]] && [[ -f "/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/02_trojan_TCP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/07_VLESS_reality_inbounds.json" ]]; then
+            if [[ -d "/etc/v2ray-agent/xray/conf" ]] && [[ -f "/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/02_trojan_TCP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/07_VLESS_vision_reality_inbounds.json" ]]; then
                 # xray-core
                 configPath=/etc/v2ray-agent/xray/conf/
                 ctlPath=/etc/v2ray-agent/xray/xray
                 coreInstallType=1
-                if [[ -f "${configPath}07_VLESS_reality_inbounds.json" ]]; then
+                if [[ -f "${configPath}07_VLESS_vision_reality_inbounds.json" ]]; then
                     realityStatus=1
                 fi
             fi
@@ -462,9 +462,9 @@ readHysteriaConfig() {
 # 读取xray reality配置
 readXrayCoreRealityConfig() {
     if [[ -n "${realityStatus}" ]]; then
-        currentRealityServerNames=$(jq -r .inbounds[0].streamSettings.realitySettings.serverNames "${configPath}07_VLESS_reality_inbounds.json")
-        currentRealityPublicKey=$(jq -r .inbounds[0].streamSettings.realitySettings.publicKey "${configPath}07_VLESS_reality_inbounds.json")
-        currentRealityPort=$(jq -r .inbounds[0].port "${configPath}07_VLESS_reality_inbounds.json")
+        currentRealityServerNames=$(jq -r .inbounds[0].streamSettings.realitySettings.serverNames "${configPath}07_VLESS_vision_reality_inbounds.json")
+        currentRealityPublicKey=$(jq -r .inbounds[0].streamSettings.realitySettings.publicKey "${configPath}07_VLESS_vision_reality_inbounds.json")
+        currentRealityPort=$(jq -r .inbounds[0].port "${configPath}07_VLESS_vision_reality_inbounds.json")
     fi
 }
 
@@ -520,7 +520,7 @@ readConfigHostPathUUID() {
         if [[ -z "${realityStatus}" ]]; then
             currentUUID=$(jq -r .inbounds[0].settings.clients[0].id ${configPath}${frontingType}.json)
         else
-            currentUUID=$(jq -r .inbounds[0].settings.clients[0].id ${configPath}07_VLESS_reality_inbounds.json)
+            currentUUID=$(jq -r .inbounds[0].settings.clients[0].id ${configPath}07_VLESS_vision_reality_inbounds.json)
         fi
     fi
 
@@ -3128,7 +3128,7 @@ EOF
             defaultPort=${customPort}
         fi
 
-        cat <<EOF >/etc/v2ray-agent/xray/conf/07_VLESS_reality_inbounds.json
+        cat <<EOF >/etc/v2ray-agent/xray/conf/07_VLESS_vision_reality_inbounds.json
 {
   "inbounds": [
     {
@@ -3140,38 +3140,72 @@ EOF
           {
             "id": "${uuid}",
             "add": "${add}",
-            "flow": "",
+            "flow": "xtls-rprx-vision",
             "email": "default_VLESS_reality_Vision"
+          }
+        ],
+        "decryption": "none",
+        "fallbacks":[
+            {
+                "dest": "31305",
+                "xver": 1
+            }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+            "show": true,
+            "dest": "${realityDestDomain}",
+            "xver": 0,
+            "serverNames": [
+                ${realityServerNames}
+            ],
+            "privateKey": "${realityPrivateKey}",
+            "publicKey": "${realityPublicKey}",
+            "maxTimeDiff": 70000,
+            "shortIds": [
+                ""
+            ]
+        }
+      }
+    }
+  ]
+}
+EOF
+
+        cat <<EOF >/etc/v2ray-agent/xray/conf/08_VLESS_reality_fallback_grpc_inbounds.json
+{
+  "inbounds": [
+    {
+      "port": 31305,
+      "listen": "127.0.0.1",
+      "protocol": "vless",
+      "tag": "VLESSRealityGRPC",
+      "settings": {
+        "clients": [
+          {
+            "id": "${uuid}",
+            "add": "${add}",
+            "flow": "",
+            "email": "default_VLESS_grpc_reality"
           }
         ],
         "decryption": "none"
       },
       "streamSettings": {
             "network": "grpc",
-            "security": "reality",
             "grpcSettings": {
-                "serviceName": "grpc"
-            },
-            "realitySettings": {
-                "show": true,
-                "dest": "${realityDestDomain}",
-                "xver": 0,
-                "minClientVer": "",
-                "serverNames": [
-                    ${realityServerNames}
-                ],
-                "privateKey": "${realityPrivateKey}",
-                "publicKey": "${realityPublicKey}",
-                "maxTimeDiff": 70000,
-                "shortIds": [
-                    ""
-                ]
+                "serviceName": "grpc",
+                "multiMode": true
             }
       }
     }
   ]
 }
 EOF
+
         addClients "/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json" "${addClientsStatus}"
     else
         getClients "${configPath}../tmp/02_VLESS_TCP_inbounds.json" "${addClientsStatus}"
@@ -3543,7 +3577,7 @@ showAccounts() {
     if echo ${currentInstallProtocolType} | grep -q 7; then
         show=1
         echoContent skyBlue "================================ VLESS reality  =================================\n"
-        jq .inbounds[0].settings.clients ${configPath}07_VLESS_reality_inbounds.json | jq -c '.[]' | while read -r user; do
+        jq .inbounds[0].settings.clients ${configPath}07_VLESS_vision_reality_inbounds.json | jq -c '.[]' | while read -r user; do
             local email=
             email=$(echo "${user}" | jq -r .email)
 
@@ -5513,7 +5547,7 @@ unInstallXrayCoreReality() {
     echoContent yellow "# 仅删除VLESS Reality相关配置，不会删除其他内容。"
     echoContent yellow "# 如果需要卸载其他内容，请卸载脚本功能"
     handleXray stop
-    rm -rf /etc/v2ray-agent/xray/conf/07_VLESS_reality_inbounds.json
+    rm -rf /etc/v2ray-agent/xray/conf/07_VLESS_vision_reality_inbounds.json
     echoContent yellow " >卸载完成"
 }
 
@@ -5777,7 +5811,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.7.14_reality_beta"
+    echoContent green "当前版本：v2.7.15_reality_beta"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
