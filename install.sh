@@ -416,7 +416,10 @@ allowPort() {
         fi
     fi
 }
-
+# 获取公网IP
+getPublicIP() {
+    curl -s http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | awk -F "[=]" '{print $2}'
+}
 # 检查80、443端口占用情况
 checkPortUsedStatus() {
     if lsof -i tcp:80 | grep -q LISTEN; then
@@ -465,7 +468,7 @@ readHysteriaConfig() {
 # 读取xray reality配置
 readXrayCoreRealityConfig() {
     if [[ -n "${realityStatus}" ]]; then
-        currentRealityServerNames=$(jq -r .inbounds[0].streamSettings.realitySettings.serverNames "${configPath}07_VLESS_vision_reality_inbounds.json")
+        currentRealityServerNames=$(jq -r .inbounds[0].streamSettings.realitySettings.serverNames[0] "${configPath}07_VLESS_vision_reality_inbounds.json")
         currentRealityPublicKey=$(jq -r .inbounds[0].streamSettings.realitySettings.publicKey "${configPath}07_VLESS_vision_reality_inbounds.json")
         currentRealityPort=$(jq -r .inbounds[0].port "${configPath}07_VLESS_vision_reality_inbounds.json")
     fi
@@ -527,7 +530,7 @@ readConfigHostPathUUID() {
         fi
     fi
 
-    if [[ "${coreInstallType}" == "1" && -n "${configPath}" && -z "${realityStatus}" ]]; then
+    if [[ "${coreInstallType}" == "1" && -n "${configPath}" ]]; then
         currentHost=$(jq -r .inbounds[0].streamSettings.tlsSettings.certificates[0].certificateFile ${configPath}${frontingType}.json | awk -F '[t][l][s][/]' '{print $2}' | awk -F '[.][c][r][t]' '{print $1}')
         currentAdd=$(jq -r .inbounds[0].settings.clients[0].add ${configPath}${frontingType}.json)
         if [[ "${currentAdd}" == "null" ]]; then
@@ -2803,7 +2806,6 @@ initXrayFrontingConfig() {
 # 移动上次配置文件至临时文件
 movePreviousConfig() {
     if [[ -n "${configPath}" ]]; then
-        echo realityStatus:${realityStatus}
         # todo
         if [[ -z "${realityStatus}" ]]; then
             rm -rf "${configPath}../tmp/*"                 # 2>/dev/null
@@ -3439,11 +3441,11 @@ EOF
         echoContent yellow " ---> 二维码 Hysteria(TLS)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=hysteria%3A%2F%2F${currentHost}%3A${hysteriaPort}%3Fprotocol%3D${hysteriaProtocol}%26auth%3D${id}%26peer%3D${currentHost}%26insecure%3D0%26alpn%3Dh3%26upmbps%3D${hysteriaClientUploadSpeed}%26downmbps%3D${hysteriaClientDownloadSpeed}%23${hysteriaEmail}\n"
     elif [[ "${type}" == "vlessReality" ]]; then
-        #            echoContent yellow " ---> 通用格式(VLESS+reality)"
-        #            echoContent green "    vless://${id}@${currentHost}:${currentDefaultPort}?encryption=none&security=tls&type=tcp&host=${currentHost}&headerType=none&sni=${currentHost}&flow=xtls-rprx-vision#${email}\n"
+        echoContent yellow " ---> 通用格式(VLESS+reality)"
+        echoContent green "    vless://${id}@$(getPublicIP):${currentRealityPort}?encryption=none&security=reality&type=tcp&sni=${currentRealityServerNames}&fp=chrome&pbk=${currentRealityPublicKey}&flow=xtls-rprx-vision#${email}\n"
 
         echoContent yellow " ---> 格式化明文(VLESS+reality)"
-        echoContent green "协议类型:VLESS reality，地址:${currentHost}，publicKey:${currentRealityPublicKey}，serverNames：${currentRealityServerNames}，端口:${currentRealityPort}，用户ID:${id}，传输方式:tcp，账户名:${email}\n"
+        echoContent green "协议类型:VLESS reality，地址:$(getPublicIP)，publicKey:${currentRealityPublicKey}，serverNames：${currentRealityServerNames}，端口:${currentRealityPort}，用户ID:${id}，传输方式:tcp，账户名:${email}\n"
         #   cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
         #vless://${id}@${currentHost}:${currentDefaultPort}?encryption=none&security=tls&type=tcp&host=${currentHost}&headerType=none&sni=${currentHost}&flow=xtls-rprx-vision#${email}
         #EOF
@@ -3451,11 +3453,11 @@ EOF
         #            echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${currentHost}%3A${currentDefaultPort}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dtcp%26${currentHost}%3D${currentHost}%26headerType%3Dnone%26sni%3D${currentHost}%26flow%3Dxtls-rprx-vision%23${email}\n"
 
     elif [[ "${type}" == "vlessRealityGRPC" ]]; then
-        #            echoContent yellow " ---> 通用格式(VLESS+reality)"
-        #            echoContent green "    vless://${id}@${currentHost}:${currentDefaultPort}?encryption=none&security=tls&type=tcp&host=${currentHost}&headerType=none&sni=${currentHost}&flow=xtls-rprx-vision#${email}\n"
+        echoContent yellow " ---> 通用格式(VLESS+reality+gRPC)"
+        echoContent green "    vless://${id}@$(getPublicIP):${currentRealityPort}?encryption=none&security=reality&type=grpc&sni=${currentRealityServerNames}&fp=chrome&pbk=${currentRealityPublicKey}&path=grpc&serviceName=grpc#${email}\n"
 
         echoContent yellow " ---> 格式化明文(VLESS+reality+gRPC)"
-        echoContent green "协议类型:VLESS reality，serviceName:grpc，地址:${currentHost}，publicKey:${currentRealityPublicKey}，serverNames：${currentRealityServerNames}，端口:${currentRealityPort}，用户ID:${id}，传输方式:gRPC，client-fingerprint：chrome，账户名:${email}\n"
+        echoContent green "协议类型:VLESS reality，serviceName:grpc，地址:$(getPublicIP)，publicKey:${currentRealityPublicKey}，serverNames：${currentRealityServerNames}，端口:${currentRealityPort}，用户ID:${id}，传输方式:gRPC，client-fingerprint：chrome，账户名:${email}\n"
         #   cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
         #vless://${id}@${currentHost}:${currentDefaultPort}?encryption=none&security=tls&type=tcp&host=${currentHost}&headerType=none&sni=${currentHost}&flow=xtls-rprx-vision#${email}
         #EOF
@@ -5852,7 +5854,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.7.17_reality_beta"
+    echoContent green "当前版本：v2.7.18_reality_beta"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
