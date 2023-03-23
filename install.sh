@@ -180,6 +180,9 @@ initVar() {
     # UUID
     currentUUID=
 
+    # clients
+    currentClients=
+
     # previousClients
     previousClients=
 
@@ -467,9 +470,15 @@ readHysteriaConfig() {
 }
 # 读取xray reality配置
 readXrayCoreRealityConfig() {
+    currentRealityServerNames=
+    currentRealityPublicKey=
+    currentRealityPrivateKey=
+    currentRealityPort=
+
     if [[ -n "${realityStatus}" ]]; then
         currentRealityServerNames=$(jq -r .inbounds[0].streamSettings.realitySettings.serverNames[0] "${configPath}07_VLESS_vision_reality_inbounds.json")
         currentRealityPublicKey=$(jq -r .inbounds[0].streamSettings.realitySettings.publicKey "${configPath}07_VLESS_vision_reality_inbounds.json")
+        currentRealityPrivateKey=$(jq -r .inbounds[0].streamSettings.realitySettings.privateKey "${configPath}07_VLESS_vision_reality_inbounds.json")
         currentRealityPort=$(jq -r .inbounds[0].port "${configPath}07_VLESS_vision_reality_inbounds.json")
     fi
 }
@@ -479,6 +488,7 @@ readConfigHostPathUUID() {
     currentPath=
     currentDefaultPort=
     currentUUID=
+    currentClients=
     currentHost=
     currentPort=
     currentAdd=
@@ -525,12 +535,14 @@ readConfigHostPathUUID() {
     if [[ -n "${configPath}" ]]; then
         if [[ -z "${realityStatus}" ]]; then
             currentUUID=$(jq -r .inbounds[0].settings.clients[0].id ${configPath}${frontingType}.json)
+            currentClients=$(jq -r .inbounds[0].settings.clients ${configPath}${frontingType}.json)
         else
             currentUUID=$(jq -r .inbounds[0].settings.clients[0].id ${configPath}07_VLESS_vision_reality_inbounds.json)
+            currentClients=$(jq -r .inbounds[0].settings.clients ${configPath}07_VLESS_vision_reality_inbounds.json)
         fi
     fi
 
-    if [[ "${coreInstallType}" == "1" && -n "${configPath}" ]]; then
+    if [[ "${coreInstallType}" == "1" && -z "${realityStatus}" ]]; then
         currentHost=$(jq -r .inbounds[0].streamSettings.tlsSettings.certificates[0].certificateFile ${configPath}${frontingType}.json | awk -F '[t][l][s][/]' '{print $2}' | awk -F '[.][c][r][t]' '{print $1}')
         currentAdd=$(jq -r .inbounds[0].settings.clients[0].add ${configPath}${frontingType}.json)
         if [[ "${currentAdd}" == "null" ]]; then
@@ -605,6 +617,12 @@ showInstallStatus() {
         if echo ${currentInstallProtocolType} | grep -q 5; then
             echoContent yellow "VLESS+gRPC[TLS] \c"
         fi
+        if echo ${currentInstallProtocolType} | grep -q 7; then
+            echoContent yellow "VLESS+Reality+Vision \c"
+        fi
+        if echo ${currentInstallProtocolType} | grep -q 8; then
+            echoContent yellow "VLESS+Reality+gRPC \c"
+        fi
     fi
 }
 
@@ -626,7 +644,6 @@ cleanUp() {
         rm -rf /etc/v2ray-agent/xray/*
     fi
 }
-
 initVar "$1"
 checkSystem
 checkCPUVendor
@@ -2206,7 +2223,78 @@ handleXray() {
     fi
 }
 # 获取clients配置
+
+# 读取用户数据并初始化
+initXrayClients() {
+    # todo 读取用户信息并统一管理
+    local type=$1
+    local users=[]
+    users=[]
+    while read -r user; do
+        uuid=$(echo "${user}" | jq -r .id)
+        email=$(echo "${user}" | jq -r .email | awk -F "[-]" '{print $1}')
+        currentUser=
+        if echo "${type}" | grep -q "0"; then
+            add=$(echo "${user}" | jq -r .add)
+            if [[ "${add}" != 'null' ]]; then
+                currentUser="{\"id\":\"${uuid}\",\"flow\":\"xtls-rprx-vision\",\"email\":\"${email}-VLESS_TCP/TLS_Vision\",\"add\":\"${add}\"}"
+            else
+                currentUser="{\"id\":\"${uuid}\",\"flow\":\"xtls-rprx-vision\",\"email\":\"${email}-VLESS_TCP/TLS_Vision\"}"
+            fi
+
+            users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
+        fi
+
+        # VLESS WS
+        if echo "${type}" | grep -q "1"; then
+            currentUser="{\"id\":\"${uuid}\",\"email\":\"${email}-VLESS_WS\"}"
+            users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
+        fi
+        # trjan grpc
+        if echo "${type}" | grep -q "2"; then
+            currentUser="{\"password\":\"${uuid}\",\"email\":\"${email}-Trojan_gRPC\"}"
+            users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
+        fi
+        # VMess WS
+        if echo "${type}" | grep -q "3"; then
+            currentUser="{\"id\":\"${uuid}\",\"email\":\"${email}-VMess_WS\",\"alterId\": 0}"
+
+            users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
+        fi
+
+        # trojan tcp
+        if echo "${type}" | grep -q "4"; then
+            currentUser="{\"password\":\"${uuid}\",\"email\":\"${email}-trojan_tcp\"}"
+
+            users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
+        fi
+
+        # vless grpc
+        if echo "${type}" | grep -q "5"; then
+            currentUser="{\"id\":\"${uuid}\",\"email\":\"${email}-vless_grpc\"}"
+
+            users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
+        fi
+
+        # vless reality vision
+        if echo "${type}" | grep -q "7"; then
+            currentUser="{\"id\":\"${uuid}\",\"email\":\"${email}-vless_reality_vision\"}"
+
+            users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
+        fi
+
+        # vless reality grpc
+        if echo "${type}" | grep -q "8"; then
+            currentUser="{\"id\":\"${uuid}\",\"email\":\"${email}-vless_reality_grpc\"}"
+
+            users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
+        fi
+
+    done < <(echo "${currentClients}" | jq -c '.[]')
+
+}
 getClients() {
+    # todo 需要根据不同的类型添加用户
     local path=$1
 
     local addClientsStatus=$2
@@ -2227,6 +2315,7 @@ getClients() {
 
 # 添加client配置
 addClients() {
+
     local path=$1
     local addClientsStatus=$2
     if [[ ${addClientsStatus} == "true" && -n "${previousClients}" ]]; then
@@ -2805,15 +2894,17 @@ initXrayFrontingConfig() {
 
 # 移动上次配置文件至临时文件
 movePreviousConfig() {
+    # todo 备份02或者07文件中的uuid作为主uuid
+
     if [[ -n "${configPath}" ]]; then
         # todo
         if [[ -z "${realityStatus}" ]]; then
-            rm -rf "${configPath}../tmp/*"                 # 2>/dev/null
-            mv ${configPath}[0][2-6]* ${configPath}../tmp/ # 2>/dev/null
+            rm -rf "${configPath}../tmp/*" 2>/dev/null
+            mv ${configPath}[0][2-6]* ${configPath}../tmp/ 2>/dev/null
         else
             rm -rf "${configPath}../tmp/*"
-            mv ${configPath}[0][7-8]* ${configPath}../tmp/ # 2>/dev/null
-            mv ${configPath}[0][2]* ${configPath}../tmp/   # 2>/dev/null
+            mv ${configPath}[0][7-8]* ${configPath}../tmp/ 2>/dev/null
+            mv ${configPath}[0][2]* ${configPath}../tmp/ 2>/dev/null
         fi
 
     fi
@@ -2955,7 +3046,6 @@ EOF
     if echo "${selectCustomInstallType}" | grep -q 4 || [[ "$1" == "all" ]]; then
         fallbacksList='{"dest":31296,"xver":1},{"alpn":"h2","dest":31302,"xver":0}'
         getClients "${configPath}../tmp/04_trojan_TCP_inbounds.json" "${addClientsStatus}"
-
         cat <<EOF >/etc/v2ray-agent/xray/conf/04_trojan_TCP_inbounds.json
 {
 "inbounds":[
@@ -3172,7 +3262,7 @@ EOF
         "network": "tcp",
         "security": "reality",
         "realitySettings": {
-            "show": true,
+            "show": false,
             "dest": "${realityDestDomain}",
             "xver": 0,
             "serverNames": [
@@ -4292,6 +4382,7 @@ checkLog() {
         echoContent red " ---> 没有检测到安装目录，请执行脚本安装内容"
         exit 0
     fi
+    local realityLogShow=
     local logStatus=false
     if grep -q "access" ${configPath}00_log.json; then
         logStatus=true
@@ -4320,6 +4411,7 @@ checkLog() {
     case ${selectAccessLogType} in
     1)
         if [[ "${logStatus}" == "false" ]]; then
+            realityLogShow=true
             cat <<EOF >${configPath}00_log.json
 {
   "log": {
@@ -4330,6 +4422,7 @@ checkLog() {
 }
 EOF
         elif [[ "${logStatus}" == "true" ]]; then
+            realityLogShow=false
             cat <<EOF >${configPath}00_log.json
 {
   "log": {
@@ -4338,6 +4431,12 @@ EOF
   }
 }
 EOF
+        fi
+
+        if [[ -n ${realityStatus} ]]; then
+            local vlessVisionRealityInbounds
+            vlessVisionRealityInbounds=$(jq -r ".inbounds[0].streamSettings.realitySettings.show=${realityLogShow}" ${configPath}07_VLESS_vision_reality_inbounds.json)
+            echo "${vlessVisionRealityInbounds}" | jq . >${configPath}07_VLESS_vision_reality_inbounds.json
         fi
         reloadCore
         checkLog 1
@@ -5720,34 +5819,73 @@ switchAlpn() {
     fi
     reloadCore
 }
-# 初始化 reality 配置
-initXrayRealityConfig() {
-    echoContent skyBlue "\n进度 $1/${totalProgress} : 初始化 Xray-core reality配置"
-    echoContent yellow "请输入端口"
 
-    read -r -p "端口:" realityPort
-
-    # todo 检查是否为reality占用
-    checkCustomPort "${realityPort}"
-    allowPort "${realityPort}"
+# 初始化realityKey
+initRealityKey() {
     echoContent skyBlue "\n --->生成key\n"
-    realityX25519Key=$(/etc/v2ray-agent/xray/xray x25519)
-
-    realityPrivateKey=$(echo "${realityX25519Key}" | head -1 | awk '{print $3}')
-    realityPublicKey=$(echo "${realityX25519Key}" | tail -n 1 | awk '{print $3}')
+    if [[ -n "${currentRealityPublicKey}" ]]; then
+        read -r -p "读取到上次安装记录，是否使用上次安装时的PublicKey/PrivateKey ？[y/n]:" historyKeyStatus
+        if [[ "${historyKeyStatus}" == "y" ]]; then
+            realityPrivateKey=${currentRealityPrivateKey}
+            realityPublicKey=${currentRealityPublicKey}
+        else
+            realityX25519Key=$(/etc/v2ray-agent/xray/xray x25519)
+            realityPrivateKey=$(echo "${realityX25519Key}" | head -1 | awk '{print $3}')
+            realityPublicKey=$(echo "${realityX25519Key}" | tail -n 1 | awk '{print $3}')
+        fi
+    fi
 
     echoContent green "\n privateKey:${realityPrivateKey}"
     echoContent green "\n publicKey:${realityPublicKey}"
-
+}
+# 初始化reality dest
+initRealityDest() {
     echoContent skyBlue "\n --->生成配置回落的域名 例如:[addons.mozilla.org:443]\n"
-    read -r -p "请输入:" realityDestDomain
-
-    echoContent skyBlue "\n >配置客户端可用的serverNames\n"
-    echoContent red "\n=============================================================="
+    read -r -p "请输入[回车]使用默认:" realityDestDomain
+    if [[ -z "${realityDestDomain}" ]]; then
+        realityDestDomain="addons.mozilla.org:443"
+    fi
+}
+# 初始化客户端可用的ServersName
+initRealityClientServersName() {
+    echoContent skyBlue "\n --->配置客户端可用的serverNames"
+    echoContent red "=============================================================="
     echoContent yellow " # 注意事项\n"
     echoContent yellow "录入示例:addons.mozilla.org\n"
-    read -r -p "请输入:" realityServerNames
-    realityServerNames=\"${realityServerNames//,/\",\"}\"
+    read -r -p "请输入[回车]使用默认:" realityServerNames
+    if [[ -z "${realityDestDomain}" ]]; then
+        realityServerNames=\"addons.mozilla.org\"
+    else
+        realityServerNames=\"${realityServerNames//,/\",\"}\"
+    fi
+}
+# 初始化reality端口
+initRealityPort() {
+    if [[ -n "${currentRealityPort}" ]]; then
+        read -r -p "读取到上次安装记录，是否使用上次安装时的端口 ？[y/n]:" historyRealityPortStatus
+        if [[ "${historyRealityPortStatus}" == "y" ]]; then
+            realityPort=${currentRealityPort}
+        fi
+    fi
+    if [[ -z "${realityPort}" ]]; then
+        echoContent yellow "请输入端口"
+        read -r -p "端口:" realityPort
+        if [[ "${currentRealityPort}" == "${realityPort}" ]]; then
+            handleXray stop
+        else
+            checkCustomPort "${realityPort}"
+        fi
+    fi
+    allowPort "${realityPort}"
+    echoContent yellow "\n ---> 端口: ${realityPort}"
+}
+# 初始化 reality 配置
+initXrayRealityConfig() {
+    echoContent skyBlue "\n进度 $1/${totalProgress} : 初始化 Xray-core reality配置"
+    initRealityPort
+    initRealityKey
+    initRealityDest
+    initRealityClientServersName
 }
 
 # xray-core Reality 安装
