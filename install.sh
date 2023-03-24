@@ -542,7 +542,7 @@ readConfigHostPathUUID() {
         fi
     fi
 
-    if [[ "${coreInstallType}" == "1" && -z "${realityStatus}" ]]; then
+    if [[ "${coreInstallType}" == "1" && -n "${frontingType}" ]]; then
         currentHost=$(jq -r .inbounds[0].streamSettings.tlsSettings.certificates[0].certificateFile ${configPath}${frontingType}.json | awk -F '[t][l][s][/]' '{print $2}' | awk -F '[.][c][r][t]' '{print $1}')
         currentAdd=$(jq -r .inbounds[0].settings.clients[0].add ${configPath}${frontingType}.json)
         if [[ "${currentAdd}" == "null" ]]; then
@@ -1745,10 +1745,15 @@ installXray() {
         version=$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases | jq -r '.[]|select (.prerelease=='${prereleaseStatus}')|.tag_name' | head -1)
 
         echoContent green " ---> Xray-core版本:${version}"
+
         if wget --help | grep -q show-progress; then
             wget -c -q --show-progress -P /etc/v2ray-agent/xray/ "https://github.com/XTLS/Xray-core/releases/download/${version}/${xrayCoreCPUVendor}.zip"
         else
             wget -c -P /etc/v2ray-agent/xray/ "https://github.com/XTLS/Xray-core/releases/download/${version}/${xrayCoreCPUVendor}.zip" >/dev/null 2>&1
+        fi
+        if [[ ! -f "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip" ]]; then
+            echoContent red " ---> 核心下载失败，请重新尝试安装"
+            exit 0
         fi
 
         unzip -o "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip" -d /etc/v2ray-agent/xray >/dev/null
@@ -2226,7 +2231,6 @@ handleXray() {
 
 # 读取用户数据并初始化
 initXrayClients() {
-    # todo 读取用户信息并统一管理
     local type=$1
     local users=[]
     users=[]
@@ -2250,7 +2254,7 @@ initXrayClients() {
             currentUser="{\"id\":\"${uuid}\",\"email\":\"${email}-VLESS_WS\"}"
             users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
         fi
-        # trjan grpc
+        # trojan grpc
         if echo "${type}" | grep -q "2"; then
             currentUser="{\"password\":\"${uuid}\",\"email\":\"${email}-Trojan_gRPC\"}"
             users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
@@ -2278,23 +2282,22 @@ initXrayClients() {
 
         # vless reality vision
         if echo "${type}" | grep -q "7"; then
-            currentUser="{\"id\":\"${uuid}\",\"email\":\"${email}-vless_reality_vision\"}"
+            currentUser="{\"id\":\"${uuid}\",\"email\":\"${email}-vless_reality_vision\",\"flow\":\"xtls-rprx-vision\"}"
 
             users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
         fi
 
         # vless reality grpc
         if echo "${type}" | grep -q "8"; then
-            currentUser="{\"id\":\"${uuid}\",\"email\":\"${email}-vless_reality_grpc\"}"
+            currentUser="{\"id\":\"${uuid}\",\"email\":\"${email}-vless_reality_grpc\",\"flow\":\"\"}"
 
             users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
         fi
 
     done < <(echo "${currentClients}" | jq -c '.[]')
-
+    echo "${users}"
 }
 getClients() {
-    # todo 需要根据不同的类型添加用户
     local path=$1
 
     local addClientsStatus=$2
@@ -2894,10 +2897,8 @@ initXrayFrontingConfig() {
 
 # 移动上次配置文件至临时文件
 movePreviousConfig() {
-    # todo 备份02或者07文件中的uuid作为主uuid
 
     if [[ -n "${configPath}" ]]; then
-        # todo
         if [[ -z "${realityStatus}" ]]; then
             rm -rf "${configPath}../tmp/*" 2>/dev/null
             mv ${configPath}[0][2-6]* ${configPath}../tmp/ 2>/dev/null
@@ -2917,15 +2918,14 @@ initXrayConfig() {
     local uuid=
     local addClientsStatus=
     if [[ -n "${currentUUID}" ]]; then
-        read -r -p "读取到上次安装记录，是否使用上次安装时的UUID ？[y/n]:" historyUUIDStatus
+        read -r -p "读取到上次用户配置，是否使用上次安装的配置 ？[y/n]:" historyUUIDStatus
         if [[ "${historyUUIDStatus}" == "y" ]]; then
             addClientsStatus=true
-            uuid=${currentUUID}
             echoContent green "\n ---> 使用成功"
         fi
     fi
 
-    if [[ -z "${uuid}" ]]; then
+    if [[ -z "${addClientsStatus}" ]]; then
         echoContent yellow "请输入自定义UUID[需合法]，[回车]随机UUID"
         read -r -p 'UUID:' customUUID
 
@@ -2937,15 +2937,17 @@ initXrayConfig() {
 
     fi
 
-    if [[ -z "${uuid}" ]]; then
+    if [[ -z "${addClientsStatus}" && -z "${uuid}" ]]; then
         addClientsStatus=
-        echoContent red "\n ---> uuid读取错误，重新生成"
+        echoContent red "\n ---> uuid读取错误，随机生成"
         uuid=$(/etc/v2ray-agent/xray/xray uuid)
     fi
 
-    echoContent yellow "\n ${uuid}"
-
-    movePreviousConfig
+    if [[ -n "${uuid}" ]]; then
+        currentClients='[{"id":"'${uuid}'","add":"'${add}'","flow":"xtls-rprx-vision","email":"default-VLESS_TCP/TLS_Vision"}]'
+        echoContent yellow "\n ${uuid}"
+    fi
+    #    movePreviousConfig
 
     # log
     if [[ ! -f "/etc/v2ray-agent/xray/conf/00_log.json" ]]; then
@@ -3045,7 +3047,6 @@ EOF
     # trojan
     if echo "${selectCustomInstallType}" | grep -q 4 || [[ "$1" == "all" ]]; then
         fallbacksList='{"dest":31296,"xver":1},{"alpn":"h2","dest":31302,"xver":0}'
-        getClients "${configPath}../tmp/04_trojan_TCP_inbounds.json" "${addClientsStatus}"
         cat <<EOF >/etc/v2ray-agent/xray/conf/04_trojan_TCP_inbounds.json
 {
 "inbounds":[
@@ -3055,12 +3056,7 @@ EOF
 	  "protocol": "trojan",
 	  "tag":"trojanTCP",
 	  "settings": {
-		"clients": [
-		  {
-			"password": "${uuid}",
-			"email": "default_Trojan_TCP"
-		  }
-		],
+		"clients": $(initXrayClients 4),
 		"fallbacks":[
 			{"dest":"31300"}
 		]
@@ -3076,13 +3072,11 @@ EOF
 	]
 }
 EOF
-        addClients "${configPath}04_trojan_TCP_inbounds.json" "${addClientsStatus}"
     fi
 
     # VLESS_WS_TLS
     if echo "${selectCustomInstallType}" | grep -q 1 || [[ "$1" == "all" ]]; then
         fallbacksList=${fallbacksList}',{"path":"/'${customPath}'ws","dest":31297,"xver":1}'
-        getClients "${configPath}../tmp/03_VLESS_WS_inbounds.json" "${addClientsStatus}"
         cat <<EOF >/etc/v2ray-agent/xray/conf/03_VLESS_WS_inbounds.json
 {
 "inbounds":[
@@ -3092,12 +3086,7 @@ EOF
 	  "protocol": "vless",
 	  "tag":"VLESSWS",
 	  "settings": {
-		"clients": [
-		  {
-			"id": "${uuid}",
-			"email": "default_VLESS_WS"
-		  }
-		],
+		"clients": $(initXrayClients 1),
 		"decryption": "none"
 	  },
 	  "streamSettings": {
@@ -3112,7 +3101,6 @@ EOF
 ]
 }
 EOF
-        addClients "${configPath}03_VLESS_WS_inbounds.json" "${addClientsStatus}"
     fi
 
     # trojan_grpc
@@ -3120,7 +3108,6 @@ EOF
         if ! echo "${selectCustomInstallType}" | grep -q 5 && [[ -n ${selectCustomInstallType} ]]; then
             fallbacksList=${fallbacksList//31302/31304}
         fi
-        getClients "${configPath}../tmp/04_trojan_gRPC_inbounds.json" "${addClientsStatus}"
         cat <<EOF >/etc/v2ray-agent/xray/conf/04_trojan_gRPC_inbounds.json
 {
     "inbounds": [
@@ -3130,12 +3117,7 @@ EOF
             "protocol": "trojan",
             "tag": "trojangRPCTCP",
             "settings": {
-                "clients": [
-                    {
-                        "password": "${uuid}",
-                        "email": "default_Trojan_gRPC"
-                    }
-                ],
+                "clients": $(initXrayClients 2),
                 "fallbacks": [
                     {
                         "dest": "31300"
@@ -3152,13 +3134,11 @@ EOF
     ]
 }
 EOF
-        addClients "${configPath}04_trojan_gRPC_inbounds.json" "${addClientsStatus}"
     fi
 
     # VMess_WS
     if echo "${selectCustomInstallType}" | grep -q 3 || [[ "$1" == "all" ]]; then
         fallbacksList=${fallbacksList}',{"path":"/'${customPath}'vws","dest":31299,"xver":1}'
-        getClients "${configPath}../tmp/05_VMess_WS_inbounds.json" "${addClientsStatus}"
         cat <<EOF >/etc/v2ray-agent/xray/conf/05_VMess_WS_inbounds.json
 {
 "inbounds":[
@@ -3168,14 +3148,7 @@ EOF
   "protocol": "vmess",
   "tag":"VMessWS",
   "settings": {
-    "clients": [
-      {
-        "id": "${uuid}",
-        "alterId": 0,
-        "add": "${add}",
-        "email": "default_VMess_WS"
-      }
-    ]
+    "clients": $(initXrayClients 3)
   },
   "streamSettings": {
     "network": "ws",
@@ -3189,11 +3162,9 @@ EOF
 ]
 }
 EOF
-        addClients "${configPath}05_VMess_WS_inbounds.json" "${addClientsStatus}"
     fi
 
     if echo "${selectCustomInstallType}" | grep -q 5 || [[ "$1" == "all" ]]; then
-        getClients "${configPath}../tmp/06_VLESS_gRPC_inbounds.json" "${addClientsStatus}"
         cat <<EOF >/etc/v2ray-agent/xray/conf/06_VLESS_gRPC_inbounds.json
 {
     "inbounds":[
@@ -3203,13 +3174,7 @@ EOF
         "protocol": "vless",
         "tag":"VLESSGRPC",
         "settings": {
-            "clients": [
-                {
-                    "id": "${uuid}",
-                    "add": "${add}",
-                    "email": "default_VLESS_gRPC"
-                }
-            ],
+            "clients": $(initXrayClients 5),
             "decryption": "none"
         },
         "streamSettings": {
@@ -3222,13 +3187,10 @@ EOF
 ]
 }
 EOF
-        addClients "${configPath}06_VLESS_gRPC_inbounds.json" "${addClientsStatus}"
     fi
 
     # VLESS_TCP/reality
-    # todo 判断是否不存在读取02
     if echo "${selectCustomInstallType}" | grep -q 7; then
-        getClients "${configPath}../tmp/07_VLESS_vision_reality_inbounds.json" "${addClientsStatus}"
         local defaultPort=443
         if [[ -n "${customPort}" ]]; then
             defaultPort=${customPort}
@@ -3242,14 +3204,7 @@ EOF
       "protocol": "vless",
       "tag": "VLESSReality",
       "settings": {
-        "clients": [
-          {
-            "id": "${uuid}",
-            "add": "${add}",
-            "flow": "xtls-rprx-vision",
-            "email": "default_VLESS_reality_Vision"
-          }
-        ],
+        "clients": $(initXrayClients 7),
         "decryption": "none",
         "fallbacks":[
             {
@@ -3280,9 +3235,7 @@ EOF
   ]
 }
 EOF
-        addClients "${configPath}07_VLESS_vision_reality_inbounds.json" "${addClientsStatus}"
 
-        getClients "${configPath}../tmp/08_VLESS_reality_fallback_grpc_inbounds.json" "${addClientsStatus}"
         cat <<EOF >/etc/v2ray-agent/xray/conf/08_VLESS_reality_fallback_grpc_inbounds.json
 {
   "inbounds": [
@@ -3292,14 +3245,7 @@ EOF
       "protocol": "vless",
       "tag": "VLESSRealityGRPC",
       "settings": {
-        "clients": [
-          {
-            "id": "${uuid}",
-            "add": "${add}",
-            "flow": "",
-            "email": "default_VLESS_grpc_reality"
-          }
-        ],
+        "clients": $(initXrayClients 8),
         "decryption": "none"
       },
       "streamSettings": {
@@ -3317,30 +3263,21 @@ EOF
 }
 EOF
 
-        addClients "${configPath}08_VLESS_reality_fallback_grpc_inbounds.json" "${addClientsStatus}"
     else
-        getClients "${configPath}../tmp/02_VLESS_TCP_inbounds.json" "${addClientsStatus}"
         local defaultPort=443
         if [[ -n "${customPort}" ]]; then
             defaultPort=${customPort}
         fi
 
         cat <<EOF >/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json
-        {
+{
         "inbounds":[
         {
           "port": ${defaultPort},
           "protocol": "vless",
           "tag":"VLESSTCP",
           "settings": {
-            "clients": [
-             {
-                "id": "${uuid}",
-                "add":"${add}",
-                "flow":"xtls-rprx-vision",
-                "email": "default_VLESS_TCP/TLS_Vision"
-              }
-            ],
+            "clients":$(initXrayClients 0),
             "decryption": "none",
             "fallbacks": [
                 ${fallbacksList}
@@ -3369,7 +3306,6 @@ EOF
         ]
         }
 EOF
-        addClients "${configPath}02_VLESS_TCP_inbounds.json" "${addClientsStatus}"
     fi
 
 }
@@ -5822,42 +5758,44 @@ switchAlpn() {
 
 # 初始化realityKey
 initRealityKey() {
-    echoContent skyBlue "\n --->生成key\n"
+    echoContent skyBlue "\n========================== 生成key ==========================\n"
     if [[ -n "${currentRealityPublicKey}" ]]; then
         read -r -p "读取到上次安装记录，是否使用上次安装时的PublicKey/PrivateKey ？[y/n]:" historyKeyStatus
         if [[ "${historyKeyStatus}" == "y" ]]; then
             realityPrivateKey=${currentRealityPrivateKey}
             realityPublicKey=${currentRealityPublicKey}
-        else
-            realityX25519Key=$(/etc/v2ray-agent/xray/xray x25519)
-            realityPrivateKey=$(echo "${realityX25519Key}" | head -1 | awk '{print $3}')
-            realityPublicKey=$(echo "${realityX25519Key}" | tail -n 1 | awk '{print $3}')
         fi
     fi
-
+    if [[ -z "${realityPrivateKey}" ]]; then
+        realityX25519Key=$(/etc/v2ray-agent/xray/xray x25519)
+        realityPrivateKey=$(echo "${realityX25519Key}" | head -1 | awk '{print $3}')
+        realityPublicKey=$(echo "${realityX25519Key}" | tail -n 1 | awk '{print $3}')
+    fi
     echoContent green "\n privateKey:${realityPrivateKey}"
     echoContent green "\n publicKey:${realityPublicKey}"
 }
 # 初始化reality dest
 initRealityDest() {
-    echoContent skyBlue "\n --->生成配置回落的域名 例如:[addons.mozilla.org:443]\n"
+    echoContent skyBlue "\n===== 生成配置回落的域名 例如:[addons.mozilla.org:443] ======\n"
     read -r -p "请输入[回车]使用默认:" realityDestDomain
     if [[ -z "${realityDestDomain}" ]]; then
         realityDestDomain="addons.mozilla.org:443"
     fi
+    echoContent yellow "\n ---> 回落域名: ${realityDestDomain}"
 }
 # 初始化客户端可用的ServersName
 initRealityClientServersName() {
-    echoContent skyBlue "\n --->配置客户端可用的serverNames"
-    echoContent red "=============================================================="
-    echoContent yellow " # 注意事项\n"
+    echoContent skyBlue "\n================ 配置客户端可用的serverNames ================\n"
+    echoContent yellow "#注意事项\n"
     echoContent yellow "录入示例:addons.mozilla.org\n"
     read -r -p "请输入[回车]使用默认:" realityServerNames
-    if [[ -z "${realityDestDomain}" ]]; then
+    if [[ -z "${realityServerNames}" ]]; then
         realityServerNames=\"addons.mozilla.org\"
     else
         realityServerNames=\"${realityServerNames//,/\",\"}\"
     fi
+
+    echoContent yellow "\n ---> 客户端可用域名: ${realityServerNames}\n"
 }
 # 初始化reality端口
 initRealityPort() {
@@ -5881,7 +5819,7 @@ initRealityPort() {
 }
 # 初始化 reality 配置
 initXrayRealityConfig() {
-    echoContent skyBlue "\n进度 $1/${totalProgress} : 初始化 Xray-core reality配置"
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 初始化 Xray-core reality配置"
     initRealityPort
     initRealityKey
     initRealityDest
