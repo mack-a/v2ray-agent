@@ -528,11 +528,17 @@ readConfigHostPathUUID() {
 
     fi
 
-    if [[ -n "${configPath}" ]]; then
-        if [[ -z "${realityStatus}" ]]; then
-            currentUUID=$(jq -r .inbounds[0].settings.clients[0].id ${configPath}${frontingType}.json)
-            currentClients=$(jq -r .inbounds[0].settings.clients ${configPath}${frontingType}.json)
-        else
+    if [[ "${coreInstallType}" == "1" ]]; then
+
+        # 安装
+        if [[ -n "${frontingType}" ]]; then
+            currentHost=$(jq -r .inbounds[0].streamSettings.tlsSettings.certificates[0].certificateFile ${configPath}${frontingType}.json | awk -F '[t][l][s][/]' '{print $2}' | awk -F '[.][c][r][t]' '{print $1}')
+            currentAdd=$(jq -r .inbounds[0].settings.clients[0].add ${configPath}${frontingType}.json)
+            if [[ "${currentAdd}" == "null" ]]; then
+                currentAdd=${currentHost}
+            fi
+            currentPort=$(jq .inbounds[0].port ${configPath}${frontingType}.json)
+
             local defaultPortFile=
             defaultPortFile=$(find ${configPath}* | grep "default")
 
@@ -541,18 +547,16 @@ readConfigHostPathUUID() {
             else
                 currentDefaultPort=$(jq -r .inbounds[0].port ${configPath}${frontingType}.json)
             fi
+            currentUUID=$(jq -r .inbounds[0].settings.clients[0].id ${configPath}${frontingType}.json)
+            currentClients=$(jq -r .inbounds[0].settings.clients ${configPath}${frontingType}.json)
+        fi
+
+        # reality
+        if [[ -n "${realityStatus}" && -z "${currentClients}" ]]; then
             currentUUID=$(jq -r .inbounds[0].settings.clients[0].id ${configPath}07_VLESS_vision_reality_inbounds.json)
             currentClients=$(jq -r .inbounds[0].settings.clients ${configPath}07_VLESS_vision_reality_inbounds.json)
-        fi
-    fi
 
-    if [[ "${coreInstallType}" == "1" && -n "${frontingType}" ]]; then
-        currentHost=$(jq -r .inbounds[0].streamSettings.tlsSettings.certificates[0].certificateFile ${configPath}${frontingType}.json | awk -F '[t][l][s][/]' '{print $2}' | awk -F '[.][c][r][t]' '{print $1}')
-        currentAdd=$(jq -r .inbounds[0].settings.clients[0].add ${configPath}${frontingType}.json)
-        if [[ "${currentAdd}" == "null" ]]; then
-            currentAdd=${currentHost}
         fi
-        currentPort=$(jq .inbounds[0].port ${configPath}${frontingType}.json)
     elif [[ "${coreInstallType}" == "2" ]]; then
         currentHost=$(jq -r .inbounds[0].streamSettings.tlsSettings.certificates[0].certificateFile ${configPath}${frontingType}.json | awk -F '[t][l][s][/]' '{print $2}' | awk -F '[.][c][r][t]' '{print $1}')
         currentAdd=$(jq -r .inbounds[0].settings.clients[0].add ${configPath}${frontingType}.json)
@@ -5934,7 +5938,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.7.20_reality_beta"
+    echoContent green "当前版本：v2.7.21_reality_beta"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
