@@ -421,7 +421,12 @@ allowPort() {
 }
 # 获取公网IP
 getPublicIP() {
-    curl -s http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | awk -F "[=]" '{print $2}'
+    local currentIP=
+    currentIP=$(curl -s -4 http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | awk -F "[=]" '{print $2}')
+    if [[ -z "${currentIP}" ]]; then
+        currentIP=$(curl -s -6 http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | awk -F "[=]" '{print $2}')
+    fi
+    echo "${currentIP}"
 }
 # 检查80、443端口占用情况
 checkPortUsedStatus() {
@@ -521,15 +526,6 @@ readConfigHostPathUUID() {
             fi
         fi
 
-        local defaultPortFile=
-        defaultPortFile=$(find ${configPath}* | grep "default")
-
-        if [[ -n "${defaultPortFile}" ]]; then
-            currentDefaultPort=$(echo "${defaultPortFile}" | awk -F [_] '{print $4}')
-        else
-            currentDefaultPort=$(jq -r .inbounds[0].port ${configPath}${frontingType}.json)
-        fi
-
     fi
 
     if [[ -n "${configPath}" ]]; then
@@ -537,6 +533,14 @@ readConfigHostPathUUID() {
             currentUUID=$(jq -r .inbounds[0].settings.clients[0].id ${configPath}${frontingType}.json)
             currentClients=$(jq -r .inbounds[0].settings.clients ${configPath}${frontingType}.json)
         else
+            local defaultPortFile=
+            defaultPortFile=$(find ${configPath}* | grep "default")
+
+            if [[ -n "${defaultPortFile}" ]]; then
+                currentDefaultPort=$(echo "${defaultPortFile}" | awk -F [_] '{print $4}')
+            else
+                currentDefaultPort=$(jq -r .inbounds[0].port ${configPath}${frontingType}.json)
+            fi
             currentUUID=$(jq -r .inbounds[0].settings.clients[0].id ${configPath}07_VLESS_vision_reality_inbounds.json)
             currentClients=$(jq -r .inbounds[0].settings.clients ${configPath}07_VLESS_vision_reality_inbounds.json)
         fi
@@ -5930,7 +5934,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.7.19_reality_beta"
+    echoContent green "当前版本：v2.7.20_reality_beta"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
