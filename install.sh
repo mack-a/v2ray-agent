@@ -498,7 +498,7 @@ readConfigHostPathUUID() {
     currentPort=
     currentAdd=
     # 读取path
-    if [[ -n "${configPath}" && -z "${realityStatus}" ]]; then
+    if [[ -n "${configPath}" && -n "${frontingType}" ]]; then
         local fallback
         fallback=$(jq -r -c '.inbounds[0].settings.fallbacks[]|select(.path)' ${configPath}${frontingType}.json | head -1)
 
@@ -507,13 +507,11 @@ readConfigHostPathUUID() {
 
         if [[ $(echo "${fallback}" | jq -r .dest) == 31297 ]]; then
             currentPath=$(echo "${path}" | awk -F "[w][s]" '{print $1}')
-            #        elif [[ $(echo "${fallback}" | jq -r .dest) == 31298 ]]; then
-            #            currentPath=$(echo "${path}" | awk -F "[t][c][p]" '{print $1}')
         elif [[ $(echo "${fallback}" | jq -r .dest) == 31299 ]]; then
             currentPath=$(echo "${path}" | awk -F "[v][w][s]" '{print $1}')
         fi
-        # 尝试读取alpn h2 Path
 
+        # 尝试读取alpn h2 Path
         if [[ -z "${currentPath}" ]]; then
             dest=$(jq -r -c '.inbounds[0].settings.fallbacks[]|select(.alpn)|.dest' ${configPath}${frontingType}.json | head -1)
             if [[ "${dest}" == "31302" || "${dest}" == "31304" ]]; then
@@ -5938,7 +5936,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.7.21_reality_beta"
+    echoContent green "当前版本：v2.7.22_reality_beta"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
