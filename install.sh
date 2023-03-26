@@ -2953,7 +2953,6 @@ initXrayConfig() {
         currentClients='[{"id":"'${uuid}'","add":"'${add}'","flow":"xtls-rprx-vision","email":"default-VLESS_TCP/TLS_Vision"}]'
         echoContent yellow "\n ${uuid}"
     fi
-    #    movePreviousConfig
 
     # log
     if [[ ! -f "/etc/v2ray-agent/xray/conf/00_log.json" ]]; then
@@ -3196,10 +3195,21 @@ EOF
     fi
 
     # VLESS_TCP/reality
-    if echo "${selectCustomInstallType}" | grep -q 7; then
+    if echo "${selectCustomInstallType}" | grep -q 7 || [[ "$1" == "all" ]]; then
         local defaultPort=443
         if [[ -n "${customPort}" ]]; then
             defaultPort=${customPort}
+        fi
+        if [[ "$1" == "all" ]]; then
+            echoContent skyBlue "\n===================== 配置VLESS+Reality =====================\n"
+            initRealityPort
+            local defaultPort=443
+            if [[ -n "${customPort}" ]]; then
+                defaultPort=${customPort}
+            fi
+            realityDestDomain=${domain}:${defaultPort}
+            initRealityKey
+            realityServerNames=\"${domain}\"
         fi
 
         cat <<EOF >/etc/v2ray-agent/xray/conf/07_VLESS_vision_reality_inbounds.json
@@ -3269,48 +3279,50 @@ EOF
 }
 EOF
 
-    else
+    fi
+
+    if echo "${selectCustomInstallType}" | grep -q 0 || [[ "$1" == "all" ]]; then
         local defaultPort=443
         if [[ -n "${customPort}" ]]; then
             defaultPort=${customPort}
         fi
 
         cat <<EOF >/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json
-{
-        "inbounds":[
         {
-          "port": ${defaultPort},
-          "protocol": "vless",
-          "tag":"VLESSTCP",
-          "settings": {
-            "clients":$(initXrayClients 0),
-            "decryption": "none",
-            "fallbacks": [
-                ${fallbacksList}
-            ]
-          },
-          "streamSettings": {
-            "network": "tcp",
-            "security": "tls",
-            "tlsSettings": {
-              "minVersion": "1.2",
-              "alpn": [
-                "http/1.1",
-                "h2"
-              ],
-              "certificates": [
+                "inbounds":[
                 {
-                  "certificateFile": "/etc/v2ray-agent/tls/${domain}.crt",
-                  "keyFile": "/etc/v2ray-agent/tls/${domain}.key",
-                  "ocspStapling": 3600,
-                  "usage":"encipherment"
+                  "port": ${defaultPort},
+                  "protocol": "vless",
+                  "tag":"VLESSTCP",
+                  "settings": {
+                    "clients":$(initXrayClients 0),
+                    "decryption": "none",
+                    "fallbacks": [
+                        ${fallbacksList}
+                    ]
+                  },
+                  "streamSettings": {
+                    "network": "tcp",
+                    "security": "tls",
+                    "tlsSettings": {
+                      "minVersion": "1.2",
+                      "alpn": [
+                        "http/1.1",
+                        "h2"
+                      ],
+                      "certificates": [
+                        {
+                          "certificateFile": "/etc/v2ray-agent/tls/${domain}.crt",
+                          "keyFile": "/etc/v2ray-agent/tls/${domain}.key",
+                          "ocspStapling": 3600,
+                          "usage":"encipherment"
+                        }
+                      ]
+                    }
+                  }
                 }
-              ]
-            }
-          }
-        }
-        ]
-        }
+                ]
+                }
 EOF
     fi
 
@@ -5936,7 +5948,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.7.22_reality_beta"
+    echoContent green "当前版本：v2.7.23_reality_beta"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
