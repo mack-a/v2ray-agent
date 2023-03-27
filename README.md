@@ -41,13 +41,16 @@
 
 ## 支持的安装类型
 
+- VLESS+TCP+Reality+uTLS+Vision【推荐】
+- VLESS+gRPC+Reality+uTLS【推荐】
 - VLESS+TCP+TLS_Vision【推荐】
+- Hysteria【推荐】
 - VLESS+gRPC+TLS【支持CDN、IPv6、延迟低】
 - VLESS+WS+TLS【支持CDN、IPv6】
 - Trojan+TCP+TLS
 - Trojan+gRPC+TLS【支持CDN、IPv6、延迟低】
 - VMess+WS+TLS【支持CDN、IPv6】
-- Hysteria【推荐】
+
 
 ## 线路推荐
 
