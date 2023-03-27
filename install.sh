@@ -2233,11 +2233,18 @@ handleXray() {
         fi
     fi
 }
-# 获取clients配置
 
 # 读取用户数据并初始化
 initXrayClients() {
     local type=$1
+    local newUUID=$2
+    local newEmail=$3
+    if [[ -n "${newUUID}" ]]; then
+        local newUser=
+        newUser="{\"id\":\"${uuid}\",\"flow\":\"xtls-rprx-vision\",\"email\":\"${newEmail}-VLESS_TCP/TLS_Vision\"}"
+        currentClients=$(echo "${currentClients}" | jq -r ". +=[${newUser}]")
+    fi
+
     local users=[]
     users=[]
     while read -r user; do
@@ -2284,6 +2291,11 @@ initXrayClients() {
             currentUser="{\"id\":\"${uuid}\",\"email\":\"${email}-vless_grpc\"}"
 
             users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
+        fi
+
+        # hysteria
+        if echo "${type}" | grep -q "6"; then
+            users=$(echo "${users}" | jq -r ". +=[\"${uuid}\"]")
         fi
 
         # vless reality vision
@@ -4049,15 +4061,11 @@ manageUser() {
 
 # 自定义uuid
 customUUID() {
-    #	read -r -p "是否自定义UUID ？[y/n]:" customUUIDStatus
-    #	echo
-    #	if [[ "${customUUIDStatus}" == "y" ]]; then
     read -r -p "请输入合法的UUID，[回车]随机UUID:" currentCustomUUID
     echo
     if [[ -z "${currentCustomUUID}" ]]; then
-        # echoContent red " ---> UUID不可为空"
         currentCustomUUID=$(${ctlPath} uuid)
-        echoContent yellow "uuid:${currentCustomUUID}\n"
+        echoContent yellow "uuid：${currentCustomUUID}\n"
 
     else
         jq -r -c '.inbounds[0].settings.clients[].id' ${configPath}${frontingType}.json | while read -r line; do
@@ -4071,14 +4079,10 @@ customUUID() {
             exit 0
         fi
     fi
-    #	fi
 }
 
 # 自定义email
 customUserEmail() {
-    #	read -r -p "是否自定义email ？[y/n]:" customEmailStatus
-    #	echo
-    #	if [[ "${customEmailStatus}" == "y" ]]; then
     read -r -p "请输入合法的email，[回车]随机email:" currentCustomEmail
     echo
     if [[ -z "${currentCustomEmail}" ]]; then
@@ -4099,6 +4103,116 @@ customUserEmail() {
     #	fi
 }
 
+# 添加用户
+addUserXray() {
+    readConfigHostPathUUID
+    echoContent yellow "添加新用户后，需要重新查看订阅"
+    read -r -p "请输入要添加的用户数量:" userNum
+    echo
+    if [[ -z ${userNum} || ${userNum} -le 0 ]]; then
+        echoContent red " ---> 输入有误，请重新输入"
+        exit 0
+    fi
+    # 生成用户
+    if [[ "${userNum}" == "1" ]]; then
+        customUUID
+        customUserEmail
+    fi
+
+    while [[ ${userNum} -gt 0 ]]; do
+        local users=
+        ((userNum--)) || true
+
+        if [[ -n "${currentCustomUUID}" ]]; then
+            uuid=${currentCustomUUID}
+        else
+            uuid=$(${ctlPath} uuid)
+        fi
+        local email=
+        if [[ -z "${currentCustomEmail}" ]]; then
+            email=${uuid}
+        else
+            email=${currentCustomEmail}
+        fi
+
+        # VLESS TCP
+        if echo "${currentInstallProtocolType}" | grep -q "0"; then
+            local clients=
+            clients=$(initXrayClients 0 "${uuid}" "${email}")
+            clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}${frontingType}.json)
+            echo "${clients}" | jq . >${configPath}${frontingType}.json
+        fi
+
+        # VLESS WS
+        if echo "${currentInstallProtocolType}" | grep -q "1"; then
+            local clients=
+            clients=$(initXrayClients 1 "${uuid}" "${email}")
+            clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}03_VLESS_WS_inbounds.json)
+            echo "${clients}" | jq . >${configPath}03_VLESS_WS_inbounds.json
+        fi
+
+        # trojan grpc
+        if echo "${currentInstallProtocolType}" | grep -q "2"; then
+            local clients=
+            clients=$(initXrayClients 2 "${uuid}" "${email}")
+            clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}04_trojan_gRPC_inbounds.json)
+            echo "${clients}" | jq . >${configPath}04_trojan_gRPC_inbounds.json
+        fi
+        # VMess WS
+        if echo "${currentInstallProtocolType}" | grep -q "3"; then
+            local clients=
+            clients=$(initXrayClients 3 "${uuid}" "${email}")
+            clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}05_VMess_WS_inbounds.json)
+            echo "${clients}" | jq . >${configPath}05_VMess_WS_inbounds.json
+        fi
+
+        # trojan tcp
+        if echo "${currentInstallProtocolType}" | grep -q "4"; then
+            local clients=
+            clients=$(initXrayClients 4 "${uuid}" "${email}")
+            clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}04_trojan_TCP_inbounds.json)
+            echo "${clients}" | jq . >${configPath}04_trojan_TCP_inbounds.json
+        fi
+
+        # vless grpc
+        if echo "${currentInstallProtocolType}" | grep -q "5"; then
+            local clients=
+            clients=$(initXrayClients 5 "${uuid}" "${email}")
+            clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}06_VLESS_gRPC_inbounds.json)
+            echo "${clients}" | jq . >${configPath}06_VLESS_gRPC_inbounds.json
+        fi
+
+        # vless reality vision
+        if echo "${currentInstallProtocolType}" | grep -q "7"; then
+            local clients=
+            clients=$(initXrayClients 7 "${uuid}" "${email}")
+            clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}07_VLESS_vision_reality_inbounds.json)
+            echo "${clients}" | jq . >${configPath}07_VLESS_vision_reality_inbounds.json
+        fi
+
+        # vless reality grpc
+        if echo "${currentInstallProtocolType}" | grep -q "8"; then
+            local clients=
+            clients=$(initXrayClients 8 "${uuid}" "${email}")
+            clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}08_VLESS_reality_fallback_grpc_inbounds.json)
+            echo "${clients}" | jq . >${configPath}08_VLESS_reality_fallback_grpc_inbounds.json
+        fi
+
+        # hysteria
+        if echo "${currentInstallProtocolType}" | grep -q "6"; then
+            local clients=
+            clients=$(initXrayClients 6 "${uuid}" "${email}")
+
+            clients=$(jq -r ".auth.config = ${clients}" ${hysteriaConfigPath}config.json)
+            echo "${clients}" | jq . >${hysteriaConfigPath}config.json
+        fi
+    done
+
+    reloadCore
+    showAccounts >/dev/null
+    echoContent green " ---> 添加完成"
+    manageAccount 1
+}
 # 添加用户
 addUser() {
 
@@ -4328,7 +4442,7 @@ bbrInstall() {
 
 # 查看、检查日志
 checkLog() {
-    if [[ -z "${configPath}" || -z "${realityStatus}" ]]; then
+    if [[ -z "${configPath}" && -z "${realityStatus}" ]]; then
         echoContent red " ---> 没有检测到安装目录，请执行脚本安装内容"
         exit 0
     fi
@@ -5222,6 +5336,8 @@ removeVMessWSTLSUnblockStreamingMedia() {
 
 # 重启核心
 reloadCore() {
+    readInstallType
+
     if [[ "${coreInstallType}" == "1" ]]; then
         handleXray stop
         handleXray start
@@ -5667,7 +5783,6 @@ cronRenewTLS() {
 manageAccount() {
     echoContent skyBlue "\n功能 1/${totalProgress} : 账号管理"
     echoContent red "\n=============================================================="
-    echoContent yellow "# 每次删除、添加账号后，需要重新查看订阅生成订阅"
     echoContent yellow "# 添加单个用户时可自定义email和uuid"
     echoContent yellow "# 如安装了Hysteria，账号会同时添加到Hysteria\n"
     echoContent yellow "1.查看账号"
@@ -5681,7 +5796,7 @@ manageAccount() {
     elif [[ "${manageAccountStatus}" == "2" ]]; then
         subscribe 1
     elif [[ "${manageAccountStatus}" == "3" ]]; then
-        addUser
+        addUserXray
     elif [[ "${manageAccountStatus}" == "4" ]]; then
         removeUser
     else
@@ -5943,7 +6058,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.7.24_reality_beta"
+    echoContent green "当前版本：v2.7.25_reality_beta"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
