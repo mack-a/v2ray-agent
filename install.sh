@@ -3212,17 +3212,11 @@ EOF
         if [[ -n "${customPort}" ]]; then
             defaultPort=${customPort}
         fi
-        if [[ "$1" == "all" ]]; then
-            echoContent skyBlue "\n===================== 配置VLESS+Reality =====================\n"
-            initRealityPort
-            local defaultPort=443
-            if [[ -n "${customPort}" ]]; then
-                defaultPort=${customPort}
-            fi
-            realityDestDomain=${domain}:${defaultPort}
-            initRealityKey
-            realityServerNames=\"${domain}\"
-        fi
+        echoContent skyBlue "\n===================== 配置VLESS+Reality =====================\n"
+        initRealityPort
+        initRealityDest
+        initRealityClientServersName
+        initRealityKey
 
         cat <<EOF >/etc/v2ray-agent/xray/conf/07_VLESS_vision_reality_inbounds.json
 {
@@ -3292,7 +3286,6 @@ EOF
 EOF
 
     fi
-
     if echo "${selectCustomInstallType}" | grep -q 0 || [[ "$1" == "all" ]]; then
         local defaultPort=443
         if [[ -n "${customPort}" ]]; then
@@ -5521,18 +5514,25 @@ customV2RayInstall() {
 customXrayInstall() {
     echoContent skyBlue "\n========================个性化安装============================"
     echoContent yellow "VLESS前置，默认安装0，如果只需要安装0，则只选择0即可"
-    echoContent yellow "0.VLESS+TLS_Vision+TCP"
+    echoContent yellow "0.VLESS+TLS_Vision+TCP[推荐]"
     echoContent yellow "1.VLESS+TLS+WS[CDN]"
     echoContent yellow "2.Trojan+TLS+gRPC[CDN]"
     echoContent yellow "3.VMess+TLS+WS[CDN]"
     echoContent yellow "4.Trojan+TLS"
     echoContent yellow "5.VLESS+TLS+gRPC[CDN]"
+    echoContent yellow "7.VLESS+Reality+uTLS+Vision[推荐]"
+    #    echoContent yellow "8.VLESS+Reality+gRPC"
     read -r -p "请选择[多选]，[例如:123]:" selectCustomInstallType
     echoContent skyBlue "--------------------------------------------------------------"
     if [[ -z ${selectCustomInstallType} ]]; then
         echoContent red " ---> 不可为空"
         customXrayInstall
-    elif [[ "${selectCustomInstallType}" =~ ^[0-5]+$ ]]; then
+    elif [[ "${selectCustomInstallType}" =~ ^[0-7]+$ ]]; then
+
+        if ! echo "${selectCustomInstallType}" | grep -q "0"; then
+            selectCustomInstallType="0${selectCustomInstallType}"
+        fi
+
         cleanUp v2rayClean
         totalProgress=12
         installTools 1
@@ -5571,7 +5571,7 @@ customXrayInstall() {
         handleNginx start
 
         # 安装V2Ray
-        installXray 7
+        installXray 7 true
         installXrayService 8
         initXrayConfig custom 9
         cleanUp v2rayDel
@@ -5904,23 +5904,31 @@ initRealityKey() {
 }
 # 初始化reality dest
 initRealityDest() {
-    echoContent skyBlue "\n===== 生成配置回落的域名 例如:[addons.mozilla.org:443] ======\n"
-    read -r -p "请输入[回车]使用默认:" realityDestDomain
-    if [[ -z "${realityDestDomain}" ]]; then
-        realityDestDomain="addons.mozilla.org:443"
+    if [[ -n "${domain}" ]]; then
+        realityDestDomain=${domain}:${defaultPort}
+    else
+        echoContent skyBlue "\n===== 生成配置回落的域名 例如:[addons.mozilla.org:443] ======\n"
+        read -r -p "请输入[回车]使用默认:" realityDestDomain
+        if [[ -z "${realityDestDomain}" ]]; then
+            realityDestDomain="addons.mozilla.org:443"
+        fi
+        echoContent yellow "\n ---> 回落域名: ${realityDestDomain}"
     fi
-    echoContent yellow "\n ---> 回落域名: ${realityDestDomain}"
 }
 # 初始化客户端可用的ServersName
 initRealityClientServersName() {
-    echoContent skyBlue "\n================ 配置客户端可用的serverNames ================\n"
-    echoContent yellow "#注意事项\n"
-    echoContent yellow "录入示例:addons.mozilla.org\n"
-    read -r -p "请输入[回车]使用默认:" realityServerNames
-    if [[ -z "${realityServerNames}" ]]; then
-        realityServerNames=\"addons.mozilla.org\"
+    if [[ -n "${domain}" ]]; then
+        realityServerNames=\"${domain}\"
     else
-        realityServerNames=\"${realityServerNames//,/\",\"}\"
+        echoContent skyBlue "\n================ 配置客户端可用的serverNames ================\n"
+        echoContent yellow "#注意事项\n"
+        echoContent yellow "录入示例:addons.mozilla.org\n"
+        read -r -p "请输入[回车]使用默认:" realityServerNames
+        if [[ -z "${realityServerNames}" ]]; then
+            realityServerNames=\"addons.mozilla.org\"
+        else
+            realityServerNames=\"${realityServerNames//,/\",\"}\"
+        fi
     fi
 
     echoContent yellow "\n ---> 客户端可用域名: ${realityServerNames}\n"
@@ -5964,7 +5972,7 @@ xrayCoreRealityInstall() {
     installXray 3 true
     # 生成 privateKey、配置回落地址、配置serverNames
     installXrayService 6
-    initXrayRealityConfig 5
+    # initXrayRealityConfig 5
     # 初始化配置
     initXrayConfig custom 7
     handleXray stop
@@ -6058,7 +6066,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.7.25_reality_beta"
+    echoContent green "当前版本：v2.7.26_reality_beta"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
