@@ -3205,13 +3205,54 @@ EOF
 }
 EOF
     fi
-
-    # VLESS_TCP/reality
-    if echo "${selectCustomInstallType}" | grep -q 7 || [[ "$1" == "all" ]]; then
-        local defaultPort=443
+    # VLESS Vision
+    local defaultPort=443
+    if echo "${selectCustomInstallType}" | grep -q 0 || [[ "$1" == "all" ]]; then
         if [[ -n "${customPort}" ]]; then
             defaultPort=${customPort}
         fi
+
+        cat <<EOF >/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json
+{
+    "inbounds":[
+        {
+          "port": ${defaultPort},
+          "protocol": "vless",
+          "tag":"VLESSTCP",
+          "settings": {
+            "clients":$(initXrayClients 0),
+            "decryption": "none",
+            "fallbacks": [
+                ${fallbacksList}
+            ]
+          },
+          "streamSettings": {
+            "network": "tcp",
+            "security": "tls",
+            "tlsSettings": {
+              "minVersion": "1.2",
+              "alpn": [
+                "http/1.1",
+                "h2"
+              ],
+              "certificates": [
+                {
+                  "certificateFile": "/etc/v2ray-agent/tls/${domain}.crt",
+                  "keyFile": "/etc/v2ray-agent/tls/${domain}.key",
+                  "ocspStapling": 3600,
+                  "usage":"encipherment"
+                }
+              ]
+            }
+          }
+        }
+    ]
+}
+EOF
+    fi
+
+    # VLESS_TCP/reality
+    if echo "${selectCustomInstallType}" | grep -q 7 || [[ "$1" == "all" ]]; then
         echoContent skyBlue "\n===================== 配置VLESS+Reality =====================\n"
         initRealityPort
         initRealityDest
@@ -3286,51 +3327,6 @@ EOF
 EOF
 
     fi
-    if echo "${selectCustomInstallType}" | grep -q 0 || [[ "$1" == "all" ]]; then
-        local defaultPort=443
-        if [[ -n "${customPort}" ]]; then
-            defaultPort=${customPort}
-        fi
-
-        cat <<EOF >/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json
-        {
-                "inbounds":[
-                {
-                  "port": ${defaultPort},
-                  "protocol": "vless",
-                  "tag":"VLESSTCP",
-                  "settings": {
-                    "clients":$(initXrayClients 0),
-                    "decryption": "none",
-                    "fallbacks": [
-                        ${fallbacksList}
-                    ]
-                  },
-                  "streamSettings": {
-                    "network": "tcp",
-                    "security": "tls",
-                    "tlsSettings": {
-                      "minVersion": "1.2",
-                      "alpn": [
-                        "http/1.1",
-                        "h2"
-                      ],
-                      "certificates": [
-                        {
-                          "certificateFile": "/etc/v2ray-agent/tls/${domain}.crt",
-                          "keyFile": "/etc/v2ray-agent/tls/${domain}.key",
-                          "ocspStapling": 3600,
-                          "usage":"encipherment"
-                        }
-                      ]
-                    }
-                  }
-                }
-                ]
-                }
-EOF
-    fi
-
 }
 # 初始化Xray Reality配置
 # 自定义CDN IP
@@ -3563,7 +3559,6 @@ showAccounts() {
     # VLESS grpc
     if echo ${currentInstallProtocolType} | grep -q 5; then
         echoContent skyBlue "\n=============================== VLESS gRPC TLS CDN ===============================\n"
-        echoContent red "\n --->gRPC处于测试阶段，可能对你使用的客户端不兼容，如不能使用请忽略"
         jq .inbounds[0].settings.clients ${configPath}06_VLESS_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
 
             local email=
@@ -3606,7 +3601,6 @@ showAccounts() {
 
     if echo ${currentInstallProtocolType} | grep -q 2; then
         echoContent skyBlue "\n================================  Trojan gRPC TLS  ================================\n"
-        echoContent red "\n --->gRPC处于测试阶段，可能对你使用的客户端不兼容，如不能使用请忽略"
         jq .inbounds[0].settings.clients ${configPath}04_trojan_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
             local email=
             email=$(echo "${user}" | jq -r .email)
@@ -5944,14 +5938,25 @@ initRealityPort() {
     if [[ -z "${realityPort}" ]]; then
         echoContent yellow "请输入端口"
         read -r -p "端口:" realityPort
-        if [[ "${currentRealityPort}" == "${realityPort}" ]]; then
+        if [[ -n "${realityPort}" && "${currentRealityPort}" == "${realityPort}" ]]; then
             handleXray stop
         else
             checkCustomPort "${realityPort}"
+
+            if [[ -n "${defaultPort}" && "${defaultPort}" == "${realityPort}" ]]; then
+                echoContent red "  端口不可与Vision重复--->"
+                echo
+                realityPort=
+            fi
         fi
     fi
-    allowPort "${realityPort}"
-    echoContent yellow "\n ---> 端口: ${realityPort}"
+    if [[ -z "${realityPort}" ]]; then
+        initRealityPort
+    else
+        allowPort "${realityPort}"
+        echoContent yellow "\n ---> 端口: ${realityPort}"
+    fi
+
 }
 # 初始化 reality 配置
 initXrayRealityConfig() {
@@ -6066,7 +6071,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.7.26_reality_beta"
+    echoContent green "当前版本：v2.7.27_reality_beta"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
