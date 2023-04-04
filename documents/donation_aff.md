@@ -1,4 +1,6 @@
-- [TG群](https://t.me/technologyshare)、[TG频道-更新通知](https://t.me/joinchat/VuYxsKnlIQp3VRw-)、[博客地址](https://www.v2ray-agent.com/)
+- [TG群](https://t.me/technologyshare)、[TG频道-更新通知](https://t.me/joinchat/VuYxsKnlIQp3VRw-)
+
+> [更加详细的推荐可以点击查看](https://www.v2ray-agent.com/categories/vps)
 
 # 网络差异比较大，买之前建议执行以下两个步骤
 - 测试一下testIP的丢包，traceroute一下testIP的路由，是否商家宣传的一样
