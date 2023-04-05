@@ -3206,8 +3206,8 @@ EOF
 EOF
     fi
     # VLESS Vision
-    local defaultPort=443
     if echo "${selectCustomInstallType}" | grep -q 0 || [[ "$1" == "all" ]]; then
+        local defaultPort=443
         if [[ -n "${customPort}" ]]; then
             defaultPort=${customPort}
         fi
@@ -6071,7 +6071,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.7.27_reality_beta"
+    echoContent green "当前版本：v2.7.28_reality_beta"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
