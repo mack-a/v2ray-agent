@@ -245,6 +245,13 @@ initVar() {
     realityPrivateKey=
     realityServerNames=
     realityDestDomain=
+
+    # 端口状态
+    isPortOpen80=
+    # 通配符域名状态
+    wildcardDomainStatus=
+    # 通过nginx检查的端口
+    nginxIPort=
 }
 
 # 读取tls证书详情
@@ -920,6 +927,39 @@ installWarp() {
     # systemctl daemon-reload
     # systemctl enable cloudflare-warp
 }
+
+# 检查端口实际开放状态
+checkPortOpen() {
+    local port=$1
+    local domain=$2
+    local checkPortOpenResult=
+
+    allowPort 80
+
+    # 初始化nginx配置
+    touch ${nginxConfigPath}checkPortOpen.conf
+    cat <<EOF >${nginxConfigPath}alone.conf
+    server {
+        listen ${port};
+        listen [::]:${port};
+        server_name ${domain};
+        location /checkPort {
+            return 200 'fjkvymb6len';
+        }
+    }
+EOF
+    handleNginx start
+    # 检查域名+端口的开放
+
+    checkPortOpenResult=$(curl -s -m 2 "http://${domain}:${port}/checkPort")
+
+    if [[ "${checkPortOpenResult}" == "fjkvymb6len" ]]; then
+        echoContent green " ---> 检测到80端口已开放"
+        isPortOpen80=true
+    fi
+    rm "${nginxConfigPath}checkPortOpen.conf"
+}
+
 # 初始化Nginx申请证书配置
 initTLSNginxConfig() {
     handleNginx stop
@@ -947,22 +987,19 @@ initTLSNginxConfig() {
     else
         dnsTLSDomain=$(echo "${domain}" | awk -F "[.]" '{print $(NF-1)"."$NF}')
         customPortFunction
-        local port=80
-        if [[ -n "${customPort}" ]]; then
-            port=${customPort}
+        # 修改配置
+        handleNginx stop
+        touch ${nginxConfigPath}alone.conf
+        nginxIPort=80
+        if [[ "${wildcardDomainStatus}" == "true" ]]; then
+            nginxIPort=${port}
         fi
 
-        # 修改配置
-        touch ${nginxConfigPath}alone.conf
         cat <<EOF >${nginxConfigPath}alone.conf
 server {
-    listen ${port};
-    listen [::]:${port};
+    listen ${nginxIPort};
+    listen [::]:${nginxIPort};
     server_name ${domain};
-    root ${nginxStaticPath};
-    location ~ /.well-known {
-    	allow all;
-    }
     location /test {
     	return 200 'fjkvymb6len';
     }
@@ -979,15 +1016,25 @@ EOF
     fi
 
     readAcmeTLS
+    handleNginx start
 }
 
 # 修改nginx重定向配置
 updateRedirectNginxConf() {
-    local redirectDomain=${domain}
-    if [[ -n "${customPort}" ]]; then
-        redirectDomain=${domain}:${customPort}
-    fi
-    if [[ -z "${btDomain}" ]]; then
+    local redirectDomain=
+    redirectDomain=${domain}:${port}
+
+    checkPortOpen 80 "${domain}" >/dev/null
+
+    cat <<EOF >${nginxConfigPath}alone.conf
+    server {
+    		listen 127.0.0.1:31300;
+    		server_name _;
+    		return 403;
+    }
+EOF
+
+    if [[ -z "${btDomain}" && "${isPortOpen80}" == "true" ]]; then
         cat <<EOF >${nginxConfigPath}alone.conf
 server {
 	listen 80;
@@ -997,13 +1044,6 @@ server {
 EOF
     fi
 
-    cat <<EOF >${nginxConfigPath}alone.conf
-server {
-		listen 127.0.0.1:31300;
-		server_name _;
-		return 403;
-}
-EOF
     if echo "${selectCustomInstallType}" | grep -q 2 && echo "${selectCustomInstallType}" | grep -q 5 || [[ -z "${selectCustomInstallType}" ]]; then
 
         cat <<EOF >>${nginxConfigPath}alone.conf
@@ -1125,19 +1165,16 @@ server {
 	}
 }
 EOF
-
+    handleNginx stop
 }
 
 # 检查ip
 checkIP() {
     echoContent skyBlue "\n ---> 检查域名ip中"
-    local checkDomain=${domain}
-    if [[ -n "${customPort}" ]]; then
-        checkDomain="http://${domain}:${customPort}"
-    fi
-    localIP=$(curl -s -m 2 "${checkDomain}/ip")
 
+    localIP=$(curl -s -m 2 "http://${domain}:${nginxIPort}/ip")
     handleNginx stop
+
     if [[ -z ${localIP} ]] || ! echo "${localIP}" | sed '1{s/[^(]*(//;s/).*//;q}' | grep -q '\.' && ! echo "${localIP}" | sed '1{s/[^(]*(//;s/).*//;q}' | grep -q ':'; then
         echoContent red "\n ---> 未检测到当前域名的ip"
         echoContent skyBlue " ---> 请依次进行下列检查"
@@ -1145,32 +1182,12 @@ checkIP() {
         echoContent yellow " --->  2.检查域名dns解析是否正确"
         echoContent yellow " --->  3.如解析正确，请等待dns生效，预计三分钟内生效"
         echoContent yellow " --->  4.如报Nginx启动问题，请手动启动nginx查看错误，如自己无法处理请提issues"
-        echoContent yellow " --->  5.错误日志:${localIP}"
         echo
         echoContent skyBlue " ---> 如以上设置都正确，请重新安装纯净系统后再次尝试"
 
         if [[ -n ${localIP} ]]; then
             echoContent yellow " ---> 检测返回值异常，建议手动卸载nginx后重新执行脚本"
-        fi
-        local portFirewallPortStatus="443、80"
-
-        if [[ -n "${customPort}" ]]; then
-            portFirewallPortStatus="${customPort}"
-        fi
-        echoContent red " ---> 请检查防火墙规则是否开放${portFirewallPortStatus}\n"
-        read -r -p "是否通过脚本修改防火墙规则开放${portFirewallPortStatus}端口？[y/n]:" allPortFirewallStatus
-
-        if [[ ${allPortFirewallStatus} == "y" ]]; then
-            if [[ -n "${customPort}" ]]; then
-                allowPort "${customPort}"
-            else
-                allowPort 80
-                allowPort 443
-            fi
-
-            handleNginx start
-            checkIP
-        else
+            echoContent red " ---> 异常结果：${localIP}"
             exit 0
         fi
     else
@@ -1251,16 +1268,16 @@ selectAcmeInstallSSL() {
             exit
         fi
         dnsSSLStatus=true
-    else
-        if [[ -z "${dnsSSLStatus}" ]]; then
-            read -r -p "是否使用DNS申请证书，如不会使用DNS申请证书请输入n[y/n]:" installSSLDNStatus
-
-            if [[ ${installSSLDNStatus} == 'y' ]]; then
-                dnsSSLStatus=true
-            else
-                dnsSSLStatus=false
-            fi
-        fi
+        #    else
+        #        if [[ -z "${dnsSSLStatus}" ]]; then
+        #            read -r -p "是否使用DNS申请证书，如不会使用DNS申请证书请输入n[y/n]:" installSSLDNStatus
+        #
+        #            if [[ ${installSSLDNStatus} == 'y' ]]; then
+        #                dnsSSLStatus=true
+        #            else
+        #                dnsSSLStatus=false
+        #            fi
+        #        fi
 
     fi
     acmeInstallSSL
@@ -1313,48 +1330,57 @@ acmeInstallSSL() {
 # 自定义端口
 customPortFunction() {
     local historyCustomPortStatus=
-    local showPort=
     if [[ -n "${customPort}" || -n "${currentPort}" ]]; then
         echo
         read -r -p "读取到上次安装时的端口，是否使用上次安装时的端口？[y/n]:" historyCustomPortStatus
         if [[ "${historyCustomPortStatus}" == "y" ]]; then
-            showPort="${currentPort}"
-            if [[ -n "${customPort}" ]]; then
-                showPort="${customPort}"
-            fi
-            echoContent yellow "\n ---> 端口: ${showPort}"
+            port=${currentPort}
+            echoContent yellow "\n ---> 端口: ${port}"
         fi
     fi
-    if [[ -z "${currentPort}" && -z "${customPort}" ]] || [[ "${historyCustomPortStatus}" == "n" ]]; then
+    if [[ -z "${currentPort}" ]] || [[ "${historyCustomPortStatus}" == "n" ]]; then
         echo
 
         if [[ -n "${btDomain}" ]]; then
-            echoContent yellow "请输入端口[不可于BT Panel端口相同]"
+            echoContent yellow "请输入端口[不可与BT Panel端口相同]"
         else
-            echoContent yellow "请输入端口[默认: 443]，如自定义端口，只允许使用DNS申请证书[回车使用默认]"
+            checkPortOpen 80 "${domain}"
+            if [[ "${isPortOpen80}" == "true" ]]; then
+                echo
+                echoContent yellow "请输入端口[默认: 443]，可自定义端口[回车使用默认]"
+                read -r -p "端口:" port
+                if [[ -z "${port}" ]]; then
+                    port=443
+                fi
+                if [[ "${port}" == "${currentRealityPort}" ]]; then
+                    handleXray stop
+                fi
+            else
+                # todo dns api
+                wildcardDomainStatus=true
+                echoContent red "未检测到80端口开放，无法安装，只可使用dns api方式安装 todo"
+                exit 0
+            fi
         fi
-        read -r -p "端口:" customPort
-        checkCustomPort "${customPort}"
-        if [[ -n "${customPort}" && "${customPort}" != "443" ]]; then
-            if ((customPort >= 1 && customPort <= 65535)); then
 
-                allowPort "${customPort}"
+        checkPort "${port}"
+
+        if [[ -n "${port}" ]]; then
+            if ((port >= 1 && port <= 65535)); then
+
+                allowPort "${port}"
+                echoContent yellow "\n ---> 端口: ${port}"
             else
                 echoContent red " ---> 端口输入错误"
-                exit
+                exit 0
             fi
-        else
-            allowPort 80
-            allowPort 443
-            customPort=
-            echoContent yellow "\n ---> 端口: 443"
         fi
     fi
 
 }
 
 # 检测端口是否占用
-checkCustomPort() {
+checkPort() {
     if [[ -n "$1" ]] && lsof -i "tcp:$1" | grep -q LISTEN; then
         echoContent red "\n ---> $1端口被占用，请手动关闭后安装\n"
         lsof -i tcp:80 | grep LISTEN
@@ -1391,16 +1417,17 @@ installTLS() {
             switchSSLType
             customSSLEmail
             selectAcmeInstallSSL
-        else
-            echoContent green " ---> 检测到已安装通配符证书，自动生成中"
+            #   else
+            #   echoContent green " ---> 检测到已安装通配符证书，自动生成中"
         fi
-        if [[ "${installDNSACMEStatus}" == "true" ]]; then
-            echo
-            if [[ -d "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc" && -f "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.key" && -f "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.cer" ]]; then
-                sudo "$HOME/.acme.sh/acme.sh" --installcert -d "*.${dnsTLSDomain}" --fullchainpath "/etc/v2ray-agent/tls/${tlsDomain}.crt" --keypath "/etc/v2ray-agent/tls/${tlsDomain}.key" --ecc >/dev/null
-            fi
-
-        elif [[ -d "$HOME/.acme.sh/${tlsDomain}_ecc" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]]; then
+        #        if [[ "${installDNSACMEStatus}" == "true" ]]; then
+        #            echo
+        #            if [[ -d "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc" && -f "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.key" && -f "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.cer" ]]; then
+        #                sudo "$HOME/.acme.sh/acme.sh" --installcert -d "*.${dnsTLSDomain}" --fullchainpath "/etc/v2ray-agent/tls/${tlsDomain}.crt" --keypath "/etc/v2ray-agent/tls/${tlsDomain}.key" --ecc >/dev/null
+        #            fi
+        #
+        #        el
+        if [[ -d "$HOME/.acme.sh/${tlsDomain}_ecc" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]]; then
             sudo "$HOME/.acme.sh/acme.sh" --installcert -d "${tlsDomain}" --fullchainpath "/etc/v2ray-agent/tls/${tlsDomain}.crt" --keypath "/etc/v2ray-agent/tls/${tlsDomain}.key" --ecc >/dev/null
         fi
 
@@ -1413,13 +1440,13 @@ installTLS() {
 
             installTLSCount=1
             echo
-            if [[ -z "${customPort}" ]]; then
-                echoContent red " ---> TLS安装失败，正在检查80、443端口是否开放"
-                allowPort 80
-                allowPort 443
-            fi
+            #            if [[ -z "${customPort}" ]]; then
+            #                echoContent red " ---> TLS安装失败，正在检查80、443端口是否开放"
+            # allowPort 80
+            # allowPort 443
+            #            fi
 
-            echoContent yellow " ---> 重新尝试安装TLS证书"
+            #            echoContent yellow " ---> 重新尝试安装TLS证书"
 
             if tail -n 10 /etc/v2ray-agent/tls/acme.log | grep -q "Could not validate email address as valid"; then
                 echoContent red " ---> 邮箱无法通过SSL厂商验证，请重新输入"
@@ -1429,7 +1456,6 @@ installTLS() {
             else
                 installTLS "$1"
             fi
-
         fi
 
         echoContent green " ---> TLS生成成功"
@@ -3207,16 +3233,12 @@ EOF
     fi
     # VLESS Vision
     if echo "${selectCustomInstallType}" | grep -q 0 || [[ "$1" == "all" ]]; then
-        local defaultPort=443
-        if [[ -n "${customPort}" ]]; then
-            defaultPort=${customPort}
-        fi
 
         cat <<EOF >/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json
 {
     "inbounds":[
         {
-          "port": ${defaultPort},
+          "port": ${port},
           "protocol": "vless",
           "tag":"VLESSTCP",
           "settings": {
@@ -3335,7 +3357,7 @@ customCDNIP() {
     echoContent red "\n=============================================================="
     echoContent yellow "# 注意事项"
     echoContent yellow "\n教程地址:"
-    echoContent skyBlue "https://github.com/mack-a/v2ray-agent/blob/master/documents/optimize_V2Ray.md"
+    echoContent skyBlue "https://www.v2ray-agent.com/archives/cloudflarezi-xuan-ip"
     echoContent red "\n如对Cloudflare优化不了解，请不要使用"
     echoContent yellow "\n 1.CNAME www.digitalocean.com"
     echoContent yellow " 2.CNAME who.int"
@@ -4076,7 +4098,13 @@ customUserEmail() {
         currentCustomEmail="${currentCustomUUID}"
         echoContent yellow "email: ${currentCustomEmail}\n"
     else
-        jq -r -c '.inbounds[0].settings.clients[].email' ${configPath}${frontingType}.json | while read -r line; do
+        local defaultConfig=${frontingType}
+
+        if echo "${currentInstallProtocolType}" | grep -q "7" && [[ -z "${frontingType}" ]]; then
+            defaultConfig="07_VLESS_vision_reality_inbounds"
+        fi
+
+        jq -r -c '.inbounds[0].settings.clients[].email' ${configPath}${defaultConfig}.json | while read -r line; do
             if [[ "${line}" == "${currentCustomEmail}" ]]; then
                 echo >/tmp/v2ray-agent
             fi
@@ -5800,7 +5828,10 @@ manageAccount() {
 
 # 订阅
 subscribe() {
-    if [[ -n "${configPath}" ]]; then
+    readInstallProtocolType
+
+    if echo "${currentInstallProtocolType}" | grep -q 0 && [[ -n "${configPath}" ]]; then
+
         echoContent skyBlue "-------------------------备注---------------------------------"
         echoContent yellow "# 查看订阅时会重新生成订阅"
         echoContent yellow "# 每次添加、删除账号需要重新查看订阅"
@@ -5831,7 +5862,7 @@ subscribe() {
             done
         fi
     else
-        echoContent red " ---> 未安装"
+        echoContent red " ---> 未安装伪装站点，无法使用订阅服务"
     fi
 }
 
@@ -5899,7 +5930,7 @@ initRealityKey() {
 # 初始化reality dest
 initRealityDest() {
     if [[ -n "${domain}" ]]; then
-        realityDestDomain=${domain}:${defaultPort}
+        realityDestDomain=${domain}:${port}
     else
         echoContent skyBlue "\n===== 生成配置回落的域名 例如:[addons.mozilla.org:443] ======\n"
         read -r -p "请输入[回车]使用默认:" realityDestDomain
@@ -5941,9 +5972,9 @@ initRealityPort() {
         if [[ -n "${realityPort}" && "${currentRealityPort}" == "${realityPort}" ]]; then
             handleXray stop
         else
-            checkCustomPort "${realityPort}"
+            checkPort "${realityPort}"
 
-            if [[ -n "${defaultPort}" && "${defaultPort}" == "${realityPort}" ]]; then
+            if [[ -n "${port}" && "${port}" == "${realityPort}" ]]; then
                 echoContent red "  端口不可与Vision重复--->"
                 echo
                 realityPort=
@@ -6071,7 +6102,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.7.28_reality_beta"
+    echoContent green "当前版本：v2.7.29_reality_beta"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
