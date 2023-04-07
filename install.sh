@@ -6106,14 +6106,14 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.7.30_reality_beta"
+    echoContent green "当前版本：v2.8.0"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
     echoContent red "\n=========================== 推广区============================"
     echoContent red "                                              "
     echoContent green "推广请联系TG：@mackaff\n"
-    echoContent green "AFF捐赠：https://github.com/mack-a/v2ray-agent/blob/master/documents/donation_aff.md"
+    echoContent green "AFF捐赠：https://www.v2ray-agent.com/categories/vps"
     echoContent red "=============================================================="
     if [[ -n "${coreInstallType}" ]]; then
         echoContent yellow "1.重新安装"
