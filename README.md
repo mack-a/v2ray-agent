@@ -9,7 +9,8 @@
 - [官方网站](https://www.v2ray-agent.com/)、[Telegram群](https://t.me/technologyshare)、[Telegram Channel](https://t.me/v2rayAgentChannel)
 - [VPS选购指南](https://www.v2ray-agent.com/archives/1679975663984)
 - [脚本使用教程推荐](https://www.v2ray-agent.com/categories/jiao-cheng)
-- [脚本使用注意事项](https://www.v2ray-agent.com/archives/1679931532764)
+- [脚本使用注意事项【推荐阅读】](https://www.v2ray-agent.com/archives/1679931532764)
+- [Reality教程和介绍【推荐阅读】](https://www.v2ray-agent.com/archives/1680104902581)
 - **请给个⭐支持一下**
 
 # 线路推荐
