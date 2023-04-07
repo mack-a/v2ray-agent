@@ -5966,8 +5966,11 @@ initRealityPort() {
             realityPort=${currentRealityPort}
         fi
     fi
-    if [[ -z "${realityPort}" ]]; then
-        echoContent yellow "请输入端口"
+    # todo 读取到VLESS_TLS_Vision端口，直接使用。这里可能有歧义
+    if [[ -n "${port}" ]]; then
+        realityPort=${port}
+    elif [[ -z "${realityPort}" ]]; then
+        echoContent yellow "请输入端口[建议443]"
         read -r -p "端口:" realityPort
         if [[ -n "${realityPort}" && "${currentRealityPort}" == "${realityPort}" ]]; then
             handleXray stop
@@ -5981,6 +5984,7 @@ initRealityPort() {
             fi
         fi
     fi
+
     if [[ -z "${realityPort}" ]]; then
         initRealityPort
     else
@@ -6102,7 +6106,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.7.29_reality_beta"
+    echoContent green "当前版本：v2.7.30_reality_beta"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
