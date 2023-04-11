@@ -5933,6 +5933,7 @@ initRealityDest() {
         realityDestDomain=${domain}:${port}
     else
         echoContent skyBlue "\n===== 生成配置回落的域名 例如:[addons.mozilla.org:443] ======\n"
+        echoContent green "回落域名参考：https://www.v2ray-agent.com/archives/1680104902581#heading-8\n"
         read -r -p "请输入[回车]使用默认:" realityDestDomain
         if [[ -z "${realityDestDomain}" ]]; then
             realityDestDomain="addons.mozilla.org:443"
@@ -5946,7 +5947,8 @@ initRealityClientServersName() {
         realityServerNames=\"${domain}\"
     else
         echoContent skyBlue "\n================ 配置客户端可用的serverNames ================\n"
-        echoContent yellow "#注意事项\n"
+        echoContent yellow "#注意事项"
+        echoContent green "客户端可用的serverNames：https://www.v2ray-agent.com/archives/1680104902581#heading-8\n"
         echoContent yellow "录入示例:addons.mozilla.org\n"
         read -r -p "请输入[回车]使用默认:" realityServerNames
         if [[ -z "${realityServerNames}" ]]; then
@@ -5966,25 +5968,29 @@ initRealityPort() {
             realityPort=${currentRealityPort}
         fi
     fi
-    # todo 读取到VLESS_TLS_Vision端口，直接使用。这里可能有歧义
-    if [[ -n "${port}" ]]; then
-        realityPort=${port}
-    elif [[ -z "${realityPort}" ]]; then
-        echoContent yellow "请输入端口[建议443]"
-        read -r -p "端口:" realityPort
+    # todo 读取到VLESS_TLS_Vision端口，提示是否使用使用。这里可能有歧义
+    if [[ -z "${realityPort}" ]]; then
+        if [[ -n "${port}" ]]; then
+            echoContent yellow "请输入端口[回车默认使用TLS+Vision端口]"
+            read -r -p "端口:" realityPort
+            if [[ -z "${realityPort}" ]]; then
+                realityPort=${port}
+            fi
+        else
+            echoContent yellow "请输入端口"
+            read -r -p "端口:" realityPort
+        fi
         if [[ -n "${realityPort}" && "${currentRealityPort}" == "${realityPort}" ]]; then
             handleXray stop
         else
             checkPort "${realityPort}"
-
-            if [[ -n "${port}" && "${port}" == "${realityPort}" ]]; then
-                echoContent red "  端口不可与Vision重复--->"
-                echo
-                realityPort=
-            fi
+            #            if [[ -n "${port}" && "${port}" == "${realityPort}" ]]; then
+            #                echoContent red "  端口不可与Vision重复--->"
+            #                echo
+            #                realityPort=
+            #            fi
         fi
     fi
-
     if [[ -z "${realityPort}" ]]; then
         initRealityPort
     else
