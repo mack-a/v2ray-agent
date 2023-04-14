@@ -3014,6 +3014,22 @@ initXrayConfig() {
 EOF
     fi
 
+    if [[ ! -f "/etc/v2ray-agent/xray/conf/12_policy.json" ]]; then
+
+        cat <<EOF >/etc/v2ray-agent/xray/conf/12_policy.json
+{
+  "policy": {
+      "levels": {
+          "0": {
+              "handshake": $((1 + RANDOM % 4)),
+              "connIdle": $((250 + RANDOM % 51))
+          }
+      }
+  }
+}
+EOF
+    fi
+
     # outbounds
     if [[ ! -f "/etc/v2ray-agent/xray/conf/10_ipv6_outbounds.json" ]]; then
         if [[ -n "${pingIPv6}" ]]; then
@@ -6122,7 +6138,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.8.2"
+    echoContent green "当前版本：v2.8.3"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
