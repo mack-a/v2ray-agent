@@ -1361,7 +1361,8 @@ customPortFunction() {
             else
                 # todo dns api
                 wildcardDomainStatus=true
-                echoContent red "未检测到80端口开放，无法安装，只可使用dns api方式安装 todo"
+                echoContent red "未检测到80端口开放，无法安装，后续会支持DNS API [TODO]"
+                echoContent yellow "检查域名解析，可以通过ping排查"
                 exit 0
             fi
         fi
@@ -2409,8 +2410,11 @@ initHysteriaPort() {
     fi
 
     if [[ -z "${hysteriaPort}" ]]; then
-        echoContent yellow "请输入Hysteria端口[例: 10000]，不可与其他服务重复"
+        echoContent yellow "请输入Hysteria端口[回车随机10000-60000]，不可与其他服务重复"
         read -r -p "端口:" hysteriaPort
+        if [[ -z "${hysteriaPort}" ]]; then
+            hysteriaPort=$((RANDOM % 50001 + 10000))
+        fi
     fi
     if [[ -z ${hysteriaPort} ]]; then
         echoContent red " ---> 端口不可为空"
@@ -5996,14 +6000,17 @@ initRealityPort() {
     # todo 读取到VLESS_TLS_Vision端口，提示是否使用使用。这里可能有歧义
     if [[ -z "${realityPort}" ]]; then
         if [[ -n "${port}" ]]; then
-            echoContent yellow "请输入端口[回车默认使用TLS+Vision端口]"
-            read -r -p "端口:" realityPort
-            if [[ -z "${realityPort}" ]]; then
+            read -r -p "是否使用TLS+Vision端口 ？[y/n]:" realityPortTLSVisionStatus
+            if [[ "${realityPortTLSVisionStatus}" == "y" ]]; then
                 realityPort=${port}
             fi
-        else
-            echoContent yellow "请输入端口"
+        fi
+        if [[ -z "${realityPort}" ]]; then
+            echoContent yellow "请输入端口[回车随机10000-60000]"
             read -r -p "端口:" realityPort
+            if [[ -z "${realityPort}" ]]; then
+                realityPort=$((RANDOM % 50001 + 10000))
+            fi
         fi
         if [[ -n "${realityPort}" && "${currentRealityPort}" == "${realityPort}" ]]; then
             handleXray stop
@@ -6138,7 +6145,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.8.3"
+    echoContent green "当前版本：v2.8.4"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
