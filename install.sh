@@ -1061,9 +1061,9 @@ server {
 	client_header_timeout 1071906480m;
     keepalive_timeout 1071906480m;
 
-	location /s/ {
-    	default_type 'text/plain; charset=utf-8';
-    	alias /etc/v2ray-agent/subscribe/;
+	location ~ ^/s/(clashMeta|default|clashMetaProfiles)/(.*) {
+        default_type 'text/plain; charset=utf-8';
+        alias /etc/v2ray-agent/subscribe/\$1/\$2;
     }
 
     location /${currentPath}grpc {
@@ -1098,9 +1098,9 @@ server {
 	listen 127.0.0.1:31302 http2;
 	server_name ${domain};
 	root ${nginxStaticPath};
-	location /s/ {
-    		default_type 'text/plain; charset=utf-8';
-    		alias /etc/v2ray-agent/subscribe/;
+	location ~ ^/s/(clashMeta|default|clashMetaProfiles)/(.*) {
+        default_type 'text/plain; charset=utf-8';
+        alias /etc/v2ray-agent/subscribe/\$1/\$2;
     }
 	location /${currentPath}grpc {
 		client_max_body_size 0;
@@ -1123,9 +1123,9 @@ server {
 	listen 127.0.0.1:31302 http2;
 	server_name ${domain};
 	root ${nginxStaticPath};
-	location /s/ {
-    		default_type 'text/plain; charset=utf-8';
-    		alias /etc/v2ray-agent/subscribe/;
+	location ~ ^/s/(clashMeta|default|clashMetaProfiles)/(.*) {
+        default_type 'text/plain; charset=utf-8';
+        alias /etc/v2ray-agent/subscribe/\$1/\$2;
     }
 	location /${currentPath}trojangrpc {
 		client_max_body_size 0;
@@ -1147,10 +1147,11 @@ server {
 	listen 127.0.0.1:31302 http2;
 	server_name ${domain};
 	root ${nginxStaticPath};
-	location /s/ {
-    		default_type 'text/plain; charset=utf-8';
-    		alias /etc/v2ray-agent/subscribe/;
-    }
+
+    location ~ ^/s/(clashMeta|default|clashMetaProfiles)/(.*) {
+            default_type 'text/plain; charset=utf-8';
+            alias /etc/v2ray-agent/subscribe/\$1/\$2;
+        }
 	location / {
 	}
 }
@@ -1162,10 +1163,10 @@ server {
 	listen 127.0.0.1:31300;
 	server_name ${domain};
 	root ${nginxStaticPath};
-	location /s/ {
-		default_type 'text/plain; charset=utf-8';
-		alias /etc/v2ray-agent/subscribe/;
-	}
+	location ~ ^/s/(clashMeta|default|clashMetaProfiles)/(.*) {
+            default_type 'text/plain; charset=utf-8';
+            alias /etc/v2ray-agent/subscribe/\$1/\$2;
+        }
 	location / {
 		add_header Strict-Transport-Security "max-age=15552000; preload" always;
 	}
@@ -3004,7 +3005,7 @@ initXrayConfig() {
     fi
 
     if [[ -n "${uuid}" ]]; then
-        currentClients='[{"id":"'${uuid}'","add":"'${add}'","flow":"xtls-rprx-vision","email":"default-VLESS_TCP/TLS_Vision"}]'
+        currentClients='[{"id":"'${uuid}'","add":"'${add}'","flow":"xtls-rprx-vision","email":"'${uuid}'-VLESS_TCP/TLS_Vision"}]'
         echoContent yellow "\n ${uuid}"
     fi
 
@@ -3418,7 +3419,8 @@ defaultBase64Code() {
     local type=$1
     local email=$2
     local id=$3
-
+    local user=
+    user=$(echo "${email}" | awk -F "[-]" '{print $1}')
     port=${currentDefaultPort}
 
     if [[ "${type}" == "vlesstcp" ]]; then
@@ -3429,10 +3431,10 @@ defaultBase64Code() {
 
             echoContent yellow " ---> 格式化明文(VLESS+TCP+TLS_Vision)"
             echoContent green "协议类型:VLESS，地址:${currentHost}，端口:${currentDefaultPort}，用户ID:${id}，安全:tls，传输方式:tcp，flow:xtls-rprx-vision，账户名:${email}\n"
-            cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/default/${id}"
+            cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/default/${user}"
 vless://${id}@${currentHost}:${currentDefaultPort}?encryption=none&security=tls&type=tcp&host=${currentHost}&headerType=none&sni=${currentHost}&flow=xtls-rprx-vision#${email}
 EOF
-            cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/clashMeta/${id}"
+            cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/clashMeta/${user}"
   - name: "${email}"
     type: vless
     server: ${currentHost}
@@ -3453,7 +3455,7 @@ EOF
             echoContent yellow " ---> 格式化明文(VLESS+TCP+TLS)"
             echoContent green "    协议类型:VLESS，地址:${currentHost}，端口:${currentDefaultPort}，用户ID:${id}，安全:tls，传输方式:tcp，账户名:${email}\n"
 
-            cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/default/${id}"
+            cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/default/${user}"
 vless://${id}@${currentHost}:${currentDefaultPort}?security=tls&encryption=none&host=${currentHost}&headerType=none&type=tcp#${email}
 EOF
             echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS)"
@@ -3466,7 +3468,7 @@ EOF
 
         echoContent yellow " ---> 格式化明文(Trojan+TCP+TLS_Vision)"
         echoContent green "协议类型:Trojan，地址:${currentHost}，端口:${currentDefaultPort}，用户ID:${id}，安全:xtls，传输方式:tcp，flow:xtls-rprx-vision，账户名:${email}\n"
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/default/${id}"
+        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/default/${user}"
 trojan://${id}@${currentHost}:${currentDefaultPort}?encryption=none&security=xtls&type=tcp&host=${currentHost}&headerType=none&sni=${currentHost}&flow=xtls-rprx-vision#${email}
 EOF
         echoContent yellow " ---> 二维码 Trojan(Trojan+TCP+TLS_Vision)"
@@ -3482,10 +3484,10 @@ EOF
         echoContent green "    vmess://${qrCodeBase64Default}\n"
         echoContent yellow " ---> 二维码 vmess(VMess+WS+TLS)"
 
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/default/${id}"
+        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/default/${user}"
 vmess://${qrCodeBase64Default}
 EOF
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/clashMeta/${id}"
+        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/clashMeta/${user}"
   - name: "${email}"
     type: vmess
     server: ${currentHost}
@@ -3513,10 +3515,10 @@ EOF
         echoContent yellow " ---> 格式化明文(VLESS+WS+TLS)"
         echoContent green "    协议类型:VLESS，地址:${currentAdd}，伪装域名/SNI:${currentHost}，端口:${currentDefaultPort}，用户ID:${id}，安全:tls，传输方式:ws，路径:/${currentPath}ws，账户名:${email}\n"
 
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/default/${id}"
+        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/default/${user}"
 vless://${id}@${currentAdd}:${currentDefaultPort}?encryption=none&security=tls&type=ws&host=${currentHost}&sni=${currentHost}&path=/${currentPath}ws#${email}
 EOF
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/clashMeta/${id}"
+        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/clashMeta/${user}"
   - name: "${email}"
     type: vless
     server: ${currentAdd}
@@ -3544,7 +3546,7 @@ EOF
         echoContent yellow " ---> 格式化明文(VLESS+gRPC+TLS)"
         echoContent green "    协议类型:VLESS，地址:${currentAdd}，伪装域名/SNI:${currentHost}，端口:${currentDefaultPort}，用户ID:${id}，安全:tls，传输方式:gRPC，alpn:h2，serviceName:${currentPath}grpc，账户名:${email}\n"
 
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/default/${id}"
+        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/default/${user}"
 vless://${id}@${currentAdd}:${currentDefaultPort}?encryption=none&security=tls&type=grpc&host=${currentHost}&path=${currentPath}grpc&serviceName=${currentPath}grpc&alpn=h2&sni=${currentHost}#${email}
 EOF
         echoContent yellow " ---> 二维码 VLESS(VLESS+gRPC+TLS)"
@@ -3555,11 +3557,11 @@ EOF
         echoContent yellow " ---> Trojan(TLS)"
         echoContent green "    trojan://${id}@${currentHost}:${currentDefaultPort}?peer=${currentHost}&sni=${currentHost}&alpn=http/1.1#${currentHost}_Trojan\n"
 
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/default/${id}"
+        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/default/${user}"
 trojan://${id}@${currentHost}:${currentDefaultPort}?peer=${currentHost}&sni=${currentHost}&alpn=http/1.1#${email}_Trojan
 EOF
 
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/clashMeta/${id}"
+        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/clashMeta/${user}"
   - name: "${email}"
     type: trojan
     server: ${currentHost}
@@ -3577,10 +3579,10 @@ EOF
 
         echoContent yellow " ---> Trojan gRPC(TLS)"
         echoContent green "    trojan://${id}@${currentAdd}:${currentDefaultPort}?encryption=none&peer=${currentHost}&security=tls&type=grpc&sni=${currentHost}&alpn=h2&path=${currentPath}trojangrpc&serviceName=${currentPath}trojangrpc#${email}\n"
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/default/${id}"
+        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/default/${user}"
 trojan://${id}@${currentAdd}:${currentDefaultPort}?encryption=none&peer=${currentHost}&security=tls&type=grpc&sni=${currentHost}&alpn=h2&path=${currentPath}trojangrpc&serviceName=${currentPath}trojangrpc#${email}
 EOF
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/clashMeta/${id}"
+        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/clashMeta/${user}"
   - name: "${email}"
     server: ${currentAdd}
     port: ${currentDefaultPort}
@@ -3600,10 +3602,10 @@ EOF
         hysteriaEmail=$(echo "${email}" | awk -F "[_]" '{print $1}')_hysteria
         echoContent yellow " ---> Hysteria(TLS)"
         echoContent green "    hysteria://${currentHost}:${hysteriaPort}?protocol=${hysteriaProtocol}&auth=${id}&peer=${currentHost}&insecure=0&alpn=h3&upmbps=${hysteriaClientUploadSpeed}&downmbps=${hysteriaClientDownloadSpeed}#${hysteriaEmail}\n"
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/default/${id}"
+        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/default/${user}"
 hysteria://${currentHost}:${hysteriaPort}?protocol=${hysteriaProtocol}&auth=${id}&peer=${currentHost}&insecure=0&alpn=h3&upmbps=${hysteriaClientUploadSpeed}&downmbps=${hysteriaClientDownloadSpeed}#${hysteriaEmail}
 EOF
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/clashMeta/${id}"
+        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/clashMeta/${user}"
   - name: "${hysteriaEmail}"
     type: hysteria
     server: ${currentHost}
@@ -3624,10 +3626,10 @@ EOF
 
         echoContent yellow " ---> 格式化明文(VLESS+reality+uTLS+Vision)"
         echoContent green "协议类型:VLESS reality，地址:$(getPublicIP)，publicKey:${currentRealityPublicKey}，serverNames：${currentRealityServerNames}，端口:${currentRealityPort}，用户ID:${id}，传输方式:tcp，账户名:${email}\n"
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/default/${id}"
+        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/default/${user}"
 vless://${id}@$(getPublicIP):${currentRealityPort}?encryption=none&security=reality&type=tcp&sni=${currentRealityServerNames}&fp=chrome&pbk=${currentRealityPublicKey}&flow=xtls-rprx-vision#${email}
 EOF
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/clashMeta/${id}"
+        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/clashMeta/${user}"
   - name: "${email}"
     type: vless
     server: $(getPublicIP)
@@ -3651,10 +3653,10 @@ EOF
 
         echoContent yellow " ---> 格式化明文(VLESS+reality+uTLS+gRPC)"
         echoContent green "协议类型:VLESS reality，serviceName:grpc，地址:$(getPublicIP)，publicKey:${currentRealityPublicKey}，serverNames：${currentRealityServerNames}，端口:${currentRealityPort}，用户ID:${id}，传输方式:gRPC，client-fingerprint：chrome，账户名:${email}\n"
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/default/${id}"
+        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/default/${user}"
 vless://${id}@$(getPublicIP):${currentRealityPort}?encryption=none&security=reality&type=grpc&sni=${currentRealityServerNames}&fp=chrome&pbk=${currentRealityPublicKey}&path=grpc&serviceName=grpc#${email}
 EOF
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/clashMeta/${id}"
+        cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/clashMeta/${user}"
   - name: "${email}"
     type: vless
     server: $(getPublicIP)
@@ -5949,13 +5951,19 @@ cronRenewTLS() {
 # 账号管理
 manageAccount() {
     echoContent skyBlue "\n功能 1/${totalProgress} : 账号管理"
+    if [[ -z "${configPath}" ]]; then
+        echoContent red " ---> 未安装"
+        exit 0
+    fi
+
     echoContent red "\n=============================================================="
     echoContent yellow "# 添加单个用户时可自定义email和uuid"
     echoContent yellow "# 如安装了Hysteria，账号会同时添加到Hysteria\n"
     echoContent yellow "1.查看账号"
     echoContent yellow "2.查看订阅"
-    echoContent yellow "3.添加用户"
-    echoContent yellow "4.删除用户"
+    echoContent yellow "3.添加订阅"
+    echoContent yellow "4.添加用户"
+    echoContent yellow "5.删除用户"
     echoContent red "=============================================================="
     read -r -p "请输入:" manageAccountStatus
     if [[ "${manageAccountStatus}" == "1" ]]; then
@@ -5963,14 +5971,51 @@ manageAccount() {
     elif [[ "${manageAccountStatus}" == "2" ]]; then
         subscribe 1
     elif [[ "${manageAccountStatus}" == "3" ]]; then
-        addUserXray
+        addSubscribe 1
     elif [[ "${manageAccountStatus}" == "4" ]]; then
+        addUserXray
+    elif [[ "${manageAccountStatus}" == "5" ]]; then
         removeUser
     else
         echoContent red " ---> 选择错误"
     fi
 }
 
+# 添加订阅
+addSubscribe() {
+    echoContent skyBlue "\n================ 添加其他机器订阅 ================\n"
+    echoContent yellow "#注意事项:"
+    echoContent yellow "请仔细阅读以下文章： https://www.v2ray-agent.com/archives/1681804748677"
+    echoContent yellow "录入示例：www.v2ray-agent.com:443:vps1"
+    read -r -p "请输入域名、端口、机器别名:" remoteSubscribeUrl
+    if [[ -z "${remoteSubscribeUrl}" ]]; then
+        echoContent red " ---> 不可为空"
+        addSubscribe
+    elif ! echo "${remoteSubscribeUrl}" | grep -q ":"; then
+        echoContent red " ---> 规则不合法"
+    else
+        local remoteUrl=
+        remoteUrl=$(echo "${remoteSubscribeUrl}" | awk -F "[:]" '{print $1":"$2}')
+
+        local serverAlias=
+        serverAlias=$(echo "${remoteSubscribeUrl}" | awk -F "[:]" '{print $3}')
+
+        if [[ -n $(ls /etc/v2ray-agent/subscribe/clashMeta/) || -n $(ls /etc/v2ray-agent/subscribe/default/) ]]; then
+            find /etc/v2ray-agent/subscribe/default/* | while read -r email; do
+                email=$(echo "${email}" | awk -F "[d][e][f][a][u][l][t][/]" '{print $2}')
+
+                clashMetaProxies=$(curl -s -4 "https://${remoteUrl}/s/clashMeta/${email}" | sed '/proxies:/d' | sed "s/${email}/${email}_${serverAlias}/g")
+
+                if echo "${clashMetaProxies}" | grep -q "${email}"; then
+                    echo "${clashMetaProxies}" >>"/etc/v2ray-agent/subscribe/clashMeta/${email}"
+                    echoContent green " ---> ${email}添加成功"
+                else
+                    echoContent red " ---> ${email}不存在"
+                fi
+            done
+        fi
+    fi
+}
 # clashMeta配置文件
 clashMetaConfig() {
     local url=$1
@@ -6194,38 +6239,58 @@ subscribe() {
     if echo "${currentInstallProtocolType}" | grep -q 0 && [[ -n "${configPath}" ]]; then
 
         echoContent skyBlue "-------------------------备注---------------------------------"
-        echoContent yellow "# 查看订阅时会重新生成订阅"
-        echoContent yellow "# 每次添加、删除账号需要重新查看订阅"
-        rm -rf /etc/v2ray-agent/subscribe/default/*
-        rm -rf /etc/v2ray-agent/subscribe/clashMeta/*
-        rm -rf /etc/v2ray-agent/subscribe_tmp/default/*
-        rm -rf /etc/v2ray-agent/subscribe_tmp/clashMeta/*
-        showAccounts >/dev/null
-        mv /etc/v2ray-agent/subscribe_tmp/* /etc/v2ray-agent/subscribe/
+        echoContent yellow "# 重新生成会导致所有订阅清空，包含手动添加的订阅"
+        echoContent yellow "# 每次添加、删除账号需要重新查看订阅\n"
+        # todo 需要保留手动添加的订阅
+        # todo 优化
+
+        if [[ -n $(ls /etc/v2ray-agent/subscribe/default/) ]]; then
+            read -r -p "检测到订阅已经生成是否重新生成？[y/n] " historySubscribeStatus
+            if [[ "${historySubscribeStatus}" == "y" ]]; then
+                rm -rf /etc/v2ray-agent/subscribe/default/*
+                rm -rf /etc/v2ray-agent/subscribe/clashMeta/*
+                rm -rf /etc/v2ray-agent/subscribe_tmp/default/*
+                rm -rf /etc/v2ray-agent/subscribe_tmp/clashMeta/*
+                showAccounts >/dev/null
+                mv /etc/v2ray-agent/subscribe_tmp/* /etc/v2ray-agent/subscribe/
+            fi
+        else
+            rm -rf /etc/v2ray-agent/subscribe/default/*
+            rm -rf /etc/v2ray-agent/subscribe/clashMeta/*
+            rm -rf /etc/v2ray-agent/subscribe_tmp/default/*
+            rm -rf /etc/v2ray-agent/subscribe_tmp/clashMeta/*
+            showAccounts >/dev/null
+            mv /etc/v2ray-agent/subscribe_tmp/* /etc/v2ray-agent/subscribe/
+        fi
 
         if [[ -n $(ls /etc/v2ray-agent/subscribe/default/) ]]; then
             find /etc/v2ray-agent/subscribe/default/* | while read -r email; do
                 email=$(echo "${email}" | awk -F "[d][e][f][a][u][l][t][/]" '{print $2}')
 
-                local base64Result
-                base64Result=$(base64 -w 0 "/etc/v2ray-agent/subscribe/default/${email}")
-                echo "${base64Result}" >"/etc/v2ray-agent/subscribe/default/${email}"
-                echoContent skyBlue "--------------------------------------------------------------"
+                if [[ "${historySubscribeStatus}" == "y" ]]; then
+                    local base64Result
+                    base64Result=$(base64 -w 0 "/etc/v2ray-agent/subscribe/default/${email}")
+                    echo "${base64Result}" >"/etc/v2ray-agent/subscribe/default/${email}"
+                fi
+
+                echoContent yellow "--------------------------------------------------------------"
                 local currentDomain=${currentHost}
 
                 if [[ -n "${currentDefaultPort}" && "${currentDefaultPort}" != "443" ]]; then
                     currentDomain="${currentHost}:${currentDefaultPort}"
                 fi
                 echoContent skyBlue "\n----------默认订阅----------\n"
-                echoContent yellow "email:${email}\n"
+                echoContent green "email:${email}\n"
                 echoContent yellow "url:https://${currentDomain}/s/default/${email}\n"
                 echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://${currentDomain}/s/default/${email}\n"
                 echo "https://${currentDomain}/s/default/${email}" | qrencode -s 10 -m 1 -t UTF8
 
                 # clashMeta
                 if [[ -f "/etc/v2ray-agent/subscribe/clashMeta/${email}" ]]; then
+                    if [[ -z "${historySubscribeStatus}" || "${historySubscribeStatus}" == "y" ]]; then
+                        sed -i '1i\proxies:' "/etc/v2ray-agent/subscribe/clashMeta/${email}"
+                    fi
 
-                    sed -i '1i\proxies:' "/etc/v2ray-agent/subscribe/clashMeta/${email}"
                     local clashProxyUrl="https://${currentDomain}/s/clashMeta/${email}"
                     clashMetaConfig "${clashProxyUrl}" "${email}"
                     echoContent skyBlue "\n----------clashMeta订阅----------\n"
@@ -6492,7 +6557,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.8.5"
+    echoContent green "当前版本：v2.8.6"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
@@ -6500,7 +6565,7 @@ menu() {
     echoContent red "\n=========================== 推广区============================"
     echoContent red "                                              "
     echoContent green "推广请联系TG：@mackaff\n"
-    echoContent green "AFF捐赠：https://www.v2ray-agent.com/categories/vps"
+    echoContent green "购买VPS进行捐赠：https://www.v2ray-agent.com/categories/vps"
     echoContent red "=============================================================="
     if [[ -n "${coreInstallType}" ]]; then
         echoContent yellow "1.重新安装"
