@@ -6024,15 +6024,31 @@ addOtherSubscribe() {
             find /etc/v2ray-agent/subscribe_local/default/* | while read -r email; do
                 email=$(echo "${email}" | awk -F "[d][e][f][a][u][l][t][/]" '{print $2}')
 
-                clashMetaProxies=$(curl -s -4 "https://${remoteUrl}/s/clashMeta/${email}" | sed '/proxies:/d' | sed "s/${email}/${email}_${serverAlias}/g")
+                local emailMd5=
+                emailMd5=$(echo -n "${email}$(cat "/etc/v2ray-agent/subscribe_local/subscribeSalt")"$'\n' | md5sum | awk '{print $1}')
+
+                local clashMetaProxies=
+                clashMetaProxies=$(curl -s -4 "https://${remoteUrl}/s/clashMeta/${emailMd5}" | sed '/proxies:/d' | sed "s/${email}/${email}_${serverAlias}/g")
+
+                local default=
+                default=$(curl -s -4 "https://${remoteUrl}/s/default/${emailMd5}" | base64 -d | sed "s/${email}/${email}_${serverAlias}/g")
+
+                if echo "${default}" | grep -q "${email}"; then
+                    echo "${default}" >>"/etc/v2ray-agent/subscribe/default/${emailMd5}"
+                    echo "${default}" >>"/etc/v2ray-agent/subscribe_remote/default/${email}"
+
+                    echoContent green " ---> 通用订阅 ${email} 添加成功"
+                else
+                    echoContent red " ---> 通用订阅 ${email} 不存在"
+                fi
 
                 if echo "${clashMetaProxies}" | grep -q "${email}"; then
-                    echo "${clashMetaProxies}" >>"/etc/v2ray-agent/subscribe/clashMeta/${email}"
+                    echo "${clashMetaProxies}" >>"/etc/v2ray-agent/subscribe/clashMeta/${emailMd5}"
                     echo "${clashMetaProxies}" >>"/etc/v2ray-agent/subscribe_remote/clashMeta/${email}"
 
-                    echoContent green " ---> ${email}添加成功"
+                    echoContent green " ---> clashMeta订阅 ${email} 添加成功"
                 else
-                    echoContent red " ---> ${email}不存在"
+                    echoContent red " ---> clashMeta订阅 ${email}不存在"
                 fi
             done
         fi
@@ -6377,6 +6393,16 @@ rules:
 EOF
 
 }
+# 随机salt
+initRandomSalt() {
+    local chars="abcdefghijklmnopqrtuxyz"
+    local initCustomPath=
+    for i in {1..10}; do
+        echo "${i}" >/dev/null
+        initCustomPath+="${chars:RANDOM%${#chars}:1}"
+    done
+    echo "${initCustomPath}"
+}
 # 订阅
 subscribe() {
     readInstallProtocolType
@@ -6386,21 +6412,49 @@ subscribe() {
         echoContent skyBlue "-------------------------备注---------------------------------"
         echoContent yellow "# 查看订阅会重新生成本地账号的订阅"
         echoContent yellow "# 添加账号或者修改账号需要重新查看订阅才会重新生成对外访问的订阅内容"
+        echoContent red "# 需要手动输入md5加密的salt值，如果不了解使用随机即可"
         echoContent yellow "# 不影响已添加的远程订阅的内容\n"
+
+        if [[ -f "/etc/v2ray-agent/subscribe_local/subscribeSalt" && -n $(cat "/etc/v2ray-agent/subscribe_local/subscribeSalt") ]]; then
+            read -r -p "读取到上次安装设置的Salt，是否使用上次生成的Salt ？[y/n]:" historySaltStatus
+            if [[ "${historySaltStatus}" == "y" ]]; then
+                subscribeSalt=$(cat /etc/v2ray-agent/subscribe_local/subscribeSalt)
+            else
+                read -r -p "请输入salt值, [回车]使用随机:" subscribeSalt
+            fi
+        else
+            read -r -p "请输入salt值, [回车]使用随机:" subscribeSalt
+        fi
+
+        if [[ -z "${subscribeSalt}" ]]; then
+            subscribeSalt=$(initRandomSalt)
+        fi
+        echoContent yellow "\n ---> Salt: ${subscribeSalt}"
+
+        echo "${subscribeSalt}" >/etc/v2ray-agent/subscribe_local/subscribeSalt
+
         rm -rf /etc/v2ray-agent/subscribe/default/*
         rm -rf /etc/v2ray-agent/subscribe/clashMeta/*
         rm -rf /etc/v2ray-agent/subscribe_local/default/*
         rm -rf /etc/v2ray-agent/subscribe_local/clashMeta/*
         showAccounts >/dev/null
-        cp -r /etc/v2ray-agent/subscribe_local/* /etc/v2ray-agent/subscribe/
 
-        if [[ -n $(ls /etc/v2ray-agent/subscribe/default/) ]]; then
-            find /etc/v2ray-agent/subscribe/default/* | while read -r email; do
+        if [[ -n $(ls /etc/v2ray-agent/subscribe_local/default/) ]]; then
+            find /etc/v2ray-agent/subscribe_local/default/* | while read -r email; do
                 email=$(echo "${email}" | awk -F "[d][e][f][a][u][l][t][/]" '{print $2}')
+                # md5加密
+                local emailMd5=
+                emailMd5=$(echo -n "${email}${subscribeSalt}"$'\n' | md5sum | awk '{print $1}')
+
+                cat "/etc/v2ray-agent/subscribe_local/default/${email}" >>"/etc/v2ray-agent/subscribe/default/${emailMd5}"
+
+                if [[ -f "/etc/v2ray-agent/subscribe_remote/default/${email}" ]]; then
+                    cat "/etc/v2ray-agent/subscribe_remote/default/${email}" >>"/etc/v2ray-agent/subscribe/default/${emailMd5}"
+                fi
 
                 local base64Result
-                base64Result=$(base64 -w 0 "/etc/v2ray-agent/subscribe/default/${email}")
-                echo "${base64Result}" >"/etc/v2ray-agent/subscribe/default/${email}"
+                base64Result=$(base64 -w 0 "/etc/v2ray-agent/subscribe/default/${emailMd5}")
+                echo "${base64Result}" >"/etc/v2ray-agent/subscribe/default/${emailMd5}"
 
                 echoContent yellow "--------------------------------------------------------------"
                 local currentDomain=${currentHost}
@@ -6410,25 +6464,27 @@ subscribe() {
                 fi
                 echoContent skyBlue "\n----------默认订阅----------\n"
                 echoContent green "email:${email}\n"
-                echoContent yellow "url:https://${currentDomain}/s/default/${email}\n"
-                echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://${currentDomain}/s/default/${email}\n"
-                echo "https://${currentDomain}/s/default/${email}" | qrencode -s 10 -m 1 -t UTF8
+                echoContent yellow "url:https://${currentDomain}/s/default/${emailMd5}\n"
+                echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://${currentDomain}/s/default/${emailMd5}\n"
+                echo "https://${currentDomain}/s/default/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
 
                 # clashMeta
-                if [[ -f "/etc/v2ray-agent/subscribe/clashMeta/${email}" ]]; then
+                if [[ -f "/etc/v2ray-agent/subscribe_local/clashMeta/${email}" ]]; then
+
+                    cat "/etc/v2ray-agent/subscribe_local/clashMeta/${email}" >>"/etc/v2ray-agent/subscribe/clashMeta/${emailMd5}"
 
                     if [[ -f "/etc/v2ray-agent/subscribe_remote/clashMeta/${email}" ]]; then
-                        cat "/etc/v2ray-agent/subscribe_remote/clashMeta/${email}" >>"/etc/v2ray-agent/subscribe/clashMeta/${email}"
+                        cat "/etc/v2ray-agent/subscribe_remote/clashMeta/${email}" >>"/etc/v2ray-agent/subscribe/clashMeta/${emailMd5}"
                     fi
 
-                    sed -i '1i\proxies:' "/etc/v2ray-agent/subscribe/clashMeta/${email}"
+                    sed -i '1i\proxies:' "/etc/v2ray-agent/subscribe/clashMeta/${emailMd5}"
 
-                    local clashProxyUrl="https://${currentDomain}/s/clashMeta/${email}"
-                    clashMetaConfig "${clashProxyUrl}" "${email}"
+                    local clashProxyUrl="https://${currentDomain}/s/clashMeta/${emailMd5}"
+                    clashMetaConfig "${clashProxyUrl}" "${emailMd5}"
                     echoContent skyBlue "\n----------clashMeta订阅----------\n"
-                    echoContent yellow "url:https://${currentDomain}/s/clashMetaProfiles/${email}\n"
-                    echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://${currentDomain}/s/clashMetaProfiles/${email}\n"
-                    echo "https://${currentDomain}/s/clashMetaProfiles/${email}" | qrencode -s 10 -m 1 -t UTF8
+                    echoContent yellow "url:https://${currentDomain}/s/clashMetaProfiles/${emailMd5}\n"
+                    echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://${currentDomain}/s/clashMetaProfiles/${emailMd5}\n"
+                    echo "https://${currentDomain}/s/clashMetaProfiles/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
                 fi
 
                 echoContent skyBlue "--------------------------------------------------------------"
@@ -6689,7 +6745,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.8.7"
+    echoContent green "当前版本：v2.8.8"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
