@@ -86,6 +86,7 @@ checkCPUVendor() {
                 hysteriaCoreCPUVendor="hysteria-linux-amd64"
                 ;;
             'armv8' | 'aarch64')
+                cpuVendor="arm"
                 xrayCoreCPUVendor="Xray-linux-arm64-v8a"
                 v2rayCoreCPUVendor="v2ray-linux-arm64-v8a"
                 hysteriaCoreCPUVendor="hysteria-linux-arm64"
@@ -114,6 +115,7 @@ initVar() {
     xrayCoreCPUVendor=""
     v2rayCoreCPUVendor=""
     hysteriaCoreCPUVendor=""
+    cpuVendor=""
 
     # 域名
     domain=
@@ -903,6 +905,11 @@ EOF
 
 # 安装warp
 installWarp() {
+    if [[ "${cpuVendor}" == "arm" ]]; then
+        echoContent red " ---> 官方WARP客户端不支持ARM架构"
+        exit 0
+    fi
+
     ${installType} gnupg2 -y >/dev/null 2>&1
     if [[ "${release}" == "debian" ]]; then
         curl -s https://pkg.cloudflareclient.com/pubkey.gpg | sudo apt-key add - >/dev/null 2>&1
@@ -932,11 +939,12 @@ installWarp() {
     warp-cli --accept-tos connect
     warp-cli --accept-tos enable-always-on
 
-    #	if [[]];then
-    #	fi
-    # todo curl --socks5 127.0.0.1:31303 https://www.cloudflare.com/cdn-cgi/trace
-    # systemctl daemon-reload
-    # systemctl enable cloudflare-warp
+    local warpStatus=
+    warpStatus=$(curl -s --socks5 127.0.0.1:31303 https://www.cloudflare.com/cdn-cgi/trace | grep "warp" | cut -d "=" -f 2)
+
+    if [[ "${warpStatus}" == "on" ]]; then
+        echoContent green " ---> WARP启动成功"
+    fi
 }
 
 # 检查端口实际开放状态
@@ -6745,7 +6753,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.8.8"
+    echoContent green "当前版本：v2.8.9"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
