@@ -5040,7 +5040,7 @@ unInstallRouting() {
                 fi
 
                 if [[ ${delStatus} == 1 ]]; then
-                    routing=$(jq -r 'del(.routing.rules['"$(("${index}" - 1))"'])' ${configPath}09_routing.json)
+                    routing=$(jq -r 'del(.routing.rules['$((index - 1))'])' ${configPath}09_routing.json)
                     echo "${routing}" | jq . >${configPath}09_routing.json
                 fi
             done
@@ -5056,7 +5056,7 @@ unInstallOutbounds() {
         local ipv6OutIndex
         ipv6OutIndex=$(jq .outbounds[].tag ${configPath}10_ipv4_outbounds.json | awk '{print ""NR""":"$0}' | grep "${tag}" | awk -F "[:]" '{print $1}' | head -1)
         if [[ ${ipv6OutIndex} -gt 0 ]]; then
-            routing=$(jq -r 'del(.outbounds['$(("${ipv6OutIndex}" - 1))'])' ${configPath}10_ipv4_outbounds.json)
+            routing=$(jq -r 'del(.outbounds['$((ipv6OutIndex - 1))'])' ${configPath}10_ipv4_outbounds.json)
             echo "${routing}" | jq . >${configPath}10_ipv4_outbounds.json
         fi
     fi
@@ -6800,7 +6800,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.8.11"
+    echoContent green "当前版本：v2.8.12"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
