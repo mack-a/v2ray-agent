@@ -21,7 +21,7 @@
 </details>
 
 
-<details><summary>快速开始</summary>
+<details><summary>快速安装</summary>
 <br/>
 
 ## 1.安装脚本
@@ -38,9 +38,7 @@ wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-
 ```
 wget -P /root -N --no-check-certificate "https://www.v2ray-agent.com/v2ray-agent/install.sh" && chmod 700 /root/install.sh && /root/install.sh
 ```
-## 2.一图版教程
-
-<img src="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/install/install.jpg" width=700>
+## [2.搭建教程](https://www.v2ray-agent.com/archives/1682491479771)
 
 </details>
 
