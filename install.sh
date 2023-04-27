@@ -4777,10 +4777,9 @@ aliasInstall() {
 
 # 检查ipv6、ipv4
 checkIPv6() {
-    # pingIPv6=$(ping6 -c 1 www.google.com | sed '2{s/[^(]*(//;s/).*//;q;}' | tail -n +2)
-    pingIPv6=$(ping6 -c 1 www.google.com | sed -n '1p' | sed 's/.*(//g;s/).*//g')
+    currentIPv6IP=$(curl -s -6 http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | cut -d "=" -f 2)
 
-    if [[ -z "${pingIPv6}" ]]; then
+    if [[ -z "${currentIPv6IP}" ]]; then
         echoContent red " ---> 不支持ipv6"
         exit 0
     fi
