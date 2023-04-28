@@ -6810,6 +6810,7 @@ menu() {
     echoContent green "推广请联系TG：@mackaff\n"
     echoContent green "购买VPS进行捐赠：https://www.v2ray-agent.com/categories/vps"
     echoContent green "ChatGPT解锁：https://www.v2ray-agent.com/archives/olinkshen-du-ce-ping"
+    echoContent green "freevod免费的观影网站：https://www.v2ray-agent.com/archives/1682647927103"
     echoContent red "=============================================================="
     if [[ -n "${coreInstallType}" ]]; then
         echoContent yellow "1.重新安装"

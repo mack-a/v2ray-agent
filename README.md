@@ -6,6 +6,7 @@
 - [English Version](https://github.com/mack-a/v2ray-agent/blob/master/documents/en/README_EN.md)
 - [VPS选购指南](https://www.v2ray-agent.com/archives/1679975663984)
 - [ChatGPT解锁](https://www.v2ray-agent.com/archives/olinkshen-du-ce-ping)
+- [freevod一个免费的观影网站](https://share.freevod.org/)
 
 - **请给个⭐支持一下**
 
