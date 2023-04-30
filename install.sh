@@ -323,7 +323,7 @@ readInstallType() {
 # 读取协议类型
 readInstallProtocolType() {
     currentInstallProtocolType=
-
+    frontingType=
     while read -r row; do
         if echo "${row}" | grep -q 02_trojan_TCP_inbounds; then
             currentInstallProtocolType=${currentInstallProtocolType}'trojan'
@@ -3721,6 +3721,7 @@ showAccounts() {
     readConfigHostPathUUID
     readHysteriaConfig
     readXrayCoreRealityConfig
+
     echoContent skyBlue "\n进度 $1/${totalProgress} : 账号"
     local show
     # VLESS TCP
@@ -6622,7 +6623,12 @@ initRealityDest() {
         if [[ -z "${realityDestDomain}" ]]; then
             realityDestDomain="addons.mozilla.org:443"
         fi
-        echoContent yellow "\n ---> 回落域名: ${realityDestDomain}"
+        if ! echo "${realityDestDomain}" | grep -q ":"; then
+            echoContent red "\n ---> 域名不合规范，请重新输入"
+            initRealityDest
+        else
+            echoContent yellow "\n ---> 回落域名: ${realityDestDomain}"
+        fi
     fi
 }
 # 初始化客户端可用的ServersName
@@ -6694,7 +6700,19 @@ initXrayRealityConfig() {
     initRealityDest
     initRealityClientServersName
 }
+# 修改reality域名端口等信息
+updateXrayRealityConfig() {
 
+    local realityVisionResult
+    realityVisionResult=$(jq -r ".inbounds[0].streamSettings.realitySettings.port = ${realityPort}" ${configPath}07_VLESS_vision_reality_inbounds.json)
+    realityVisionResult=$(echo "${realityVisionResult}" | jq -r ".inbounds[0].streamSettings.realitySettings.dest = \"${realityDestDomain}\"")
+    realityVisionResult=$(echo "${realityVisionResult}" | jq -r ".inbounds[0].streamSettings.realitySettings.serverNames = [${realityServerNames}]")
+    realityVisionResult=$(echo "${realityVisionResult}" | jq -r ".inbounds[0].streamSettings.realitySettings.privateKey = \"${realityPrivateKey}\"")
+    realityVisionResult=$(echo "${realityVisionResult}" | jq -r ".inbounds[0].streamSettings.realitySettings.publicKey = \"${realityPublicKey}\"")
+    echo "${realityVisionResult}" | jq . >${configPath}07_VLESS_vision_reality_inbounds.json
+    reloadCore
+    echoContent green " ---> 修改完成"
+}
 # xray-core Reality 安装
 xrayCoreRealityInstall() {
     totalProgress=13
@@ -6725,6 +6743,7 @@ manageReality() {
     if [[ -n "${realityStatus}" ]]; then
         echoContent yellow "1.重新安装"
         echoContent yellow "2.卸载"
+        echoContent yellow "3.更换配置"
     else
         echoContent yellow "1.安装"
     fi
@@ -6736,6 +6755,9 @@ manageReality() {
         xrayCoreRealityInstall
     elif [[ "${installRealityStatus}" == "2" ]]; then
         unInstallXrayCoreReality
+    elif [[ "${installRealityStatus}" == "3" ]]; then
+        initXrayRealityConfig 1
+        updateXrayRealityConfig
     fi
 }
 
@@ -6800,7 +6822,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.8.12"
+    echoContent green "当前版本：v2.8.13"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
