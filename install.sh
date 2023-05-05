@@ -4799,7 +4799,8 @@ ipv6Routing() {
     echoContent red "\n=============================================================="
     echoContent yellow "1.查看已分流域名"
     echoContent yellow "2.添加域名"
-    echoContent yellow "3.卸载IPv6分流"
+    echoContent yellow "3.设置IPv6全局"
+    echoContent yellow "4.卸载IPv6分流"
     echoContent red "=============================================================="
     read -r -p "请选择:" ipv6Status
     if [[ "${ipv6Status}" == "1" ]]; then
@@ -4809,42 +4810,14 @@ ipv6Routing() {
     elif [[ "${ipv6Status}" == "2" ]]; then
         echoContent red "=============================================================="
         echoContent yellow "# 注意事项\n"
-        echoContent yellow "1.规则仅支持预定义域名列表[https://github.com/v2fly/domain-list-community]"
-        echoContent yellow "2.详细文档[https://www.v2fly.org/config/routing.html]"
-        echoContent yellow "3.如内核启动失败请检查域名后重新添加域名"
-        echoContent yellow "4.不允许有特殊字符，注意逗号的格式"
-        echoContent yellow "5.每次添加都是重新添加，不会保留上次域名"
-        echoContent yellow "6.强烈建议屏蔽国内的网站，下方输入【cn】即可屏蔽"
-        echoContent yellow "8.支持hysteria"
-        echoContent yellow "9.录入示例:google,youtube,facebook,cn\n"
+        echoContent yellow "1.规则支持预定义域名列表[https://github.com/v2fly/domain-list-community]"
+        echoContent yellow "2.规则支持自定义域名"
+        echoContent yellow "3.录入示例:speedtest,facebook,cn,example.com"
+        echoContent yellow "4.如果域名在预定义域名列表中存在则使用 geosite:xx，如果不存在则默认使用输入的域名"
+        echoContent yellow "5.添加规则为增量配置，不会删除之前设置的内容\n"
+
         read -r -p "请按照上面示例录入域名:" domainList
-
-        if [[ -f "${configPath}09_routing.json" ]]; then
-
-            unInstallRouting IPv6-out outboundTag
-
-            routing=$(jq -r ".routing.rules += [{\"type\":\"field\",\"domain\":[\"geosite:${domainList//,/\",\"geosite:}\"],\"outboundTag\":\"IPv6-out\"}]" ${configPath}09_routing.json)
-
-            echo "${routing}" | jq . >${configPath}09_routing.json
-
-        else
-            cat <<EOF >"${configPath}09_routing.json"
-{
-    "routing":{
-        "domainStrategy": "IPOnDemand",
-        "rules": [
-          {
-            "type": "field",
-            "domain": [
-            	"geosite:${domainList//,/\",\"geosite:}"
-            ],
-            "outboundTag": "IPv6-out"
-          }
-        ]
-  }
-}
-EOF
-        fi
+        addInstallRouting IPv6-out outboundTag "${domainList}"
 
         unInstallOutbounds IPv6-out
 
@@ -4855,11 +4828,44 @@ EOF
         echoContent green " ---> 添加成功"
 
     elif [[ "${ipv6Status}" == "3" ]]; then
+        echoContent red "=============================================================="
+        echoContent yellow "# 注意事项\n"
+        echoContent yellow "1.会删除设置的所有分流规则"
+        echoContent yellow "2.会删除除IPv6之外的所有出站规则"
+        read -r -p "是否确认设置？[y/n]:" IPv6OutStatus
+
+        if [[ "${IPv6OutStatus}" == "y" ]]; then
+            cat <<EOF >${configPath}10_ipv4_outbounds.json
+            {
+                "outbounds":[
+                    {
+                        "protocol":"freedom",
+                        "settings":{
+                            "domainStrategy":"UseIPv6"
+                        },
+                        "tag":"IPv6-out"
+                    }
+                ]
+            }
+EOF
+            rm ${configPath}09_routing.json >/dev/null 2>&1
+            echoContent green " ---> IPv6全局出站设置成功"
+        else
+            echoContent green " ---> 放弃设置"
+            exit 0
+        fi
+
+    elif [[ "${ipv6Status}" == "4" ]]; then
 
         unInstallRouting IPv6-out outboundTag
 
         unInstallOutbounds IPv6-out
 
+        if ! grep -q "IPv4-out" <"${configPath}10_ipv4_outbounds.json"; then
+            outbounds=$(jq -r '.outbounds += [{"protocol":"freedom","settings": {"domainStrategy": "UseIPv4"},"tag":"IPv4-out"}]' ${configPath}10_ipv4_outbounds.json)
+
+            echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
+        fi
         echoContent green " ---> IPv6分流卸载成功"
     else
         echoContent red " ---> 选择错误"
@@ -4956,7 +4962,8 @@ blacklist() {
     echoContent red "\n=============================================================="
     echoContent yellow "1.查看已屏蔽域名"
     echoContent yellow "2.添加域名"
-    echoContent yellow "3.删除黑名单"
+    echoContent yellow "3.屏蔽国内域名"
+    echoContent yellow "4.删除黑名单"
     echoContent red "=============================================================="
 
     read -r -p "请选择:" blacklistStatus
@@ -4966,44 +4973,36 @@ blacklist() {
     elif [[ "${blacklistStatus}" == "2" ]]; then
         echoContent red "=============================================================="
         echoContent yellow "# 注意事项\n"
-        echoContent yellow "1.规则仅支持预定义域名列表[https://github.com/v2fly/domain-list-community]"
-        echoContent yellow "2.详细文档[https://www.v2fly.org/config/routing.html]"
-        echoContent yellow "3.如内核启动失败请检查域名后重新添加域名"
-        echoContent yellow "4.不允许有特殊字符，注意逗号的格式"
-        echoContent yellow "5.每次添加都是重新添加，不会保留上次域名"
-        echoContent yellow "6.支持hysteria"
-        echoContent yellow "7.录入示例:speedtest,facebook,cn\n"
+        echoContent yellow "1.规则支持预定义域名列表[https://github.com/v2fly/domain-list-community]"
+        echoContent yellow "2.规则支持自定义域名"
+        echoContent yellow "3.录入示例:speedtest,facebook,cn,example.com"
+        echoContent yellow "4.如果域名在预定义域名列表中存在则使用 geosite:xx，如果不存在则默认使用输入的域名"
+        echoContent yellow "5.添加规则为增量配置，不会删除之前设置的内容\n"
         read -r -p "请按照上面示例录入域名:" domainList
 
         if [[ -f "${configPath}09_routing.json" ]]; then
-            unInstallRouting blackhole-out outboundTag
-
-            routing=$(jq -r ".routing.rules += [{\"type\":\"field\",\"domain\":[\"geosite:${domainList//,/\",\"geosite:}\"],\"outboundTag\":\"blackhole-out\"}]" ${configPath}09_routing.json)
-
-            echo "${routing}" | jq . >${configPath}09_routing.json
-
-        else
-            cat <<EOF >${configPath}09_routing.json
-{
-    "routing":{
-        "domainStrategy": "IPOnDemand",
-        "rules": [
-          {
-            "type": "field",
-            "domain": [
-            	"geosite:${domainList//,/\",\"geosite:}"
-            ],
-            "outboundTag": "blackhole-out"
-          }
-        ]
-  }
-}
-EOF
+            addInstallRouting blackhole-out outboundTag "${domainList}"
         fi
+        unInstallOutbounds blackhole-out
+
+        outbounds=$(jq -r '.outbounds += [{"protocol":"blackhole","tag":"blackhole-out"}]' ${configPath}10_ipv4_outbounds.json)
+
+        echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
 
         echoContent green " ---> 添加成功"
 
     elif [[ "${blacklistStatus}" == "3" ]]; then
+        addInstallRouting blackhole-out outboundTag "cn"
+
+        unInstallOutbounds blackhole-out
+
+        outbounds=$(jq -r '.outbounds += [{"protocol":"blackhole","tag":"blackhole-out"}]' ${configPath}10_ipv4_outbounds.json)
+
+        echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
+
+        echoContent green " ---> 屏蔽国内域名成功"
+
+    elif [[ "${blacklistStatus}" == "4" ]]; then
 
         unInstallRouting blackhole-out outboundTag
 
@@ -5014,7 +5013,65 @@ EOF
     fi
     reloadCore
 }
+# 添加routing配置
+addInstallRouting() {
+    # 如果文件存在 则读取后添加，如果重复则不添加
+    # 如果不存在则创建文件然后添加内容
+    # 默认使用geosite 如果没有默认域名则默认使用域名
+    # https://github.com/v2fly/domain-list-community 校验
 
+    local tag=$1    # warp-socks
+    local type=$2   # outboundTag/inboundTag
+    local domain=$3 # 域名
+
+    if [[ -z "${tag}" || -z "${type}" || -z "${domain}" ]]; then
+        echoContent red " ---> 参数错误"
+        exit 0
+    fi
+
+    local routingRule=
+    if [[ ! -f "${configPath}09_routing.json" ]]; then
+        cat <<EOF >${configPath}09_routing.json
+{
+    "routing":{
+        "type": "field",
+        "rules": [
+            {
+                "type": "field",
+                "domain": [
+                ],
+            "outboundTag": "${tag}"
+          }
+        ]
+  }
+}
+EOF
+    fi
+    local routingRule=
+    routingRule=$(jq -r '.routing.rules[]|select(.outboundTag=="'"${tag}"'")' ${configPath}09_routing.json)
+    if [[ -z "${routingRule}" ]]; then
+        routingRule="{\"type\": \"field\",\"domain\": [],\"outboundTag\": \"${tag}\"}"
+    fi
+
+    while read -r line; do
+        if echo "${routingRule}" | grep -q "${line}"; then
+            echoContent yellow " ---> ${line}已存在，跳过"
+        else
+            local geositeStatus
+            geositeStatus=$(curl -s "https://api.github.com/repos/v2fly/domain-list-community/contents/data/${line}" | jq .message)
+
+            if [[ "${geositeStatus}" == "null" ]]; then
+                routingRule=$(echo "${routingRule}" | jq -r '.domain += ["geosite:'"${line}"'"]')
+            else
+                routingRule=$(echo "${routingRule}" | jq -r '.domain += ["domain:'"${line}"'"]')
+            fi
+        fi
+    done < <(echo "${domain}" | tr ',' '\n')
+
+    unInstallRouting "${tag}" "${type}"
+    routing=$(jq -r ".routing.rules += [${routingRule}]" ${configPath}09_routing.json)
+    echo "${routing}" | jq . >${configPath}09_routing.json
+}
 # 根据tag卸载Routing
 unInstallRouting() {
     local tag=$1
@@ -5086,8 +5143,6 @@ installSniffing() {
 warpRouting() {
     echoContent skyBlue "\n进度  $1/${totalProgress} : WARP分流"
     echoContent red "=============================================================="
-    #	echoContent yellow "# 注意事项\n"
-    # 安装warp
     if [[ -z $(which warp-cli) ]]; then
         echo
         read -r -p "WARP未安装，是否安装 ？[y/n]:" installCloudflareWarpStatus
@@ -5102,50 +5157,25 @@ warpRouting() {
     echoContent red "\n=============================================================="
     echoContent yellow "1.查看已分流域名"
     echoContent yellow "2.添加域名"
-    echoContent yellow "3.卸载WARP分流"
+    echoContent yellow "3.设置WARP全局"
+    echoContent yellow "4.卸载WARP分流"
     echoContent red "=============================================================="
     read -r -p "请选择:" warpStatus
     if [[ "${warpStatus}" == "1" ]]; then
         jq -r -c '.routing.rules[]|select (.outboundTag=="warp-socks-out")|.domain' ${configPath}09_routing.json | jq -r
         exit 0
     elif [[ "${warpStatus}" == "2" ]]; then
-        echoContent red "=============================================================="
         echoContent yellow "# 注意事项\n"
-        echoContent yellow "1.规则仅支持预定义域名列表[https://github.com/v2fly/domain-list-community]"
-        echoContent yellow "2.详细文档[https://www.v2fly.org/config/routing.html]"
-        echoContent yellow "3.只可以把流量分流给warp，不可指定是ipv4或者ipv6"
-        echoContent yellow "4.如内核启动失败请检查域名后重新添加域名"
-        echoContent yellow "5.不允许有特殊字符，注意逗号的格式"
-        echoContent yellow "6.每次添加都是重新添加，不会保留上次域名"
-        echoContent yellow "7.支持hysteria"
-        echoContent yellow "8.录入示例:google,youtube,facebook,cn\n"
+        echoContent yellow "1.规则支持预定义域名列表[https://github.com/v2fly/domain-list-community]"
+        echoContent yellow "2.规则支持自定义域名"
+        echoContent yellow "3.录入示例:speedtest,facebook,cn,example.com"
+        echoContent yellow "4.如果域名在预定义域名列表中存在则使用 geosite:xx，如果不存在则默认使用输入的域名"
+        echoContent yellow "5.添加规则为增量配置，不会删除之前设置的内容\n"
+
         read -r -p "请按照上面示例录入域名:" domainList
 
-        if [[ -f "${configPath}09_routing.json" ]]; then
-            unInstallRouting warp-socks-out outboundTag
+        addInstallRouting warp-socks-out outboundTag "${domainList}"
 
-            routing=$(jq -r ".routing.rules += [{\"type\":\"field\",\"domain\":[\"geosite:${domainList//,/\",\"geosite:}\"],\"outboundTag\":\"warp-socks-out\"}]" ${configPath}09_routing.json)
-
-            echo "${routing}" | jq . >${configPath}09_routing.json
-
-        else
-            cat <<EOF >${configPath}09_routing.json
-{
-    "routing":{
-        "domainStrategy": "IPOnDemand",
-        "rules": [
-          {
-            "type": "field",
-            "domain": [
-            	"geosite:${domainList//,/\",\"geosite:}"
-            ],
-            "outboundTag": "warp-socks-out"
-          }
-        ]
-  }
-}
-EOF
-        fi
         unInstallOutbounds warp-socks-out
 
         local outbounds
@@ -5157,11 +5187,53 @@ EOF
 
     elif [[ "${warpStatus}" == "3" ]]; then
 
+        echoContent red "=============================================================="
+        echoContent yellow "# 注意事项\n"
+        echoContent yellow "1.会删除设置的所有分流规则"
+        echoContent yellow "2.会删除除WARP之外的所有出站规则"
+        read -r -p "是否确认设置？[y/n]:" warpOutStatus
+
+        if [[ "${warpOutStatus}" == "y" ]]; then
+            cat <<EOF >${configPath}10_ipv4_outbounds.json
+{
+    "outbounds":[
+        {
+          "protocol": "socks",
+          "settings": {
+            "servers": [
+              {
+                "address": "127.0.0.1",
+                "port": 31303
+              }
+            ]
+          },
+          "tag": "warp-socks-out"
+        }
+    ]
+}
+EOF
+            rm ${configPath}09_routing.json >/dev/null 2>&1
+            echoContent green " ---> WARP全局出站设置成功"
+        else
+            echoContent green " ---> 放弃设置"
+            exit 0
+        fi
+
+    elif
+        [[ "${warpStatus}" == "4" ]]
+    then
+
         ${removeType} cloudflare-warp >/dev/null 2>&1
 
         unInstallRouting warp-socks-out outboundTag
 
         unInstallOutbounds warp-socks-out
+
+        if ! grep -q "IPv4-out" <"${configPath}10_ipv4_outbounds.json"; then
+            outbounds=$(jq -r '.outbounds += [{"protocol":"freedom","settings": {"domainStrategy": "UseIPv4"},"tag":"IPv4-out"}]' ${configPath}10_ipv4_outbounds.json)
+
+            echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
+        fi
 
         echoContent green " ---> WARP分流卸载成功"
     else
@@ -6822,7 +6894,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.8.13"
+    echoContent green "当前版本：v2.8.14"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
@@ -6831,7 +6903,6 @@ menu() {
     echoContent red "                                              "
     echoContent green "推广请联系TG：@mackaff\n"
     echoContent green "购买VPS进行捐赠：https://www.v2ray-agent.com/categories/vps"
-    echoContent green "ChatGPT解锁：https://www.v2ray-agent.com/archives/olinkshen-du-ce-ping"
     echoContent green "freevod免费的观影网站：https://www.v2ray-agent.com/archives/1682647927103"
     echoContent red "=============================================================="
     if [[ -n "${coreInstallType}" ]]; then
