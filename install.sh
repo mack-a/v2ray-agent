@@ -5015,10 +5015,6 @@ blacklist() {
 }
 # 添加routing配置
 addInstallRouting() {
-    # 如果文件存在 则读取后添加，如果重复则不添加
-    # 如果不存在则创建文件然后添加内容
-    # 默认使用geosite 如果没有默认域名则默认使用域名
-    # https://github.com/v2fly/domain-list-community 校验
 
     local tag=$1    # warp-socks
     local type=$2   # outboundTag/inboundTag
@@ -5069,6 +5065,12 @@ EOF
     done < <(echo "${domain}" | tr ',' '\n')
 
     unInstallRouting "${tag}" "${type}"
+    if ! grep -q "gstatic.com" ${configPath}09_routing.json && [[ "${tag}" == "blackhole-out" ]]; then
+        local routing=
+        routing=$(jq -r ".routing.rules += [{\"type\": \"field\",\"domain\": [\"gstatic.com\"],\"outboundTag\": \"direct\"}]" ${configPath}09_routing.json)
+        echo "${routing}" | jq . >${configPath}09_routing.json
+    fi
+
     routing=$(jq -r ".routing.rules += [${routingRule}]" ${configPath}09_routing.json)
     echo "${routing}" | jq . >${configPath}09_routing.json
 }
@@ -6894,7 +6896,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.8.14"
+    echoContent green "当前版本：v2.8.15"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
