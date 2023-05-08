@@ -366,19 +366,35 @@ readInstallProtocolType() {
 checkBTPanel() {
     if [[ -n $(pgrep -f "BT-Panel") ]]; then
         # 读取域名
-        if [[ -d '/www/server/panel/vhost/cert/' ]]; then
-            btDomain=$(find /www/server/panel/vhost/cert/* | head -1 | awk -F "[/]" '{print $7}')
-            domain=${btDomain}
-            if [[ ! -f "/etc/v2ray-agent/tls/${btDomain}.key" && ! -f "/etc/v2ray-agent/tls/${btDomain}.crt" && ! -L "/etc/v2ray-agent/tls/${btDomain}.key" && ! -L "/etc/v2ray-agent/tls/${btDomain}.crt" ]]; then
-                ln -s "/www/server/panel/vhost/cert/${btDomain}/privkey.pem" "/etc/v2ray-agent/tls/${btDomain}.key"
-                ln -s "/www/server/panel/vhost/cert/${btDomain}/fullchain.pem" "/etc/v2ray-agent/tls/${btDomain}.crt"
-            fi
-            nginxStaticPath="/www/wwwroot/${btDomain}/"
-            if [[ -f "/www/wwwroot/${btDomain}/.user.ini" ]]; then
-                chattr -i "/www/wwwroot/${btDomain}/.user.ini"
-            fi
+        if [[ -d '/www/server/panel/vhost/cert/' && -n $(find /www/server/panel/vhost/cert/*/fullchain.pem) ]]; then
 
-            nginxConfigPath="/www/server/panel/vhost/nginx/"
+            echoContent skyBlue "\n读取宝塔配置\n"
+
+            find /www/server/panel/vhost/cert/*/fullchain.pem | awk -F "[/]" '{print $7}' | awk '{print NR""":"$0}'
+
+            read -r -p "请输入编号选择:" selectBTDomain
+            if [[ -n "${selectBTDomain}" ]]; then
+                btDomain=$(find /www/server/panel/vhost/cert/*/fullchain.pem | awk -F "[/]" '{print $7}' | awk '{print NR""":"$0}' | grep "${selectBTDomain}:" | cut -d ":" -f 2)
+                if [[ -z "${btDomain}" ]]; then
+                    echoContent red " ---> 选择错误，请重新选择"
+                    checkBTPanel
+                else
+                    domain=${btDomain}
+                    ln -s "/www/server/panel/vhost/cert/${btDomain}/fullchain.pem" "/etc/v2ray-agent/tls/${btDomain}.crt"
+                    ln -s "/www/server/panel/vhost/cert/${btDomain}/privkey.pem" "/etc/v2ray-agent/tls/${btDomain}.key"
+
+                    nginxStaticPath="/www/wwwroot/${btDomain}/"
+                    if [[ -f "/www/wwwroot/${btDomain}/.user.ini" ]]; then
+                        chattr -i "/www/wwwroot/${btDomain}/.user.ini"
+                    fi
+
+                    nginxConfigPath="/www/server/panel/vhost/nginx/"
+                fi
+
+            else
+                echoContent red " ---> 选择错误，请重新选择"
+                checkBTPanel
+            fi
         fi
     fi
 }
@@ -670,7 +686,6 @@ readInstallProtocolType
 readConfigHostPathUUID
 readInstallAlpn
 readCustomPort
-checkBTPanel
 readXrayCoreRealityConfig
 # -------------------------------------------------------------
 
@@ -1050,8 +1065,9 @@ EOF
 updateRedirectNginxConf() {
     local redirectDomain=
     redirectDomain=${domain}:${port}
-
-    checkPortOpen 80 "${domain}" >/dev/null
+    if [[ -z "${btDomain}" ]]; then
+        checkPortOpen 80 "${domain}" >/dev/null
+    fi
 
     cat <<EOF >${nginxConfigPath}alone.conf
     server {
@@ -1370,7 +1386,11 @@ customPortFunction() {
         echo
 
         if [[ -n "${btDomain}" ]]; then
-            echoContent yellow "请输入端口[不可与BT Panel端口相同]"
+            echoContent yellow "请输入端口[不可与BT Panel端口相同，回车随机]"
+            read -r -p "端口:" port
+            if [[ -z "${port}" ]]; then
+                port=$((RANDOM % 50001 + 10000))
+            fi
         else
             checkPortOpen 80 "${domain}"
             if [[ "${isPortOpen80}" == "true" ]]; then
@@ -5782,6 +5802,7 @@ customV2RayInstall() {
     fi
     if [[ "${selectCustomInstallType}" =~ ^[0-5]+$ ]]; then
         cleanUp xrayClean
+        checkBTPanel
         totalProgress=17
         installTools 1
         # 申请tls
@@ -5836,8 +5857,8 @@ customXrayInstall() {
         if ! echo "${selectCustomInstallType}" | grep -q "0"; then
             selectCustomInstallType="0${selectCustomInstallType}"
         fi
-
         cleanUp v2rayClean
+        checkBTPanel
         totalProgress=12
         installTools 1
         if [[ -n "${btDomain}" ]]; then
@@ -5860,14 +5881,14 @@ customXrayInstall() {
             customCDNIP 5
         fi
         if [[ -n "${btDomain}" ]]; then
-            echoContent skyBlue "\n进度  6/${totalProgress} : 检测到宝塔面板，是否 安装/重新安装 伪装站点？"
-            echoContent red "=============================================================="
-            echoContent yellow "# 注意事项"
-            echoContent yellow "会清空当前安装网站下面的静态目录，如已自定义安装过请选择 [n]\n"
-            read -r -p "请选择[y/n]:" nginxBlogBTStatus
-            if [[ "${nginxBlogBTStatus}" == "y" ]]; then
-                nginxBlog 6
-            fi
+            echoContent skyBlue "\n进度  6/${totalProgress} : 检测到宝塔面板，跳过伪装网站"
+            #            echoContent red "=============================================================="
+            #            echoContent yellow "# 注意事项"
+            #            echoContent yellow "会清空当前安装网站下面的静态目录，如已自定义安装过请选择 [n]\n"
+            #            read -r -p "请选择[y/n]:" nginxBlogBTStatus
+            #            if [[ "${nginxBlogBTStatus}" == "y" ]]; then
+            #                nginxBlog 6
+            #            fi
         else
             nginxBlog 6
         fi
@@ -5934,6 +5955,7 @@ selectCoreInstall() {
 # v2ray-core 安装
 v2rayCoreInstall() {
     cleanUp xrayClean
+    checkBTPanel
     selectCustomInstallType=
     totalProgress=13
     installTools 2
@@ -5969,6 +5991,7 @@ v2rayCoreInstall() {
 # xray-core 安装
 xrayCoreInstall() {
     cleanUp v2rayClean
+    checkBTPanel
     selectCustomInstallType=
     totalProgress=13
     installTools 2
@@ -5995,18 +6018,17 @@ xrayCoreInstall() {
     cleanUp v2rayDel
     installCronTLS 10
     if [[ -n "${btDomain}" ]]; then
-        echoContent skyBlue "\n进度  11/${totalProgress} : 检测到宝塔面板，是否 安装/重新安装 伪装站点？"
-        echoContent red "=============================================================="
-        echoContent yellow "# 注意事项"
-        echoContent yellow "会清空当前安装网站下面的静态目录，如已自定义安装过请选择 [n]\n"
-        read -r -p "请选择[y/n]:" nginxBlogBTStatus
-        if [[ "${nginxBlogBTStatus}" == "y" ]]; then
-            nginxBlog 11
-        fi
+        echoContent skyBlue "\n进度  11/${totalProgress} : 检测到宝塔面板，跳过伪装网站"
+        #        echoContent red "=============================================================="
+        #        echoContent yellow "# 注意事项"
+        #        echoContent yellow "会清空当前安装网站下面的静态目录，如已自定义安装过请选择 [n]\n"
+        #        read -r -p "请选择[y/n]:" nginxBlogBTStatus
+        #        if [[ "${nginxBlogBTStatus}" == "y" ]]; then
+        #            nginxBlog 11
+        #        fi
     else
         nginxBlog 11
     fi
-
     updateRedirectNginxConf
     handleXray stop
     sleep 2
@@ -6896,7 +6918,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.8.15"
+    echoContent green "当前版本：v2.8.16"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
