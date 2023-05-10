@@ -32,6 +32,15 @@ echoContent() {
         ;;
     esac
 }
+# 检查SELinux状态
+checkCentosSELinux() {
+    if [[ -f "/etc/selinux/config" ]] && ! grep -q "SELINUX=disabled" <"/etc/selinux/config"; then
+        echoContent yellow "# 注意事项"
+        echoContent yellow "检测到SELinux已开启，请手动关闭，教程如下"
+        echoContent yellow "https://www.v2ray-agent.com/archives/1679931532764#heading-8 "
+        exit 0
+    fi
+}
 checkSystem() {
     if [[ -n $(find /etc -name "redhat-release") ]] || grep </proc/version -q -i "centos"; then
         mkdir -p /etc/yum.repos.d
@@ -48,7 +57,7 @@ checkSystem() {
         installType='yum -y install'
         removeType='yum -y remove'
         upgrade="yum update -y --skip-broken"
-
+        checkCentosSELinux
     elif grep </etc/issue -q -i "debian" && [[ -f "/etc/issue" ]] || grep </etc/issue -q -i "debian" && [[ -f "/proc/version" ]]; then
         release="debian"
         installType='apt -y install'
@@ -1685,9 +1694,9 @@ renewalTLS() {
         modifyTime=
 
         if [[ "${installDNSACMEStatus}" == "true" ]]; then
-            modifyTime=$(stat "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.cer" | sed -n '7,6p' | awk '{print $2" "$3" "$4" "$5}')
+            modifyTime=$(stat --format=%z "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.cer")
         else
-            modifyTime=$(stat "$HOME/.acme.sh/${domain}_ecc/${domain}.cer" | sed -n '7,6p' | awk '{print $2" "$3" "$4" "$5}')
+            modifyTime=$(stat --format=%z "$HOME/.acme.sh/${domain}_ecc/${domain}.cer")
         fi
 
         modifyTime=$(date +%s -d "${modifyTime}")
@@ -6918,7 +6927,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.8.16"
+    echoContent green "当前版本：v2.8.17"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
