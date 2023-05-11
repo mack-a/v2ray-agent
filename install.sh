@@ -169,6 +169,11 @@ initVar() {
 
     # hysteria 配置文件的路径
     hysteriaConfigPath=
+    #    interfaceName=
+    # 端口跳跃
+    portHoppingStart=
+    portHoppingEnd=
+    portHopping=
 
     # 配置文件的path
     currentPath=
@@ -447,8 +452,14 @@ allowPort() {
         local updateFirewalldStatus=
         if ! firewall-cmd --list-ports --permanent | grep -qw "$1/${type}"; then
             updateFirewalldStatus=true
-            firewall-cmd --zone=public --add-port="$1/${type}" --permanent
-            checkFirewalldAllowPort "$1"
+            local firewallPort=$1
+
+            if echo "${firewallPort}" | grep ":"; then
+                firewallPort=$(echo "${firewallPort}" | awk -F ":" '{print $1-$2}')
+            fi
+
+            firewall-cmd --zone=public --add-port="${firewallPort}/${type}" --permanent
+            checkFirewalldAllowPort "${firewallPort}"
         fi
 
         if echo "${updateFirewalldStatus}" | grep -q "true"; then
@@ -1398,7 +1409,7 @@ customPortFunction() {
             echoContent yellow "请输入端口[不可与BT Panel端口相同，回车随机]"
             read -r -p "端口:" port
             if [[ -z "${port}" ]]; then
-                port=$((RANDOM % 50001 + 10000))
+                port=$((RANDOM % 20001 + 10000))
             fi
         else
             checkPortOpen 80 "${domain}"
@@ -2464,10 +2475,10 @@ initHysteriaPort() {
     fi
 
     if [[ -z "${hysteriaPort}" ]]; then
-        echoContent yellow "请输入Hysteria端口[回车随机10000-60000]，不可与其他服务重复"
+        echoContent yellow "请输入Hysteria端口[回车随机10000-30000]，不可与其他服务重复"
         read -r -p "端口:" hysteriaPort
         if [[ -z "${hysteriaPort}" ]]; then
-            hysteriaPort=$((RANDOM % 50001 + 10000))
+            hysteriaPort=$((RANDOM % 20001 + 10000))
         fi
     fi
     if [[ -z ${hysteriaPort} ]]; then
@@ -2539,6 +2550,110 @@ initHysteriaNetwork() {
 }
 EOF
 
+}
+
+# hy端口跳跃
+hysteriaPortHopping() {
+    if [[ -n "${portHoppingStart}" || -n "${portHoppingEnd}" ]]; then
+        echoContent red " ---> 已添加不可重复添加，可删除后重新添加"
+        exit 0
+    fi
+
+    echoContent skyBlue "\n进度 1/1 : 端口跳跃"
+    echoContent red "\n=============================================================="
+    echoContent yellow "# 注意事项\n"
+    echoContent yellow "仅支持UDP"
+    echoContent yellow "端口跳跃的起始位置为30000"
+    echoContent yellow "端口跳跃的结束位置为60000"
+    echoContent yellow "可以在30000-60000范围中选一段"
+    echoContent yellow "建议1000个左右"
+    echoContent yellow "网卡一般默认为en开头或者eth开头，不要选择lo\n"
+
+    echoContent yellow "请输入端口跳跃的范围，例如[30000-31000]"
+
+    read -r -p "范围:" hysteriaPortHoppingRange
+    if [[ -z "${hysteriaPortHoppingRange}" ]]; then
+        echoContent red " ---> 范围不可为空"
+        hysteriaPortHopping
+    elif echo "${hysteriaPortHoppingRange}" | grep -q "-"; then
+
+        local portStart=
+        local portEnd=
+        portStart=$(echo "${hysteriaPortHoppingRange}" | awk -F '-' '{print $1}')
+        portEnd=$(echo "${hysteriaPortHoppingRange}" | awk -F '-' '{print $2}')
+
+        if [[ -z "${portStart}" || -z "${portEnd}" ]]; then
+            echoContent red " ---> 范围不合法"
+            hysteriaPortHopping
+        elif ((portStart < 30000 || portStart > 60000 || portEnd < 30000 || portEnd > 60000 || portEnd < portStart)); then
+            echoContent red " ---> 范围不合法"
+            hysteriaPortHopping
+        else
+            echoContent green "\n端口范围: ${hysteriaPortHoppingRange}\n"
+            #            ip -4 addr show | awk '/inet /{print $NF ":" $2}' | awk '{print ""NR""":"$0}'
+            #            read -r -p "请选择对应网卡:" selectInterface
+            #            if ! ip -4 addr show | awk '/inet /{print $NF ":" $2}' | awk '{print ""NR""":"$0}' | grep -q "${selectInterface}:"; then
+            #                echoContent red " ---> 选择错误"
+            #                hysteriaPortHopping
+            #            else
+            iptables -t nat -A PREROUTING -p udp --dport "${portStart}:${portEnd}" -m comment --comment "mack-a_portHopping" -j DNAT --to-destination :${hysteriaPort}
+
+            if iptables-save | grep -q "mack-a_portHopping"; then
+                allowPort "${portStart}:${portEnd}" udp
+                echoContent green " ---> 端口跳跃添加成功"
+            else
+                echoContent red " ---> 端口跳跃添加失败"
+            fi
+            #            fi
+        fi
+
+    fi
+}
+
+# 读取端口跳跃的配置
+readHysteriaPortHopping() {
+    if [[ -n "${hysteriaPort}" ]]; then
+        #        interfaceName=$(ip -4 addr show | awk '/inet /{print $NF ":" $2}' | awk '{print ""NR""":"$0}' | grep "${selectInterface}:" | awk -F "[:]" '{print $2}')
+        if iptables-save | grep -q "mack-a_portHopping"; then
+            portHopping=
+            portHopping=$(iptables-save | grep "mack-a_portHopping" | cut -d " " -f 8)
+            portHoppingStart=$(echo "${portHopping}" | cut -d ":" -f 1)
+            portHoppingEnd=$(echo "${portHopping}" | cut -d ":" -f 2)
+        fi
+    fi
+}
+# 删除hysteria 端口条约iptables规则
+deleteHysteriaPortHoppingRules() {
+    iptables -t nat -L PREROUTING --line-numbers | grep "mack-a_portHopping" | awk '{print $1}' | while read -r line; do
+        iptables -t nat -D PREROUTING 1
+    done
+}
+hysteriaPortHoppingMenu() {
+    # 判断iptables是否存在
+    if ! find /usr/bin /usr/sbin | grep -q -w iptables; then
+        echoContent red " ---> 无法识别iptables工具，无法使用端口跳跃，退出安装"
+        exit 0
+    fi
+    readHysteriaConfig
+    readHysteriaPortHopping
+    echoContent skyBlue "\n进度 1/1 : 端口跳跃"
+    echoContent red "\n=============================================================="
+    echoContent yellow "1.添加端口跳跃"
+    echoContent yellow "2.删除端口跳跃"
+    echoContent yellow "3.查看端口跳跃"
+    read -r -p "范围:" selectPortHoppingStatus
+    if [[ "${selectPortHoppingStatus}" == "1" ]]; then
+        hysteriaPortHopping
+    elif [[ "${selectPortHoppingStatus}" == "2" ]]; then
+        if [[ -n "${portHopping}" ]]; then
+            deleteHysteriaPortHoppingRules
+            echoContent green " ---> 删除成功"
+        fi
+    elif [[ "${selectPortHoppingStatus}" == "3" ]]; then
+        echoContent green " ---> 当前端口跳跃范围为: ${portHoppingStart}-${portHoppingEnd}"
+    else
+        hysteriaPortHoppingMenu
+    fi
 }
 # 初始化Hysteria配置
 initHysteriaConfig() {
@@ -3666,15 +3781,21 @@ EOF
         local hysteriaEmail=
         hysteriaEmail=$(echo "${email}" | awk -F "[_]" '{print $1}')_hysteria
         echoContent yellow " ---> Hysteria(TLS)"
-        echoContent green "    hysteria://${currentHost}:${hysteriaPort}?protocol=${hysteriaProtocol}&auth=${id}&peer=${currentHost}&insecure=0&alpn=h3&upmbps=${hysteriaClientUploadSpeed}&downmbps=${hysteriaClientDownloadSpeed}#${hysteriaEmail}\n"
+        local clashMetaPortTmp="port: ${hysteriaPort}"
+        local mport=
+        if [[ -n "${portHoppingStart}" ]]; then
+            mport="mport=${portHoppingStart}-${portHoppingEnd}&"
+            clashMetaPortTmp="ports: ${portHoppingStart}-${portHoppingEnd}"
+        fi
+        echoContent green "    hysteria://${currentHost}:${hysteriaPort}?${mport}protocol=${hysteriaProtocol}&auth=${id}&peer=${currentHost}&insecure=0&alpn=h3&upmbps=${hysteriaClientUploadSpeed}&downmbps=${hysteriaClientDownloadSpeed}#${hysteriaEmail}\n"
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
-hysteria://${currentHost}:${hysteriaPort}?protocol=${hysteriaProtocol}&auth=${id}&peer=${currentHost}&insecure=0&alpn=h3&upmbps=${hysteriaClientUploadSpeed}&downmbps=${hysteriaClientDownloadSpeed}#${hysteriaEmail}
+hysteria://${currentHost}:${hysteriaPort}?${mport}protocol=${hysteriaProtocol}&auth=${id}&peer=${currentHost}&insecure=0&alpn=h3&upmbps=${hysteriaClientUploadSpeed}&downmbps=${hysteriaClientDownloadSpeed}#${hysteriaEmail}
 EOF
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
   - name: "${hysteriaEmail}"
     type: hysteria
     server: ${currentHost}
-    port: ${hysteriaPort}
+    ${clashMetaPortTmp}
     auth_str: ${id}
     alpn:
      - h3
@@ -3684,7 +3805,10 @@ EOF
     sni: ${currentHost}
 EOF
         echoContent yellow " ---> 二维码 Hysteria(TLS)"
-        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=hysteria%3A%2F%2F${currentHost}%3A${hysteriaPort}%3Fprotocol%3D${hysteriaProtocol}%26auth%3D${id}%26peer%3D${currentHost}%26insecure%3D0%26alpn%3Dh3%26upmbps%3D${hysteriaClientUploadSpeed}%26downmbps%3D${hysteriaClientDownloadSpeed}%23${hysteriaEmail}\n"
+        if [[ -n "${mport}" ]]; then
+            mport="mport%3D${portHoppingStart}-${portHoppingEnd}%26"
+        fi
+        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=hysteria%3A%2F%2F${currentHost}%3A${hysteriaPort}%3F${mport}protocol%3D${hysteriaProtocol}%26auth%3D${id}%26peer%3D${currentHost}%26insecure%3D0%26alpn%3Dh3%26upmbps%3D${hysteriaClientUploadSpeed}%26downmbps%3D${hysteriaClientDownloadSpeed}%23${hysteriaEmail}\n"
     elif [[ "${type}" == "vlessReality" ]]; then
         echoContent yellow " ---> 通用格式(VLESS+reality+uTLS+Vision)"
         echoContent green "    vless://${id}@$(getPublicIP):${currentRealityPort}?encryption=none&security=reality&type=tcp&sni=${currentRealityServerNames}&fp=chrome&pbk=${currentRealityPublicKey}&flow=xtls-rprx-vision#${email}\n"
@@ -3750,6 +3874,7 @@ showAccounts() {
     readConfigHostPathUUID
     readHysteriaConfig
     readXrayCoreRealityConfig
+    readHysteriaPortHopping
 
     echoContent skyBlue "\n进度 $1/${totalProgress} : 账号"
     local show
@@ -6061,7 +6186,7 @@ hysteriaCoreInstall() {
     initHysteriaConfig 2
     installHysteriaService 3
     reloadCore
-    showAccounts 5
+    showAccounts 4
 }
 # 卸载 hysteria
 unInstallHysteriaCore() {
@@ -6070,6 +6195,7 @@ unInstallHysteriaCore() {
         echoContent red "\n ---> 未安装"
         exit 0
     fi
+    deleteHysteriaPortHoppingRules
     handleHysteria stop
     rm -rf /etc/v2ray-agent/hysteria/*
     rm ${configPath}02_socks_inbounds_hysteria.json
@@ -6772,10 +6898,10 @@ initRealityPort() {
             fi
         fi
         if [[ -z "${realityPort}" ]]; then
-            echoContent yellow "请输入端口[回车随机10000-60000]"
+            echoContent yellow "请输入端口[回车随机10000-30000]"
             read -r -p "端口:" realityPort
             if [[ -z "${realityPort}" ]]; then
-                realityPort=$((RANDOM % 50001 + 10000))
+                realityPort=$((RANDOM % 20001 + 10000))
             fi
         fi
         if [[ -n "${realityPort}" && "${currentRealityPort}" == "${realityPort}" ]]; then
@@ -6874,8 +7000,9 @@ manageHysteria() {
     if [[ -n "${hysteriaConfigPath}" ]]; then
         echoContent yellow "1.重新安装"
         echoContent yellow "2.卸载"
-        echoContent yellow "3.core管理"
-        echoContent yellow "4.查看日志"
+        echoContent yellow "3.端口跳跃管理"
+        echoContent yellow "4.core管理"
+        echoContent yellow "5.查看日志"
         hysteriaStatus=true
     else
         echoContent yellow "1.安装"
@@ -6888,8 +7015,10 @@ manageHysteria() {
     elif [[ "${installHysteriaStatus}" == "2" && "${hysteriaStatus}" == "true" ]]; then
         unInstallHysteriaCore
     elif [[ "${installHysteriaStatus}" == "3" && "${hysteriaStatus}" == "true" ]]; then
-        hysteriaVersionManageMenu 1
+        hysteriaPortHoppingMenu
     elif [[ "${installHysteriaStatus}" == "4" && "${hysteriaStatus}" == "true" ]]; then
+        hysteriaVersionManageMenu 1
+    elif [[ "${installHysteriaStatus}" == "5" && "${hysteriaStatus}" == "true" ]]; then
         journalctl -fu hysteria
     fi
 }
@@ -6927,7 +7056,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.8.17"
+    echoContent green "当前版本：v2.8.18"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
@@ -6935,7 +7064,7 @@ menu() {
     echoContent red "\n=========================== 推广区============================"
     echoContent red "                                              "
     echoContent green "推广请联系TG：@mackaff\n"
-    echoContent green "购买VPS进行捐赠：https://www.v2ray-agent.com/categories/vps"
+    echoContent green "VPS选购攻略：https://www.v2ray-agent.com/archives/1679975663984"
     echoContent green "freevod免费的观影网站：https://www.v2ray-agent.com/archives/1682647927103"
     echoContent red "=============================================================="
     if [[ -n "${coreInstallType}" ]]; then

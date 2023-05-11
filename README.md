@@ -4,7 +4,7 @@
 - [Thanks for non-commercial open source development authorization by JetBrains](https://www.jetbrains.com/?from=v2ray-agent)
 
 - [English Version](https://github.com/mack-a/v2ray-agent/blob/master/documents/en/README_EN.md)
-- [VPS选购指南](https://www.v2ray-agent.com/archives/1679975663984)
+- [VPS选购攻略，让你少走弯路](https://www.v2ray-agent.com/archives/1679975663984)
 - [ChatGPT解锁](https://www.v2ray-agent.com/archives/olinkshen-du-ce-ping)
 - [freevod一个免费的观影网站](https://share.freevod.org/)
 - [TG频道](https://t.me/v2rayAgentChannel)、[TG群组](https://t.me/technologyshare)、[官方网站](https://www.v2ray-agent.com/)
