@@ -204,8 +204,8 @@ initVar() {
 
     localIP=
 
-    # 集成更新证书逻辑不再使用单独的脚本--RenewTLS
-    renewTLS=$1
+    # 定时任务执行任务名称 RenewTLS-更新证书 UpdateGeo-更新geo文件
+    cronName=$1
 
     # tls安装失败后尝试的次数
     installTLSCount=
@@ -726,7 +726,6 @@ mkdirTools() {
     mkdir -p /etc/v2ray-agent/v2ray/tmp
     mkdir -p /etc/v2ray-agent/xray/conf
     mkdir -p /etc/v2ray-agent/xray/tmp
-    mkdir -p /etc/v2ray-agent/trojan
     mkdir -p /etc/v2ray-agent/hysteria/conf
     mkdir -p /etc/systemd/system/
     mkdir -p /tmp/v2ray-agent-tls/
@@ -1683,6 +1682,20 @@ installCronTLS() {
         echoContent green "\n ---> 添加定时维护证书成功"
     fi
 }
+# 定时任务更新geo文件
+installCronUpdateGeo() {
+    if [[ -n "${configPath}" ]]; then
+        if crontab -l | grep -q "UpdateGeo"; then
+            echoContent red "\n ---> 已添加自动更新定时任务，请不要重复添加"
+            exit 0
+        fi
+        echoContent skyBlue "\n进度 1/1 : 添加定时更新geo文件"
+        crontab -l >/etc/v2ray-agent/backup_crontab.cron
+        echo "35 1 * * * /bin/bash /etc/v2ray-agent/install.sh UpdateGeo >> /etc/v2ray-agent/crontab_tls.log 2>&1" >>/etc/v2ray-agent/backup_crontab.cron
+        crontab /etc/v2ray-agent/backup_crontab.cron
+        echoContent green "\n ---> 添加定时更新geo文件成功"
+    fi
+}
 
 # 更新证书
 renewalTLS() {
@@ -1900,6 +1913,7 @@ v2rayVersionManageMenu() {
     echoContent yellow "4.打开v2ray-core"
     echoContent yellow "5.重启v2ray-core"
     echoContent yellow "6.更新geosite、geoip"
+    echoContent yellow "7.设置自动更新geo文件[每天凌晨更新]"
     echoContent red "=============================================================="
     read -r -p "请选择:" selectV2RayType
     if [[ "${selectV2RayType}" == "1" ]]; then
@@ -1928,6 +1942,8 @@ v2rayVersionManageMenu() {
         reloadCore
     elif [[ "${selectXrayType}" == "6" ]]; then
         updateGeoSite
+    elif [[ "${selectXrayType}" == "7" ]]; then
+        installCronUpdateGeo
     fi
 }
 
@@ -1947,6 +1963,7 @@ xrayVersionManageMenu() {
     echoContent yellow "5.打开Xray-core"
     echoContent yellow "6.重启Xray-core"
     echoContent yellow "7.更新geosite、geoip"
+    echoContent yellow "8.设置自动更新geo文件[每天凌晨更新]"
     echoContent red "=============================================================="
     read -r -p "请选择:" selectXrayType
     if [[ "${selectXrayType}" == "1" ]]; then
@@ -1979,6 +1996,8 @@ xrayVersionManageMenu() {
         reloadCore
     elif [[ "${selectXrayType}" == "7" ]]; then
         updateGeoSite
+    elif [[ "${selectXrayType}" == "8" ]]; then
+        installCronUpdateGeo
     fi
 }
 
@@ -4339,8 +4358,6 @@ unInstall() {
     echoContent green " ---> 卸载v2ray-agent脚本完成"
 }
 
-#updateGeoSite
-
 # 修改V2Ray CDN节点
 updateV2RayCDN() {
 
@@ -6233,10 +6250,14 @@ coreVersionManageMenu() {
         v2rayVersionManageMenu 1
     fi
 }
-# 定时任务检查证书
-cronRenewTLS() {
-    if [[ "${renewTLS}" == "RenewTLS" ]]; then
+# 定时任务检查
+cronFunction() {
+    if [[ "${cronName}" == "RenewTLS" ]]; then
         renewalTLS
+        exit 0
+    elif [[ "${cronName}" == "UpdateGeo" ]]; then
+        updateGeoSite >>/etc/v2ray-agent/crontab_updateGeoSite.log
+        echoContent green " ---> geo更新日期:$(date "+%F %H:%M:%S")" >>/etc/v2ray-agent/crontab_updateGeoSite.log
         exit 0
     fi
 }
@@ -7056,7 +7077,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.8.18"
+    echoContent green "当前版本：v2.8.19"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
@@ -7171,5 +7192,5 @@ menu() {
         ;;
     esac
 }
-cronRenewTLS
+cronFunction
 menu
