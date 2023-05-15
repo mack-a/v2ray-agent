@@ -6869,11 +6869,18 @@ initRealityDest() {
     if [[ -n "${domain}" ]]; then
         realityDestDomain=${domain}:${port}
     else
+        local realityDestDomainList=
+        realityDestDomainList="gateway.icloud.com,itunes.apple.com,download-installer.cdn.mozilla.net,addons.mozilla.org,www.microsoft.com,www.lovelive-anime.jp,www.speedtest.net,www.speedtest.org,swdist.apple.com,swcdn.apple.com,updates.cdn-apple.com,mensura.cdn-apple.com,osxapps.itunes.apple.com,aod.itunes.apple.com,cdn-dynmedia-1.microsoft.com,update.microsoft,software.download.prss.microsoft.com,s0.awsstatic.com,d1.awsstatic.com,images-na.ssl-images-amazon.com,m.media-amazon.com,player.live-video.net,dl.google.com,www.google-analytics.com"
+
         echoContent skyBlue "\n===== 生成配置回落的域名 例如:[addons.mozilla.org:443] ======\n"
-        echoContent green "回落域名参考：https://www.v2ray-agent.com/archives/1680104902581#heading-8\n"
-        read -r -p "请输入[回车]使用默认:" realityDestDomain
+        echoContent green "回落域名列表：https://www.v2ray-agent.com/archives/1680104902581#heading-8\n"
+        read -r -p "请输入[回车]使用随机:" realityDestDomain
         if [[ -z "${realityDestDomain}" ]]; then
-            realityDestDomain="addons.mozilla.org:443"
+            local randomNum=
+            randomNum=$((RANDOM % 24 + 1))
+            echo randomNum:${randomNum}
+            echo ${realityDestDomainList}
+            realityDestDomain=$(echo "${realityDestDomainList}" | awk -F ',' -v randomNum="$randomNum" '{print $randomNum":443"}')
         fi
         if ! echo "${realityDestDomain}" | grep -q ":"; then
             echoContent red "\n ---> 域名不合规范，请重新输入"
@@ -6887,12 +6894,16 @@ initRealityDest() {
 initRealityClientServersName() {
     if [[ -n "${domain}" ]]; then
         realityServerNames=\"${domain}\"
+    elif [[ -n "${realityDestDomain}" ]]; then
+        realityServerNames=$(echo "${realityDestDomain}" | cut -d ":" -f 1)
+
+        realityServerNames=\"${realityServerNames//,/\",\"}\"
     else
         echoContent skyBlue "\n================ 配置客户端可用的serverNames ================\n"
         echoContent yellow "#注意事项"
-        echoContent green "客户端可用的serverNames：https://www.v2ray-agent.com/archives/1680104902581#heading-8\n"
+        echoContent green "客户端可用的serverNames 列表：https://www.v2ray-agent.com/archives/1680104902581#heading-8\n"
         echoContent yellow "录入示例:addons.mozilla.org\n"
-        read -r -p "请输入[回车]使用默认:" realityServerNames
+        read -r -p "请输入[回车]使用随机:" realityServerNames
         if [[ -z "${realityServerNames}" ]]; then
             realityServerNames=\"addons.mozilla.org\"
         else
@@ -7077,7 +7088,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.8.19"
+    echoContent green "当前版本：v2.8.20"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
