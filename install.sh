@@ -263,7 +263,7 @@ initVar() {
     realityDestDomain=
 
     # 端口状态
-    isPortOpen80=
+    #    isPortOpen=
     # 通配符域名状态
     wildcardDomainStatus=
     # 通过nginx检查的端口
@@ -995,7 +995,7 @@ checkPortOpen() {
     local domain=$2
     local checkPortOpenResult=
 
-    allowPort 80
+    allowPort "${port}"
 
     # 初始化nginx配置
     touch ${nginxConfigPath}checkPortOpen.conf
@@ -1014,11 +1014,14 @@ EOF
 
     checkPortOpenResult=$(curl -s -m 2 "http://${domain}:${port}/checkPort")
 
-    if [[ "${checkPortOpenResult}" == "fjkvymb6len" ]]; then
-        echoContent green " ---> 检测到80端口已开放"
-        isPortOpen80=true
-    fi
     rm "${nginxConfigPath}checkPortOpen.conf"
+    handleNginx stop
+    if [[ "${checkPortOpenResult}" == "fjkvymb6len" ]]; then
+        echoContent green " ---> 检测到${port}端口已开放"
+    else
+        echoContent green " ---> 未检测到${port}端口开放，退出安装"
+        exit 0
+    fi
 }
 
 # 初始化Nginx申请证书配置
@@ -1084,9 +1087,9 @@ EOF
 updateRedirectNginxConf() {
     local redirectDomain=
     redirectDomain=${domain}:${port}
-    if [[ -z "${btDomain}" ]]; then
-        checkPortOpen 80 "${domain}" >/dev/null
-    fi
+    #    if [[ -z "${btDomain}" ]]; then
+    #        checkPortOpen 80 "${domain}" >/dev/null
+    #    fi
 
     cat <<EOF >${nginxConfigPath}alone.conf
     server {
@@ -1095,16 +1098,16 @@ updateRedirectNginxConf() {
     		return 403;
     }
 EOF
-
-    if [[ -z "${btDomain}" && "${isPortOpen80}" == "true" ]]; then
-        cat <<EOF >${nginxConfigPath}alone.conf
-server {
-	listen 80;
-	server_name ${domain};
-	return 302 https://${redirectDomain};
-}
-EOF
-    fi
+    #
+    #    if [[ -z "${btDomain}" && "${isPortOpen}" == "true" ]]; then
+    #        cat <<EOF >${nginxConfigPath}alone.conf
+    #server {
+    #	listen 80;
+    #	server_name ${domain};
+    #	return 302 https://${redirectDomain};
+    #}
+    #EOF
+    #    fi
 
     if echo "${selectCustomInstallType}" | grep -q 2 && echo "${selectCustomInstallType}" | grep -q 5 || [[ -z "${selectCustomInstallType}" ]]; then
 
@@ -1387,8 +1390,12 @@ acmeInstallSSL() {
         fi
     else
         echoContent green " ---> 生成证书中"
-        sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --server "${sslType}" ${installSSLIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
+        sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --server "${sslType}" --tlsport "${port}" ${installSSLIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
+
+        sed -i '/Le_HTTPPort/d' "$HOME/.acme.sh/account.conf"
+        echo "Le_HTTPPort=${port}" >>"$HOME/.acme.sh/account.conf"
     fi
+
 }
 # 自定义端口
 customPortFunction() {
@@ -1411,24 +1418,27 @@ customPortFunction() {
                 port=$((RANDOM % 20001 + 10000))
             fi
         else
-            checkPortOpen 80 "${domain}"
-            if [[ "${isPortOpen80}" == "true" ]]; then
-                echo
-                echoContent yellow "请输入端口[默认: 443]，可自定义端口[回车使用默认]"
-                read -r -p "端口:" port
-                if [[ -z "${port}" ]]; then
-                    port=443
-                fi
-                if [[ "${port}" == "${currentRealityPort}" ]]; then
-                    handleXray stop
-                fi
-            else
-                # todo dns api
-                wildcardDomainStatus=true
-                echoContent red "未检测到80端口开放，无法安装，后续会支持DNS API [TODO]"
-                echoContent yellow "检查域名解析，可以通过ping排查"
-                exit 0
+            #            checkPortOpen 80 "${domain}"
+
+            #            if [[ "${isPortOpen}" == "true" ]]; then
+            echo
+            echoContent yellow "请输入端口[默认: 443]，可自定义端口[回车使用默认]"
+            read -r -p "端口:" port
+            if [[ -z "${port}" ]]; then
+                port=443
             fi
+            if [[ "${port}" == "${currentRealityPort}" ]]; then
+                handleXray stop
+            fi
+            checkPortOpen "${port}" "${domain}"
+
+            #            else
+            # todo dns api
+            #                wildcardDomainStatus=true
+            #                echoContent red "未检测到80端口开放，无法安装，后续会支持DNS API [TODO]"
+            #                echoContent yellow "检查域名解析，可以通过ping排查"
+            #                exit 0
+            #            fi
         fi
 
         checkPort "${port}"
@@ -1743,6 +1753,13 @@ renewalTLS() {
         if [[ ${remainingDays} -le 1 ]]; then
             echoContent yellow " ---> 重新生成证书"
             handleNginx stop
+
+            if [[ "${coreInstallType}" == "1" ]]; then
+                handleXray stop
+            elif [[ "${coreInstallType}" == "2" ]]; then
+                handleV2Ray stop
+            fi
+
             sudo "$HOME/.acme.sh/acme.sh" --cron --home "$HOME/.acme.sh"
             sudo "$HOME/.acme.sh/acme.sh" --installcert -d "${domain}" --fullchainpath /etc/v2ray-agent/tls/"${domain}.crt" --keypath /etc/v2ray-agent/tls/"${domain}.key" --ecc
             reloadCore
@@ -7088,7 +7105,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.8.20"
+    echoContent green "当前版本：v2.9.1"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
