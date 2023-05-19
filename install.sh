@@ -6842,8 +6842,6 @@ initRealityDest() {
         if [[ -z "${realityDestDomain}" ]]; then
             local randomNum=
             randomNum=$((RANDOM % 24 + 1))
-            echo randomNum:${randomNum}
-            echo ${realityDestDomainList}
             realityDestDomain=$(echo "${realityDestDomainList}" | awk -F ',' -v randomNum="$randomNum" '{print $randomNum":443"}')
         fi
         if ! echo "${realityDestDomain}" | grep -q ":"; then
