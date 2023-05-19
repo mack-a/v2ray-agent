@@ -265,9 +265,9 @@ initVar() {
     # 端口状态
     #    isPortOpen=
     # 通配符域名状态
-    wildcardDomainStatus=
+    #    wildcardDomainStatus=
     # 通过nginx检查的端口
-    nginxIPort=
+    #    nginxIPort=
 
     # wget show progress
     wgetShowProgressStatus=
@@ -475,20 +475,6 @@ getPublicIP() {
         currentIP=$(curl -s -6 http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | awk -F "[=]" '{print $2}')
     fi
     echo "${currentIP}"
-}
-# 检查80、443端口占用情况
-checkPortUsedStatus() {
-    if lsof -i tcp:80 | grep -q LISTEN; then
-        echoContent red "\n ---> 80端口被占用，请手动关闭后安装\n"
-        lsof -i tcp:80 | grep LISTEN
-        exit 0
-    fi
-
-    if lsof -i tcp:443 | grep -q LISTEN; then
-        echoContent red "\n ---> 443端口被占用，请手动关闭后安装\n"
-        lsof -i tcp:80 | grep LISTEN
-        exit 0
-    fi
 }
 
 # 输出ufw端口开放状态
@@ -991,15 +977,17 @@ installWarp() {
 
 # 检查端口实际开放状态
 checkPortOpen() {
+
     local port=$1
     local domain=$2
     local checkPortOpenResult=
+    local ip=
 
     allowPort "${port}"
 
     # 初始化nginx配置
     touch ${nginxConfigPath}checkPortOpen.conf
-    cat <<EOF >${nginxConfigPath}alone.conf
+    cat <<EOF >${nginxConfigPath}checkPortOpen.conf
     server {
         listen ${port};
         listen [::]:${port};
@@ -1007,12 +995,21 @@ checkPortOpen() {
         location /checkPort {
             return 200 'fjkvymb6len';
         }
+        location /ip {
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header REMOTE-HOST \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            default_type text/plain;
+            return 200 \$proxy_add_x_forwarded_for;
+        }
     }
 EOF
     handleNginx start
-    # 检查域名+端口的开放
 
+    # 检查域名+端口的开放
     checkPortOpenResult=$(curl -s -m 2 "http://${domain}:${port}/checkPort")
+    ip=$(curl -s -m 2 "http://${domain}:${port}/ip")
 
     rm "${nginxConfigPath}checkPortOpen.conf"
     handleNginx stop
@@ -1022,6 +1019,7 @@ EOF
         echoContent green " ---> 未检测到${port}端口开放，退出安装"
         exit 0
     fi
+    checkIP "${ip}"
 }
 
 # 初始化Nginx申请证书配置
@@ -1053,43 +1051,40 @@ initTLSNginxConfig() {
         customPortFunction
         # 修改配置
         handleNginx stop
-        touch ${nginxConfigPath}alone.conf
-        nginxIPort=80
-        if [[ "${wildcardDomainStatus}" == "true" ]]; then
-            nginxIPort=${port}
-        fi
-
-        cat <<EOF >${nginxConfigPath}alone.conf
-server {
-    listen ${nginxIPort};
-    listen [::]:${nginxIPort};
-    server_name ${domain};
-    location /test {
-    	return 200 'fjkvymb6len';
-    }
-	location /ip {
-		proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header REMOTE-HOST \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-		default_type text/plain;
-		return 200 \$proxy_add_x_forwarded_for;
-	}
-}
-EOF
+        #        touch ${nginxConfigPath}alone.conf
+        #        nginxIPort=80
+        #        if [[ "${wildcardDomainStatus}" == "true" ]]; then
+        #            nginxIPort=${port}
+        #        fi
+        #
+        #        cat <<EOF >${nginxConfigPath}alone.conf
+        #server {
+        #    listen ${port};
+        #    listen [::]:${port};
+        #    server_name ${domain};
+        #    location /test {
+        #    	return 200 'fjkvymb6len';
+        #    }
+        #	location /ip {
+        #		proxy_set_header Host \$host;
+        #        proxy_set_header X-Real-IP \$remote_addr;
+        #        proxy_set_header REMOTE-HOST \$remote_addr;
+        #        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        #		default_type text/plain;
+        #		return 200 \$proxy_add_x_forwarded_for;
+        #	}
+        #}
+        #EOF
     fi
 
-    readAcmeTLS
-    handleNginx start
+    #    readAcmeTLS
+    #    handleNginx start
 }
 
 # 修改nginx重定向配置
 updateRedirectNginxConf() {
     local redirectDomain=
     redirectDomain=${domain}:${port}
-    #    if [[ -z "${btDomain}" ]]; then
-    #        checkPortOpen 80 "${domain}" >/dev/null
-    #    fi
 
     cat <<EOF >${nginxConfigPath}alone.conf
     server {
@@ -1098,16 +1093,6 @@ updateRedirectNginxConf() {
     		return 403;
     }
 EOF
-    #
-    #    if [[ -z "${btDomain}" && "${isPortOpen}" == "true" ]]; then
-    #        cat <<EOF >${nginxConfigPath}alone.conf
-    #server {
-    #	listen 80;
-    #	server_name ${domain};
-    #	return 302 https://${redirectDomain};
-    #}
-    #EOF
-    #    fi
 
     if echo "${selectCustomInstallType}" | grep -q 2 && echo "${selectCustomInstallType}" | grep -q 5 || [[ -z "${selectCustomInstallType}" ]]; then
 
@@ -1237,9 +1222,7 @@ EOF
 # 检查ip
 checkIP() {
     echoContent skyBlue "\n ---> 检查域名ip中"
-
-    localIP=$(curl -s -m 2 "http://${domain}:${nginxIPort}/ip")
-    handleNginx stop
+    local localIP=$1
 
     if [[ -z ${localIP} ]] || ! echo "${localIP}" | sed '1{s/[^(]*(//;s/).*//;q}' | grep -q '\.' && ! echo "${localIP}" | sed '1{s/[^(]*(//;s/).*//;q}' | grep -q ':'; then
         echoContent red "\n ---> 未检测到当前域名的ip"
@@ -1265,7 +1248,6 @@ checkIP() {
         fi
         echoContent green " ---> 当前域名ip为:[${localIP}]"
     fi
-
 }
 # 自定义email
 customSSLEmail() {
@@ -1390,8 +1372,8 @@ acmeInstallSSL() {
         fi
     else
         echoContent green " ---> 生成证书中"
-        sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --server "${sslType}" --tlsport "${port}" ${installSSLIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
 
+        sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --server "${sslType}" --tlsport "${port}" ${installSSLIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
         sed -i '/Le_HTTPPort/d' "$HOME/.acme.sh/account.conf"
         echo "Le_HTTPPort=${port}" >>"$HOME/.acme.sh/account.conf"
     fi
@@ -1418,9 +1400,6 @@ customPortFunction() {
                 port=$((RANDOM % 20001 + 10000))
             fi
         else
-            #            checkPortOpen 80 "${domain}"
-
-            #            if [[ "${isPortOpen}" == "true" ]]; then
             echo
             echoContent yellow "请输入端口[默认: 443]，可自定义端口[回车使用默认]"
             read -r -p "端口:" port
@@ -1430,38 +1409,31 @@ customPortFunction() {
             if [[ "${port}" == "${currentRealityPort}" ]]; then
                 handleXray stop
             fi
-            checkPortOpen "${port}" "${domain}"
 
-            #            else
             # todo dns api
-            #                wildcardDomainStatus=true
-            #                echoContent red "未检测到80端口开放，无法安装，后续会支持DNS API [TODO]"
-            #                echoContent yellow "检查域名解析，可以通过ping排查"
-            #                exit 0
-            #            fi
         fi
-
-        checkPort "${port}"
 
         if [[ -n "${port}" ]]; then
             if ((port >= 1 && port <= 65535)); then
-
                 allowPort "${port}"
                 echoContent yellow "\n ---> 端口: ${port}"
+                checkPortOpen "${port}" "${domain}"
             else
                 echoContent red " ---> 端口输入错误"
                 exit 0
             fi
+        else
+            echoContent red " ---> 端口不可为空"
+            exit 0
         fi
     fi
-
 }
 
 # 检测端口是否占用
 checkPort() {
     if [[ -n "$1" ]] && lsof -i "tcp:$1" | grep -q LISTEN; then
         echoContent red "\n ---> $1端口被占用，请手动关闭后安装\n"
-        lsof -i tcp:80 | grep LISTEN
+        lsof -i "tcp:$1" | grep LISTEN
         exit 0
     fi
 }
@@ -1518,13 +1490,6 @@ installTLS() {
 
             installTLSCount=1
             echo
-            #            if [[ -z "${customPort}" ]]; then
-            #                echoContent red " ---> TLS安装失败，正在检查80、443端口是否开放"
-            # allowPort 80
-            # allowPort 443
-            #            fi
-
-            #            echoContent yellow " ---> 重新尝试安装TLS证书"
 
             if tail -n 10 /etc/v2ray-agent/tls/acme.log | grep -q "Could not validate email address as valid"; then
                 echoContent red " ---> 邮箱无法通过SSL厂商验证，请重新输入"
@@ -1542,21 +1507,7 @@ installTLS() {
         exit 0
     fi
 }
-# 配置伪装博客
-initNginxConfig() {
-    echoContent skyBlue "\n进度  $1/${totalProgress} : 配置Nginx"
 
-    cat <<EOF >${nginxConfigPath}alone.conf
-server {
-    listen 80;
-    listen [::]:80;
-    server_name ${domain};
-    root ${nginxStaticPath};
-    location ~ /.well-known {allow all;}
-    location /test {return 200 'fjkvymb6len';}
-}
-EOF
-}
 # 初始化随机字符串
 initRandomPath() {
     local chars="abcdefghijklmnopqrtuxyz"
@@ -2603,7 +2554,6 @@ hysteriaPortHopping() {
     echoContent yellow "端口跳跃的结束位置为60000"
     echoContent yellow "可以在30000-60000范围中选一段"
     echoContent yellow "建议1000个左右"
-    echoContent yellow "网卡一般默认为en开头或者eth开头，不要选择lo\n"
 
     echoContent yellow "请输入端口跳跃的范围，例如[30000-31000]"
 
@@ -6037,8 +5987,7 @@ customXrayInstall() {
             # 申请tls
             initTLSNginxConfig 2
             handleXray stop
-            handleNginx start
-            checkIP
+            #            handleNginx start
             installTLS 3
         fi
 
@@ -6132,11 +6081,9 @@ v2rayCoreInstall() {
 
     handleV2Ray stop
     handleNginx start
-    checkIP
 
     installTLS 4
     handleNginx stop
-    #	initNginxConfig 5
     randomPathFunction 5
     # 安装V2Ray
     installV2Ray 6
@@ -6171,8 +6118,8 @@ xrayCoreInstall() {
         # 申请tls
         initTLSNginxConfig 3
         handleXray stop
-        handleNginx start
-        checkIP
+        #        handleNginx start
+
         installTLS 4
     fi
 
@@ -7105,7 +7052,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.9.1"
+    echoContent green "当前版本：v2.9.2"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
