@@ -565,7 +565,8 @@ readConfigHostPathUUID() {
         # 安装
         if [[ -n "${frontingType}" ]]; then
             currentHost=$(jq -r .inbounds[0].streamSettings.tlsSettings.certificates[0].certificateFile ${configPath}${frontingType}.json | awk -F '[t][l][s][/]' '{print $2}' | awk -F '[.][c][r][t]' '{print $1}')
-            currentAdd=$(jq -r .inbounds[0].settings.clients[0].add ${configPath}${frontingType}.json)
+            currentAdd=$(jq -r .inbounds[0].add ${configPath}${frontingType}.json)
+
             if [[ "${currentAdd}" == "null" ]]; then
                 currentAdd=${currentHost}
             fi
@@ -875,8 +876,8 @@ installTools() {
                 echoContent yellow "错误排查:"
                 echoContent red "  1.获取Github文件失败，请等待Github恢复后尝试，恢复进度可查看 [https://www.githubstatus.com/]"
                 echoContent red "  2.acme.sh脚本出现bug，可查看[https://github.com/acmesh-official/acme.sh] issues"
-                echoContent red "  3.如纯IPv6机器，请设置NAT64,可执行下方命令"
-                echoContent skyBlue "  echo -e \"nameserver 2001:67c:2b0::4\\\nnameserver 2001:67c:2b0::6\" >> /etc/resolv.conf"
+                echoContent red "  3.如纯IPv6机器，请设置NAT64,可执行下方命令，如果添加下方命令还是不可用，请尝试更换其他NAT64"
+                echoContent skyBlue "  echo -e \"nameserver 2001:67c:2b0::4\\\nnameserver 2a00:1098:2c::1\" >> /etc/resolv.conf"
                 exit 0
             fi
         fi
@@ -981,7 +982,6 @@ checkPortOpen() {
     local port=$1
     local domain=$2
     local checkPortOpenResult=
-    local ip=
 
     allowPort "${port}"
 
@@ -1009,7 +1009,7 @@ EOF
 
     # 检查域名+端口的开放
     checkPortOpenResult=$(curl -s -m 2 "http://${domain}:${port}/checkPort")
-    ip=$(curl -s -m 2 "http://${domain}:${port}/ip")
+    localIP=$(curl -s -m 2 "http://${domain}:${port}/ip")
 
     rm "${nginxConfigPath}checkPortOpen.conf"
     handleNginx stop
@@ -1019,7 +1019,7 @@ EOF
         echoContent green " ---> 未检测到${port}端口开放，退出安装"
         exit 0
     fi
-    checkIP "${ip}"
+    checkIP "${localIP}"
 }
 
 # 初始化Nginx申请证书配置
@@ -1305,6 +1305,7 @@ switchSSLType() {
 # 选择acme安装证书方式
 selectAcmeInstallSSL() {
     local installSSLIPv6=
+
     if echo "${localIP}" | grep -q ":"; then
         installSSLIPv6="--listen-v6"
     fi
@@ -1372,12 +1373,8 @@ acmeInstallSSL() {
         fi
     else
         echoContent green " ---> 生成证书中"
-
-        sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --server "${sslType}" --tlsport "${port}" ${installSSLIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
-        sed -i '/Le_HTTPPort/d' "$HOME/.acme.sh/account.conf"
-        echo "Le_HTTPPort=${port}" >>"$HOME/.acme.sh/account.conf"
+        sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --server "${sslType}" ${installSSLIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
     fi
-
 }
 # 自定义端口
 customPortFunction() {
@@ -1417,7 +1414,9 @@ customPortFunction() {
             if ((port >= 1 && port <= 65535)); then
                 allowPort "${port}"
                 echoContent yellow "\n ---> 端口: ${port}"
-                checkPortOpen "${port}" "${domain}"
+                if [[ -z "${btDomain}" ]]; then
+                    checkPortOpen "${port}" "${domain}"
+                fi
             else
                 echoContent red " ---> 端口输入错误"
                 exit 0
@@ -1461,8 +1460,8 @@ installTLS() {
         fi
 
     elif [[ -d "$HOME/.acme.sh" ]] && [[ ! -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" || ! -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" ]]; then
-        echoContent green " ---> 安装TLS证书"
-
+        echoContent green " ---> 安装TLS证书，需要依赖80端口"
+        allowPort 80
         if [[ "${installDNSACMEStatus}" != "true" ]]; then
             switchSSLType
             customSSLEmail
@@ -2340,13 +2339,7 @@ initXrayClients() {
         email=$(echo "${user}" | jq -r .email | awk -F "[-]" '{print $1}')
         currentUser=
         if echo "${type}" | grep -q "0"; then
-            add=$(echo "${user}" | jq -r .add)
-            if [[ "${add}" != 'null' ]]; then
-                currentUser="{\"id\":\"${uuid}\",\"flow\":\"xtls-rprx-vision\",\"email\":\"${email}-VLESS_TCP/TLS_Vision\",\"add\":\"${add}\"}"
-            else
-                currentUser="{\"id\":\"${uuid}\",\"flow\":\"xtls-rprx-vision\",\"email\":\"${email}-VLESS_TCP/TLS_Vision\"}"
-            fi
-
+            currentUser="{\"id\":\"${uuid}\",\"flow\":\"xtls-rprx-vision\",\"email\":\"${email}-VLESS_TCP/TLS_Vision\"}"
             users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
         fi
 
@@ -3442,6 +3435,7 @@ EOF
                 ${fallbacksList}
             ]
           },
+          "add": "${add}",
           "streamSettings": {
             "network": "tcp",
             "security": "tls",
@@ -3548,6 +3542,7 @@ EOF
         rm /etc/v2ray-agent/xray/conf/07_VLESS_vision_reality_inbounds.json >/dev/null 2>&1
         rm /etc/v2ray-agent/xray/conf/08_VLESS_reality_fallback_grpc_inbounds.json >/dev/null 2>&1
     fi
+    installSniffing
 }
 # 初始化Xray Reality配置
 # 自定义CDN IP
@@ -3585,6 +3580,7 @@ defaultBase64Code() {
     local type=$1
     local email=$2
     local id=$3
+    local add=$4
     local user=
     user=$(echo "${email}" | awk -F "[-]" '{print $1}')
     port=${currentDefaultPort}
@@ -3641,11 +3637,11 @@ EOF
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3A%2F%2F${id}%40${currentHost}%3A${currentDefaultPort}%3Fencryption%3Dnone%26security%3Dxtls%26type%3Dtcp%26${currentHost}%3D${currentHost}%26headerType%3Dnone%26sni%3D${currentHost}%26flow%3Dxtls-rprx-vision%23${email}\n"
 
     elif [[ "${type}" == "vmessws" ]]; then
-        qrCodeBase64Default=$(echo -n "{\"port\":${currentDefaultPort},\"ps\":\"${email}\",\"tls\":\"tls\",\"id\":\"${id}\",\"aid\":0,\"v\":2,\"host\":\"${currentHost}\",\"type\":\"none\",\"path\":\"/${currentPath}vws\",\"net\":\"ws\",\"add\":\"${currentAdd}\",\"allowInsecure\":0,\"method\":\"none\",\"peer\":\"${currentHost}\",\"sni\":\"${currentHost}\"}" | base64 -w 0)
+        qrCodeBase64Default=$(echo -n "{\"port\":${currentDefaultPort},\"ps\":\"${email}\",\"tls\":\"tls\",\"id\":\"${id}\",\"aid\":0,\"v\":2,\"host\":\"${currentHost}\",\"type\":\"none\",\"path\":\"/${currentPath}vws\",\"net\":\"ws\",\"add\":\"${add}\",\"allowInsecure\":0,\"method\":\"none\",\"peer\":\"${currentHost}\",\"sni\":\"${currentHost}\"}" | base64 -w 0)
         qrCodeBase64Default="${qrCodeBase64Default// /}"
 
         echoContent yellow " ---> 通用json(VMess+WS+TLS)"
-        echoContent green "    {\"port\":${currentDefaultPort},\"ps\":\"${email}\",\"tls\":\"tls\",\"id\":\"${id}\",\"aid\":0,\"v\":2,\"host\":\"${currentHost}\",\"type\":\"none\",\"path\":\"/${currentPath}vws\",\"net\":\"ws\",\"add\":\"${currentAdd}\",\"allowInsecure\":0,\"method\":\"none\",\"peer\":\"${currentHost}\",\"sni\":\"${currentHost}\"}\n"
+        echoContent green "    {\"port\":${currentDefaultPort},\"ps\":\"${email}\",\"tls\":\"tls\",\"id\":\"${id}\",\"aid\":0,\"v\":2,\"host\":\"${currentHost}\",\"type\":\"none\",\"path\":\"/${currentPath}vws\",\"net\":\"ws\",\"add\":\"${add}\",\"allowInsecure\":0,\"method\":\"none\",\"peer\":\"${currentHost}\",\"sni\":\"${currentHost}\"}\n"
         echoContent yellow " ---> 通用vmess(VMess+WS+TLS)链接"
         echoContent green "    vmess://${qrCodeBase64Default}\n"
         echoContent yellow " ---> 二维码 vmess(VMess+WS+TLS)"
@@ -3656,7 +3652,7 @@ EOF
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
   - name: "${email}"
     type: vmess
-    server: ${currentHost}
+    server: ${add}
     port: ${currentDefaultPort}
     uuid: ${id}
     alterId: 0
@@ -3664,7 +3660,7 @@ EOF
     udp: true
     tls: true
     client-fingerprint: chrome
-    servername: ${currentAdd}
+    servername: ${currentHost}
     network: ws
     ws-opts:
       path: /${currentPath}vws
@@ -3676,18 +3672,18 @@ EOF
     elif [[ "${type}" == "vlessws" ]]; then
 
         echoContent yellow " ---> 通用格式(VLESS+WS+TLS)"
-        echoContent green "    vless://${id}@${currentAdd}:${currentDefaultPort}?encryption=none&security=tls&type=ws&host=${currentHost}&sni=${currentHost}&fp=chrome&path=/${currentPath}ws#${email}\n"
+        echoContent green "    vless://${id}@${add}:${currentDefaultPort}?encryption=none&security=tls&type=ws&host=${currentHost}&sni=${currentHost}&fp=chrome&path=/${currentPath}ws#${email}\n"
 
         echoContent yellow " ---> 格式化明文(VLESS+WS+TLS)"
-        echoContent green "    协议类型:VLESS，地址:${currentAdd}，伪装域名/SNI:${currentHost}，端口:${currentDefaultPort}，client-fingerprint: chrome,用户ID:${id}，安全:tls，传输方式:ws，路径:/${currentPath}ws，账户名:${email}\n"
+        echoContent green "    协议类型:VLESS，地址:${add}，伪装域名/SNI:${currentHost}，端口:${currentDefaultPort}，client-fingerprint: chrome,用户ID:${id}，安全:tls，传输方式:ws，路径:/${currentPath}ws，账户名:${email}\n"
 
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
-vless://${id}@${currentAdd}:${currentDefaultPort}?encryption=none&security=tls&type=ws&host=${currentHost}&sni=${currentHost}&fp=chrome&path=/${currentPath}ws#${email}
+vless://${id}@${add}:${currentDefaultPort}?encryption=none&security=tls&type=ws&host=${currentHost}&sni=${currentHost}&fp=chrome&path=/${currentPath}ws#${email}
 EOF
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
   - name: "${email}"
     type: vless
-    server: ${currentAdd}
+    server: ${add}
     port: ${currentDefaultPort}
     uuid: ${id}
     udp: true
@@ -3702,21 +3698,21 @@ EOF
 EOF
 
         echoContent yellow " ---> 二维码 VLESS(VLESS+WS+TLS)"
-        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${currentAdd}%3A${currentDefaultPort}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dws%26host%3D${currentHost}%26fp%3Dchrome%26sni%3D${currentHost}%26path%3D%252f${currentPath}ws%23${email}"
+        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${add}%3A${currentDefaultPort}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dws%26host%3D${currentHost}%26fp%3Dchrome%26sni%3D${currentHost}%26path%3D%252f${currentPath}ws%23${email}"
 
     elif [[ "${type}" == "vlessgrpc" ]]; then
 
         echoContent yellow " ---> 通用格式(VLESS+gRPC+TLS)"
-        echoContent green "    vless://${id}@${currentAdd}:${currentDefaultPort}?encryption=none&security=tls&type=grpc&host=${currentHost}&path=${currentPath}grpc&fp=chrome&serviceName=${currentPath}grpc&alpn=h2&sni=${currentHost}#${email}\n"
+        echoContent green "    vless://${id}@${add}:${currentDefaultPort}?encryption=none&security=tls&type=grpc&host=${currentHost}&path=${currentPath}grpc&fp=chrome&serviceName=${currentPath}grpc&alpn=h2&sni=${currentHost}#${email}\n"
 
         echoContent yellow " ---> 格式化明文(VLESS+gRPC+TLS)"
-        echoContent green "    协议类型:VLESS，地址:${currentAdd}，伪装域名/SNI:${currentHost}，端口:${currentDefaultPort}，用户ID:${id}，安全:tls，传输方式:gRPC，alpn:h2，client-fingerprint: chrome,serviceName:${currentPath}grpc，账户名:${email}\n"
+        echoContent green "    协议类型:VLESS，地址:${add}，伪装域名/SNI:${currentHost}，端口:${currentDefaultPort}，用户ID:${id}，安全:tls，传输方式:gRPC，alpn:h2，client-fingerprint: chrome,serviceName:${currentPath}grpc，账户名:${email}\n"
 
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
-vless://${id}@${currentAdd}:${currentDefaultPort}?encryption=none&security=tls&type=grpc&host=${currentHost}&path=${currentPath}grpc&serviceName=${currentPath}grpc&fp=chrome&alpn=h2&sni=${currentHost}#${email}
+vless://${id}@${add}:${currentDefaultPort}?encryption=none&security=tls&type=grpc&host=${currentHost}&path=${currentPath}grpc&serviceName=${currentPath}grpc&fp=chrome&alpn=h2&sni=${currentHost}#${email}
 EOF
         echoContent yellow " ---> 二维码 VLESS(VLESS+gRPC+TLS)"
-        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${currentAdd}%3A${currentDefaultPort}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dgrpc%26host%3D${currentHost}%26serviceName%3D${currentPath}grpc%26fp%3Dchrome%26path%3D${currentPath}grpc%26sni%3D${currentHost}%26alpn%3Dh2%23${email}"
+        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${add}%3A${currentDefaultPort}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dgrpc%26host%3D${currentHost}%26serviceName%3D${currentPath}grpc%26fp%3Dchrome%26path%3D${currentPath}grpc%26sni%3D${currentHost}%26alpn%3Dh2%23${email}"
 
     elif [[ "${type}" == "trojan" ]]; then
         # URLEncode
@@ -3744,13 +3740,13 @@ EOF
         # URLEncode
 
         echoContent yellow " ---> Trojan gRPC(TLS)"
-        echoContent green "    trojan://${id}@${currentAdd}:${currentDefaultPort}?encryption=none&peer=${currentHost}&fp=chrome&security=tls&type=grpc&sni=${currentHost}&alpn=h2&path=${currentPath}trojangrpc&serviceName=${currentPath}trojangrpc#${email}\n"
+        echoContent green "    trojan://${id}@${add}:${currentDefaultPort}?encryption=none&peer=${currentHost}&fp=chrome&security=tls&type=grpc&sni=${currentHost}&alpn=h2&path=${currentPath}trojangrpc&serviceName=${currentPath}trojangrpc#${email}\n"
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
-trojan://${id}@${currentAdd}:${currentDefaultPort}?encryption=none&peer=${currentHost}&security=tls&type=grpc&fp=chrome&sni=${currentHost}&alpn=h2&path=${currentPath}trojangrpc&serviceName=${currentPath}trojangrpc#${email}
+trojan://${id}@${add}:${currentDefaultPort}?encryption=none&peer=${currentHost}&security=tls&type=grpc&fp=chrome&sni=${currentHost}&alpn=h2&path=${currentPath}trojangrpc&serviceName=${currentPath}trojangrpc#${email}
 EOF
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
   - name: "${email}"
-    server: ${currentAdd}
+    server: ${add}
     port: ${currentDefaultPort}
     type: trojan
     password: ${id}
@@ -3761,11 +3757,11 @@ EOF
       grpc-service-name: "${currentPath}trojangrpc"
 EOF
         echoContent yellow " ---> 二维码 Trojan gRPC(TLS)"
-        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${currentAdd}%3a${currentDefaultPort}%3Fencryption%3Dnone%26fp%3Dchrome%26security%3Dtls%26peer%3d${currentHost}%26type%3Dgrpc%26sni%3d${currentHost}%26path%3D${currentPath}trojangrpc%26alpn%3Dh2%26serviceName%3D${currentPath}trojangrpc%23${email}\n"
+        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${add}%3a${currentDefaultPort}%3Fencryption%3Dnone%26fp%3Dchrome%26security%3Dtls%26peer%3d${currentHost}%26type%3Dgrpc%26sni%3d${currentHost}%26path%3D${currentPath}trojangrpc%26alpn%3Dh2%26serviceName%3D${currentPath}trojangrpc%23${email}\n"
 
     elif [[ "${type}" == "hysteria" ]]; then
         local hysteriaEmail=
-        hysteriaEmail=$(echo "${email}" | awk -F "[_]" '{print $1}')_hysteria
+        hysteriaEmail=$(echo "${email}" | awk -F "[-]" '{print $1}')_hysteria
         echoContent yellow " ---> Hysteria(TLS)"
         local clashMetaPortTmp="port: ${hysteriaPort}"
         local mport=
@@ -3861,7 +3857,7 @@ showAccounts() {
     readHysteriaConfig
     readXrayCoreRealityConfig
     readHysteriaPortHopping
-
+    echo
     echoContent skyBlue "\n进度 $1/${totalProgress} : 账号"
     local show
     # VLESS TCP
@@ -3898,7 +3894,14 @@ showAccounts() {
             echoContent skyBlue "\n ---> 账号:${email}"
             echo
             local path="${currentPath}ws"
-            defaultBase64Code vlessws "${email}" "$(echo "${user}" | jq -r .id)"
+            local count=
+            while read -r line; do
+                if [[ -n "${line}" ]]; then
+                    defaultBase64Code vlessws "${email}${count}" "$(echo "${user}" | jq -r .id)" "${line}"
+                    count=$((count + 1))
+                fi
+            done < <(echo "${currentAdd}" | tr ',' '\n')
+
         done
     fi
 
@@ -3912,7 +3915,14 @@ showAccounts() {
 
             echoContent skyBlue "\n ---> 账号:${email}"
             echo
-            defaultBase64Code vlessgrpc "${email}" "$(echo "${user}" | jq -r .id)"
+            local count=
+            while read -r line; do
+                if [[ -n "${line}" ]]; then
+                    defaultBase64Code vlessgrpc "${email}${count}" "$(echo "${user}" | jq -r .id)" "${line}"
+                    count=$((count + 1))
+                fi
+            done < <(echo "${currentAdd}" | tr ',' '\n')
+
         done
     fi
 
@@ -3929,7 +3939,13 @@ showAccounts() {
 
             echoContent skyBlue "\n ---> 账号:${email}"
             echo
-            defaultBase64Code vmessws "${email}" "$(echo "${user}" | jq -r .id)"
+            local count=
+            while read -r line; do
+                if [[ -n "${line}" ]]; then
+                    defaultBase64Code vmessws "${email}${count}" "$(echo "${user}" | jq -r .id)" "${line}"
+                    count=$((count + 1))
+                fi
+            done < <(echo "${currentAdd}" | tr ',' '\n')
         done
     fi
 
@@ -3953,7 +3969,14 @@ showAccounts() {
 
             echoContent skyBlue "\n ---> 账号:${email}"
             echo
-            defaultBase64Code trojangrpc "${email}" "$(echo "${user}" | jq -r .password)"
+            local count=
+            while read -r line; do
+                if [[ -n "${line}" ]]; then
+                    defaultBase64Code trojangrpc "${email}${count}" "$(echo "${user}" | jq -r .password)" "${line}"
+                    count=$((count + 1))
+                fi
+            done < <(echo "${currentAdd}" | tr ',' '\n')
+
         done
     fi
     if echo ${currentInstallProtocolType} | grep -q 6; then
@@ -3976,7 +3999,7 @@ showAccounts() {
             hysteriaEmail=$(echo "${email}" | awk -F "[_]" '{print $1}')_hysteria
 
             if [[ -n ${defaultUser} ]]; then
-                echoContent skyBlue "\n ---> 账号:${hysteriaEmail}"
+                echoContent skyBlue "\n ---> 账号:$(echo "${hysteriaEmail}" | awk -F "[-]" '{print $1"_hysteria"}')"
                 echo
                 defaultBase64Code hysteria "${hysteriaEmail}" "${user}"
             fi
@@ -4018,7 +4041,7 @@ showAccounts() {
 }
 # 移除nginx302配置
 removeNginx302() {
-    local count=0
+    local count=
     grep -n "return 302" <"${nginxConfigPath}alone.conf" | while read -r line; do
 
         if ! echo "${line}" | grep -q "request_uri"; then
@@ -4335,7 +4358,7 @@ updateV2RayCDN() {
         echoContent yellow "1.CNAME www.digitalocean.com"
         echoContent yellow "2.CNAME who.int"
         echoContent yellow "3.CNAME blog.hostmonit.com"
-        echoContent yellow "4.手动输入"
+        echoContent yellow "4.手动输入[可输入多个，比如: 1.1.1.1,1.1.2.2,cloudflare.com 逗号分隔]"
         echoContent yellow "5.移除CDN节点"
         echoContent red "=============================================================="
         read -r -p "请选择:" selectCDNType
@@ -4357,16 +4380,12 @@ updateV2RayCDN() {
             ;;
         esac
 
-        if [[ -n ${setDomain} ]]; then
-            if [[ -n "${currentAdd}" ]]; then
-                sed -i "s/\"${currentAdd}\"/\"${setDomain}\"/g" "$(grep "${currentAdd}" -rl ${configPath}${frontingType}.json)"
-            fi
-            if [[ $(jq -r .inbounds[0].settings.clients[0].add ${configPath}${frontingType}.json) == "${setDomain}" ]]; then
-                echoContent green " ---> CDN修改成功"
-                reloadCore
-            else
-                echoContent red " ---> 修改CDN失败"
-            fi
+        if [[ -n "${setDomain}" ]]; then
+            local cdnAddressResult=
+            cdnAddressResult=$(jq -r ".inbounds[0].add = \"${setDomain}\" " ${configPath}${frontingType}.json)
+            echo "${cdnAddressResult}" | jq . >${configPath}${frontingType}.json
+
+            echoContent green " ---> 修改CDN成功"
         fi
     else
         echoContent red " ---> 未安装可用类型"
@@ -5265,17 +5284,24 @@ unInstallOutbounds() {
 unInstallSniffing() {
 
     find ${configPath} -name "*inbounds.json*" | awk -F "[c][o][n][f][/]" '{print $2}' | while read -r inbound; do
-        sniffing=$(jq -r 'del(.inbounds[0].sniffing)' "${configPath}${inbound}")
-        echo "${sniffing}" | jq . >"${configPath}${inbound}"
+        if grep -q "destOverride" <"${configPath}${inbound}"; then
+            sniffing=$(jq -r 'del(.inbounds[0].sniffing)' "${configPath}${inbound}")
+            echo "${sniffing}" | jq . >"${configPath}${inbound}"
+        fi
     done
+
 }
 
 # 安装嗅探
 installSniffing() {
-
+    readInstallType
+    find ${configPath} -name "*inbounds.json*"
+    find ${configPath} -name "*inbounds.json*" | awk -F "[c][o][n][f][/]" '{print $2}'
     find ${configPath} -name "*inbounds.json*" | awk -F "[c][o][n][f][/]" '{print $2}' | while read -r inbound; do
-        sniffing=$(jq -r '.inbounds[0].sniffing = {"enabled":true,"destOverride":["http","tls"]}' "${configPath}${inbound}")
-        echo "${sniffing}" | jq . >"${configPath}${inbound}"
+        if ! grep -q "destOverride" <"${configPath}${inbound}"; then
+            sniffing=$(jq -r '.inbounds[0].sniffing = {"enabled":true,"destOverride":["http","tls"]}' "${configPath}${inbound}")
+            echo "${sniffing}" | jq . >"${configPath}${inbound}"
+        fi
     done
 }
 
@@ -7050,7 +7076,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.9.2"
+    echoContent green "当前版本：v2.9.3"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
