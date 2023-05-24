@@ -5295,8 +5295,6 @@ unInstallSniffing() {
 # 安装嗅探
 installSniffing() {
     readInstallType
-    find ${configPath} -name "*inbounds.json*"
-    find ${configPath} -name "*inbounds.json*" | awk -F "[c][o][n][f][/]" '{print $2}'
     find ${configPath} -name "*inbounds.json*" | awk -F "[c][o][n][f][/]" '{print $2}' | while read -r inbound; do
         if ! grep -q "destOverride" <"${configPath}${inbound}"; then
             sniffing=$(jq -r '.inbounds[0].sniffing = {"enabled":true,"destOverride":["http","tls"]}' "${configPath}${inbound}")
