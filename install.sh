@@ -1017,6 +1017,11 @@ EOF
         echoContent green " ---> 检测到${port}端口已开放"
     else
         echoContent green " ---> 未检测到${port}端口开放，退出安装"
+        if echo "${checkPortOpenResult}" | grep -q "cloudflare"; then
+            echoContent yellow " ---> 请关闭云朵后等待三分钟重新尝试"
+        else
+            echoContent red " ---> 错误日志：${checkPortOpenResult}，如果日志不为空可以提交issue反馈"
+        fi
         exit 0
     fi
     checkIP "${localIP}"
@@ -7074,7 +7079,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.9.3"
+    echoContent green "当前版本：v2.9.4"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
