@@ -4972,11 +4972,8 @@ ipv6Routing() {
     elif [[ "${ipv6Status}" == "2" ]]; then
         echoContent red "=============================================================="
         echoContent yellow "# 注意事项\n"
-        echoContent yellow "1.规则支持预定义域名列表[https://github.com/v2fly/domain-list-community]"
-        echoContent yellow "2.规则支持自定义域名"
-        echoContent yellow "3.录入示例:speedtest,facebook,cn,example.com"
-        echoContent yellow "4.如果域名在预定义域名列表中存在则使用 geosite:xx，如果不存在则默认使用输入的域名"
-        echoContent yellow "5.添加规则为增量配置，不会删除之前设置的内容\n"
+        echoContent yellow "# 注意事项"
+        echoContent yellow "# 使用教程：https://www.v2ray-agent.com/archives/ba-he-yi-jiao-ben-yu-ming-fen-liu-jiao-cheng \n"
 
         read -r -p "请按照上面示例录入域名:" domainList
         addInstallRouting IPv6-out outboundTag "${domainList}"
@@ -5334,12 +5331,8 @@ warpRouting() {
         jq -r -c '.routing.rules[]|select (.outboundTag=="warp-socks-out")|.domain' ${configPath}09_routing.json | jq -r
         exit 0
     elif [[ "${warpStatus}" == "2" ]]; then
-        echoContent yellow "# 注意事项\n"
-        echoContent yellow "1.规则支持预定义域名列表[https://github.com/v2fly/domain-list-community]"
-        echoContent yellow "2.规则支持自定义域名"
-        echoContent yellow "3.录入示例:speedtest,facebook,cn,example.com"
-        echoContent yellow "4.如果域名在预定义域名列表中存在则使用 geosite:xx，如果不存在则默认使用输入的域名"
-        echoContent yellow "5.添加规则为增量配置，不会删除之前设置的内容\n"
+        echoContent yellow "# 注意事项"
+        echoContent yellow "# 使用教程：https://www.v2ray-agent.com/archives/ba-he-yi-jiao-ben-yu-ming-fen-liu-jiao-cheng \n"
 
         read -r -p "请按照上面示例录入域名:" domainList
 
@@ -5411,11 +5404,39 @@ EOF
     fi
     reloadCore
 }
+# 分流工具
+routingToolsMenu() {
+    echoContent skyBlue "\n功能 1/${totalProgress} : 分流工具"
+    echoContent red "\n=============================================================="
+    echoContent yellow "1.WARP分流"
+    echoContent yellow "2.IPv6分流"
+    echoContent yellow "3.任意门分流"
+    echoContent yellow "4.DNS分流"
+    echoContent yellow "5.VMess+WS+TLS分流"
+    read -r -p "请选择:" selectType
+
+    case ${selectType} in
+    1)
+        warpRouting 1
+        ;;
+    2)
+        ipv6Routing 1
+        ;;
+    3)
+        dokodemoDoorRouting 1
+        ;;
+    4)
+        dnsRouting 1
+        ;;
+    5)
+        vmessWSRouting 1
+        ;;
+    esac
+}
 # 流媒体工具箱
 streamingToolbox() {
     echoContent skyBlue "\n功能 1/${totalProgress} : 流媒体工具箱"
     echoContent red "\n=============================================================="
-    #	echoContent yellow "1.Netflix检测"
     echoContent yellow "1.任意门落地机解锁流媒体"
     echoContent yellow "2.DNS解锁流媒体"
     echoContent yellow "3.VMess+WS+TLS解锁流媒体"
@@ -5423,24 +5444,24 @@ streamingToolbox() {
 
     case ${selectType} in
     1)
-        dokodemoDoorUnblockStreamingMedia
+        dokodemoDoorRouting
         ;;
     2)
-        dnsUnlockNetflix
+        dnsRouting
         ;;
     3)
-        unblockVMessWSTLSStreamingMedia
+        vmessWSRouting
         ;;
     esac
 
 }
 
 # 任意门解锁流媒体
-dokodemoDoorUnblockStreamingMedia() {
-    echoContent skyBlue "\n功能 1/${totalProgress} : 任意门落地机解锁流媒体"
+dokodemoDoorRouting() {
+    echoContent skyBlue "\n功能 1/${totalProgress} : 任意门分流"
     echoContent red "\n=============================================================="
     echoContent yellow "# 注意事项"
-    echoContent yellow "任意门解锁详解，请查看此文章[https://github.com/mack-a/v2ray-agent/blob/master/documents/netflix/dokodemo-unblock_netflix.md]\n"
+    echoContent yellow "# 使用教程：https://www.v2ray-agent.com/archives/ba-he-yi-jiao-ben-yu-ming-fen-liu-jiao-cheng \n"
 
     echoContent yellow "1.添加出站"
     echoContent yellow "2.添加入站"
@@ -5449,23 +5470,23 @@ dokodemoDoorUnblockStreamingMedia() {
 
     case ${selectType} in
     1)
-        setDokodemoDoorUnblockStreamingMediaOutbounds
+        setDokodemoDoorRoutingOutbounds
         ;;
     2)
-        setDokodemoDoorUnblockStreamingMediaInbounds
+        setDokodemoDoorRoutingInbounds
         ;;
     3)
-        removeDokodemoDoorUnblockStreamingMedia
+        removeDokodemoDoorRouting
         ;;
     esac
 }
 
-# VMess+WS+TLS 出战解锁流媒体【仅出站】
-unblockVMessWSTLSStreamingMedia() {
-    echoContent skyBlue "\n功能 1/${totalProgress} : VMess+WS+TLS 出站解锁流媒体"
+# VMess+WS+TLS 分流
+vmessWSRouting() {
+    echoContent skyBlue "\n功能 1/${totalProgress} : VMess+WS+TLS 分流"
     echoContent red "\n=============================================================="
     echoContent yellow "# 注意事项"
-    echoContent yellow "适合通过其他服务商提供的VMess解锁服务\n"
+    echoContent yellow "# 使用教程：https://www.v2ray-agent.com/archives/ba-he-yi-jiao-ben-yu-ming-fen-liu-jiao-cheng \n"
 
     echoContent yellow "1.添加出站"
     echoContent yellow "2.卸载"
@@ -5473,30 +5494,24 @@ unblockVMessWSTLSStreamingMedia() {
 
     case ${selectType} in
     1)
-        setVMessWSTLSUnblockStreamingMediaOutbounds
+        setVMessWSRoutingOutbounds
         ;;
     2)
-        removeVMessWSTLSUnblockStreamingMedia
+        removeVMessWSRouting
         ;;
     esac
 }
 
-# 设置VMess+WS+TLS解锁Netflix【仅出站】
-setVMessWSTLSUnblockStreamingMediaOutbounds() {
-    read -r -p "请输入解锁流媒体VMess+WS+TLS的地址:" setVMessWSTLSAddress
+# 设置VMess+WS+TLS【仅出站】
+setVMessWSRoutingOutbounds() {
+    read -r -p "请输入VMess+WS+TLS的地址:" setVMessWSTLSAddress
     echoContent red "=============================================================="
-    echoContent yellow "# 注意事项\n"
-    echoContent yellow "1.规则仅支持预定义域名列表[https://github.com/v2fly/domain-list-community]"
-    echoContent yellow "2.详细文档[https://www.v2fly.org/config/routing.html]"
-    echoContent yellow "3.如内核启动失败请检查域名后重新添加域名"
-    echoContent yellow "4.不允许有特殊字符，注意逗号的格式"
-    echoContent yellow "5.每次添加都是重新添加，不会保留上次域名"
-    echoContent yellow "6.录入示例:netflix,disney,hulu\n"
+    echoContent yellow "录入示例:netflix,openai\n"
     read -r -p "请按照上面示例录入域名:" domainList
 
     if [[ -z ${domainList} ]]; then
         echoContent red " ---> 域名不可为空"
-        setVMessWSTLSUnblockStreamingMediaOutbounds
+        setVMessWSRoutingOutbounds
     fi
 
     if [[ -n "${setVMessWSTLSAddress}" ]]; then
@@ -5520,6 +5535,8 @@ setVMessWSTLSUnblockStreamingMediaOutbounds() {
         echo
         if [[ -z "${setVMessWSTLSPath}" ]]; then
             echoContent red " ---> 路径不可为空"
+        elif ! echo "${setVMessWSTLSPath}" | grep -q "/"; then
+            setVMessWSTLSPath="/${setVMessWSTLSPath}"
         fi
 
         outbounds=$(jq -r ".outbounds += [{\"tag\":\"VMess-out\",\"protocol\":\"vmess\",\"streamSettings\":{\"network\":\"ws\",\"security\":\"tls\",\"tlsSettings\":{\"allowInsecure\":false},\"wsSettings\":{\"path\":\"${setVMessWSTLSPath}\"}},\"mux\":{\"enabled\":true,\"concurrency\":8},\"settings\":{\"vnext\":[{\"address\":\"${setVMessWSTLSAddress}\",\"port\":${setVMessWSTLSPort},\"users\":[{\"id\":\"${setVMessWSTLSUUID}\",\"security\":\"auto\",\"alterId\":0}]}]}}]" ${configPath}10_ipv4_outbounds.json)
@@ -5553,107 +5570,97 @@ setVMessWSTLSUnblockStreamingMediaOutbounds() {
 EOF
         fi
         reloadCore
-        echoContent green " ---> 添加出站解锁成功"
+        echoContent green " ---> 添加分流成功"
         exit 0
     fi
     echoContent red " ---> 地址不可为空"
-    setVMessWSTLSUnblockStreamingMediaOutbounds
+    setVMessWSRoutingOutbounds
 }
 
-# 设置任意门解锁Netflix【出站】
-setDokodemoDoorUnblockStreamingMediaOutbounds() {
-    read -r -p "请输入解锁流媒体 vps的IP:" setIP
+# 设置任意门分流【出站】
+setDokodemoDoorRoutingOutbounds() {
+    read -r -p "请输入目标vps的IP:" setIP
     echoContent red "=============================================================="
-    echoContent yellow "# 注意事项\n"
-    echoContent yellow "1.规则仅支持预定义域名列表[https://github.com/v2fly/domain-list-community]"
-    echoContent yellow "2.详细文档[https://www.v2fly.org/config/routing.html]"
-    echoContent yellow "3.如内核启动失败请检查域名后重新添加域名"
-    echoContent yellow "4.不允许有特殊字符，注意逗号的格式"
-    echoContent yellow "5.每次添加都是重新添加，不会保留上次域名"
-    echoContent yellow "6.录入示例:netflix,disney,hulu\n"
+    echoContent yellow "录入示例:netflix,openai\n"
     read -r -p "请按照上面示例录入域名:" domainList
 
     if [[ -z ${domainList} ]]; then
         echoContent red " ---> 域名不可为空"
-        setDokodemoDoorUnblockStreamingMediaOutbounds
+        setDokodemoDoorRoutingOutbounds
     fi
 
     if [[ -n "${setIP}" ]]; then
 
-        unInstallOutbounds streamingMedia-80
-        unInstallOutbounds streamingMedia-443
+        unInstallOutbounds dokodemoDoor-80
+        unInstallOutbounds dokodemoDoor-443
 
-        outbounds=$(jq -r ".outbounds += [{\"tag\":\"streamingMedia-80\",\"protocol\":\"freedom\",\"settings\":{\"domainStrategy\":\"AsIs\",\"redirect\":\"${setIP}:22387\"}},{\"tag\":\"streamingMedia-443\",\"protocol\":\"freedom\",\"settings\":{\"domainStrategy\":\"AsIs\",\"redirect\":\"${setIP}:22388\"}}]" ${configPath}10_ipv4_outbounds.json)
+        addInstallRouting dokodemoDoor-80 outboundTag "${domainList}"
+        addInstallRouting dokodemoDoor-443 outboundTag "${domainList}"
+
+        outbounds=$(jq -r ".outbounds += [{\"tag\":\"dokodemoDoor-80\",\"protocol\":\"freedom\",\"settings\":{\"domainStrategy\":\"AsIs\",\"redirect\":\"${setIP}:22387\"}},{\"tag\":\"dokodemoDoor-443\",\"protocol\":\"freedom\",\"settings\":{\"domainStrategy\":\"AsIs\",\"redirect\":\"${setIP}:22388\"}}]" ${configPath}10_ipv4_outbounds.json)
 
         echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
 
-        if [[ -f "${configPath}09_routing.json" ]]; then
-            unInstallRouting streamingMedia-80 outboundTag
-            unInstallRouting streamingMedia-443 outboundTag
-
-            local routing
-
-            routing=$(jq -r ".routing.rules += [{\"type\":\"field\",\"port\":80,\"domain\":[\"ip.sb\",\"geosite:${domainList//,/\",\"geosite:}\"],\"outboundTag\":\"streamingMedia-80\"},{\"type\":\"field\",\"port\":443,\"domain\":[\"ip.sb\",\"geosite:${domainList//,/\",\"geosite:}\"],\"outboundTag\":\"streamingMedia-443\"}]" ${configPath}09_routing.json)
-
-            echo "${routing}" | jq . >${configPath}09_routing.json
-        else
-            cat <<EOF >${configPath}09_routing.json
-{
-  "routing": {
-    "domainStrategy": "AsIs",
-    "rules": [
-      {
-        "type": "field",
-        "port": 80,
-        "domain": [
-          "ip.sb",
-          "geosite:${domainList//,/\",\"geosite:}"
-        ],
-        "outboundTag": "streamingMedia-80"
-      },
-      {
-        "type": "field",
-        "port": 443,
-        "domain": [
-          "ip.sb",
-          "geosite:${domainList//,/\",\"geosite:}"
-        ],
-        "outboundTag": "streamingMedia-443"
-      }
-    ]
-  }
-}
-EOF
-        fi
+        #        if [[ -f "${configPath}09_routing.json" ]]; then
+        #            unInstallRouting dokodemoDoor-80 outboundTag
+        #            unInstallRouting dokodemoDoor-443 outboundTag
+        #
+        #            local routing
+        #
+        #            routing=$(jq -r ".routing.rules += [{\"type\":\"field\",\"port\":80,\"domain\":[\"ip.sb\",\"geosite:${domainList//,/\",\"geosite:}\"],\"outboundTag\":\"dokodemoDoor-80\"},{\"type\":\"field\",\"port\":443,\"domain\":[\"ip.sb\",\"geosite:${domainList//,/\",\"geosite:}\"],\"outboundTag\":\"dokodemoDoor-443\"}]" ${configPath}09_routing.json)
+        #
+        #            echo "${routing}" | jq . >${configPath}09_routing.json
+        #        else
+        #            cat <<EOF >${configPath}09_routing.json
+        #{
+        #  "routing": {
+        #    "domainStrategy": "AsIs",
+        #    "rules": [
+        #      {
+        #        "type": "field",
+        #        "port": 80,
+        #        "domain": [
+        #          "ip.sb",
+        #          "geosite:${domainList//,/\",\"geosite:}"
+        #        ],
+        #        "outboundTag": "dokodemoDoor-80"
+        #      },
+        #      {
+        #        "type": "field",
+        #        "port": 443,
+        #        "domain": [
+        #          "ip.sb",
+        #          "geosite:${domainList//,/\",\"geosite:}"
+        #        ],
+        #        "outboundTag": "dokodemoDoor-443"
+        #      }
+        #    ]
+        #  }
+        #}
+        #EOF
+        #        fi
         reloadCore
-        echoContent green " ---> 添加出站解锁成功"
+        echoContent green " ---> 添加任意门分流成功"
         exit 0
     fi
     echoContent red " ---> ip不可为空"
 }
 
-# 设置任意门解锁Netflix【入站】
-setDokodemoDoorUnblockStreamingMediaInbounds() {
+# 设置任意门分流【入站】
+setDokodemoDoorRoutingInbounds() {
 
     echoContent skyBlue "\n功能 1/${totalProgress} : 任意门添加入站"
     echoContent red "\n=============================================================="
-    echoContent yellow "# 注意事项\n"
-    echoContent yellow "1.规则仅支持预定义域名列表[https://github.com/v2fly/domain-list-community]"
-    echoContent yellow "2.详细文档[https://www.v2fly.org/config/routing.html]"
-    echoContent yellow "3.如内核启动失败请检查域名后重新添加域名"
-    echoContent yellow "4.不允许有特殊字符，注意逗号的格式"
-    echoContent yellow "5.每次添加都是重新添加，不会保留上次域名"
-    echoContent yellow "6.ip录入示例:1.1.1.1,1.1.1.2"
-    echoContent yellow "7.下面的域名一定要和出站的vps一致"
-    #	echoContent yellow "8.如有防火墙请手动开启22387、22388端口"
-    echoContent yellow "8.域名录入示例:netflix,disney,hulu\n"
-    read -r -p "请输入允许访问该解锁 vps的IP:" setIPs
+    echoContent yellow "ip录入示例:1.1.1.1,1.1.1.2"
+    echoContent yellow "下面的域名一定要和出站的vps一致"
+    echoContent yellow "域名录入示例:netflix,openai\n"
+    read -r -p "请输入允许访问该vps的IP:" setIPs
     if [[ -n "${setIPs}" ]]; then
         read -r -p "请按照上面示例录入域名:" domainList
         allowPort 22387
         allowPort 22388
 
-        cat <<EOF >${configPath}01_netflix_inbounds.json
+        cat <<EOF >${configPath}01_dokodemoDoor_inbounds.json
 {
   "inbounds": [
     {
@@ -5672,7 +5679,7 @@ setDokodemoDoorUnblockStreamingMediaInbounds() {
           "http"
         ]
       },
-      "tag": "streamingMedia-80"
+      "tag": "dokodemoDoor-80"
     },
     {
       "listen": "0.0.0.0",
@@ -5690,7 +5697,7 @@ setDokodemoDoorUnblockStreamingMediaInbounds() {
           "tls"
         ]
       },
-      "tag": "streamingMedia-443"
+      "tag": "dokodemoDoor-443"
     }
   ]
 }
@@ -5722,11 +5729,11 @@ EOF
 EOF
 
         if [[ -f "${configPath}09_routing.json" ]]; then
-            unInstallRouting streamingMedia-80 inboundTag
-            unInstallRouting streamingMedia-443 inboundTag
+            unInstallRouting dokodemoDoor-80 inboundTag
+            unInstallRouting dokodemoDoor-443 inboundTag
 
             local routing
-            routing=$(jq -r ".routing.rules += [{\"source\":[\"${setIPs//,/\",\"}\"],\"type\":\"field\",\"inboundTag\":[\"streamingMedia-80\",\"streamingMedia-443\"],\"outboundTag\":\"direct\"},{\"domains\":[\"geosite:${domainList//,/\",\"geosite:}\"],\"type\":\"field\",\"inboundTag\":[\"streamingMedia-80\",\"streamingMedia-443\"],\"outboundTag\":\"blackhole-out\"}]" ${configPath}09_routing.json)
+            routing=$(jq -r ".routing.rules += [{\"source\":[\"${setIPs//,/\",\"}\"],\"type\":\"field\",\"inboundTag\":[\"dokodemoDoor-80\",\"dokodemoDoor-443\"],\"outboundTag\":\"direct\"},{\"domains\":[\"geosite:${domainList//,/\",\"geosite:}\"],\"type\":\"field\",\"inboundTag\":[\"dokodemoDoor-80\",\"dokodemoDoor-443\"],\"outboundTag\":\"blackhole-out\"}]" ${configPath}09_routing.json)
             echo "${routing}" | jq . >${configPath}09_routing.json
         else
             cat <<EOF >${configPath}09_routing.json
@@ -5739,8 +5746,8 @@ EOF
                     ],
                     "type": "field",
                     "inboundTag": [
-                      "streamingMedia-80",
-                      "streamingMedia-443"
+                      "dokodemoDoor-80",
+                      "dokodemoDoor-443"
                     ],
                     "outboundTag": "direct"
                   },
@@ -5750,8 +5757,8 @@ EOF
                     ],
                     "type": "field",
                     "inboundTag": [
-                      "streamingMedia-80",
-                      "streamingMedia-443"
+                      "dokodemoDoor-80",
+                      "dokodemoDoor-443"
                     ],
                     "outboundTag": "blackhole-out"
                   }
@@ -5763,32 +5770,32 @@ EOF
         fi
 
         reloadCore
-        echoContent green " ---> 添加落地机入站解锁成功"
+        echoContent green " ---> 添加落地机入站分流成功"
         exit 0
     fi
     echoContent red " ---> ip不可为空"
 }
 
-# 移除任意门解锁Netflix
-removeDokodemoDoorUnblockStreamingMedia() {
+# 移除任意门分流
+removeDokodemoDoorRouting() {
 
-    unInstallOutbounds streamingMedia-80
-    unInstallOutbounds streamingMedia-443
+    unInstallOutbounds dokodemoDoor-80
+    unInstallOutbounds dokodemoDoor-443
 
-    unInstallRouting streamingMedia-80 inboundTag
-    unInstallRouting streamingMedia-443 inboundTag
+    unInstallRouting dokodemoDoor-80 inboundTag
+    unInstallRouting dokodemoDoor-443 inboundTag
 
-    unInstallRouting streamingMedia-80 outboundTag
-    unInstallRouting streamingMedia-443 outboundTag
+    unInstallRouting dokodemoDoor-80 outboundTag
+    unInstallRouting dokodemoDoor-443 outboundTag
 
-    rm -rf ${configPath}01_netflix_inbounds.json
+    rm -rf ${configPath}01_dokodemoDoor_inbounds.json
 
     reloadCore
     echoContent green " ---> 卸载成功"
 }
 
-# 移除VMess+WS+TLS解锁流媒体
-removeVMessWSTLSUnblockStreamingMedia() {
+# 移除VMess+WS+TLS分流
+removeVMessWSRouting() {
 
     unInstallOutbounds VMess-out
 
@@ -5816,15 +5823,19 @@ reloadCore() {
     fi
 }
 
-# dns解锁Netflix
-dnsUnlockNetflix() {
+# dns分流
+dnsRouting() {
+
     if [[ -z "${configPath}" ]]; then
         echoContent red " ---> 未安装，请使用脚本安装"
         menu
         exit 0
     fi
-    echoContent skyBlue "\n功能 1/${totalProgress} : DNS解锁流媒体"
+    echoContent skyBlue "\n功能 1/${totalProgress} : DNS分流"
     echoContent red "\n=============================================================="
+    echoContent yellow "# 注意事项"
+    echoContent yellow "# 使用教程：https://www.v2ray-agent.com/archives/ba-he-yi-jiao-ben-yu-ming-fen-liu-jiao-cheng \n"
+
     echoContent yellow "1.添加"
     echoContent yellow "2.卸载"
     read -r -p "请选择:" selectType
@@ -5841,65 +5852,59 @@ dnsUnlockNetflix() {
 
 # 设置dns
 setUnlockDNS() {
-    read -r -p "请输入解锁流媒体DNS:" setDNS
+    read -r -p "请输入分流的DNS:" setDNS
     if [[ -n ${setDNS} ]]; then
         echoContent red "=============================================================="
-        echoContent yellow "# 注意事项\n"
-        echoContent yellow "1.规则仅支持预定义域名列表[https://github.com/v2fly/domain-list-community]"
-        echoContent yellow "2.详细文档[https://www.v2fly.org/config/routing.html]"
-        echoContent yellow "3.如内核启动失败请检查域名后重新添加域名"
-        echoContent yellow "4.不允许有特殊字符，注意逗号的格式"
-        echoContent yellow "5.每次添加都是重新添加，不会保留上次域名"
-        echoContent yellow "6.录入示例:netflix,disney,hulu"
-        echoContent yellow "7.默认方案请输入1，默认方案包括以下内容"
+        echoContent yellow "录入示例:netflix,disney,hulu"
+        echoContent yellow "默认方案请输入1，默认方案包括以下内容"
         echoContent yellow "netflix,bahamut,hulu,hbo,disney,bbc,4chan,fox,abema,dmm,niconico,pixiv,bilibili,viu"
         read -r -p "请按照上面示例录入域名:" domainList
         if [[ "${domainList}" == "1" ]]; then
             cat <<EOF >${configPath}11_dns.json
+{
+    "dns": {
+        "servers": [
             {
-            	"dns": {
-            		"servers": [
-            			{
-            				"address": "${setDNS}",
-            				"port": 53,
-            				"domains": [
-            					"geosite:netflix",
-            					"geosite:bahamut",
-            					"geosite:hulu",
-            					"geosite:hbo",
-            					"geosite:disney",
-            					"geosite:bbc",
-            					"geosite:4chan",
-            					"geosite:fox",
-            					"geosite:abema",
-            					"geosite:dmm",
-            					"geosite:niconico",
-            					"geosite:pixiv",
-            					"geosite:bilibili",
-            					"geosite:viu"
-            				]
-            			},
-            		"localhost"
-            		]
-            	}
-            }
+                "address": "${setDNS}",
+                "port": 53,
+                "domains": [
+                    "geosite:netflix",
+                    "geosite:bahamut",
+                    "geosite:hulu",
+                    "geosite:hbo",
+                    "geosite:disney",
+                    "geosite:bbc",
+                    "geosite:4chan",
+                    "geosite:fox",
+                    "geosite:abema",
+                    "geosite:dmm",
+                    "geosite:niconico",
+                    "geosite:pixiv",
+                    "geosite:bilibili",
+                    "geosite:viu"
+                ]
+            },
+        "localhost"
+        ]
+    }
+}
 EOF
         elif [[ -n "${domainList}" ]]; then
             cat <<EOF >${configPath}11_dns.json
-                        {
-                        	"dns": {
-                        		"servers": [
-                        			{
-                        				"address": "${setDNS}",
-                        				"port": 53,
-                        				"domains": [
-                        					"geosite:${domainList//,/\",\"geosite:}"
-                        				]
-                        			},
-                        		"localhost"
-                        		]
-                        	}
-                        }
+{
+    "dns": {
+        "servers": [
+            {
+                "address": "${setDNS}",
+                "port": 53,
+                "domains": [
+                    "geosite:${domainList//,/\",\"geosite:}"
+                ]
+            },
+        "localhost"
+        ]
+    }
+}
 EOF
         fi
 
@@ -6352,6 +6357,8 @@ addOtherSubscribe() {
                     echoContent red " ---> clashMeta订阅 ${email}不存在"
                 fi
             done
+        else
+            echoContent red " ---> 请先查看订阅，再进行添加订阅"
         fi
     fi
 }
@@ -7079,7 +7086,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.9.4"
+    echoContent green "当前版本：v2.9.5"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
@@ -7110,20 +7117,20 @@ menu() {
     echoContent yellow "7.更换伪装站"
     echoContent yellow "8.更新证书"
     echoContent yellow "9.更换CDN节点"
-    echoContent yellow "10.IPv6分流"
-    echoContent yellow "11.WARP分流"
-    echoContent yellow "12.流媒体工具"
-    echoContent yellow "13.添加新端口"
-    echoContent yellow "14.BT下载管理"
-    echoContent yellow "15.切换alpn"
-    echoContent yellow "16.域名黑名单"
+    #    echoContent yellow "10.IPv6分流"
+    #    echoContent yellow "11.WARP分流"
+    echoContent yellow "10.分流工具"
+    echoContent yellow "11.添加新端口"
+    echoContent yellow "12.BT下载管理"
+    echoContent yellow "13.切换alpn"
+    echoContent yellow "14.域名黑名单"
     echoContent skyBlue "-------------------------版本管理-----------------------------"
-    echoContent yellow "17.core管理"
-    echoContent yellow "18.更新脚本"
-    echoContent yellow "19.安装BBR、DD脚本"
+    echoContent yellow "15.core管理"
+    echoContent yellow "16.更新脚本"
+    echoContent yellow "17.安装BBR、DD脚本"
     echoContent skyBlue "-------------------------脚本管理-----------------------------"
-    echoContent yellow "20.查看日志"
-    echoContent yellow "21.卸载脚本"
+    echoContent yellow "18.查看日志"
+    echoContent yellow "19.卸载脚本"
     echoContent red "=============================================================="
     mkdirTools
     aliasInstall
@@ -7156,40 +7163,41 @@ menu() {
     9)
         updateV2RayCDN 1
         ;;
+        #    10)
+        #        ipv6Routing 1
+        #        ;;
+        #    11)
+        #        warpRouting 1
+        #        ;;
     10)
-        ipv6Routing 1
+        routingToolsMenu 1
+        #        streamingToolbox 1
         ;;
     11)
-        warpRouting 1
-        ;;
-    12)
-        streamingToolbox 1
-        ;;
-    13)
         addCorePort 1
         ;;
-    14)
+    12)
         btTools 1
         ;;
-    15)
+    13)
         switchAlpn 1
         ;;
-    16)
+    14)
         blacklist 1
         ;;
-    17)
+    15)
         coreVersionManageMenu 1
         ;;
-    18)
+    16)
         updateV2RayAgent 1
         ;;
-    19)
+    17)
         bbrInstall
         ;;
-    20)
+    18)
         checkLog 1
         ;;
-    21)
+    19)
         unInstall 1
         ;;
     esac
