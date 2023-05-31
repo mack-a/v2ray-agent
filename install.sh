@@ -5413,6 +5413,7 @@ routingToolsMenu() {
     echoContent yellow "3.任意门分流"
     echoContent yellow "4.DNS分流"
     echoContent yellow "5.VMess+WS+TLS分流"
+    echoContent yellow "6.SNI反向代理分流"
     read -r -p "请选择:" selectType
 
     case ${selectType} in
@@ -5430,6 +5431,9 @@ routingToolsMenu() {
         ;;
     5)
         vmessWSRouting 1
+        ;;
+    6)
+        sniRouting 1
         ;;
     esac
 }
@@ -5850,6 +5854,68 @@ dnsRouting() {
     esac
 }
 
+# SNI反向代理分流
+sniRouting() {
+
+    if [[ -z "${configPath}" ]]; then
+        echoContent red " ---> 未安装，请使用脚本安装"
+        menu
+        exit 0
+    fi
+    echoContent skyBlue "\n功能 1/${totalProgress} : SNI反向代理分流"
+    echoContent red "\n=============================================================="
+    echoContent yellow "# 注意事项"
+    echoContent yellow "# 使用教程：https://www.v2ray-agent.com/archives/ba-he-yi-jiao-ben-yu-ming-fen-liu-jiao-cheng \n"
+
+    echoContent yellow "1.添加"
+    echoContent yellow "2.卸载"
+    read -r -p "请选择:" selectType
+
+    case ${selectType} in
+    1)
+        setUnlockSNI
+        ;;
+    2)
+        removeUnlockSNI
+        ;;
+    esac
+}
+# 设置SNI分流
+setUnlockSNI() {
+    read -r -p "请输入分流的SNI IP:" setSNIP
+    if [[ -n ${setSNIP} ]]; then
+        echoContent red "=============================================================="
+        echoContent yellow "录入示例:netflix,disney,hulu"
+        read -r -p "请按照上面示例录入域名:" domainList
+
+        if [[ -n "${domainList}" ]]; then
+            local hosts={}
+            while read -r domain; do
+                hosts=$(echo "${hosts}" | jq -r ".\"geosite:${domain}\"=\"${setSNIP}\"")
+            done < <(echo "${domainList}" | tr ',' '\n')
+            cat <<EOF >${configPath}11_dns.json
+{
+    "dns": {
+        "hosts":${hosts},
+        "servers": [
+            "8.8.8.8",
+            "1.1.1.1"
+        ]
+    }
+}
+EOF
+            echoContent red " ---> SNI反向代理分流成功"
+            reloadCore
+        else
+            echoContent red " ---> 域名不可为空"
+        fi
+
+    else
+
+        echoContent red " ---> SNI IP不可为空"
+    fi
+    exit 0
+}
 # 设置dns
 setUnlockDNS() {
     read -r -p "请输入分流的DNS:" setDNS
@@ -5919,8 +5985,26 @@ EOF
     exit 0
 }
 
-# 移除Netflix解锁
+# 移除 DNS分流
 removeUnlockDNS() {
+    cat <<EOF >${configPath}11_dns.json
+{
+	"dns": {
+		"servers": [
+			"localhost"
+		]
+	}
+}
+EOF
+    reloadCore
+
+    echoContent green " ---> 卸载成功"
+
+    exit 0
+}
+
+# 移除SNI分流
+removeUnlockSNI() {
     cat <<EOF >${configPath}11_dns.json
 {
 	"dns": {
@@ -7086,7 +7170,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.9.5"
+    echoContent green "当前版本：v2.9.6"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
