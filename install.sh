@@ -93,12 +93,14 @@ checkCPUVendor() {
                 xrayCoreCPUVendor="Xray-linux-64"
                 v2rayCoreCPUVendor="v2ray-linux-64"
                 hysteriaCoreCPUVendor="hysteria-linux-amd64"
+                warpRegCoreCPUVendor="main-linux-amd64"
                 ;;
             'armv8' | 'aarch64')
                 cpuVendor="arm"
                 xrayCoreCPUVendor="Xray-linux-arm64-v8a"
                 v2rayCoreCPUVendor="v2ray-linux-arm64-v8a"
                 hysteriaCoreCPUVendor="hysteria-linux-arm64"
+                warpRegCoreCPUVendor="main-linux-arm64"
                 ;;
             *)
                 echo "  不支持此CPU架构--->"
@@ -124,6 +126,7 @@ initVar() {
     xrayCoreCPUVendor=""
     v2rayCoreCPUVendor=""
     hysteriaCoreCPUVendor=""
+    warpRegCoreCPUVendor=""
     cpuVendor=""
 
     # 域名
@@ -271,6 +274,12 @@ initVar() {
 
     # wget show progress
     wgetShowProgressStatus=
+
+    # warp
+    reservedWarpReg=
+    publicKeyWarpReg=
+    addressWarpReg=
+    secretKeyWarpReg=
 }
 
 # 读取tls证书详情
@@ -716,6 +725,8 @@ mkdirTools() {
     mkdir -p /etc/v2ray-agent/hysteria/conf
     mkdir -p /etc/systemd/system/
     mkdir -p /tmp/v2ray-agent-tls/
+
+    mkdir -p /etc/v2ray-agent/warp
 }
 
 # 安装工具包
@@ -5404,16 +5415,172 @@ EOF
     fi
     reloadCore
 }
+
+# 读取第三方warp配置
+readConfigWarpReg() {
+    if [[ ! -f "/etc/v2ray-agent/warp/config" ]]; then
+        /etc/v2ray-agent/warp/warp-reg >/etc/v2ray-agent/warp/config
+    fi
+
+    secretKeyWarpReg=$(grep <"/etc/v2ray-agent/warp/config" private_key | awk '{print $2}')
+
+    addressWarpReg=$(grep <"/etc/v2ray-agent/warp/config" v6 | awk '{print $2}')
+
+    publicKeyWarpReg=$(grep <"/etc/v2ray-agent/warp/config" public_key | awk '{print $2}')
+
+    reservedWarpReg=$(grep <"/etc/v2ray-agent/warp/config" reserved | awk -F "[:]" '{print $2}')
+
+}
+# warp分流-第三方
+warpRoutingReg() {
+    echoContent skyBlue "\n进度  $1/${totalProgress} : WARP分流[第三方-IPv6]"
+    echoContent red "=============================================================="
+    if [[ ! -f "/etc/v2ray-agent/warp/warp-reg" ]]; then
+        echo
+        echoContent yellow "# 注意事项"
+        echoContent yellow "# 依赖第三方程序，请熟知其中风险"
+        echoContent yellow "# 项目地址：https://github.com/badafans/warp-reg \n"
+
+        read -r -p "warp-reg未安装，是否安装 ？[y/n]:" installWarpRegStatus
+
+        if [[ "${installWarpRegStatus}" == "y" ]]; then
+
+            curl -sLo /etc/v2ray-agent/warp/warp-reg "https://github.com/badafans/warp-reg/releases/download/v1.0/${warpRegCoreCPUVendor}"
+            chmod 655 /etc/v2ray-agent/warp/warp-reg
+
+        else
+            echoContent yellow " ---> 放弃安装"
+            exit 0
+        fi
+    fi
+    echoContent red "\n=============================================================="
+    echoContent yellow "1.查看已分流域名"
+    echoContent yellow "2.添加域名"
+    echoContent yellow "3.设置WARP全局"
+    echoContent yellow "4.卸载WARP分流"
+    echoContent red "=============================================================="
+    read -r -p "请选择:" warpStatus
+    if [[ "${warpStatus}" == "1" ]]; then
+        jq -r -c '.routing.rules[]|select (.outboundTag=="wireguard-out")|.domain' ${configPath}09_routing.json | jq -r
+        exit 0
+    elif [[ "${warpStatus}" == "2" ]]; then
+        echoContent yellow "# 注意事项"
+        echoContent yellow "# 使用教程：https://www.v2ray-agent.com/archives/ba-he-yi-jiao-ben-yu-ming-fen-liu-jiao-cheng \n"
+
+        read -r -p "请按照上面示例录入域名:" domainList
+
+        addInstallRouting wireguard-out outboundTag "${domainList}"
+
+        unInstallOutbounds wireguard-out
+
+        readConfigWarpReg
+
+        local outbounds
+        outbounds=$(jq -r '.outbounds += [{"protocol":"wireguard","settings":{"secretKey":"'"${secretKeyWarpReg}"'","address":["'"${addressWarpReg}"'/128"],"peers":[{"publicKey":"'"${publicKeyWarpReg}"'","allowedIPs":["0.0.0.0/0","::/0"],"endpoint":"162.159.192.1:2408"}],"reserved":'"${reservedWarpReg}"',"mtu":1280},"tag":"wireguard-out"}]' ${configPath}10_ipv4_outbounds.json)
+
+        echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
+
+        echoContent green " ---> 添加成功"
+
+    elif [[ "${warpStatus}" == "3" ]]; then
+
+        echoContent red "=============================================================="
+        echoContent yellow "# 注意事项\n"
+        echoContent yellow "1.会删除设置的所有分流规则"
+        echoContent yellow "2.会删除除WARP[第三方]之外的所有出站规则"
+        read -r -p "是否确认设置？[y/n]:" warpOutStatus
+
+        if [[ "${warpOutStatus}" == "y" ]]; then
+            readConfigWarpReg
+
+            cat <<EOF >${configPath}10_ipv4_outbounds.json
+{
+    "outbounds":[
+        {
+            "protocol": "wireguard",
+            "settings": {
+                "secretKey": "${secretKeyWarpReg}",
+                "address": [
+                    "${addressWarpReg}/128"
+                ],
+                "peers": [
+                    {
+                        "publicKey": "${publicKeyWarpReg}",
+                        "allowedIPs": [
+                            "0.0.0.0/0",
+                            "::/0"
+                        ],
+                        "endpoint": "162.159.192.1:2408"
+                    }
+                ],
+                "reserved": ${reservedWarpReg},
+                "mtu": 1280
+            },
+            "tag": "wireguard-out"
+        }
+    ]
+}
+EOF
+            rm ${configPath}09_routing.json >/dev/null 2>&1
+            echoContent green " ---> WARP全局出站设置成功"
+        else
+            echoContent green " ---> 放弃设置"
+            exit 0
+        fi
+
+    elif [[ "${warpStatus}" == "4" ]]; then
+
+        unInstallRouting wireguard-out outboundTag
+
+        unInstallOutbounds wireguard-out
+        rm -rf /etc/v2ray-agent/warp/config >/dev/null 2>&1
+        if ! grep -q "IPv4-out" <"${configPath}10_ipv4_outbounds.json"; then
+
+            cat <<EOF >${configPath}10_ipv4_outbounds.json
+            {
+                "outbounds":[
+                    {
+                        "protocol":"freedom",
+                        "settings":{
+                            "domainStrategy":"UseIPv4"
+                        },
+                        "tag":"IPv4-out"
+                    },
+                    {
+                        "protocol":"freedom",
+                        "settings":{
+                            "domainStrategy":"UseIPv6"
+                        },
+                        "tag":"IPv6-out"
+                    },
+                    {
+                        "protocol":"blackhole",
+                        "tag":"blackhole-out"
+                    }
+                ]
+            }
+EOF
+        fi
+
+        echoContent green " ---> WARP分流卸载成功"
+    else
+        echoContent red " ---> 选择错误"
+        exit 0
+    fi
+    reloadCore
+}
+
 # 分流工具
 routingToolsMenu() {
     echoContent skyBlue "\n功能 1/${totalProgress} : 分流工具"
     echoContent red "\n=============================================================="
-    echoContent yellow "1.WARP分流"
+    echoContent yellow "1.WARP分流【官方】"
     echoContent yellow "2.IPv6分流"
     echoContent yellow "3.任意门分流"
     echoContent yellow "4.DNS分流"
     echoContent yellow "5.VMess+WS+TLS分流"
     echoContent yellow "6.SNI反向代理分流"
+    echoContent yellow "7.WARP分流【第三方】"
     read -r -p "请选择:" selectType
 
     case ${selectType} in
@@ -5434,6 +5601,9 @@ routingToolsMenu() {
         ;;
     6)
         sniRouting 1
+        ;;
+    7)
+        warpRoutingReg 1
         ;;
     esac
 }
@@ -7170,7 +7340,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.9.6"
+    echoContent green "当前版本：v2.9.7"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
@@ -7201,8 +7371,6 @@ menu() {
     echoContent yellow "7.更换伪装站"
     echoContent yellow "8.更新证书"
     echoContent yellow "9.更换CDN节点"
-    #    echoContent yellow "10.IPv6分流"
-    #    echoContent yellow "11.WARP分流"
     echoContent yellow "10.分流工具"
     echoContent yellow "11.添加新端口"
     echoContent yellow "12.BT下载管理"
