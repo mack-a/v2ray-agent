@@ -991,9 +991,26 @@ installWarp() {
 checkDNSIP() {
     local domain=$1
     local dnsIP=
-    dnsIP=$(dig @1.1.1.1 +short "${domain}")
-    if [[ -z "${dnsIP}" ]]; then
-        echoContent red " ---> 无法通过DNS获取IP，请检查解析记录"
+    dnsIP=$(dig @1.1.1.1 +time=1 +short "${domain}")
+    if echo "${dnsIP}" | grep -q "timed out" || [[ -z "${dnsIP}" ]]; then
+        echo
+        echoContent red " ---> 无法通过DNS获取域名IPv4地址"
+        echoContent green " ---> 尝试检查域名IPv6地址"
+        dnsIP=$(dig @2606:4700:4700::1111 +time=1 aaaa +short "${domain}")
+        if [[ -z "${dnsIP}" ]]; then
+            echoContent red " ---> 无法通过DNS获取域名IPv6地址，退出安装"
+            exit 0
+        fi
+    fi
+    local publicIP=
+
+    publicIP=$(getPublicIP)
+
+    if [[ "${publicIP}" != "${dnsIP}" ]]; then
+        echoContent red " ---> 域名解析IP与当前服务器IP不一致\n"
+        echoContent yellow " ---> 请检查域名解析是否生效以及正确"
+        echoContent green " ---> 当前VPS IP：${publicIP}"
+        echoContent green " ---> DNS解析 IP：${dnsIP}"
         exit 0
     fi
 }
@@ -7372,7 +7389,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.9.9"
+    echoContent green "当前版本：v2.9.10"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
