@@ -478,10 +478,14 @@ allowPort() {
 }
 # 获取公网IP
 getPublicIP() {
+    local type=4
+    if [[ -n "$1" ]]; then
+        type=$1
+    fi
     local currentIP=
-    currentIP=$(curl -s -4 http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | awk -F "[=]" '{print $2}')
+    currentIP=$(curl -s "-${type}" http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | awk -F "[=]" '{print $2}')
     if [[ -z "${currentIP}" ]]; then
-        currentIP=$(curl -s -6 http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | awk -F "[=]" '{print $2}')
+        currentIP=$(curl -s "-${type}" http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | awk -F "[=]" '{print $2}')
     fi
     echo "${currentIP}"
 }
@@ -991,12 +995,14 @@ installWarp() {
 checkDNSIP() {
     local domain=$1
     local dnsIP=
+    local type=4
     dnsIP=$(dig @1.1.1.1 +time=1 +short "${domain}")
     if echo "${dnsIP}" | grep -q "timed out" || [[ -z "${dnsIP}" ]]; then
         echo
         echoContent red " ---> 无法通过DNS获取域名IPv4地址"
         echoContent green " ---> 尝试检查域名IPv6地址"
         dnsIP=$(dig @2606:4700:4700::1111 +time=1 aaaa +short "${domain}")
+        type=6
         if [[ -z "${dnsIP}" ]]; then
             echoContent red " ---> 无法通过DNS获取域名IPv6地址，退出安装"
             exit 0
@@ -1004,7 +1010,7 @@ checkDNSIP() {
     fi
     local publicIP=
 
-    publicIP=$(getPublicIP)
+    publicIP=$(getPublicIP "${type}")
 
     if [[ "${publicIP}" != "${dnsIP}" ]]; then
         echoContent red " ---> 域名解析IP与当前服务器IP不一致\n"
@@ -7389,7 +7395,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.9.10"
+    echoContent green "当前版本：v2.9.11"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
