@@ -5250,7 +5250,13 @@ EOF
     local routingRule=
     routingRule=$(jq -r '.routing.rules[]|select(.outboundTag=="'"${tag}"'")' ${configPath}09_routing.json)
     if [[ -z "${routingRule}" ]]; then
-        routingRule="{\"type\": \"field\",\"domain\": [],\"outboundTag\": \"${tag}\"}"
+        if [[ "${tag}" == "dokodemoDoor-80" ]]; then
+            routingRule="{\"type\": \"field\",\"port\": 80,\"domain\": [],\"outboundTag\": \"${tag}\"}"
+        elif [[ "${tag}" == "dokodemoDoor-443" ]]; then
+            routingRule="{\"type\": \"field\",\"port\": 443,\"domain\": [],\"outboundTag\": \"${tag}\"}"
+        else
+            routingRule="{\"type\": \"field\",\"domain\": [],\"outboundTag\": \"${tag}\"}"
+        fi
     fi
 
     while read -r line; do
@@ -5931,69 +5937,56 @@ setDokodemoDoorRoutingInbounds() {
   ]
 }
 EOF
+        local domains=
+        domains=[]
+        while read -r line; do
+            local geositeStatus
+            geositeStatus=$(curl -s "https://api.github.com/repos/v2fly/domain-list-community/contents/data/${line}" | jq .message)
 
-        cat <<EOF >${configPath}10_ipv4_outbounds.json
-{
-    "outbounds":[
-        {
-            "protocol":"freedom",
-            "settings":{
-                "domainStrategy":"UseIPv4"
-            },
-            "tag":"IPv4-out"
-        },
-        {
-            "protocol":"freedom",
-            "settings":{
-                "domainStrategy":"UseIPv6"
-            },
-            "tag":"IPv6-out"
-        },
-        {
-            "protocol":"blackhole",
-            "tag":"blackhole-out"
-        }
-    ]
-}
-EOF
+            if [[ "${geositeStatus}" == "null" ]]; then
+                domains=$(echo "${domains}" | jq -r '. += ["geosite:'"${line}"'"]')
+            else
+                domains=$(echo "${domains}" | jq -r '. += ["domain:'"${line}"'"]')
+            fi
+        done < <(echo "${domainList}" | tr ',' '\n')
+
 
         if [[ -f "${configPath}09_routing.json" ]]; then
             unInstallRouting dokodemoDoor-80 inboundTag
             unInstallRouting dokodemoDoor-443 inboundTag
 
             local routing
-            routing=$(jq -r ".routing.rules += [{\"source\":[\"${setIPs//,/\",\"}\"],\"type\":\"field\",\"inboundTag\":[\"dokodemoDoor-80\",\"dokodemoDoor-443\"],\"outboundTag\":\"direct\"},{\"domains\":[\"geosite:${domainList//,/\",\"geosite:}\"],\"type\":\"field\",\"inboundTag\":[\"dokodemoDoor-80\",\"dokodemoDoor-443\"],\"outboundTag\":\"blackhole-out\"}]" ${configPath}09_routing.json)
+            routing=$(jq -r ".routing.rules += [{\"source\":[\"${setIPs//,/\",\"}\"],\"domains\":${domains},\"type\":\"field\",\"inboundTag\":[\"dokodemoDoor-80\",\"dokodemoDoor-443\"],\"outboundTag\":\"direct\"},{\"type\":\"field\",\"inboundTag\":[\"dokodemoDoor-80\",\"dokodemoDoor-443\"],\"outboundTag\":\"blackhole-out\"}]" ${configPath}09_routing.json)
             echo "${routing}" | jq . >${configPath}09_routing.json
         else
+
             cat <<EOF >${configPath}09_routing.json
-            {
-              "routing": {
-                "rules": [
-                  {
-                    "source": [
-                    	"${setIPs//,/\",\"}"
-                    ],
-                    "type": "field",
-                    "inboundTag": [
-                      "dokodemoDoor-80",
-                      "dokodemoDoor-443"
-                    ],
-                    "outboundTag": "direct"
-                  },
-                  {
-                    "domains": [
-                    	"geosite:${domainList//,/\",\"geosite:}"
-                    ],
-                    "type": "field",
-                    "inboundTag": [
-                      "dokodemoDoor-80",
-                      "dokodemoDoor-443"
-                    ],
-                    "outboundTag": "blackhole-out"
-                  }
-                ]
-              }
-            }
+{
+  "routing": {
+    "rules": [
+      {
+        "source": [
+            "${setIPs//,/\",\"}"
+        ],
+        "domains":${domains},
+        "type": "field",
+        "inboundTag": [
+          "dokodemoDoor-80",
+          "dokodemoDoor-443"
+        ],
+        "outboundTag": "direct"
+      },
+      {
+        "type": "field",
+        "inboundTag": [
+          "dokodemoDoor-80",
+          "dokodemoDoor-443"
+        ],
+        "outboundTag": "blackhole-out"
+      }
+    ]
+  }
+}
 EOF
 
         fi
@@ -7395,7 +7388,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.9.11"
+    echoContent green "当前版本：v2.9.12"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
