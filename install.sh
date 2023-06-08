@@ -1130,6 +1130,15 @@ initTLSNginxConfig() {
     #    handleNginx start
 }
 
+# 删除nginx默认的配置
+removeNginxDefaultConf() {
+    if [[ -f ${nginxConfigPath}default.conf ]]; then
+        if [[ "$(grep -c "server_name" <${nginxConfigPath}default.conf)" == "1" ]] && [[ "$(grep -c "server_name  localhost;" <${nginxConfigPath}default.conf)" == "1" ]]; then
+            echoContent green " ---> 删除Nginx默认配置"
+            rm -rf ${nginxConfigPath}default.conf
+        fi
+    fi
+}
 # 修改nginx重定向配置
 updateRedirectNginxConf() {
     local redirectDomain=
@@ -1465,6 +1474,7 @@ customPortFunction() {
                 echoContent yellow "\n ---> 端口: ${port}"
                 if [[ -z "${btDomain}" ]]; then
                     checkDNSIP "${domain}"
+                    removeNginxDefaultConf
                     checkPortOpen "${port}" "${domain}"
                 fi
             else
@@ -2357,7 +2367,7 @@ handleXray() {
             echoContent green " ---> Xray启动成功"
         else
             echoContent red "Xray启动失败"
-            echoContent red "请手动执行【/etc/v2ray-agent/xray/xray -confdir /etc/v2ray-agent/xray/conf】，查看错误日志"
+            echoContent red "请手动执行以下的命令后【/etc/v2ray-agent/xray/xray -confdir /etc/v2ray-agent/xray/conf】将错误日志进行反馈"
             exit 0
         fi
     elif [[ "$1" == "stop" ]]; then
@@ -5432,9 +5442,7 @@ EOF
             exit 0
         fi
 
-    elif
-        [[ "${warpStatus}" == "4" ]]
-    then
+    elif [[ "${warpStatus}" == "4" ]]; then
 
         ${removeType} cloudflare-warp >/dev/null 2>&1
 
@@ -5551,7 +5559,7 @@ warpRoutingReg() {
             "settings": {
                 "secretKey": "${secretKeyWarpReg}",
                 "address": [
-                    ${address}
+                    "${address}"
                 ],
                 "peers": [
                     {
@@ -5949,7 +5957,6 @@ EOF
                 domains=$(echo "${domains}" | jq -r '. += ["domain:'"${line}"'"]')
             fi
         done < <(echo "${domainList}" | tr ',' '\n')
-
 
         if [[ -f "${configPath}09_routing.json" ]]; then
             unInstallRouting dokodemoDoor-80 inboundTag
@@ -7388,7 +7395,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.9.12"
+    echoContent green "当前版本：v2.9.13"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
