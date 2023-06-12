@@ -5786,32 +5786,7 @@ setVMessWSRoutingOutbounds() {
 
         echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
 
-        if [[ -f "${configPath}09_routing.json" ]]; then
-            unInstallRouting VMess-out outboundTag
-
-            local routing
-
-            routing=$(jq -r ".routing.rules += [{\"type\":\"field\",\"domain\":[\"ip.sb\",\"geosite:${domainList//,/\",\"geosite:}\"],\"outboundTag\":\"VMess-out\"}]" ${configPath}09_routing.json)
-
-            echo "${routing}" | jq . >${configPath}09_routing.json
-        else
-            cat <<EOF >${configPath}09_routing.json
-{
-  "routing": {
-    "rules": [
-      {
-        "type": "field",
-        "domain": [
-          "ip.sb",
-          "geosite:${domainList//,/\",\"geosite:}"
-        ],
-        "outboundTag": "VMess-out"
-      }
-    ]
-  }
-}
-EOF
-        fi
+        addInstallRouting VMess-out outboundTag "${domainList}"
         reloadCore
         echoContent green " ---> 添加分流成功"
         exit 0
@@ -5844,44 +5819,6 @@ setDokodemoDoorRoutingOutbounds() {
 
         echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
 
-        #        if [[ -f "${configPath}09_routing.json" ]]; then
-        #            unInstallRouting dokodemoDoor-80 outboundTag
-        #            unInstallRouting dokodemoDoor-443 outboundTag
-        #
-        #            local routing
-        #
-        #            routing=$(jq -r ".routing.rules += [{\"type\":\"field\",\"port\":80,\"domain\":[\"ip.sb\",\"geosite:${domainList//,/\",\"geosite:}\"],\"outboundTag\":\"dokodemoDoor-80\"},{\"type\":\"field\",\"port\":443,\"domain\":[\"ip.sb\",\"geosite:${domainList//,/\",\"geosite:}\"],\"outboundTag\":\"dokodemoDoor-443\"}]" ${configPath}09_routing.json)
-        #
-        #            echo "${routing}" | jq . >${configPath}09_routing.json
-        #        else
-        #            cat <<EOF >${configPath}09_routing.json
-        #{
-        #  "routing": {
-        #    "domainStrategy": "AsIs",
-        #    "rules": [
-        #      {
-        #        "type": "field",
-        #        "port": 80,
-        #        "domain": [
-        #          "ip.sb",
-        #          "geosite:${domainList//,/\",\"geosite:}"
-        #        ],
-        #        "outboundTag": "dokodemoDoor-80"
-        #      },
-        #      {
-        #        "type": "field",
-        #        "port": 443,
-        #        "domain": [
-        #          "ip.sb",
-        #          "geosite:${domainList//,/\",\"geosite:}"
-        #        ],
-        #        "outboundTag": "dokodemoDoor-443"
-        #      }
-        #    ]
-        #  }
-        #}
-        #EOF
-        #        fi
         reloadCore
         echoContent green " ---> 添加任意门分流成功"
         exit 0
@@ -7395,7 +7332,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.9.14"
+    echoContent green "当前版本：v2.9.15"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
