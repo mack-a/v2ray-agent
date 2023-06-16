@@ -93,6 +93,7 @@ checkCPUVendor() {
                 xrayCoreCPUVendor="Xray-linux-64"
                 v2rayCoreCPUVendor="v2ray-linux-64"
                 hysteriaCoreCPUVendor="hysteria-linux-amd64"
+                tuicCoreCPUVendor="-x86_64-unknown-linux-musl"
                 warpRegCoreCPUVendor="main-linux-amd64"
                 ;;
             'armv8' | 'aarch64')
@@ -100,6 +101,7 @@ checkCPUVendor() {
                 xrayCoreCPUVendor="Xray-linux-arm64-v8a"
                 v2rayCoreCPUVendor="v2ray-linux-arm64-v8a"
                 hysteriaCoreCPUVendor="hysteria-linux-arm64"
+                tuicCoreCPUVendor="-aarch64-unknown-linux-musl"
                 warpRegCoreCPUVendor="main-linux-arm64"
                 ;;
             *)
@@ -177,6 +179,11 @@ initVar() {
     portHoppingStart=
     portHoppingEnd=
     portHopping=
+
+    # tuic配置文件路径
+    tuicConfigPath=
+    tuicAlgorithm=
+    tuicPort=
 
     # 配置文件的path
     currentPath=
@@ -340,6 +347,12 @@ readInstallType() {
             fi
         fi
 
+        if [[ -d "/etc/v2ray-agent/tuic" && -f "/etc/v2ray-agent/tuic/tuic" ]]; then
+            if [[ -d "/etc/v2ray-agent/tuic/conf" ]] && [[ -f "/etc/v2ray-agent/tuic/conf/config.json" ]]; then
+                tuicConfigPath=/etc/v2ray-agent/tuic/conf/
+            fi
+        fi
+
     fi
 }
 
@@ -382,6 +395,9 @@ readInstallProtocolType() {
 
     if [[ -n "${hysteriaConfigPath}" ]]; then
         currentInstallProtocolType=${currentInstallProtocolType}'6'
+    fi
+    if [[ -n "${tuicConfigPath}" ]]; then
+        currentInstallProtocolType=${currentInstallProtocolType}'9'
     fi
 }
 
@@ -518,6 +534,13 @@ readHysteriaConfig() {
         hysteriaClientUploadSpeed=$(jq -r .hysteriaClientUploadSpeed <"${hysteriaConfigPath}client_network.json")
         hysteriaPort=$(jq -r .listen <"${hysteriaConfigPath}config.json" | awk -F "[:]" '{print $2}')
         hysteriaProtocol=$(jq -r .protocol <"${hysteriaConfigPath}config.json")
+    fi
+}
+# 读取Tuic配置
+readTuicConfig() {
+    if [[ -n "${tuicConfigPath}" ]]; then
+        tuicPort=$(jq -r .server <"${tuicConfigPath}config.json" | awk -F "[\]][:]" '{print $2}')
+        tuicAlgorithm=$(jq -r .congestion_control <"${tuicConfigPath}config.json")
     fi
 }
 # 读取xray reality配置
@@ -731,6 +754,8 @@ mkdirTools() {
     mkdir -p /tmp/v2ray-agent-tls/
 
     mkdir -p /etc/v2ray-agent/warp
+
+    mkdir -p /etc/v2ray-agent/tuic/conf
 }
 
 # 安装工具包
@@ -1156,7 +1181,8 @@ EOF
 
         cat <<EOF >>${nginxConfigPath}alone.conf
 server {
-	listen 127.0.0.1:31302 http2 so_keepalive=on;
+	listen 127.0.0.1:31302 so_keepalive=on;
+	http2 on;
 	server_name ${domain};
 	root ${nginxStaticPath};
 
@@ -1871,6 +1897,30 @@ installHysteria() {
     fi
 
 }
+
+# 安装 tuic
+installTuic() {
+    readInstallType
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 安装Tuic"
+
+    if [[ -z "${tuicConfigPath}" ]]; then
+
+        version=$(curl -s https://api.github.com/repos/EAimTY/tuic/releases | jq -r '.[]|select (.prerelease==false)|.tag_name' | head -1)
+
+        echoContent green " ---> Tuic版本:${version}"
+        wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/tuic/ "https://github.com/EAimTY/tuic/releases/download/${version}/${version}${tuicCoreCPUVendor}"
+        mv "/etc/v2ray-agent/tuic/${version}${tuicCoreCPUVendor}" /etc/v2ray-agent/tuic/tuic
+        chmod 655 /etc/v2ray-agent/tuic/tuic
+    else
+        echoContent green " ---> Tuic版本:$(/etc/v2ray-agent/tuic/tuic -v)"
+        read -r -p "是否更新、升级？[y/n]:" reInstallTuicStatus
+        if [[ "${reInstallTuicStatus}" == "y" ]]; then
+            rm -f /etc/v2ray-agent/tuic/tuic
+            installTuic "$1"
+        fi
+    fi
+
+}
 # 检查wget showProgress
 checkWgetShowProgress() {
     if find /usr/bin /usr/sbin | grep -q -w wget && wget --help | grep -q show-progress; then
@@ -2261,6 +2311,33 @@ EOF
         echoContent green " ---> 配置Hysteria开机自启成功"
     fi
 }
+# 安装Tuic开机自启动
+installTuicService() {
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 配置Tuic开机自启"
+    if [[ -n $(find /bin /usr/bin -name "systemctl") ]]; then
+        rm -rf /etc/systemd/system/tuic.service
+        touch /etc/systemd/system/tuic.service
+        execStart='/etc/v2ray-agent/tuic/tuic -c /etc/v2ray-agent/tuic/conf/config.json'
+        cat <<EOF >/etc/systemd/system/tuic.service
+[Unit]
+Description=Tuic Service
+Documentation=https://github.com/EAimTY
+After=network.target nss-lookup.target
+[Service]
+User=root
+ExecStart=${execStart}
+Restart=on-failure
+RestartPreventExitStatus=23
+LimitNPROC=10000
+LimitNOFILE=1000000
+[Install]
+WantedBy=multi-user.target
+EOF
+        systemctl daemon-reload
+        systemctl enable tuic.service
+        echoContent green " ---> 配置Tuic开机自启成功"
+    fi
+}
 # Xray开机自启
 installXrayService() {
     echoContent skyBlue "\n进度  $1/${totalProgress} : 配置Xray开机自启"
@@ -2350,6 +2427,36 @@ handleHysteria() {
         fi
     fi
 }
+# 操作Tuic
+handleTuic() {
+    # shellcheck disable=SC2010
+    if find /bin /usr/bin | grep -q systemctl && ls /etc/systemd/system/ | grep -q tuic.service; then
+        if [[ -z $(pgrep -f "tuic/tuic") ]] && [[ "$1" == "start" ]]; then
+            systemctl start tuic.service
+        elif [[ -n $(pgrep -f "tuic/tuic") ]] && [[ "$1" == "stop" ]]; then
+            systemctl stop tuic.service
+        fi
+    fi
+    sleep 0.8
+
+    if [[ "$1" == "start" ]]; then
+        if [[ -n $(pgrep -f "tuic/tuic") ]]; then
+            echoContent green " ---> Tuic启动成功"
+        else
+            echoContent red "Tuic启动失败"
+            echoContent red "请手动执行【/etc/v2ray-agent/tuic/tuic -c /etc/v2ray-agent/tuic/conf/config.json】，查看错误日志"
+            exit 0
+        fi
+    elif [[ "$1" == "stop" ]]; then
+        if [[ -z $(pgrep -f "tuic/tuic") ]]; then
+            echoContent green " ---> Tuic关闭成功"
+        else
+            echoContent red "Tuic关闭失败"
+            echoContent red "请手动执行【ps -ef|grep -v grep|grep tuic|awk '{print \$2}'|xargs kill -9】"
+            exit 0
+        fi
+    fi
+}
 # 操作xray
 handleXray() {
     if [[ -n $(find /bin /usr/bin -name "systemctl") ]] && [[ -n $(find /etc/systemd/system/ -name "xray.service") ]]; then
@@ -2391,9 +2498,13 @@ initXrayClients() {
         newUser="{\"id\":\"${uuid}\",\"flow\":\"xtls-rprx-vision\",\"email\":\"${newEmail}-VLESS_TCP/TLS_Vision\"}"
         currentClients=$(echo "${currentClients}" | jq -r ". +=[${newUser}]")
     fi
+    local users=
+    if [[ "${type}" == "9" ]]; then
+        users={}
+    else
+        users=[]
+    fi
 
-    local users=[]
-    users=[]
     while read -r user; do
         uuid=$(echo "${user}" | jq -r .id)
         email=$(echo "${user}" | jq -r .email | awk -F "[-]" '{print $1}')
@@ -2451,6 +2562,10 @@ initXrayClients() {
             currentUser="{\"id\":\"${uuid}\",\"email\":\"${email}-vless_reality_grpc\",\"flow\":\"\"}"
 
             users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
+        fi
+        # tuic
+        if echo "${type}" | grep -q "9"; then
+            users=$(echo "${users}" | jq -r ".\"${uuid}\"=\"${uuid}\"")
         fi
 
     done < <(echo "${currentClients}" | jq -c '.[]')
@@ -2661,12 +2776,14 @@ readHysteriaPortHopping() {
         fi
     fi
 }
+
 # 删除hysteria 端口条约iptables规则
 deleteHysteriaPortHoppingRules() {
     iptables -t nat -L PREROUTING --line-numbers | grep "mack-a_portHopping" | awk '{print $1}' | while read -r line; do
         iptables -t nat -D PREROUTING 1
     done
 }
+
 hysteriaPortHoppingMenu() {
     # 判断iptables是否存在
     if ! find /usr/bin /usr/sbin | grep -q -w iptables; then
@@ -2756,6 +2873,96 @@ EOF
   ]
 }
 EOF
+}
+
+# 初始化tuic端口
+initTuicPort() {
+    readTuicConfig
+    if [[ -n "${tuicPort}" ]]; then
+        read -r -p "读取到上次安装时的端口，是否使用上次安装时的端口？[y/n]:" historyTuicPortStatus
+        if [[ "${historyTuicPortStatus}" == "y" ]]; then
+            echoContent yellow "\n ---> 端口: ${tuicPort}"
+        else
+            tuicPort=
+        fi
+    fi
+
+    if [[ -z "${tuicPort}" ]]; then
+        echoContent yellow "请输入Tuic端口[回车随机10000-30000]，不可与其他服务重复"
+        read -r -p "端口:" tuicPort
+        if [[ -z "${tuicPort}" ]]; then
+            tuicPort=$((RANDOM % 20001 + 10000))
+        fi
+    fi
+    if [[ -z ${tuicPort} ]]; then
+        echoContent red " ---> 端口不可为空"
+        initTuicPort "$2"
+    elif ((tuicPort < 1 || tuicPort > 65535)); then
+        echoContent red " ---> 端口不合法"
+        initTuicPort "$2"
+    fi
+    allowPort "${tuicPort}"
+    allowPort "${tuicPort}" "udp"
+}
+
+# 初始化tuic的协议
+initTuicProtocol() {
+    echoContent skyBlue "\n请选择算法类型"
+    echoContent red "=============================================================="
+    echoContent yellow "1.bbr(默认)"
+    echoContent yellow "2.cubic"
+    echoContent yellow "3.new_reno"
+    echoContent red "=============================================================="
+    read -r -p "请选择:" selectTuicAlgorithm
+    case ${selectTuicAlgorithm} in
+    1)
+        tuicAlgorithm="bbr"
+        ;;
+    2)
+        tuicAlgorithm="cubic"
+        ;;
+    3)
+        tuicAlgorithm="new_reno"
+        ;;
+    *)
+        tuicAlgorithm="bbr"
+        ;;
+    esac
+    echoContent yellow "\n ---> 算法: ${tuicAlgorithm}\n"
+}
+
+# 初始化tuic配置
+initTuicConfig() {
+    echoContent skyBlue "\n进度 $1/${totalProgress} : 初始化Tuic配置"
+
+    initTuicPort
+    initTuicProtocol
+    echo 1
+    cat <<EOF >/etc/v2ray-agent/tuic/conf/config.json
+{
+    "server": "[::]:${tuicPort}",
+    "users": $(initXrayClients 9),
+    "certificate": "/etc/v2ray-agent/tls/${currentHost}.crt",
+    "private_key": "/etc/v2ray-agent/tls/${currentHost}.key",
+    "congestion_control":"${tuicAlgorithm}",
+    "alpn": ["h3"],
+    "log_level": "warn"
+}
+EOF
+}
+
+# Tuic安装
+tuicCoreInstall() {
+    if ! echo "${currentInstallProtocolType}" | grep -q "0" || [[ -z "${coreInstallType}" ]]; then
+        echoContent red "\n ---> 由于环境依赖，如安装Tuic，请先安装Xray-core的VLESS_TCP_TLS"
+        exit 0
+    fi
+    totalProgress=5
+    installTuic 1
+    initTuicConfig 2
+    installTuicService 3
+    reloadCore
+    showAccounts 4
 }
 
 # 初始化V2Ray 配置文件
@@ -3905,6 +4112,35 @@ EOF
 EOF
         echoContent yellow " ---> 二维码 VLESS(VLESS+reality+uTLS+gRPC)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40$(getPublicIP)%3A${currentRealityPort}%3Fencryption%3Dnone%26security%3Dreality%26type%3Dgrpc%26sni%3D${currentRealityServerNames}%26fp%3Dchrome%26pbk%3D${currentRealityPublicKey}%26path%3Dgrpc%26serviceName%3Dgrpc%23${email}\n"
+    elif [[ "${type}" == "tuic" ]]; then
+        echoContent yellow " ---> Tuic(TLS)"
+
+        echoContent yellow " ---> 格式化明文(Tuic+TlS)"
+        echoContent green "    协议类型:Tuic，地址:${currentHost}，端口：${tuicPort}，uuid：${id}，password：${id}，congestion-controller:${tuicAlgorithm}，alpn: h3，账户名:${id}\n"
+        local tuicUser=
+        tuicUser=$(echo "${id}" | awk -F "[-]" '{print $1}')
+
+        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${tuicUser}"
+  - name: "${tuicUser}_tuic"
+    server: ${currentHost}
+    type: tuic
+    port: ${tuicPort}
+    uuid: ${id}
+    password: ${id}
+    alpn:
+     - h3
+    congestion-controller: ${tuicAlgorithm}
+    disable-sni: true
+    reduce-rtt: true
+    fast-open: true
+    heartbeat-interval: 8000
+    request-timeout: 8000
+    max-udp-relay-packet-size: 1500
+    max-open-streams: 100
+    ip-version: dual
+    smux:
+        enabled: false
+EOF
     fi
 
 }
@@ -3917,6 +4153,7 @@ showAccounts() {
     readHysteriaConfig
     readXrayCoreRealityConfig
     readHysteriaPortHopping
+    readTuicConfig
     echo
     echoContent skyBlue "\n进度 $1/${totalProgress} : 账号"
     local show
@@ -4095,6 +4332,25 @@ showAccounts() {
             defaultBase64Code vlessRealityGRPC "${email}" "$(echo "${user}" | jq -r .id)"
         done
     fi
+    # tuic
+    if echo ${currentInstallProtocolType} | grep -q 9; then
+        echoContent skyBlue "\n================================  Tuic TLS  ================================\n"
+        echoContent red "\n --->Tuic速度依赖与本地的网络环境，如果被QoS使用体验会非常差"
+
+        jq .users[] ${tuicConfigPath}config.json | while read -r email; do
+            local password=
+            password=$(jq -r .users.${email} ${tuicConfigPath}config.json)
+
+            if [[ -n ${password} ]]; then
+                echoContent skyBlue "\n ---> 账号:$(echo "${email}")"
+                echo
+                defaultBase64Code tuic "${email}" "${password}"
+            fi
+
+        done
+
+    fi
+
     if [[ -z ${show} ]]; then
         echoContent red " ---> 未安装"
     fi
@@ -5987,6 +6243,11 @@ reloadCore() {
         handleHysteria stop
         handleHysteria start
     fi
+
+    if [[ -n "${tuicConfigPath}" ]]; then
+        handleTuic stop
+        handleTuic start
+    fi
 }
 
 # dns分流
@@ -6460,6 +6721,18 @@ unInstallHysteriaCore() {
     rm -rf /etc/v2ray-agent/hysteria/*
     rm ${configPath}02_socks_inbounds_hysteria.json
     rm -rf /etc/systemd/system/hysteria.service
+    echoContent green " ---> 卸载完成"
+}
+# 卸载Tuic
+unInstallTuicCore() {
+
+    if [[ -z "${tuicConfigPath}" ]]; then
+        echoContent red "\n ---> 未安装"
+        exit 0
+    fi
+    handleTuic stop
+    rm -rf /etc/v2ray-agent/tuic/*
+    rm -rf /etc/systemd/system/tuic.service
     echoContent green " ---> 卸载完成"
 }
 unInstallXrayCoreReality() {
@@ -7297,6 +7570,34 @@ manageHysteria() {
         journalctl -fu hysteria
     fi
 }
+
+# tuic管理
+manageTuic() {
+    echoContent skyBlue "\n进度  1/1 : Tuic管理"
+    echoContent red "\n=============================================================="
+    local tuicStatus=
+    if [[ -n "${tuicConfigPath}" ]]; then
+        echoContent yellow "1.重新安装"
+        echoContent yellow "2.卸载"
+        echoContent yellow "3.core管理"
+        echoContent yellow "4.查看日志"
+        tuicStatus=true
+    else
+        echoContent yellow "1.安装"
+    fi
+
+    echoContent red "=============================================================="
+    read -r -p "请选择:" installTuicStatus
+    if [[ "${installTuicStatus}" == "1" ]]; then
+        tuicCoreInstall
+    elif [[ "${installTuicStatus}" == "2" && "${tuicStatus}" == "true" ]]; then
+        unInstallTuicCore
+    elif [[ "${installTuicStatus}" == "3" && "${tuicStatus}" == "true" ]]; then
+        tuicVersionManageMenu 1
+    elif [[ "${installTuicStatus}" == "4" && "${tuicStatus}" == "true" ]]; then
+        journalctl -fu tuic
+    fi
+}
 # hysteria版本管理
 hysteriaVersionManageMenu() {
     echoContent skyBlue "\n进度  $1/${totalProgress} : Hysteria版本管理"
@@ -7325,13 +7626,42 @@ hysteriaVersionManageMenu() {
         handleHysteria start
     fi
 }
+
+# Tuic版本管理
+tuicVersionManageMenu() {
+    echoContent skyBlue "\n进度  $1/${totalProgress} : Tuic版本管理"
+    if [[ ! -d "/etc/v2ray-agent/tuic/" ]]; then
+        echoContent red " ---> 没有检测到安装目录，请执行脚本安装内容"
+        menu
+        exit 0
+    fi
+    echoContent red "\n=============================================================="
+    echoContent yellow "1.升级Tuic"
+    echoContent yellow "2.关闭Tuic"
+    echoContent yellow "3.打开Tuic"
+    echoContent yellow "4.重启Tuic"
+    echoContent red "=============================================================="
+
+    read -r -p "请选择:" selectTuicType
+    if [[ "${selectTuicType}" == "1" ]]; then
+        installTuic 1
+        handleTuic start
+    elif [[ "${selectTuicType}" == "2" ]]; then
+        handleTuic stop
+    elif [[ "${selectTuicType}" == "3" ]]; then
+        handleTuic start
+    elif [[ "${selectTuicType}" == "4" ]]; then
+        handleTuic stop
+        handleTuic start
+    fi
+}
 # 主菜单
 menu() {
 
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.9.16"
+    echoContent green "当前版本：v2.9.17"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
@@ -7357,23 +7687,24 @@ menu() {
 
     echoContent yellow "4.Hysteria管理"
     echoContent yellow "5.REALITY管理"
+    echoContent yellow "6.Tuic管理"
     echoContent skyBlue "-------------------------工具管理-----------------------------"
-    echoContent yellow "6.账号管理"
-    echoContent yellow "7.更换伪装站"
-    echoContent yellow "8.更新证书"
-    echoContent yellow "9.更换CDN节点"
-    echoContent yellow "10.分流工具"
-    echoContent yellow "11.添加新端口"
-    echoContent yellow "12.BT下载管理"
-    echoContent yellow "13.切换alpn"
-    echoContent yellow "14.域名黑名单"
+    echoContent yellow "7.账号管理"
+    echoContent yellow "8.更换伪装站"
+    echoContent yellow "9.更新证书"
+    echoContent yellow "10.更换CDN节点"
+    echoContent yellow "11.分流工具"
+    echoContent yellow "12.添加新端口"
+    echoContent yellow "13.BT下载管理"
+    echoContent yellow "14.切换alpn"
+    echoContent yellow "15.域名黑名单"
     echoContent skyBlue "-------------------------版本管理-----------------------------"
-    echoContent yellow "15.core管理"
-    echoContent yellow "16.更新脚本"
-    echoContent yellow "17.安装BBR、DD脚本"
+    echoContent yellow "16.core管理"
+    echoContent yellow "17.更新脚本"
+    echoContent yellow "18.安装BBR、DD脚本"
     echoContent skyBlue "-------------------------脚本管理-----------------------------"
-    echoContent yellow "18.查看日志"
-    echoContent yellow "19.卸载脚本"
+    echoContent yellow "19.查看日志"
+    echoContent yellow "20.卸载脚本"
     echoContent red "=============================================================="
     mkdirTools
     aliasInstall
@@ -7395,15 +7726,18 @@ menu() {
         manageReality 1
         ;;
     6)
-        manageAccount 1
+        manageTuic
         ;;
     7)
-        updateNginxBlog 1
+        manageAccount 1
         ;;
     8)
-        renewalTLS 1
+        updateNginxBlog 1
         ;;
     9)
+        renewalTLS 1
+        ;;
+    10)
         updateV2RayCDN 1
         ;;
         #    10)
@@ -7412,35 +7746,35 @@ menu() {
         #    11)
         #        warpRouting 1
         #        ;;
-    10)
+    11)
         routingToolsMenu 1
         #        streamingToolbox 1
         ;;
-    11)
+    12)
         addCorePort 1
         ;;
-    12)
+    13)
         btTools 1
         ;;
-    13)
+    14)
         switchAlpn 1
         ;;
-    14)
+    15)
         blacklist 1
         ;;
-    15)
+    16)
         coreVersionManageMenu 1
         ;;
-    16)
+    17)
         updateV2RayAgent 1
         ;;
-    17)
+    18)
         bbrInstall
         ;;
-    18)
+    19)
         checkLog 1
         ;;
-    19)
+    20)
         unInstall 1
         ;;
     esac
