@@ -4040,6 +4040,37 @@ EOF
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
 hysteria://${currentHost}:${hysteriaPort}?${mport}protocol=${hysteriaProtocol}&auth=${id}&peer=${currentHost}&insecure=0&alpn=h3&upmbps=${hysteriaClientUploadSpeed}&downmbps=${hysteriaClientDownloadSpeed}#${hysteriaEmail}
 EOF
+        echoContent yellow " ---> v2rayN(hysteria+TLS)"
+        cat <<EOF >"/etc/v2ray-agent/hysteria/conf/client.json"
+{
+  server: "${currentHost}:34356",
+  protocol: "${hysteriaProtocol}",
+  up_mbps: "${hysteriaClientUploadSpeed}"
+  down_mbps: "${hysteriaClientDownloadSpeed}"
+  http: { listen: "127.0.0.1:10809", timeout: 300, disable_udp: false },
+  socks5: { listen: "127.0.0.1:10808", timeout: 300, disable_udp: false },
+  alpn: "h3",
+  acl: "acl/routes.acl",
+  mmdb: "acl/Country.mmdb",
+  server_name: "${currentHost}",
+  insecure: false,
+  recv_window_conn: 5767168,
+  recv_window: 23068672,
+  disable_mtu_discovery: true,
+  resolver: "https://223.5.5.5/dns-query",
+  retry: 3,
+  retry_interval: 3,
+  quit_on_disconnect: false,
+  handshake_timeout: 15,
+  idle_timeout: 30,
+  fast_open: true,
+  hop_interval: 120
+}
+EOF
+        local v2rayNConf=
+        v2rayNConf="$(cat /etc/v2ray-agent/hysteria/conf/client.json)"
+        echoContent green "${v2rayNConf}\n"
+
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
   - name: "${hysteriaEmail}"
     type: hysteria
@@ -4113,10 +4144,31 @@ EOF
         echoContent yellow " ---> 二维码 VLESS(VLESS+reality+uTLS+gRPC)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40$(getPublicIP)%3A${currentRealityPort}%3Fencryption%3Dnone%26security%3Dreality%26type%3Dgrpc%26sni%3D${currentRealityServerNames}%26fp%3Dchrome%26pbk%3D${currentRealityPublicKey}%26path%3Dgrpc%26serviceName%3Dgrpc%23${email}\n"
     elif [[ "${type}" == "tuic" ]]; then
-        echoContent yellow " ---> Tuic(TLS)"
 
-        echoContent yellow " ---> 格式化明文(Tuic+TlS)"
+        echoContent yellow " ---> 格式化明文(Tuic+TLS)"
         echoContent green "    协议类型:Tuic，地址:${currentHost}，端口：${tuicPort}，uuid：${id}，password：${id}，congestion-controller:${tuicAlgorithm}，alpn: h3，账户名:${id}\n"
+
+        echoContent yellow " ---> v2rayN(Tuic+TLS)"
+        cat <<EOF >"/etc/v2ray-agent/tuic/conf/v2rayN.json"
+{
+    "relay": {
+        "server": "${currentHost}:${tuicPort}",
+        "uuid": "${id}",
+        "password": "${id}",
+        "ip": "$(getPublicIP)",
+        "congestion_control": "${tuicAlgorithm}",
+        "alpn": ["h3"]
+    },
+    "local": {
+        "server": "127.0.0.1:7798"
+    },
+    "log_level": "warn"
+}
+EOF
+        local v2rayNConf=
+        v2rayNConf="$(cat /etc/v2ray-agent/tuic/conf/v2rayN.json)"
+        echoContent green "${v2rayNConf}"
+
         local tuicUser=
         tuicUser=$(echo "${id}" | awk -F "[-]" '{print $1}')
 
@@ -4335,14 +4387,14 @@ showAccounts() {
     # tuic
     if echo ${currentInstallProtocolType} | grep -q 9; then
         echoContent skyBlue "\n================================  Tuic TLS  ================================\n"
-        echoContent red "\n --->Tuic速度依赖与本地的网络环境，如果被QoS使用体验会非常差"
+        echoContent red "\n --->Tuic相对于Hysteria会更加温和使用体验可能会更流畅。"
 
         jq .users[] ${tuicConfigPath}config.json | while read -r email; do
             local password=
-            password=$(jq -r .users.${email} ${tuicConfigPath}config.json)
+            password=$(jq -r ".users.${email}" ${tuicConfigPath}config.json)
 
             if [[ -n ${password} ]]; then
-                echoContent skyBlue "\n ---> 账号:$(echo "${email}")"
+                echoContent skyBlue "\n ---> 账号:$(echo "${password}"|awk -F "[-]" '{print $1}')_tuic"
                 echo
                 defaultBase64Code tuic "${email}" "${password}"
             fi
@@ -6885,26 +6937,67 @@ clashMetaConfig() {
     local url=$1
     local id=$2
     cat <<EOF >"/etc/v2ray-agent/subscribe/clashMetaProfiles/${id}"
-port: 7890
-socks-port: 7891
+mixed-port: 7890
+unified-delay: false
+geodata-mode: true
+tcp-concurrent: false
+find-process-mode: strict
+global-client-fingerprint: chrome
+
 allow-lan: true
-mode: Rule
-log-level: debug
-external-controller: 127.0.0.1:7908
+mode: rule
+log-level: info
+ipv6: true
+
+external-controller: 127.0.0.1:9090
+
+geox-url:
+  geoip: "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat"
+  geosite: "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat"
+  mmdb: "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/country.mmdb"
+
+profile:
+  store-selected: true
+  store-fake-ip: true
+
+sniffer:
+  enable: false
+  sniff:
+    TLS:
+      ports: [443]
+    HTTP:
+      ports: [80]
+      override-destination: true
+
+tun:
+  enable: true
+  stack: system
+  dns-hijack:
+    - 'any:53'
+  auto-route: true
+  auto-detect-interface: true
+
 dns:
   enable: true
-  ipv6: false
-  listen: 0.0.0.0:53
-  enhanced-mode: redir-host
-  nameserver:
-    - https://doh.pub/dns-query
-    - tls://dot.pub:853
-    - https://223.5.5.5/dns-query
-    - tls://223.5.5.5:853
+  listen: 0.0.0.0:1053
+  ipv6: true
+  enhanced-mode: fake-ip
+  fake-ip-range: 28.0.0.1/8
+  fake-ip-filter:
+  - '*'
+  - '+.lan'
   default-nameserver:
-    - 114.114.114.114
-    - 119.29.29.29
-    - 223.5.5.5
+  - 223.5.5.5
+  nameserver:
+  - 'tls://8.8.4.4#DNS_Proxy'
+  - 'tls://1.0.0.1#DNS_Proxy'
+  proxy-server-nameserver:
+  - https://doh.pub/dns-query
+  nameserver-policy:
+    "geosite:cn,private":
+    - https://doh.pub/dns-query
+    - https://dns.alidns.com/dns-query
+
 proxy-providers:
   provider1:
     type: http
@@ -6915,6 +7008,7 @@ proxy-providers:
       enable: false
       url: http://www.gstatic.com/generate_204
       interval: 300
+
 proxy-groups:
   - name: 节点选择
     type: select
@@ -6973,6 +7067,15 @@ proxy-groups:
     proxies:
       - 手动切换
       - 自动选择
+  - name: DNS_Proxy
+    type: select
+    use:
+      - provider1
+    proxies:
+      - 自动选择
+      - 节点选择
+      - DIRECT
+
   - name: Telegram
     type: select
     use:
@@ -7196,6 +7299,24 @@ rule-providers:
     url: https://ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Spotify/Spotify.yaml
     path: ./ruleset/spotify.yaml
     interval: 86400
+  ChinaMax:
+    type: http
+    behavior: classical
+    interval: 86400
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/ChinaMax/ChinaMax.yaml
+    path: ./Rules/ChinaMax.yaml
+  ChinaMaxDomain:
+    type: http
+    behavior: domain
+    interval: 86400
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/ChinaMax/ChinaMaxDomain.yaml
+    path: ./Rules/ChinaMaxDomain.yaml
+  ChinaMaxIPNoIPv6:
+    type: http
+    behavior: ipcidr
+    interval: 86400
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/ChinaMax/ChinaMaxIPNoIPv6.yaml
+    path: ./Rules/ChinaMaxIPNoIPv6.yaml
 rules:
   - GEOIP,LAN,本地直连
   - GEOIP,CN,本地直连
@@ -7661,7 +7782,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.9.17"
+    echoContent green "当前版本：v2.9.18"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
