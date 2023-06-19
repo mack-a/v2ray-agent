@@ -7178,6 +7178,12 @@ proxy-groups:
       - 手动切换
       - 自动选择
 rule-providers:
+  lan:
+    type: http
+    behavior: classical
+    interval: 86400
+    url: https://ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Lan/Lan.yaml
+    path: ./Rules/lan.yaml
   reject:
     type: http
     behavior: domain
@@ -7290,13 +7296,13 @@ rule-providers:
     type: http
     behavior: domain
     interval: 86400
-    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/ChinaMax/ChinaMax_Domain.yaml
+    url: https://ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/ChinaMax/ChinaMax_Domain.yaml
     path: ./Rules/ChinaMaxDomain.yaml
   ChinaMaxIPNoIPv6:
     type: http
     behavior: ipcidr
     interval: 86400
-    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/ChinaMax/ChinaMax_IP_No_IPv6.yaml
+    url: https://ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/ChinaMax/ChinaMax_IP_No_IPv6.yaml
     path: ./Rules/ChinaMaxIPNoIPv6.yaml
 rules:
   - RULE-SET,Google,Google,no-resolve
@@ -7313,9 +7319,9 @@ rules:
   - RULE-SET,gfw,全球代理
   - RULE-SET,applications,本地直连
   - RULE-SET,ChinaMaxDomain,本地直连
-  - GEOIP,LAN,本地直连,no-resolve
+  - RULE-SET,ChinaMaxIPNoIPv6,本地直连,no-resolve
+  - RULE-SET,lan,本地直连,no-resolve
   - GEOIP,CN,本地直连,no-resolve
-  - GEOIP,ChinaMaxIPNoIPv6,本地直连,no-resolve
   - MATCH,漏网之鱼
 EOF
 
@@ -7762,7 +7768,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.9.19"
+    echoContent green "当前版本：v2.9.20"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
