@@ -14,8 +14,8 @@
 # 一、项目介绍
 
 - [一键安装教程【推荐】](https://www.v2ray-agent.com/archives/1682491479771)
-- 支持Xray-core/v2ray-core内核
-- 支持多种传输协议，VLESS（Reality）、VMess、Trojan和Hysteria，支持多种协议组合。
+- 支持Xray-core/v2ray-core/Hysteria/Tuic
+- 支持多种传输协议，VLESS（Reality）、VMess、Trojan、Hysteria、Tuic，支持多种协议组合。
 - 支持自动申请和更新证书
 - 支持自主更换伪装站点
 - [支持批量添加CDN节点并配合ClashMeta自动优选](https://www.v2ray-agent.com/archives/1684858575649)
