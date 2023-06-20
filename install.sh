@@ -2901,6 +2901,7 @@ initTuicPort() {
         echoContent red " ---> 端口不合法"
         initTuicPort "$2"
     fi
+    echoContent green "\n ---> 端口: ${tuicPort}"
     allowPort "${tuicPort}"
     allowPort "${tuicPort}" "udp"
 }
@@ -2937,7 +2938,6 @@ initTuicConfig() {
 
     initTuicPort
     initTuicProtocol
-    echo 1
     cat <<EOF >/etc/v2ray-agent/tuic/conf/config.json
 {
     "server": "[::]:${tuicPort}",
@@ -4145,8 +4145,13 @@ EOF
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40$(getPublicIP)%3A${currentRealityPort}%3Fencryption%3Dnone%26security%3Dreality%26type%3Dgrpc%26sni%3D${currentRealityServerNames}%26fp%3Dchrome%26pbk%3D${currentRealityPublicKey}%26path%3Dgrpc%26serviceName%3Dgrpc%23${email}\n"
     elif [[ "${type}" == "tuic" ]]; then
 
+        if [[ -z "${email}" ]]; then
+            echoContent red " ---> 读取配置失败，请重新安装"
+            exit 0
+        fi
+
         echoContent yellow " ---> 格式化明文(Tuic+TLS)"
-        echoContent green "    协议类型:Tuic，地址:${currentHost}，端口：${tuicPort}，uuid：${id}，password：${id}，congestion-controller:${tuicAlgorithm}，alpn: h3，账户名:${id}\n"
+        echoContent green "    协议类型:Tuic，地址:${currentHost}，端口：${tuicPort}，uuid：${id}，password：${id}，congestion-controller:${tuicAlgorithm}，alpn: h3，账户名:${email}_tuic\n"
 
         echoContent yellow " ---> v2rayN(Tuic+TLS)"
         cat <<EOF >"/etc/v2ray-agent/tuic/conf/v2rayN.json"
@@ -4169,11 +4174,8 @@ EOF
         v2rayNConf="$(cat /etc/v2ray-agent/tuic/conf/v2rayN.json)"
         echoContent green "${v2rayNConf}"
 
-        local tuicUser=
-        tuicUser=$(echo "${id}" | awk -F "[-]" '{print $1}')
-
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${tuicUser}"
-  - name: "${tuicUser}_tuic"
+        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${email}"
+  - name: "${email}_tuic"
     server: ${currentHost}
     type: tuic
     port: ${tuicPort}
@@ -4387,16 +4389,16 @@ showAccounts() {
     # tuic
     if echo ${currentInstallProtocolType} | grep -q 9; then
         echoContent skyBlue "\n================================  Tuic TLS  ================================\n"
-        echoContent red "\n --->Tuic相对于Hysteria会更加温和使用体验可能会更流畅。"
+        echoContent yellow "\n --->Tuic相对于Hysteria会更加温 使用体验可能会更流畅。"
 
-        jq .users[] ${tuicConfigPath}config.json | while read -r email; do
-            local password=
-            password=$(jq -r ".users.${email}" ${tuicConfigPath}config.json)
+        jq -r .users[] ${tuicConfigPath}config.json | while read -r id; do
+            local tuicEmail=
+            tuicEmail=$(jq -r '.inbounds[0].settings.clients[]|select(.id=="'"${id}"'")|.email' ${configPath}${frontingType}.json | awk -F "[-]" '{print $1}')
 
-            if [[ -n ${password} ]]; then
-                echoContent skyBlue "\n ---> 账号:$(echo "${password}"|awk -F "[-]" '{print $1}')_tuic"
+            if [[ -n ${tuicEmail} ]]; then
+                echoContent skyBlue "\n ---> 账号:${tuicEmail}_tuic"
                 echo
-                defaultBase64Code tuic "${email}" "${password}"
+                defaultBase64Code tuic "${tuicEmail}" "${id}"
             fi
 
         done
@@ -4830,7 +4832,6 @@ customUserEmail() {
 # 添加用户
 addUserXray() {
     readConfigHostPathUUID
-    echoContent yellow "添加新用户后，需要重新查看订阅"
     read -r -p "请输入要添加的用户数量:" userNum
     echo
     if [[ -z ${userNum} || ${userNum} -le 0 ]]; then
@@ -4930,10 +4931,16 @@ addUserXray() {
             clients=$(jq -r ".auth.config = ${clients}" ${hysteriaConfigPath}config.json)
             echo "${clients}" | jq . >${hysteriaConfigPath}config.json
         fi
+
+        if echo ${currentInstallProtocolType} | grep -q 9; then
+            local tuicResult
+
+            tuicResult=$(jq -r ".users.\"${uuid}\" += \"${uuid}\"" ${tuicConfigPath}config.json)
+            echo "${tuicResult}" | jq . >${tuicConfigPath}config.json
+        fi
     done
 
     reloadCore
-    showAccounts >/dev/null
     echoContent green " ---> 添加完成"
     manageAccount 1
 }
@@ -5056,7 +5063,7 @@ addUser() {
 
 # 移除用户
 removeUser() {
-
+    local uuid=
     if echo ${currentInstallProtocolType} | grep -q 0 || echo ${currentInstallProtocolType} | grep -q trojan; then
         jq -r -c .inbounds[0].settings.clients[].email ${configPath}${frontingType}.json | awk '{print NR""":"$0}'
         read -r -p "请选择要删除的用户编号[仅支持单个删除]:" delUserIndex
@@ -5065,6 +5072,7 @@ removeUser() {
         else
             delUserIndex=$((delUserIndex - 1))
             local vlessTcpResult
+            uuid=$(jq -r ".inbounds[0].settings.clients[${delUserIndex}].id" ${configPath}${frontingType}.json)
             vlessTcpResult=$(jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])' ${configPath}${frontingType}.json)
             echo "${vlessTcpResult}" | jq . >${configPath}${frontingType}.json
         fi
@@ -5076,10 +5084,12 @@ removeUser() {
         else
             delUserIndex=$((delUserIndex - 1))
             local vlessRealityResult
+            uuid=$(jq -r ".inbounds[0].settings.clients[${delUserIndex}].id" ${configPath}${frontingType}.json)
             vlessRealityResult=$(jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])' ${configPath}07_VLESS_vision_reality_inbounds.json)
             echo "${vlessRealityResult}" | jq . >${configPath}07_VLESS_vision_reality_inbounds.json
         fi
     fi
+
     if [[ -n "${delUserIndex}" ]]; then
         if echo ${currentInstallProtocolType} | grep -q 1; then
             local vlessWSResult
@@ -5128,6 +5138,11 @@ removeUser() {
             echo "${vlessRealityGRPCResult}" | jq . >${configPath}08_VLESS_reality_fallback_grpc_inbounds.json
         fi
 
+        if echo ${currentInstallProtocolType} | grep -q 9; then
+            local tuicResult
+            tuicResult=$(jq -r "del(.users.\"${uuid}\")" ${tuicConfigPath}config.json)
+            echo "${tuicResult}" | jq . >${tuicConfigPath}config.json
+        fi
         reloadCore
     fi
     manageAccount 1
@@ -6839,7 +6854,7 @@ manageAccount() {
 
     echoContent red "\n=============================================================="
     echoContent yellow "# 添加单个用户时可自定义email和uuid"
-    echoContent yellow "# 如安装了Hysteria，账号会同时添加到Hysteria\n"
+    echoContent yellow "# 如安装了Hysteria或者Tuic，账号会同时添加到相应的类型下面\n"
     echoContent yellow "1.查看账号"
     echoContent yellow "2.查看订阅"
     echoContent yellow "3.添加订阅"
@@ -6850,7 +6865,7 @@ manageAccount() {
     if [[ "${manageAccountStatus}" == "1" ]]; then
         showAccounts 1
     elif [[ "${manageAccountStatus}" == "2" ]]; then
-        subscribe 1
+        subscribe
     elif [[ "${manageAccountStatus}" == "3" ]]; then
         addSubscribeMenu 1
     elif [[ "${manageAccountStatus}" == "4" ]]; then
@@ -6875,7 +6890,7 @@ addSubscribeMenu() {
         rm -rf /etc/v2ray-agent/subscribe_remote/clashMeta/*
         rm -rf /etc/v2ray-agent/subscribe_remote/default/*
         echoContent green " ---> 其他机器订阅删除成功"
-        subscribe 1
+        subscribe
     fi
 }
 # 添加其他机器clashMeta订阅
@@ -6992,11 +7007,12 @@ dns:
   - 'tls://8.8.4.4#DNS_Proxy'
   - 'tls://1.0.0.1#DNS_Proxy'
   proxy-server-nameserver:
-  - https://doh.pub/dns-query
+  - https://dns.alidns.com/dns-query#h3=true
   nameserver-policy:
     "geosite:cn,private":
-    - https://doh.pub/dns-query
-    - https://dns.alidns.com/dns-query
+    - 223.5.5.5
+    - 114.114.114.114
+    - https://dns.alidns.com/dns-query#h3=true
 
 proxy-providers:
   provider1:
@@ -7768,7 +7784,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.9.20"
+    echoContent green "当前版本：v2.9.21"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
