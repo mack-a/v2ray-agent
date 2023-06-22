@@ -1178,11 +1178,16 @@ updateRedirectNginxConf() {
 EOF
 
     if echo "${selectCustomInstallType}" | grep -q 2 && echo "${selectCustomInstallType}" | grep -q 5 || [[ -z "${selectCustomInstallType}" ]]; then
+        local nginxH2Conf=
+        nginxH2Conf="listen 127.0.0.1:31302 http2 so_keepalive=on;"
+        nginxVersion=$(nginx -v 2>&1)
 
+        if echo "${nginxVersion}" | grep -q "1.25"; then
+            nginxH2Conf="listen 127.0.0.1:31302 so_keepalive=on;http2 on;"
+        fi
         cat <<EOF >>${nginxConfigPath}alone.conf
 server {
-	listen 127.0.0.1:31302 so_keepalive=on;
-	http2 on;
+	${nginxH2Conf}
 	server_name ${domain};
 	root ${nginxStaticPath};
 
@@ -4043,28 +4048,30 @@ EOF
         echoContent yellow " ---> v2rayN(hysteria+TLS)"
         cat <<EOF >"/etc/v2ray-agent/hysteria/conf/client.json"
 {
-  server: "${currentHost}:34356",
-  protocol: "${hysteriaProtocol}",
-  up_mbps: "${hysteriaClientUploadSpeed}"
-  down_mbps: "${hysteriaClientDownloadSpeed}"
-  http: { listen: "127.0.0.1:10809", timeout: 300, disable_udp: false },
-  socks5: { listen: "127.0.0.1:10808", timeout: 300, disable_udp: false },
-  alpn: "h3",
-  acl: "acl/routes.acl",
-  mmdb: "acl/Country.mmdb",
-  server_name: "${currentHost}",
-  insecure: false,
-  recv_window_conn: 5767168,
-  recv_window: 23068672,
-  disable_mtu_discovery: true,
-  resolver: "https://223.5.5.5/dns-query",
-  retry: 3,
-  retry_interval: 3,
-  quit_on_disconnect: false,
-  handshake_timeout: 15,
-  idle_timeout: 30,
-  fast_open: true,
-  hop_interval: 120
+  "server": "${currentHost}:${hysteriaPort}",
+  "protocol": "${hysteriaProtocol}",
+  "up_mbps": ${hysteriaClientUploadSpeed},
+  "down_mbps": ${hysteriaClientDownloadSpeed},
+  "http": { "listen": "127.0.0.1:10809", "timeout": 300, "disable_udp": false },
+  "socks5": { "listen": "127.0.0.1:10808", "timeout": 300, "disable_udp": false },
+  "obfs": "",
+  "auth_str":"${id}",
+  "alpn": "h3",
+  "acl": "acl/routes.acl",
+  "mmdb": "acl/Country.mmdb",
+  "server_name": "${currentHost}",
+  "insecure": false,
+  "recv_window_conn": 5767168,
+  "recv_window": 23068672,
+  "disable_mtu_discovery": true,
+  "resolver": "https://223.5.5.5/dns-query",
+  "retry": 3,
+  "retry_interval": 3,
+  "quit_on_disconnect": false,
+  "handshake_timeout": 15,
+  "idle_timeout": 30,
+  "fast_open": true,
+  "hop_interval": 120
 }
 EOF
         local v2rayNConf=
@@ -7337,7 +7344,7 @@ rules:
   - RULE-SET,ChinaMaxDomain,本地直连
   - RULE-SET,ChinaMaxIPNoIPv6,本地直连,no-resolve
   - RULE-SET,lan,本地直连,no-resolve
-  - GEOIP,CN,本地直连,no-resolve
+  - GEOIP,CN,本地直连
   - MATCH,漏网之鱼
 EOF
 
@@ -7784,7 +7791,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.9.21"
+    echoContent green "当前版本：v2.9.22"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
