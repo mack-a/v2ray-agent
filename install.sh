@@ -4036,10 +4036,12 @@ EOF
         hysteriaEmail=$(echo "${email}" | awk -F "[-]" '{print $1}')_hysteria
         echoContent yellow " ---> Hysteria(TLS)"
         local clashMetaPortTmp="port: ${hysteriaPort}"
+        local v2rayNPortHopping=
         local mport=
         if [[ -n "${portHoppingStart}" ]]; then
             mport="mport=${portHoppingStart}-${portHoppingEnd}&"
             clashMetaPortTmp="ports: ${portHoppingStart}-${portHoppingEnd}"
+            v2rayNPortHopping=",${portHoppingStart}-${portHoppingEnd}"
         fi
         echoContent green "    hysteria://${currentHost}:${hysteriaPort}?${mport}protocol=${hysteriaProtocol}&auth=${id}&peer=${currentHost}&insecure=0&alpn=h3&upmbps=${hysteriaClientUploadSpeed}&downmbps=${hysteriaClientDownloadSpeed}#${hysteriaEmail}\n"
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
@@ -4048,7 +4050,7 @@ EOF
         echoContent yellow " ---> v2rayN(hysteria+TLS)"
         cat <<EOF >"/etc/v2ray-agent/hysteria/conf/client.json"
 {
-  "server": "${currentHost}:${hysteriaPort}",
+  "server": "${currentHost}:${hysteriaPort}${v2rayNPortHopping}",
   "protocol": "${hysteriaProtocol}",
   "up_mbps": ${hysteriaClientUploadSpeed},
   "down_mbps": ${hysteriaClientDownloadSpeed},
@@ -7791,7 +7793,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.9.22"
+    echoContent green "当前版本：v2.9.23"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
@@ -7800,7 +7802,7 @@ menu() {
     echoContent red "                                              "
     echoContent green "推广请联系TG：@mackaff\n"
     echoContent green "VPS选购攻略：https://www.v2ray-agent.com/archives/1679975663984"
-    echoContent green "freevod免费的观影网站：https://www.v2ray-agent.com/archives/1682647927103"
+    echoContent green "RN低价套餐，年付最低10美元：https://www.v2ray-agent.com/archives/racknerdtao-can-zheng-li-nian-fu-10mei-yuan"
     echoContent red "=============================================================="
     if [[ -n "${coreInstallType}" ]]; then
         echoContent yellow "1.重新安装"
