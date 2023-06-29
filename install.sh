@@ -4026,7 +4026,7 @@ EOF
     sni: ${currentHost}
     udp: true
     grpc-opts:
-      grpc-service-name: "${currentPath}trojangrpc"
+      grpc-service-name: ${currentPath}trojangrpc
 EOF
         echoContent yellow " ---> 二维码 Trojan gRPC(TLS)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${add}%3a${currentDefaultPort}%3Fencryption%3Dnone%26fp%3Dchrome%26security%3Dtls%26peer%3d${currentHost}%26type%3Dgrpc%26sni%3d${currentHost}%26path%3D${currentPath}trojangrpc%26alpn%3Dh2%26serviceName%3D${currentPath}trojangrpc%23${email}\n"
@@ -7793,7 +7793,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.9.23"
+    echoContent green "当前版本：v2.9.24"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
