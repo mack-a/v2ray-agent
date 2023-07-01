@@ -7818,7 +7818,6 @@ menu() {
     echoContent green "推广请联系TG：@mackaff\n"
     echoContent green "VPS选购攻略：https://www.v2ray-agent.com/archives/1679975663984"
     echoContent green "RN低价套餐，年付最低10美元：https://www.v2ray-agent.com/archives/racknerdtao-can-zheng-li-nian-fu-10mei-yuan"
-    echoContent green "搬瓦工最新终极套餐v2，推荐购买：https://www.v2ray-agent.com/archives/2023nian-ban-wa-gong-ji-fang-tui-jian#heading-3"
     echoContent red "=============================================================="
     if [[ -n "${coreInstallType}" ]]; then
         echoContent yellow "1.重新安装"

@@ -6,8 +6,6 @@
 - [English Version](https://github.com/mack-a/v2ray-agent/blob/master/documents/en/README_EN.md)
 - [VPS选购攻略，避坑指南](https://www.v2ray-agent.com/archives/1679975663984)
 - [freevod 免费观影网站](https://share.freevod.org/)
-- [搬瓦工终极套餐THE PLAN v2，推荐购买](https://bandwagonhost.com/aff.php?aff=64917&pid=131
-  ),[详细介绍](https://www.v2ray-agent.com/archives/2023nian-ban-wa-gong-ji-fang-tui-jian#heading-3)
 - [TG频道](https://t.me/v2rayAgentChannel)、[TG群组](https://t.me/technologyshare)、[官方网站](https://www.v2ray-agent.com/)
 
 - **请给个⭐支持一下**
