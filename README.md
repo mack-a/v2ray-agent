@@ -46,13 +46,13 @@
 - Github
 
 ```
-wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh" && chmod 700 /root/install.sh && /root/install.sh
+wget -P ~ -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh" && chmod 700 ~/install.sh && ~/install.sh
 ```
 
 - 官方网站【备用】
 
 ```
-wget -P /root -N --no-check-certificate "https://www.v2ray-agent.com/v2ray-agent/install.sh" && chmod 700 /root/install.sh && /root/install.sh
+wget -P ~ -N --no-check-certificate "https://www.v2ray-agent.com/v2ray-agent/install.sh" && chmod 700 ~/install.sh && ~/install.sh
 ```
 
 ## [2.搭建教程](https://www.v2ray-agent.com/archives/1682491479771)
