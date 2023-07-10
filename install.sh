@@ -1843,7 +1843,7 @@ installV2Ray() {
     if [[ "${coreInstallType}" != "2" && "${coreInstallType}" != "3" ]]; then
         if [[ "${selectCoreType}" == "2" ]]; then
 
-            version=$(curl -s https://api.github.com/repos/v2fly/v2ray-core/releases | jq -r '.[]|select (.prerelease==false)|.tag_name' | grep -v 'v5' | head -1)
+            version=$(curl -s https://api.github.com/repos/v2fly/v2ray-core/releases?per_page=10 | jq -r '.[]|select (.prerelease==false)|.tag_name' | grep -v 'v5' | head -1)
         else
             version=${v2rayCoreVersion}
         fi
@@ -1882,7 +1882,7 @@ installHysteria() {
 
     if [[ -z "${hysteriaConfigPath}" ]]; then
 
-        version=$(curl -s https://api.github.com/repos/apernet/hysteria/releases | jq -r '.[]|select (.prerelease==false)|.tag_name' | head -1)
+        version=$(curl -s https://api.github.com/repos/apernet/hysteria/releases?per_page=5 | jq -r '.[]|select (.prerelease==false)|.tag_name' | head -1)
 
         echoContent green " ---> Hysteria版本:${version}"
         #        if wget --help | grep -q show-progress; then
@@ -1910,7 +1910,7 @@ installTuic() {
 
     if [[ -z "${tuicConfigPath}" ]]; then
 
-        version=$(curl -s https://api.github.com/repos/EAimTY/tuic/releases | jq -r '.[]|select (.prerelease==false)|.tag_name' | head -1)
+        version=$(curl -s https://api.github.com/repos/EAimTY/tuic/releases?per_page=5 | jq -r '.[]|select (.prerelease==false)|.tag_name' | head -1)
 
         echoContent green " ---> Tuic版本:${version}"
         wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/tuic/ "https://github.com/EAimTY/tuic/releases/download/${version}/${version}${tuicCoreCPUVendor}"
@@ -1945,7 +1945,7 @@ installXray() {
 
     if [[ "${coreInstallType}" != "1" ]]; then
 
-        version=$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases | jq -r '.[]|select (.prerelease=='${prereleaseStatus}')|.tag_name' | head -1)
+        version=$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases?per_page=10 | jq -r '.[]|select (.prerelease=='${prereleaseStatus}')|.tag_name' | head -1)
 
         echoContent green " ---> Xray-core版本:${version}"
 
@@ -1962,7 +1962,7 @@ installXray() {
         unzip -o "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip" -d /etc/v2ray-agent/xray >/dev/null
         rm -rf "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip"
 
-        version=$(curl -s https://api.github.com/repos/Loyalsoldier/v2ray-rules-dat/releases | jq -r '.[]|.tag_name' | head -1)
+        version=$(curl -s https://api.github.com/repos/Loyalsoldier/v2ray-rules-dat/releases?per_page=1 | jq -r '.[]|.tag_name')
         echoContent skyBlue "------------------------Version-------------------------------"
         echo "version:${version}"
         rm /etc/v2ray-agent/xray/geo* >/dev/null 2>&1
@@ -2088,7 +2088,7 @@ xrayVersionManageMenu() {
 updateGeoSite() {
     echoContent yellow "\n来源 https://github.com/Loyalsoldier/v2ray-rules-dat"
 
-    version=$(curl -s https://api.github.com/repos/Loyalsoldier/v2ray-rules-dat/releases | jq -r '.[]|.tag_name' | head -1)
+    version=$(curl -s https://api.github.com/repos/Loyalsoldier/v2ray-rules-dat/releases?per_page=1 | jq -r '.[]|.tag_name')
     echoContent skyBlue "------------------------Version-------------------------------"
     echo "version:${version}"
     rm ${configPath}../geo* >/dev/null
@@ -7808,7 +7808,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.9.26"
+    echoContent green "当前版本：v2.9.27"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
