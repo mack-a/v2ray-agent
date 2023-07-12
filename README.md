@@ -5,8 +5,9 @@
 
 - [English Version](https://github.com/mack-a/v2ray-agent/blob/master/documents/en/README_EN.md)
 - [VPS选购攻略，避坑指南](https://www.v2ray-agent.com/archives/1679975663984)
-- [freevod 免费观影网站](https://share.freevod.org/)
+- [Freevod 免费观影网站](https://share.freevod.org/)
 - [TG频道](https://t.me/v2rayAgentChannel)、[TG群组](https://t.me/technologyshare)、[官方网站](https://www.v2ray-agent.com/)
+- [RackNerd低价优质VPS深度评测](https://www.v2ray-agent.com/archives/1688973668640)
 
 - **请给个⭐支持一下**
 
@@ -18,7 +19,7 @@
 - 支持自动申请和更新证书
 - 支持自主更换伪装站点
 - [支持批量添加CDN节点并配合ClashMeta自动优选](https://www.v2ray-agent.com/archives/1684858575649)
-- 支持订阅（Clash.Meta、v2rayNG、v2rayN、Shadowrocket等客户端）
+- 支持订阅以及多VPS组合订阅
 - [支持多种分流工具（Warp、IPv6、任意门、DNS、VMess(ws)、SNI反向代理）](https://www.v2ray-agent.com/archives/ba-he-yi-jiao-ben-yu-ming-fen-liu-jiao-cheng)
 - 支持批量新增端口
 - 支持Core的升级以及回退
@@ -28,7 +29,7 @@
 
 # 二、线路推荐
 
-> 即使再好的协议也比不上一个高品质的VPS。因此，推荐以下线路
+> 再好的协议也比不上一个高品质的VPS。推荐以下线路
 
 - [VPS选购指南,避坑指南](https://www.v2ray-agent.com/archives/1679975663984)
 - [CN2 GIA](https://www.v2ray-agent.com/tags/cn2-gia)
