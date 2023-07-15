@@ -4720,6 +4720,12 @@ unInstall() {
         echoContent green " ---> 删除Hysteria开机自启完成"
     fi
 
+    if [[ -z "${tuicConfigPath}" ]]; then
+        handleTuic stop
+        rm -rf /etc/systemd/system/tuic.service
+        echoContent green " ---> 删除Tuic开机自启完成"
+    fi
+
     #    if [[ -f "/root/.acme.sh/acme.sh.env" ]] && grep -q 'acme.sh.env' </root/.bashrc; then
     #        sed -i 's/. "\/root\/.acme.sh\/acme.sh.env"//g' "$(grep '. "/root/.acme.sh/acme.sh.env"' -rl /root/.bashrc)"
     #    fi
@@ -7350,8 +7356,8 @@ rule-providers:
     url: https://ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/ChinaMax/ChinaMax_IP_No_IPv6.yaml
     path: ./Rules/ChinaMaxIPNoIPv6.yaml
 rules:
-  - RULE-SET,Google,Google,no-resolve
   - RULE-SET,YouTube,YouTube,no-resolve
+  - RULE-SET,Google,Google,no-resolve
   - RULE-SET,GitHub,GitHub
   - RULE-SET,telegramcidr,Telegram,no-resolve
   - RULE-SET,Spotify,Spotify,no-resolve
@@ -7540,7 +7546,7 @@ initRealityDest() {
         realityDestDomain=${domain}:${port}
     else
         local realityDestDomainList=
-        realityDestDomainList="gateway.icloud.com,itunes.apple.com,download-installer.cdn.mozilla.net,addons.mozilla.org,www.microsoft.com,www.lovelive-anime.jp,www.speedtest.net,www.speedtest.org,swdist.apple.com,swcdn.apple.com,updates.cdn-apple.com,mensura.cdn-apple.com,osxapps.itunes.apple.com,aod.itunes.apple.com,cdn-dynmedia-1.microsoft.com,update.microsoft,software.download.prss.microsoft.com,s0.awsstatic.com,d1.awsstatic.com,images-na.ssl-images-amazon.com,m.media-amazon.com,player.live-video.net"
+        realityDestDomainList="gateway.icloud.com,itunes.apple.com,download-installer.cdn.mozilla.net,addons.mozilla.org,www.lovelive-anime.jp,www.speedtest.net,www.speedtest.org,swdist.apple.com,swcdn.apple.com,updates.cdn-apple.com,mensura.cdn-apple.com,osxapps.itunes.apple.com,aod.itunes.apple.com,s0.awsstatic.com,d1.awsstatic.com,images-na.ssl-images-amazon.com,m.media-amazon.com,player.live-video.net"
 
         echoContent skyBlue "\n===== 生成配置回落的域名 例如:[addons.mozilla.org:443] ======\n"
         echoContent green "回落域名列表：https://www.v2ray-agent.com/archives/1680104902581#heading-8\n"
@@ -7813,7 +7819,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.9.29"
+    echoContent green "当前版本：v2.9.30"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
