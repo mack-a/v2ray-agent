@@ -6691,6 +6691,8 @@ selectCoreInstall() {
         ;;
     2)
         v2rayCoreVersion=
+        echoContent red " ---> 由于v2ray不支持很多新的特性，为了降低开发成本现停止维护，建议使用Xray-core、hysteria、Tuic"
+        exit 0
         if [[ "${selectInstallType}" == "2" ]]; then
             customV2RayInstall
         else
@@ -7819,7 +7821,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.9.30"
+    echoContent green "当前版本：v2.10.1"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
