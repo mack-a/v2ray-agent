@@ -7,7 +7,7 @@
 - [VPS选购攻略，避坑指南](https://www.v2ray-agent.com/archives/1679975663984)
 - [Freevod 免费观影网站](https://share.freevod.org/)
 - [TG频道](https://t.me/v2rayAgentChannel)、[TG群组](https://t.me/technologyshare)、[官方网站](https://www.v2ray-agent.com/)
-- [RackNerd低价优质VPS深度评测](https://www.v2ray-agent.com/archives/1688973668640)
+- [RackNerd特价优质VPS深度评测](https://www.v2ray-agent.com/archives/1688973668640)
 
 - **请给个⭐支持一下**
 
