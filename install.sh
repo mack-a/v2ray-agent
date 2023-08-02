@@ -58,7 +58,7 @@ checkSystem() {
         removeType='yum -y remove'
         upgrade="yum update -y --skip-broken"
         checkCentosSELinux
-    elif [[ -f "/etc/issue" ]] && grep </etc/issue -q -i "debian" || [[ -f "/proc/version" ]] && grep </etc/issue -q -i "debian" ||  [[ -f "/etc/os-release" ]] && grep </etc/os-release -q -i "ID=debian"; then
+    elif [[ -f "/etc/issue" ]] && grep </etc/issue -q -i "debian" || [[ -f "/proc/version" ]] && grep </etc/issue -q -i "debian" || [[ -f "/etc/os-release" ]] && grep </etc/os-release -q -i "ID=debian"; then
         release="debian"
         installType='apt -y install'
         upgrade="apt update"
@@ -7597,6 +7597,16 @@ initRealityKey() {
     echoContent green "\n privateKey:${realityPrivateKey}"
     echoContent green "\n publicKey:${realityPublicKey}"
 }
+# 检查reality域名是否符合
+checkRealityDest() {
+    local traceResult=
+    traceResult=$(curl -s "https://$(echo "${realityDestDomain}" | cut -d ':' -f 1)/cdn-cgi/trace" | grep "h=")
+    if [[ -n "${traceResult}" ]]; then
+        echoContent red "\n ---> 无法使用托管在cloudflare并开启代理的域名，使用此类型域名可能导致VPS流量被其他人使用，退出安装。"
+        exit 0
+    fi
+}
+
 # 初始化reality dest
 initRealityDest() {
     if [[ -n "${domain}" ]]; then
@@ -7617,6 +7627,7 @@ initRealityDest() {
             echoContent red "\n ---> 域名不合规范，请重新输入"
             initRealityDest
         else
+            checkRealityDest
             echoContent yellow "\n ---> 回落域名: ${realityDestDomain}"
         fi
     fi
@@ -7876,7 +7887,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.10.6"
+    echoContent green "当前版本：v2.10.7"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
