@@ -505,8 +505,8 @@ getPublicIP() {
     fi
     local currentIP=
     currentIP=$(curl -s "-${type}" http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | awk -F "[=]" '{print $2}')
-    if [[ -z "${currentIP}" ]]; then
-        currentIP=$(curl -s "-${type}" http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | awk -F "[=]" '{print $2}')
+    if [[ -z "${currentIP}" && -z "$1" ]]; then
+        currentIP=$(curl -s "-6" http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | awk -F "[=]" '{print $2}')
     fi
     echo "${currentIP}"
 }
@@ -923,7 +923,8 @@ installTools() {
                 echoContent red "  1.获取Github文件失败，请等待Github恢复后尝试，恢复进度可查看 [https://www.githubstatus.com/]"
                 echoContent red "  2.acme.sh脚本出现bug，可查看[https://github.com/acmesh-official/acme.sh] issues"
                 echoContent red "  3.如纯IPv6机器，请设置NAT64,可执行下方命令，如果添加下方命令还是不可用，请尝试更换其他NAT64"
-                echoContent skyBlue "  echo -e \"nameserver 2001:67c:2b0::4\\\nnameserver 2a00:1098:2c::1\" >> /etc/resolv.conf"
+                #                echoContent skyBlue "  echo -e \"nameserver 2001:67c:2b0::4\\\nnameserver 2a00:1098:2c::1\" >> /etc/resolv.conf"
+                echoContent skyBlue "  sed -i \"1i\\\nameserver 2001:67c:2b0::4\\\nnameserver 2a00:1098:2c::1\" /etc/resolv.conf"
                 exit 0
             fi
         fi
@@ -1030,8 +1031,8 @@ checkDNSIP() {
     dnsIP=$(dig @1.1.1.1 +time=1 +short "${domain}")
     if echo "${dnsIP}" | grep -q "timed out" || [[ -z "${dnsIP}" ]]; then
         echo
-        echoContent red " ---> 无法通过DNS获取域名IPv4地址"
-        echoContent green " ---> 尝试检查域名IPv6地址"
+        echoContent red " ---> 无法通过DNS获取域名 IPv4 地址"
+        echoContent green " ---> 尝试检查域名 IPv6 地址"
         dnsIP=$(dig @2606:4700:4700::1111 +time=1 aaaa +short "${domain}")
         type=6
         if [[ -z "${dnsIP}" ]]; then
@@ -1042,13 +1043,14 @@ checkDNSIP() {
     local publicIP=
 
     publicIP=$(getPublicIP "${type}")
-
     if [[ "${publicIP}" != "${dnsIP}" ]]; then
         echoContent red " ---> 域名解析IP与当前服务器IP不一致\n"
         echoContent yellow " ---> 请检查域名解析是否生效以及正确"
         echoContent green " ---> 当前VPS IP：${publicIP}"
         echoContent green " ---> DNS解析 IP：${dnsIP}"
         exit 0
+    else
+        echoContent green " ---> 域名IP校验通过"
     fi
 }
 # 检查端口实际开放状态
@@ -1085,7 +1087,6 @@ EOF
     # 检查域名+端口的开放
     checkPortOpenResult=$(curl -s -m 2 "http://${domain}:${port}/checkPort")
     localIP=$(curl -s -m 2 "http://${domain}:${port}/ip")
-
     rm "${nginxConfigPath}checkPortOpen.conf"
     handleNginx stop
     if [[ "${checkPortOpenResult}" == "fjkvymb6len" ]]; then
@@ -1341,7 +1342,8 @@ checkIP() {
             echoContent yellow " ---> 检测到的ip如下:[${localIP}]"
             exit 0
         fi
-        echoContent green " ---> 当前域名ip为:[${localIP}]"
+        #        echoContent green " ---> 当前域名ip为:[${localIP}]"
+        echoContent green " ---> 检查当前域名IP正确"
     fi
 }
 # 自定义email
@@ -7883,11 +7885,10 @@ tuicVersionManageMenu() {
 }
 # 主菜单
 menu() {
-
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.10.7"
+    echoContent green "当前版本：v2.10.8"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
