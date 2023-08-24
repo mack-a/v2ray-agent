@@ -98,7 +98,6 @@ LAX:SimpleCloud V01 电信gia 联通AS9929|500M|1核|20G|1T|1Gbps|12 USD/月|5% 
 
 套餐名称|内存|CPU| 硬盘(SSD) |流量|带宽|价格|购买链接
 ---|-------|---|---|---|---|---|---
-512 MB KVM VPS (New Year 2022)|768M|1核| 10 GB SSD|1T|1Gbps|$9.89 USD|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=620)
 768 MB KVM VPS Special|768MB|1核| 10 GB NVMe SSD Storage           |2T|1Gbps|$11.88 USD|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=679)
 1 GB KVM VPS (New Year 2022)|1G|1核| 20 GB Pure SSD                   |2T|1Gbps|$13.98 USD|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=621)
 1 GB KVM VPS Special |1G|1核| 20 GB SSD Cached RAID-10 Storage |3T|1Gbps|$14.98 USD|[购买链接](https://my.racknerd.com/aff.php?aff=2705&pid=680)
