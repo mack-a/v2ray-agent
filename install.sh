@@ -6674,8 +6674,8 @@ customXrayInstall() {
         updateRedirectNginxConf
         handleNginx start
 
-        # 安装V2Ray
-        installXray 7 true
+        # 安装Xray
+        installXray 7 false
         installXrayService 8
         initXrayConfig custom 9
         cleanUp v2rayDel
@@ -6790,7 +6790,7 @@ xrayCoreInstall() {
     handleNginx stop
     randomPathFunction 5
     # 安装Xray
-    installXray 6 true
+    installXray 6 false
     installXrayService 7
     customCDNIP 8
     initXrayConfig all 9
@@ -7742,7 +7742,7 @@ xrayCoreRealityInstall() {
     # 下载核心
     #    prereleaseStatus=true
     #    updateXray
-    installXray 3 true
+    installXray 3 false
     # 生成 privateKey、配置回落地址、配置serverNames
     installXrayService 6
     # initXrayRealityConfig 5
@@ -7903,7 +7903,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.10.13"
+    echoContent green "当前版本：v2.10.14"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
