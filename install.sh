@@ -1034,6 +1034,9 @@ checkDNSIP() {
     local dnsIP=
     local type=4
     dnsIP=$(dig @1.1.1.1 +time=1 +short "${domain}")
+    if [[ -z "${dnsIP}" ]]; then
+        dnsIP=$(dig @8.8.8.8 +time=1 +short "${domain}")
+    fi
     if echo "${dnsIP}" | grep -q "timed out" || [[ -z "${dnsIP}" ]]; then
         echo
         echoContent red " ---> 无法通过DNS获取域名 IPv4 地址"
@@ -1343,8 +1346,8 @@ checkIP() {
         if [[ -n ${localIP} ]]; then
             echoContent yellow " ---> 检测返回值异常，建议手动卸载nginx后重新执行脚本"
             echoContent red " ---> 异常结果：${localIP}"
-            exit 0
         fi
+        exit 0
     else
         if echo "${localIP}" | awk -F "[,]" '{print $2}' | grep -q "." || echo "${localIP}" | awk -F "[,]" '{print $2}' | grep -q ":"; then
             echoContent red "\n ---> 检测到多个ip，请确认是否关闭cloudflare的云朵"
@@ -7891,7 +7894,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.10.17"
+    echoContent green "当前版本：v2.10.18"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
