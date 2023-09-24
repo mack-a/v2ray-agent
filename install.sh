@@ -883,7 +883,7 @@ installTools() {
             nginxVersion=$(nginx -v 2>&1)
             nginxVersion=$(echo "${nginxVersion}" | awk -F "[n][g][i][n][x][/]" '{print $2}' | awk -F "[.]" '{print $2}')
             if [[ ${nginxVersion} -lt 14 ]]; then
-                read -r -p "读取到当前的Nginx版本不支持gRPC，会导致安装失败，是否卸载Nginx后重新安装 ？[y/n]:" unInstallNginxStatus
+                read -r -p "读取到当前的Nginx版本不支持gRPC，会导致安装失败，是否卸载Nginx后نصب ？[y/n]:" unInstallNginxStatus
                 if [[ "${unInstallNginxStatus}" == "y" ]]; then
                     ${removeType} nginx >/dev/null 2>&1
                     echoContent yellow " ---> nginx卸载完成"
@@ -1341,7 +1341,7 @@ checkIP() {
         echoContent yellow " --->  3.如解析正确，请等待dns生效，预计三分钟内生效"
         echoContent yellow " --->  4.如报Nginx启动问题，请手动启动nginx查看错误，如自己无法处理请提issues"
         echo
-        echoContent skyBlue " ---> 如以上设置都正确，请重新安装纯净系统后再次尝试"
+        echoContent skyBlue " ---> 如以上设置都正确，请نصب纯净系统后再次尝试"
 
         if [[ -n ${localIP} ]]; then
             echoContent yellow " ---> 检测返回值异常，建议手动卸载nginx后重新执行脚本"
@@ -1564,7 +1564,7 @@ installTLS() {
             sudo "$HOME/.acme.sh/acme.sh" --installcert -d "${tlsDomain}" --fullchainpath "/etc/v2ray-agent/tls/${tlsDomain}.crt" --keypath "/etc/v2ray-agent/tls/${tlsDomain}.key" --ecc >/dev/null
         else
             echoContent yellow " ---> 如未过期或者自定义证书请选择[n]\n"
-            read -r -p "是否重新安装？[y/n]:" reInstallStatus
+            read -r -p "是否نصب？[y/n]:" reInstallStatus
             if [[ "${reInstallStatus}" == "y" ]]; then
                 rm -rf /etc/v2ray-agent/tls/*
                 installTLS "$1"
@@ -1667,7 +1667,7 @@ nginxBlog() {
     echoContent skyBlue "\n进度 $1/${totalProgress} : 添加伪装站点"
     if [[ -d "${nginxStaticPath}" && -f "${nginxStaticPath}/check" ]]; then
         echo
-        read -r -p "检测到安装伪装站点，是否需要重新安装[y/n]:" nginxBlogInstallStatus
+        read -r -p "检测到安装伪装站点，是否需要نصب[y/n]:" nginxBlogInstallStatus
         if [[ "${nginxBlogInstallStatus}" == "y" ]]; then
             rm -rf "${nginxStaticPath}"
             randomNum=$((RANDOM % 6 + 1))
@@ -2165,14 +2165,14 @@ updateV2Ray() {
                 echoContent green " ---> 放弃回退版本"
             fi
         elif [[ "${version}" == "v$(/etc/v2ray-agent/v2ray/v2ray --version | awk '{print $2}' | head -1)" ]]; then
-            read -r -p "当前版本与最新版相同，是否重新安装？[y/n]:" reInstallV2RayStatus
+            read -r -p "当前版本与最新版相同，是否نصب？[y/n]:" reInstallV2RayStatus
             if [[ "${reInstallV2RayStatus}" == "y" ]]; then
                 handleV2Ray stop
                 rm -f /etc/v2ray-agent/v2ray/v2ray
                 rm -f /etc/v2ray-agent/v2ray/v2ctl
                 updateV2Ray
             else
-                echoContent green " ---> 放弃重新安装"
+                echoContent green " ---> 放弃نصب"
             fi
         else
             read -r -p "最新版本为:${version}，是否更新？[y/n]:" installV2RayStatus
@@ -2228,14 +2228,14 @@ updateXray() {
                 echoContent green " ---> 放弃回退版本"
             fi
         elif [[ "${version}" == "v$(/etc/v2ray-agent/xray/xray --version | awk '{print $2}' | head -1)" ]]; then
-            read -r -p "当前版本与最新版相同，是否重新安装？[y/n]:" reInstallXrayStatus
+            read -r -p "当前版本与最新版相同，是否نصب？[y/n]:" reInstallXrayStatus
             if [[ "${reInstallXrayStatus}" == "y" ]]; then
                 handleXray stop
                 rm -f /etc/v2ray-agent/xray/xray
                 rm -f /etc/v2ray-agent/xray/xray
                 updateXray
             else
-                echoContent green " ---> 放弃重新安装"
+                echoContent green " ---> 放弃نصب"
             fi
         else
             read -r -p "最新版本为:${version}，是否更新？[y/n]:" installXrayStatus
@@ -4183,7 +4183,7 @@ EOF
     elif [[ "${type}" == "tuic" ]]; then
 
         if [[ -z "${email}" ]]; then
-            echoContent red " ---> 读取配置失败，请重新安装"
+            echoContent red " ---> 读取配置失败，请نصب"
             exit 0
         fi
 
@@ -7757,7 +7757,7 @@ manageReality() {
     echoContent red "\n=============================================================="
 
     if [[ -n "${realityStatus}" ]]; then
-        echoContent yellow "1.重新安装"
+        echoContent yellow "1.نصب"
         echoContent yellow "2.卸载"
         echoContent yellow "3.更换配置"
     else
@@ -7783,7 +7783,7 @@ manageHysteria() {
     echoContent red "\n=============================================================="
     local hysteriaStatus=
     if [[ -n "${hysteriaConfigPath}" ]]; then
-        echoContent yellow "1.重新安装"
+        echoContent yellow "1.نصب"
         echoContent yellow "2.卸载"
         echoContent yellow "3.端口跳跃管理"
         echoContent yellow "4.core管理"
@@ -7814,7 +7814,7 @@ manageTuic() {
     echoContent red "\n=============================================================="
     local tuicStatus=
     if [[ -n "${tuicConfigPath}" ]]; then
-        echoContent yellow "1.重新安装"
+        echoContent yellow "1.نصب"
         echoContent yellow "2.卸载"
         echoContent yellow "3.core管理"
         echoContent yellow "4.查看日志"
