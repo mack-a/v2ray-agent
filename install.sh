@@ -7909,9 +7909,9 @@ menu() {
     echoContent green "年付10美金低价VPS AS4837：https://www.v2ray-agent.com/archives/racknerdtao-can-zheng-li-nian-fu-10mei-yuan"
     echoContent red "=============================================================="
     if [[ -n "${coreInstallType}" ]]; then
-        echoContent yellow "1.重新安装"
+        echoContent yellow "1.نصب"
     else
-        echoContent yellow "1.安装"
+        echoContent yellow "1.install"
     fi
 
     echoContent yellow "2.任意组合安装"
