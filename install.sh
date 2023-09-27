@@ -341,8 +341,7 @@ readInstallType() {
         fi
 
         if [[ -d "/etc/v2ray-agent/hysteria" && -f "/etc/v2ray-agent/hysteria/hysteria" ]]; then
-            # 这里检测 hysteria
-            if [[ -d "/etc/v2ray-agent/hysteria/conf" ]] && [[ -f "/etc/v2ray-agent/hysteria/conf/config.json" ]] && [[ -f "/etc/v2ray-agent/hysteria/conf/client_network.json" ]]; then
+            if [[ -d "/etc/v2ray-agent/hysteria/conf" ]] && [[ -f "/etc/v2ray-agent/hysteria/conf/config.json" ]]; then
                 hysteriaConfigPath=/etc/v2ray-agent/hysteria/conf/
             fi
         fi
@@ -539,11 +538,11 @@ checkFirewalldAllowPort() {
 # 读取hysteria网络环境
 readHysteriaConfig() {
     if [[ -n "${hysteriaConfigPath}" ]]; then
-        hysteriaLag=$(jq -r .hysteriaLag <"${hysteriaConfigPath}client_network.json")
-        hysteriaClientDownloadSpeed=$(jq -r .hysteriaClientDownloadSpeed <"${hysteriaConfigPath}client_network.json")
-        hysteriaClientUploadSpeed=$(jq -r .hysteriaClientUploadSpeed <"${hysteriaConfigPath}client_network.json")
+        #        hysteriaLag=$(jq -r .hysteriaLag <"${hysteriaConfigPath}client_network.json")
+        #        hysteriaClientDownloadSpeed=$(jq -r .hysteriaClientDownloadSpeed <"${hysteriaConfigPath}client_network.json")
+        #        hysteriaClientUploadSpeed=$(jq -r .hysteriaClientUploadSpeed <"${hysteriaConfigPath}client_network.json")
         hysteriaPort=$(jq -r .listen <"${hysteriaConfigPath}config.json" | awk -F "[:]" '{print $2}')
-        hysteriaProtocol=$(jq -r .protocol <"${hysteriaConfigPath}config.json")
+        #        hysteriaProtocol=$(jq -r .protocol <"${hysteriaConfigPath}config.json")
     fi
 }
 # 读取Tuic配置
@@ -1903,14 +1902,14 @@ installHysteria() {
 
     if [[ -z "${hysteriaConfigPath}" ]]; then
 
-        version=$(curl -s "https://api.github.com/repos/apernet/hysteria/releases?per_page=10" | jq -r ".[]|select (.prerelease==${prereleaseStatus})|.tag_name" | grep -v "app/v2" | head -1)
+        version=$(curl -s "https://api.github.com/repos/apernet/hysteria/releases?per_page=10" | jq -r ".[]|select (.prerelease==${prereleaseStatus})|.tag_name" | grep "app/" | head -1)
 
         echoContent green " ---> Hysteria版本:${version}"
         wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/hysteria/ "https://github.com/apernet/hysteria/releases/download/${version}/${hysteriaCoreCPUVendor}"
         mv "/etc/v2ray-agent/hysteria/${hysteriaCoreCPUVendor}" /etc/v2ray-agent/hysteria/hysteria
         chmod 655 /etc/v2ray-agent/hysteria/hysteria
     else
-        echoContent green " ---> Hysteria版本:$(/etc/v2ray-agent/hysteria/hysteria --version | awk '{print $3}')"
+        echoContent green " ---> Hysteria版本:$(/etc/v2ray-agent/hysteria/hysteria version | grep "Version:" | awk '{print $2}')"
         read -r -p "是否更新、升级？[y/n]:" reInstallHysteriaStatus
         if [[ "${reInstallHysteriaStatus}" == "y" ]]; then
             rm -f /etc/v2ray-agent/hysteria/hysteria
@@ -2305,19 +2304,22 @@ installHysteriaService() {
     if [[ -n $(find /bin /usr/bin -name "systemctl") ]]; then
         rm -rf /etc/systemd/system/hysteria.service
         touch /etc/systemd/system/hysteria.service
-        execStart='/etc/v2ray-agent/hysteria/hysteria --log-level info -c /etc/v2ray-agent/hysteria/conf/config.json server'
+        execStart='/etc/v2ray-agent/hysteria/hysteria server -c /etc/v2ray-agent/hysteria/conf/config.json --log-level debug'
         cat <<EOF >/etc/systemd/system/hysteria.service
 [Unit]
-Description=Hysteria Service
-Documentation=https://github.com/apernet
 After=network.target nss-lookup.target
+
 [Service]
 User=root
-ExecStart=${execStart}
+WorkingDirectory=/root
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
+ExecStart=/etc/v2ray-agent/hysteria/hysteria server -c /etc/v2ray-agent/hysteria/conf/config.json --log-level debug
 Restart=on-failure
-RestartPreventExitStatus=23
-LimitNPROC=10000
-LimitNOFILE=1000000
+RestartSec=10
+LimitNPROC=512
+LimitNOFILE=infinity
+
 [Install]
 WantedBy=multi-user.target
 EOF
@@ -2831,38 +2833,43 @@ initHysteriaConfig() {
     echoContent skyBlue "\n进度 $1/${totalProgress} : 初始化Hysteria配置"
 
     initHysteriaPort
-    initHysteriaProtocol
-    initHysteriaNetwork
+    #    initHysteriaProtocol
+    #    initHysteriaNetwork
     local uuid=
     uuid=$(${ctlPath} uuid)
-    getClients "${configPath}${frontingType}.json" true
+    #    getClients "${configPath}${frontingType}.json" true
     cat <<EOF >/etc/v2ray-agent/hysteria/conf/config.json
 {
-	"listen": ":${hysteriaPort}",
-	"protocol": "${hysteriaProtocol}",
-	"disable_udp": false,
-	"cert": "/etc/v2ray-agent/tls/${currentHost}.crt",
-	"key": "/etc/v2ray-agent/tls/${currentHost}.key",
-	"auth": {
-		"mode": "passwords",
-		"config": []
-	},
-	"socks5_outbound":{
-	    "server":"127.0.0.1:31295",
-	    "user":"hysteria_socks5_outbound",
-	    "password":"${uuid}"
-	},
-	"alpn": "h3",
-	"recv_window_conn": 15728640,
-	"recv_window_client": 67108864,
-	"max_conn_client": 4096,
-	"disable_mtu_discovery": true,
-	"resolve_preference": "46",
-	"resolver": "https://8.8.8.8:443/dns-query"
+    "listen":":${hysteriaPort}",
+    "tls":{
+        "cert": "/etc/v2ray-agent/tls/${currentHost}.crt",
+        "key": "/etc/v2ray-agent/tls/${currentHost}.key"
+    },
+    "auth":{
+        "type": "password",
+        "password": "${uuid}"
+    },
+    "resolver":{
+      "type": "https",
+      "https":{
+        "addr": "1.1.1.1:443",
+        "timeout": "10s"
+      }
+    },
+    "outbounds":{
+      "name": "socks5_outbound",
+        "type": "socks5",
+        "socks5":{
+            "addr": "127.0.0.1:31295",
+            "username": "hysteria_socks5_outbound",
+            "password": "${uuid}"
+        }
+    }
 }
+
 EOF
 
-    addClientsHysteria "/etc/v2ray-agent/hysteria/conf/config.json" true
+    #    addClientsHysteria "/etc/v2ray-agent/hysteria/conf/config.json" true
 
     # 添加socks入站
     cat <<EOF >${configPath}/02_socks_inbounds_hysteria.json
@@ -4058,72 +4065,39 @@ EOF
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${add}%3a${currentDefaultPort}%3Fencryption%3Dnone%26fp%3Dchrome%26security%3Dtls%26peer%3d${currentHost}%26type%3Dgrpc%26sni%3d${currentHost}%26path%3D${currentPath}trojangrpc%26alpn%3Dh2%26serviceName%3D${currentPath}trojangrpc%23${email}\n"
 
     elif [[ "${type}" == "hysteria" ]]; then
-        local hysteriaEmail=
-        hysteriaEmail=$(echo "${email}" | awk -F "[-]" '{print $1}')_hysteria
+        #        local hysteriaEmail=
+        #        hysteriaEmail=$(echo "${email}" | awk -F "[-]" '{print $1}')_hysteria
         echoContent yellow " ---> Hysteria(TLS)"
-        local clashMetaPortTmp="port: ${hysteriaPort}"
-        local v2rayNPortHopping=
-        local mport=
-        if [[ -n "${portHoppingStart}" ]]; then
-            mport="mport=${portHoppingStart}-${portHoppingEnd}&"
-            clashMetaPortTmp="ports: ${portHoppingStart}-${portHoppingEnd}"
-            v2rayNPortHopping=",${portHoppingStart}-${portHoppingEnd}"
-        fi
-        echoContent green "    hysteria://${currentHost}:${hysteriaPort}?${mport}protocol=${hysteriaProtocol}&auth=${id}&peer=${currentHost}&insecure=0&alpn=h3&upmbps=${hysteriaClientUploadSpeed}&downmbps=${hysteriaClientDownloadSpeed}#${hysteriaEmail}\n"
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
-hysteria://${currentHost}:${hysteriaPort}?${mport}protocol=${hysteriaProtocol}&auth=${id}&peer=${currentHost}&insecure=0&alpn=h3&upmbps=${hysteriaClientUploadSpeed}&downmbps=${hysteriaClientDownloadSpeed}#${hysteriaEmail}
-EOF
+
+        echoContent green "    hysteria2://${id}@${currentHost}:${hysteriaPort}?peer=${currentHost}&insecure=0&sni=${currentHost}&alpn=h3#hysteria2\n"
+#        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
+#hysteria2://${id}@${currentHost}:${hysteriaPort}?peer=${currentHost}&insecure=0&sni=${currentHost}&alpn=h3#hysteria2
+#EOF
         echoContent yellow " ---> v2rayN(hysteria+TLS)"
         cat <<EOF >"/etc/v2ray-agent/hysteria/conf/client.json"
 {
-  "server": "${currentHost}:${hysteriaPort}${v2rayNPortHopping}",
-  "protocol": "${hysteriaProtocol}",
-  "up_mbps": ${hysteriaClientUploadSpeed},
-  "down_mbps": ${hysteriaClientDownloadSpeed},
-  "http": { "listen": "127.0.0.1:10809", "timeout": 300, "disable_udp": false },
-  "socks5": { "listen": "127.0.0.1:10808", "timeout": 300, "disable_udp": false },
-  "obfs": "",
-  "auth_str":"${id}",
-  "alpn": "h3",
-  "acl": "acl/routes.acl",
-  "mmdb": "acl/Country.mmdb",
-  "server_name": "${currentHost}",
-  "insecure": false,
-  "recv_window_conn": 5767168,
-  "recv_window": 23068672,
-  "disable_mtu_discovery": true,
-  "resolver": "https://223.5.5.5/dns-query",
-  "retry": 3,
-  "retry_interval": 3,
-  "quit_on_disconnect": false,
-  "handshake_timeout": 15,
-  "idle_timeout": 30,
-  "fast_open": true,
-  "hop_interval": 120
+  "server": "${currentHost}:${hysteriaPort}",
+  "socks5": { "listen": "127.0.0.1:10808", "timeout": 300},
+  "auth":"${id}",
+  "tls":{
+    "sni":"${currentHost}"
+  }
 }
 EOF
         local v2rayNConf=
         v2rayNConf="$(cat /etc/v2ray-agent/hysteria/conf/client.json)"
         echoContent green "${v2rayNConf}\n"
 
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
-  - name: "${hysteriaEmail}"
-    type: hysteria
-    server: ${currentHost}
-    ${clashMetaPortTmp}
-    auth_str: ${id}
-    alpn:
-     - h3
-    protocol: ${hysteriaProtocol}
-    up: "${hysteriaClientUploadSpeed}"
-    down: "${hysteriaClientDownloadSpeed}"
-    sni: ${currentHost}
-EOF
+#        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
+#  - name: hysteria2
+#    type: hysteria2
+#    server: ${currentHost}
+#    port: ${hysteriaPort}
+#    password: ${id}
+#    sni: ${currentHost}
+#EOF
         echoContent yellow " ---> 二维码 Hysteria(TLS)"
-        if [[ -n "${mport}" ]]; then
-            mport="mport%3D${portHoppingStart}-${portHoppingEnd}%26"
-        fi
-        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=hysteria%3A%2F%2F${currentHost}%3A${hysteriaPort}%3F${mport}protocol%3D${hysteriaProtocol}%26auth%3D${id}%26peer%3D${currentHost}%26insecure%3D0%26alpn%3Dh3%26upmbps%3D${hysteriaClientUploadSpeed}%26downmbps%3D${hysteriaClientDownloadSpeed}%23${hysteriaEmail}\n"
+        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=hysteria2%3A%2F%2F${id}%40${currentHost}%3A${hysteriaPort}%3Fpeer%3D${currentHost}%26insecure%3D0%26sni%3D${currentHost}%26alpn%3Dh3%23hysteria2\n"
     elif [[ "${type}" == "vlessReality" ]]; then
         echoContent yellow " ---> 通用格式(VLESS+reality+uTLS+Vision)"
         echoContent green "    vless://${id}@$(getPublicIP):${currentRealityPort}?encryption=none&security=reality&type=tcp&sni=${currentRealityServerNames}&fp=chrome&pbk=${currentRealityPublicKey}&sid=6ba85179e30d4fc2&flow=xtls-rprx-vision#${email}\n"
@@ -4369,27 +4343,28 @@ showAccounts() {
     fi
     if echo ${currentInstallProtocolType} | grep -q 6; then
         echoContent skyBlue "\n================================  Hysteria TLS  ================================\n"
-        echoContent red "\n --->Hysteria速度依赖与本地的网络环境，如果被QoS使用体验会非常差。IDC也有可能认为是攻击，请谨慎使用"
+        #        echoContent red "\n --->Hysteria速度依赖与本地的网络环境，如果被QoS使用体验会非常差。IDC也有可能认为是攻击，请谨慎使用"
 
-        jq .auth.config ${hysteriaConfigPath}config.json | jq -r '.[]' | while read -r user; do
-            local defaultUser=
-            local uuidType=
-            uuidType=".id"
+        jq -r .auth.password ${hysteriaConfigPath}config.json | while read -r user; do
+            #            local defaultUser=
+            #            local uuidType=
+            #            uuidType=".id"
+            #
+            #            if [[ "${frontingType}" == "02_trojan_TCP_inbounds" ]]; then
+            #                uuidType=".password"
+            #            fi
 
-            if [[ "${frontingType}" == "02_trojan_TCP_inbounds" ]]; then
-                uuidType=".password"
-            fi
+            #            defaultUser=$(jq '.inbounds[0].settings.clients[]|select('${uuidType}'=="'"${user}"'")' ${configPath}${frontingType}.json)
+            #            local email=
+            #            email=$(echo "${defaultUser}" | jq -r .email)
+            #            local hysteriaEmail=
+            #            hysteriaEmail=$(echo "${email}" | awk -F "[_]" '{print $1}')_hysteria
 
-            defaultUser=$(jq '.inbounds[0].settings.clients[]|select('${uuidType}'=="'"${user}"'")' ${configPath}${frontingType}.json)
-            local email=
-            email=$(echo "${defaultUser}" | jq -r .email)
-            local hysteriaEmail=
-            hysteriaEmail=$(echo "${email}" | awk -F "[_]" '{print $1}')_hysteria
-
-            if [[ -n ${defaultUser} ]]; then
-                echoContent skyBlue "\n ---> 账号:$(echo "${hysteriaEmail}" | awk -F "[-]" '{print $1"_hysteria"}')"
+            if [[ -n ${user} ]]; then
+                #                echoContent skyBlue "\n ---> 账号:$(echo "${hysteriaEmail}" | awk -F "[-]" '{print $1"_hysteria"}')"
+                echoContent skyBlue "\n ---> 账号:hysteria2"
                 echo
-                defaultBase64Code hysteria "${hysteriaEmail}" "${user}"
+                defaultBase64Code hysteria hysteria2 "${user}"
             fi
 
         done
@@ -7785,9 +7760,9 @@ manageHysteria() {
     if [[ -n "${hysteriaConfigPath}" ]]; then
         echoContent yellow "1.重新安装"
         echoContent yellow "2.卸载"
-        echoContent yellow "3.端口跳跃管理"
-        echoContent yellow "4.core管理"
-        echoContent yellow "5.查看日志"
+        #        echoContent yellow "3.端口跳跃管理"
+        echoContent yellow "3.core管理"
+        echoContent yellow "4.查看日志"
         hysteriaStatus=true
     else
         echoContent yellow "1.安装"
@@ -7799,11 +7774,11 @@ manageHysteria() {
         hysteriaCoreInstall
     elif [[ "${installHysteriaStatus}" == "2" && "${hysteriaStatus}" == "true" ]]; then
         unInstallHysteriaCore
+        #    elif [[ "${installHysteriaStatus}" == "3" && "${hysteriaStatus}" == "true" ]]; then
+        #        hysteriaPortHoppingMenu
     elif [[ "${installHysteriaStatus}" == "3" && "${hysteriaStatus}" == "true" ]]; then
-        hysteriaPortHoppingMenu
-    elif [[ "${installHysteriaStatus}" == "4" && "${hysteriaStatus}" == "true" ]]; then
         hysteriaVersionManageMenu 1
-    elif [[ "${installHysteriaStatus}" == "5" && "${hysteriaStatus}" == "true" ]]; then
+    elif [[ "${installHysteriaStatus}" == "4" && "${hysteriaStatus}" == "true" ]]; then
         journalctl -fu hysteria
     fi
 }
@@ -7897,7 +7872,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.10.21"
+    echoContent green "当前版本：v2.10.22"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
