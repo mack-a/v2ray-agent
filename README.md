@@ -13,7 +13,7 @@
 # 一、项目介绍
 
 - [一键安装教程【推荐】](https://www.v2ray-agent.com/archives/1682491479771)
-- 支持Xray-core/v2ray-core/Hysteria/Tuic
+- 支持Xray-core/sing-box/Hysteria/Tuic
 - 支持多种传输协议，VLESS（Reality）、VMess、Trojan、Hysteria、Tuic，支持多种协议组合。
 - 支持自动申请和更新证书
 - 支持自主更换伪装站点
