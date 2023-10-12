@@ -1984,7 +1984,7 @@ installSingBox() {
         tar zxvf "/etc/v2ray-agent/sing-box/sing-box-${version/v/}${singBoxCoreCPUVendor}.tar.gz" -C "/etc/v2ray-agent/sing-box/" >/dev/null 2>&1
 
         mv "/etc/v2ray-agent/sing-box/sing-box-${version/v/}${singBoxCoreCPUVendor}/sing-box" /etc/v2ray-agent/sing-box/sing-box
-        #        rm -rf /etc/v2ray-agent/sing-box/sing-box-*
+        rm -rf /etc/v2ray-agent/sing-box/sing-box-*
         chmod 655 /etc/v2ray-agent/sing-box/sing-box
 
     else
@@ -3221,7 +3221,7 @@ initSingBoxHysteria2Config() {
     ]
 }
 EOF
-#    initSingBoxSocks5OutboundsConfig
+    #    initSingBoxSocks5OutboundsConfig
 }
 
 # sing-box Tuic安装
@@ -8153,7 +8153,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.11.3"
+    echoContent green "当前版本：v2.11.4"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
