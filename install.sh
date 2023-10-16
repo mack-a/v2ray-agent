@@ -5171,7 +5171,7 @@ addUserXray() {
 
             clients=$(jq -r ".inbounds[0].users = ${clients}" "${singBoxConfigPath}config/tuic.json")
 
-            echo "${hysteriaResult}" | jq . >"${singBoxConfigPath}config/tuic.json"
+            echo "${clients}" | jq . >"${singBoxConfigPath}config/tuic.json"
         fi
     done
 
@@ -8153,7 +8153,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.11.4"
+    echoContent green "当前版本：v2.11.5"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
