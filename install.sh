@@ -1081,15 +1081,15 @@ checkDNSIP() {
     local domain=$1
     local dnsIP=
     local type=4
-    dnsIP=$(dig @1.1.1.1 +time=1 +short "${domain}")
+    dnsIP=$(dig @1.1.1.1 +time=1 +short "${domain}" | grep -E '([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $1}')
     if [[ -z "${dnsIP}" ]]; then
-        dnsIP=$(dig @8.8.8.8 +time=1 +short "${domain}")
+        dnsIP=$(dig @8.8.8.8 +time=1 +short "${domain}" | grep -E '([0-9]{1,3}\.){3}[0-9]{1,3}' | awk '{print $1}')
     fi
     if echo "${dnsIP}" | grep -q "timed out" || [[ -z "${dnsIP}" ]]; then
         echo
         echoContent red " ---> 无法通过DNS获取域名 IPv4 地址"
         echoContent green " ---> 尝试检查域名 IPv6 地址"
-        dnsIP=$(dig @2606:4700:4700::1111 +time=1 aaaa +short "${domain}")
+        dnsIP=$(dig @2606:4700:4700::1111 +time=1 aaaa +short "${domain}" | grep -P '([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}' | awk '{print $1}' )
         type=6
         if echo "${dnsIP}" | grep -q "network unreachable" || [[ -z "${dnsIP}" ]]; then
             echoContent red " ---> 无法通过DNS获取域名IPv6地址，退出安装"
