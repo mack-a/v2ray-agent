@@ -359,6 +359,7 @@ readInstallType() {
 
         if [[ -d "/etc/v2ray-agent/sing-box" && -f "/etc/v2ray-agent/sing-box/sing-box" ]]; then
             if [[ -d "/etc/v2ray-agent/sing-box/conf" ]] && [[ -f "/etc/v2ray-agent/sing-box/conf/config/tuic.json" || -f "/etc/v2ray-agent/sing-box/conf/config/hysteria2.json" ]]; then
+                #                coreInstallType=3
                 singBoxConfigPath=/etc/v2ray-agent/sing-box/conf/
             fi
         fi
@@ -704,7 +705,7 @@ showInstallStatus() {
                 echoContent yellow "\n核心: Xray-core[未运行]"
             fi
 
-        elif [[ "${coreInstallType}" == 2 || "${coreInstallType}" == 3 ]]; then
+        elif [[ "${coreInstallType}" == 2 ]]; then
             if [[ -n $(pgrep -f "v2ray/v2ray") ]]; then
                 echoContent yellow "\n核心: v2ray-core[运行中]"
             else
@@ -750,11 +751,17 @@ showInstallStatus() {
         if echo ${currentInstallProtocolType} | grep -q 5; then
             echoContent yellow "VLESS+gRPC[TLS] \c"
         fi
+        if echo ${currentInstallProtocolType} | grep -q 6; then
+            echoContent yellow "Hysteria2 \c"
+        fi
         if echo ${currentInstallProtocolType} | grep -q 7; then
             echoContent yellow "VLESS+Reality+Vision \c"
         fi
         if echo ${currentInstallProtocolType} | grep -q 8; then
             echoContent yellow "VLESS+Reality+gRPC \c"
+        fi
+        if echo ${currentInstallProtocolType} | grep -q 9; then
+            echoContent yellow "Tuic \c"
         fi
     fi
 }
@@ -1773,8 +1780,6 @@ handleNginx() {
             if grep -q "journalctl -xe" </etc/v2ray-agent/nginx_error.log; then
                 updateSELinuxHTTPPortT
             fi
-
-            # exit 0
         else
             echoContent green " ---> Nginx启动成功"
         fi
@@ -4349,7 +4354,7 @@ EOF
 hysteria2://${id}@${currentHost}:${hysteriaPort}?peer=${currentHost}&insecure=0&sni=${currentHost}&alpn=h3#${email}
 EOF
         echoContent yellow " ---> v2rayN(hysteria+TLS)"
-        echo "{\"server\": \"${currentHost}:${hysteriaPort}\",\"socks5\": { \"listen\": \"127.0.0.1:10808\", \"timeout\": 300},\"auth\":\"${id}\",\"tls\":{\"sni\":\"${currentHost}\"}}" | jq
+        echo "{\"server\": \"$(getPublicIP 4):${hysteriaPort}\",\"socks5\": { \"listen\": \"127.0.0.1:7798\", \"timeout\": 300},\"auth\":\"${id}\",\"tls\":{\"sni\":\"${currentHost}\"}}" | jq
 
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
   - name: "${email}"
@@ -4432,7 +4437,7 @@ EOF
 tuic://${id}@${currentHost}:${tuicPort}?peer=${currentHost}&congestion_control=${tuicAlgorithm}&password=${id}&insecure=0&sni=${currentHost}&alpn=h3#${email}
 EOF
         echoContent yellow " ---> v2rayN(Tuic+TLS)"
-        echo "{\"relay\": {\"server\": \"${currentHost}:${tuicPort}\",\"uuid\": \"${id}\",\"password\": \"${id}\",\"ip\": \"$(getPublicIP)\",\"congestion_control\": \"${tuicAlgorithm}\",\"alpn\": [\"h3\"]},\"local\": {\"server\": \"127.0.0.1:7798\"},\"log_level\": \"warn\"}" | jq
+        echo "{\"relay\": {\"server\": \"${currentHost}:${tuicPort}\",\"uuid\": \"${id}\",\"password\": \"${id}\",\"ip\": \"$(getPublicIP 4)\",\"congestion_control\": \"${tuicAlgorithm}\",\"alpn\": [\"h3\"]},\"local\": {\"server\": \"127.0.0.1:7798\"},\"log_level\": \"warn\"}" | jq
 
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
   - name: "${email}"
@@ -4903,7 +4908,6 @@ unInstall() {
     if [[ -z $(pgrep -f "nginx") ]]; then
         echoContent green " ---> 停止Nginx成功"
     fi
-
     if [[ "${coreInstallType}" == "1" ]]; then
         handleXray stop
         rm -rf /etc/systemd/system/xray.service
@@ -4943,6 +4947,7 @@ unInstall() {
 
     rm -rf /etc/v2ray-agent
     rm -rf ${nginxConfigPath}alone.conf
+    rm -rf ${nginxConfigPath}checkPortOpen.conf >/dev/null 2>&1
 
     if [[ -d "${nginxStaticPath}" && -f "${nginxStaticPath}/check" ]]; then
         rm -rf "${nginxStaticPath}"
@@ -7075,11 +7080,20 @@ coreVersionManageMenu() {
         menu
         exit 0
     fi
-    if [[ "${coreInstallType}" == "1" ]]; then
+    echoContent skyBlue "\n功能 1/1 : 请选择核心"
+    echoContent red "\n=============================================================="
+    echoContent yellow "1.Xray-core"
+    echoContent yellow "2.v2ray-core"
+    echoContent yellow "3.sing-box"
+    echoContent red "=============================================================="
+    read -r -p "请输入:" selectCore
+
+    if [[ "${selectCore}" == "1" ]]; then
         xrayVersionManageMenu 1
     elif [[ "${coreInstallType}" == "2" ]]; then
-        v2rayCoreVersion=
-        v2rayVersionManageMenu 1
+        echoContent red " ---> 暂停维护"
+    elif [[ "${selectCore}" == "3" ]]; then
+        singBoxVersionManageMenu 1
     fi
 }
 # 定时任务检查
@@ -7985,7 +7999,7 @@ manageHysteria() {
         echoContent yellow " 依赖第三方sing-box\n"
         echoContent yellow "1.重新安装"
         echoContent yellow "2.卸载"
-        echoContent yellow "3.sing-box core管理"
+        #        echoContent yellow "3.sing-box core管理"
         hysteria2Status=true
     else
         echoContent yellow "1.安装"
@@ -7998,8 +8012,8 @@ manageHysteria() {
         singBoxHysteria2Install
     elif [[ "${installHysteria2Status}" == "2" && "${hysteria2Status}" == "true" ]]; then
         unInstallSingBox hysteria2
-    elif [[ "${installHysteria2Status}" == "3" && "${hysteria2Status}" == "true" ]]; then
-        singBoxVersionManageMenu 1
+        #    elif [[ "${installHysteria2Status}" == "3" && "${hysteria2Status}" == "true" ]]; then
+        #        singBoxVersionManageMenu 1
     fi
 }
 
@@ -8012,7 +8026,7 @@ manageTuic() {
         echoContent yellow " 依赖第三方sing-box\n"
         echoContent yellow "1.重新安装"
         echoContent yellow "2.卸载"
-        echoContent yellow "3.sing-box core管理"
+        #        echoContent yellow "3.sing-box core管理"
         tuicStatus=true
     else
         echoContent yellow "1.安装"
@@ -8025,8 +8039,8 @@ manageTuic() {
         singBoxTuicInstall
     elif [[ "${installTuicStatus}" == "2" && "${tuicStatus}" == "true" ]]; then
         unInstallSingBox tuic
-    elif [[ "${installTuicStatus}" == "3" && "${tuicStatus}" == "true" ]]; then
-        singBoxVersionManageMenu 1
+        #    elif [[ "${installTuicStatus}" == "3" && "${tuicStatus}" == "true" ]]; then
+        #        singBoxVersionManageMenu 1
     fi
 }
 # sing-box log日志
@@ -8089,7 +8103,7 @@ singBoxVersionManageMenu() {
     echoContent yellow "4.重启 sing-box"
     echoContent yellow "=============================================================="
     local logStatus=
-    if [[ -n "${singBoxConfigPath}" && "$(jq -r .log.disabled ${singBoxConfigPath}config.json)" == "true" ]]; then
+    if [[ -n "${singBoxConfigPath}" && -f "${singBoxConfigPath}config/log.json" && "$(jq -r .log.disabled ${singBoxConfigPath}config/log.json)" == "false" ]]; then
         echoContent yellow "5.关闭日志"
         logStatus=true
     else
@@ -8151,7 +8165,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.11.6"
+    echoContent green "当前版本：v2.11.7"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
@@ -8161,7 +8175,6 @@ menu() {
     echoContent green "推广请联系TG：@mackaff\n"
     echoContent green "VPS选购攻略：https://www.v2ray-agent.com/archives/1679975663984"
     echoContent green "年付10美金低价VPS AS4837：https://www.v2ray-agent.com/archives/racknerdtao-can-zheng-li-nian-fu-10mei-yuan"
-    echoContent green "搬瓦工传家宝套餐 49.99刀 gia/软银：https://bandwagonhost.com/aff.php?aff=64917&pid=94"
     echoContent red "=============================================================="
     if [[ -n "${coreInstallType}" ]]; then
         echoContent yellow "1.重新安装"
