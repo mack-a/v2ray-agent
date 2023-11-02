@@ -2960,6 +2960,7 @@ hysteriaPortHoppingMenu() {
         exit 0
     fi
     readHysteriaConfig
+    readSingBoxConfig
     readHysteriaPortHopping
     echoContent skyBlue "\n进度 1/1 : 端口跳跃"
     echoContent red "\n=============================================================="
