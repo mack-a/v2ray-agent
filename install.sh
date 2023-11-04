@@ -3155,6 +3155,156 @@ initSingBoxTuicConfig() {
 EOF
 }
 
+# 初始化singbox route配置
+initSingBoxRouteConfig() {
+    local outboundTag=$1
+    if [[ ! -f "${singBoxConfigPath}config/${outboundTag}_route.json" ]]; then
+        cat <<EOF >"${singBoxConfigPath}config/${outboundTag}_route.json"
+{
+    "route": {
+        "geosite": {
+            "path": "${singBoxConfigPath}geosite.db",
+            "download_url": "https://github.com/SagerNet/sing-geosite/releases/latest/download/geosite.db"
+        },
+        "rules": [
+            {
+                "domain": [
+                ],
+                "geosite": [
+                ],
+                "outbound": "${outboundTag}"
+            }
+        ]
+    }
+}
+EOF
+    fi
+}
+
+# sing-box 路由规则配置配置
+configurationSingBoxRoute() {
+    local type=$1
+    local outboundTag=$2
+    local content=$3
+    if [[ "${type}" == "add" ]]; then
+        addSingBoxRouteRule "${outboundTag}" "${content}"
+    elif [[ "${type}" == "delete" ]]; then
+        if [[ -f "${singBoxConfigPath}config/${outboundTag}_route.json" ]]; then
+            rm "${singBoxConfigPath}config/${outboundTag}_route.json"
+            echoContent green "\n ---> 删除成功"
+        fi
+    fi
+}
+
+# 添加sing-box路由规则
+addSingBoxRouteRule() {
+    local outboundTag=$1
+    local domainList=$2
+
+    initSingBoxRouteConfig "${outboundTag}"
+    local rules
+
+    rules=$(jq -r '.route.rules[]|select(.outbound=="'"${outboundTag}"'")' "${singBoxConfigPath}config/${outboundTag}_route.json")
+
+    while read -r line; do
+        if echo "${rules}" | grep -q "${line}"; then
+            echoContent yellow " ---> ${line}已存在，跳过"
+        else
+            if echo "${line}" | grep -q "\."; then
+                rules=$(echo "${rules}" | jq -r ".domain +=[\"${line}\"]")
+            else
+                rules=$(echo "${rules}" | jq -r ".geosite +=[\"${line}\"]")
+            fi
+        fi
+    done < <(echo "${domainList}" | tr ',' '\n')
+
+    local delRules
+    delRules=$(jq -r 'del(.route.rules[]|select(.outbound=="'"${outboundTag}"'"))' "${singBoxConfigPath}config/${outboundTag}_route.json")
+    echo "${delRules}" >"${singBoxConfigPath}config/${outboundTag}_route.json"
+
+    local routeRules
+    routeRules=$(jq -r ".route.rules += [${rules}]" "${singBoxConfigPath}config/${outboundTag}_route.json")
+    echo "${routeRules}" >"${singBoxConfigPath}config/${outboundTag}_route.json"
+}
+
+# 移除sing-box route rule
+removeSingBoxRouteRule() {
+    local outboundTag=$1
+    local delRules
+    delRules=$(jq -r 'del(.route.rules[]|select(.outbound=="'"${outboundTag}"'"))' "${singBoxConfigPath}config/${outboundTag}_route.json")
+    echo "${delRules}" >"${singBoxConfigPath}config/${outboundTag}_route.json"
+}
+
+# 添加sing-box出站
+addSingBoxOutbound() {
+    local tag=$1
+    local type="ipv4"
+    if echo "${tag}" | grep -q "IPv6"; then
+        type=ipv6
+    fi
+
+    cat <<EOF >"${singBoxConfigPath}config/${tag}.json"
+{
+     "outbounds": [
+        {
+             "type": "direct",
+             "tag": "${tag}",
+             "domain_strategy": "${type}_only"
+        }
+    ]
+}
+EOF
+}
+
+# 初始化wireguard出站信息
+addSingBoxWireGuardOut() {
+    readConfigWarpReg
+
+    cat <<EOF >"${singBoxConfigPath}config/wireguard_outbound.json"
+{
+     "outbounds": [
+        {
+             "type": "direct",
+             "tag": "wireguard-out-IPv4",
+             "detour": "wireguard-out",
+             "domain_strategy": "ipv4_only"
+        },
+        {
+             "type": "direct",
+             "tag": "wireguard-out-IPv6",
+             "detour": "wireguard-out",
+             "domain_strategy": "ipv6_only"
+        },
+        {
+            "type": "wireguard",
+            "tag": "wireguard-out",
+            "server": "162.159.192.1",
+            "server_port": 2408,
+            "local_address": [
+                "172.16.0.2/32",
+                "${addressWarpReg}/128"
+            ],
+            "private_key": "${secretKeyWarpReg}",
+            "peer_public_key": "${publicKeyWarpReg}",
+            "reserved":${reservedWarpReg},
+            "mtu": 1280
+        }
+    ]
+}
+EOF
+}
+
+# sing-box outbound配置
+configurationSingBoxOutbound() {
+    #  add remove
+    local type=$1
+    local outboundTag=$2
+    local content=$3
+    if [[ "${outboundTag}" == "" ]]; then
+        echo
+    fi
+}
+
 # 初始化sing-box socks5 出站
 initSingBoxSocks5OutboundsConfig() {
     local uuid=
@@ -5608,9 +5758,13 @@ ipv6Routing() {
 
         echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
 
+        configurationSingBoxRoute add IPv6-out "${domainList}"
+        addSingBoxOutbound IPv6_out
         echoContent green " ---> 添加成功"
 
     elif [[ "${ipv6Status}" == "3" ]]; then
+        echoContent green " ---> 不可用"
+        exit 0
         echoContent red "=============================================================="
         echoContent yellow "# 注意事项\n"
         echoContent yellow "1.会删除设置的所有分流规则"
@@ -5643,6 +5797,8 @@ EOF
         unInstallRouting IPv6-out outboundTag
 
         unInstallOutbounds IPv6-out
+
+        configurationSingBoxRoute delete IPv6-out
 
         if ! grep -q "IPv4-out" <"${configPath}10_ipv4_outbounds.json"; then
             outbounds=$(jq -r '.outbounds += [{"protocol":"freedom","settings": {"domainStrategy": "UseIPv4"},"tag":"IPv4-out"}]' ${configPath}10_ipv4_outbounds.json)
@@ -6013,7 +6169,7 @@ EOF
 
     elif [[ "${warpStatus}" == "4" ]]; then
 
-        ${removeType} cloudflare-warp >/dev/null 2>&1
+        #        ${removeType} cloudflare-warp >/dev/null 2>&1
 
         unInstallRouting warp-socks-out outboundTag
 
@@ -6048,11 +6204,8 @@ readConfigWarpReg() {
     reservedWarpReg=$(grep <"/etc/v2ray-agent/warp/config" reserved | awk -F "[:]" '{print $2}')
 
 }
-# warp分流-第三方IPv4
-warpRoutingReg() {
-    local type=$2
-    echoContent skyBlue "\n进度  $1/${totalProgress} : WARP分流[第三方]"
-    echoContent red "=============================================================="
+# 安装warp-reg工具
+installWarpReg() {
     if [[ ! -f "/etc/v2ray-agent/warp/warp-reg" ]]; then
         echo
         echoContent yellow "# 注意事项"
@@ -6071,14 +6224,126 @@ warpRoutingReg() {
             exit 0
         fi
     fi
-    echoContent red "\n=============================================================="
+}
+
+# 展示warp分流域名
+showWireGuardDomain() {
+    # todo
+    # xray
+    jq -r -c '.routing.rules[]|select (.outboundTag=="wireguard-out-'"${type}"'")|.domain' ${configPath}09_routing.json | jq -r
+    # sing-box
+}
+
+# 添加WireGuard分流
+addWireGuardRoute() {
+    local type=$1
+    local tag=$2
+    local domainList=$3
+    # xray
+    if [[ -n "${configPath}" ]]; then
+
+        addInstallRouting wireguard-out-"${type}" "${tag}" "${domainList}"
+        unInstallOutbounds wireguard-out-"${type}"
+        local outbounds
+        outbounds=$(jq -r '.outbounds += [{"protocol":"wireguard","settings":{"secretKey":"'"${secretKeyWarpReg}"'","address":["'"${address}"'"],"peers":[{"publicKey":"'"${publicKeyWarpReg}"'","allowedIPs":["0.0.0.0/0","::/0"],"endpoint":"162.159.192.1:2408"}],"reserved":'"${reservedWarpReg}"',"mtu":1280},"tag":"wireguard-out-'"${type}"'"}]' ${configPath}10_ipv4_outbounds.json)
+
+        echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
+    fi
+    # sing-box
+    if [[ -n "${singBoxConfigPath}" ]]; then
+
+        # rule
+        addSingBoxRouteRule "wireguard-out-${type}" "${domainList}"
+        # outbound
+        addSingBoxWireGuardOut
+    fi
+}
+
+# 卸载wireGuard
+unInstallWireGuard() {
+    local type=$1
+    if [[ -n "${configPath}" ]]; then
+
+        if [[ "${type}" == "IPv4" ]]; then
+            if ! grep -q "wireguard-out-IPv6" <${configPath}10_ipv4_outbounds.json; then
+                rm -rf /etc/v2ray-agent/warp/config >/dev/null 2>&1
+            fi
+        elif [[ "${type}" == "IPv6" ]]; then
+            if ! grep -q "wireguard-out-IPv4" <${configPath}10_ipv4_outbounds.json; then
+                rm -rf /etc/v2ray-agent/warp/config >/dev/null 2>&1
+            fi
+        fi
+    fi
+
+    if [[ -n "${singBoxConfigPath}" ]]; then
+        if [[ ! -f "${singBoxConfigPath}config/wireguard-out-IPv6_route.json" && ! -f "${singBoxConfigPath}config/wireguard-out-IPv4_route.json" ]]; then
+            rm ${singBoxConfigPath}config/wireguard_outbound.json >/dev/null 2>&1
+            rm -rf /etc/v2ray-agent/warp/config >/dev/null 2>&1
+        fi
+    fi
+}
+# 移除WireGuard分流
+removeWireGuardRoute() {
+    local type=$1
+    #    local tag=$2
+    # xray
+    if [[ -n "${configPath}" ]]; then
+
+        unInstallRouting wireguard-out-"${type}" outboundTag
+
+        unInstallOutbounds wireguard-out-"${type}"
+
+        if ! grep -q "IPv4-out" <"${configPath}10_ipv4_outbounds.json"; then
+
+            cat <<EOF >${configPath}10_ipv4_outbounds.json
+{
+    "outbounds":[
+        {
+            "protocol":"freedom",
+            "settings":{
+                "domainStrategy":"UseIPv4"
+            },
+            "tag":"IPv4-out"
+        },
+        {
+            "protocol":"freedom",
+            "settings":{
+                "domainStrategy":"UseIPv6"
+            },
+            "tag":"IPv6-out"
+        },
+        {
+            "protocol":"blackhole",
+            "tag":"blackhole-out"
+        }
+    ]
+}
+EOF
+        fi
+
+        echoContent green " ---> WARP分流卸载成功"
+    fi
+
+    # sing-box
+    if [[ -n "${singBoxConfigPath}" ]]; then
+        removeSingBoxRouteRule "wireguard-out-${type}"
+    fi
+
+    unInstallWireGuard "${type}"
+}
+# warp分流-第三方IPv4
+warpRoutingReg() {
+    local type=$2
+    echoContent skyBlue "\n进度  $1/${totalProgress} : WARP分流[第三方]"
+    echoContent red "=============================================================="
+
     echoContent yellow "1.查看已分流域名"
     echoContent yellow "2.添加域名"
     echoContent yellow "3.设置WARP全局"
     echoContent yellow "4.卸载WARP分流"
     echoContent red "=============================================================="
     read -r -p "请选择:" warpStatus
-
+    installWarpReg
     readConfigWarpReg
     local address=
     if [[ ${type} == "IPv4" ]]; then
@@ -6090,27 +6355,29 @@ warpRoutingReg() {
     fi
 
     if [[ "${warpStatus}" == "1" ]]; then
-        jq -r -c '.routing.rules[]|select (.outboundTag=="wireguard-out-'"${type}"'")|.domain' ${configPath}09_routing.json | jq -r
+        showWireGuardDomain
         exit 0
     elif [[ "${warpStatus}" == "2" ]]; then
         echoContent yellow "# 注意事项"
+        echoContent yellow "# 支持sing-box、Xray-core"
         echoContent yellow "# 使用教程：https://www.v2ray-agent.com/archives/ba-he-yi-jiao-ben-yu-ming-fen-liu-jiao-cheng \n"
 
         read -r -p "请按照上面示例录入域名:" domainList
+        addWireGuardRoute "${type}" outboundTag "${domainList}"
 
-        addInstallRouting wireguard-out-"${type}" outboundTag "${domainList}"
+        #        unInstallOutbounds wireguard-out-"${type}"
 
-        unInstallOutbounds wireguard-out-"${type}"
-
-        local outbounds
-        outbounds=$(jq -r '.outbounds += [{"protocol":"wireguard","settings":{"secretKey":"'"${secretKeyWarpReg}"'","address":["'"${address}"'"],"peers":[{"publicKey":"'"${publicKeyWarpReg}"'","allowedIPs":["0.0.0.0/0","::/0"],"endpoint":"162.159.192.1:2408"}],"reserved":'"${reservedWarpReg}"',"mtu":1280},"tag":"wireguard-out-'"${type}"'"}]' ${configPath}10_ipv4_outbounds.json)
-
-        echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
+        #        local outbounds
+        #        outbounds=$(jq -r '.outbounds += [{"protocol":"wireguard","settings":{"secretKey":"'"${secretKeyWarpReg}"'","address":["'"${address}"'"],"peers":[{"publicKey":"'"${publicKeyWarpReg}"'","allowedIPs":["0.0.0.0/0","::/0"],"endpoint":"162.159.192.1:2408"}],"reserved":'"${reservedWarpReg}"',"mtu":1280},"tag":"wireguard-out-'"${type}"'"}]' ${configPath}10_ipv4_outbounds.json)
+        #
+        #        echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
 
         echoContent green " ---> 添加成功"
 
     elif [[ "${warpStatus}" == "3" ]]; then
 
+        echoContent green " ---> 不可用"
+        exit 0
         echoContent red "=============================================================="
         echoContent yellow "# 注意事项\n"
         echoContent yellow "1.会删除设置的所有分流规则"
@@ -6157,48 +6424,7 @@ EOF
 
     elif [[ "${warpStatus}" == "4" ]]; then
 
-        unInstallRouting wireguard-out-"${type}" outboundTag
-
-        unInstallOutbounds wireguard-out-"${type}"
-        if [[ "${type}" == "IPv4" ]]; then
-            if ! grep -q "wireguard-out-IPv6" <${configPath}10_ipv4_outbounds.json; then
-                rm -rf /etc/v2ray-agent/warp/config >/dev/null 2>&1
-            fi
-        elif [[ "${type}" == "IPv6" ]]; then
-            if ! grep -q "wireguard-out-IPv4" <${configPath}10_ipv4_outbounds.json; then
-                rm -rf /etc/v2ray-agent/warp/config >/dev/null 2>&1
-            fi
-        fi
-
-        if ! grep -q "IPv4-out" <"${configPath}10_ipv4_outbounds.json"; then
-
-            cat <<EOF >${configPath}10_ipv4_outbounds.json
-            {
-                "outbounds":[
-                    {
-                        "protocol":"freedom",
-                        "settings":{
-                            "domainStrategy":"UseIPv4"
-                        },
-                        "tag":"IPv4-out"
-                    },
-                    {
-                        "protocol":"freedom",
-                        "settings":{
-                            "domainStrategy":"UseIPv6"
-                        },
-                        "tag":"IPv6-out"
-                    },
-                    {
-                        "protocol":"blackhole",
-                        "tag":"blackhole-out"
-                    }
-                ]
-            }
-EOF
-        fi
-
-        echoContent green " ---> WARP分流卸载成功"
+        removeWireGuardRoute "${type}"
     else
         echoContent red " ---> 选择错误"
         exit 0
@@ -8165,7 +8391,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.11.7"
+    echoContent green "当前版本：v2.11.8"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
