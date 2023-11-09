@@ -3157,14 +3157,14 @@ EOF
 
 # 初始化singbox route配置
 initSingBoxRouteConfig() {
+    downloadSingBoxGeositeDB
     local outboundTag=$1
     if [[ ! -f "${singBoxConfigPath}config/${outboundTag}_route.json" ]]; then
         cat <<EOF >"${singBoxConfigPath}config/${outboundTag}_route.json"
 {
     "route": {
         "geosite": {
-            "path": "${singBoxConfigPath}geosite.db",
-            "download_url": "https://github.com/SagerNet/sing-geosite/releases/latest/download/geosite.db"
+            "path": "${singBoxConfigPath}geosite.db"
         },
         "rules": [
             {
@@ -3178,6 +3178,12 @@ initSingBoxRouteConfig() {
     }
 }
 EOF
+    fi
+}
+# 下载sing-box geosite db
+downloadSingBoxGeositeDB() {
+    if [[ ! -f "${singBoxConfigPath}geosite.db" ]]; then
+        wget -q -P "${singBoxConfigPath}" https://github.com/Johnshall/sing-geosite/releases/latest/download/geosite.db
     fi
 }
 
@@ -4622,7 +4628,7 @@ showAccounts() {
     local show
     # VLESS TCP
     if echo "${currentInstallProtocolType}" | grep -q trojan; then
-        echoContent skyBlue "===================== Trojan TCP TLS_Vision ======================\n"
+        echoContent skyBlue "===================== Trojan TCP TLS_Vision[不推荐] ======================\n"
         jq .inbounds[0].settings.clients ${configPath}02_trojan_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
             local email=
             email=$(echo "${user}" | jq -r .email)
@@ -4645,7 +4651,7 @@ showAccounts() {
 
     # VLESS WS
     if echo ${currentInstallProtocolType} | grep -q 1; then
-        echoContent skyBlue "\n================================ VLESS WS TLS CDN ================================\n"
+        echoContent skyBlue "\n================================ VLESS WS TLS [仅CDN不推荐] ================================\n"
 
         jq .inbounds[0].settings.clients ${configPath}03_VLESS_WS_inbounds.json | jq -c '.[]' | while read -r user; do
             local email=
@@ -4667,7 +4673,7 @@ showAccounts() {
 
     # VLESS grpc
     if echo ${currentInstallProtocolType} | grep -q 5; then
-        echoContent skyBlue "\n=============================== VLESS gRPC TLS CDN ===============================\n"
+        echoContent skyBlue "\n=============================== VLESS gRPC TLS [仅CDN不推荐]  ===============================\n"
         jq .inbounds[0].settings.clients ${configPath}06_VLESS_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
 
             local email=
@@ -4688,7 +4694,7 @@ showAccounts() {
 
     # VMess WS
     if echo ${currentInstallProtocolType} | grep -q 3; then
-        echoContent skyBlue "\n================================ VMess WS TLS CDN ================================\n"
+        echoContent skyBlue "\n================================ VMess WS TLS [仅CDN不推荐]  ================================\n"
         local path="${currentPath}vws"
         if [[ ${coreInstallType} == "1" ]]; then
             path="${currentPath}vws"
@@ -4711,7 +4717,7 @@ showAccounts() {
 
     # trojan tcp
     if echo ${currentInstallProtocolType} | grep -q 4; then
-        echoContent skyBlue "\n==================================  Trojan TLS  ==================================\n"
+        echoContent skyBlue "\n==================================  Trojan TLS [不推荐] ==================================\n"
         jq .inbounds[0].settings.clients ${configPath}04_trojan_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
             local email=
             email=$(echo "${user}" | jq -r .email)
@@ -4722,7 +4728,7 @@ showAccounts() {
     fi
 
     if echo ${currentInstallProtocolType} | grep -q 2; then
-        echoContent skyBlue "\n================================  Trojan gRPC TLS  ================================\n"
+        echoContent skyBlue "\n================================  Trojan gRPC TLS [仅CDN不推荐]  ================================\n"
         jq .inbounds[0].settings.clients ${configPath}04_trojan_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
             local email=
             email=$(echo "${user}" | jq -r .email)
@@ -4740,7 +4746,7 @@ showAccounts() {
         done
     fi
     if echo ${currentInstallProtocolType} | grep -q 6; then
-        echoContent skyBlue "\n================================  Hysteria TLS  ================================\n"
+        echoContent skyBlue "\n================================  Hysteria2 TLS [推荐] ================================\n"
         jq -r -c '.inbounds[]|select(.type=="hysteria2")|.users[]' "${singBoxConfigPath}config.json" | while read -r user; do
             echoContent skyBlue "\n ---> 账号:$(echo "${user}" | jq -r .name)"
             echo
@@ -4752,7 +4758,7 @@ showAccounts() {
     # VLESS reality vision
     if echo ${currentInstallProtocolType} | grep -q 7; then
         show=1
-        echoContent skyBlue "============================= VLESS reality_vision  ==============================\n"
+        echoContent skyBlue "============================= VLESS reality_vision [推荐]  ==============================\n"
         jq .inbounds[0].settings.clients ${configPath}07_VLESS_vision_reality_inbounds.json | jq -c '.[]' | while read -r user; do
             local email=
             email=$(echo "${user}" | jq -r .email)
@@ -4766,7 +4772,7 @@ showAccounts() {
     # VLESS reality
     if echo ${currentInstallProtocolType} | grep -q 8; then
         show=1
-        echoContent skyBlue "============================== VLESS reality_gRPC  ===============================\n"
+        echoContent skyBlue "============================== VLESS reality_gRPC [推荐] ===============================\n"
         jq .inbounds[0].settings.clients ${configPath}08_VLESS_reality_fallback_grpc_inbounds.json | jq -c '.[]' | while read -r user; do
             local email=
             email=$(echo "${user}" | jq -r .email)
@@ -4778,7 +4784,7 @@ showAccounts() {
     fi
     # tuic
     if echo ${currentInstallProtocolType} | grep -q 9; then
-        echoContent skyBlue "\n================================  Tuic TLS  ================================\n"
+        echoContent skyBlue "\n================================  Tuic TLS [推荐]  ================================\n"
         jq -r -c '.inbounds[]|select(.type=="tuic")|.users[]' "${singBoxConfigPath}config.json" | while read -r user; do
             echoContent skyBlue "\n ---> 账号:$(echo "${user}" | jq -r .name)"
             echo
@@ -5759,7 +5765,7 @@ ipv6Routing() {
         echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
 
         configurationSingBoxRoute add IPv6-out "${domainList}"
-        addSingBoxOutbound IPv6_out
+        addSingBoxOutbound IPv6-out
         echoContent green " ---> 添加成功"
 
     elif [[ "${ipv6Status}" == "3" ]]; then
@@ -7043,13 +7049,13 @@ customXrayInstall() {
     echoContent skyBlue "\n========================个性化安装============================"
     echoContent yellow "VLESS前置，默认安装0，如果只需要安装0，则只选择0即可"
     echoContent yellow "0.VLESS+TLS_Vision+TCP[推荐]"
-    echoContent yellow "1.VLESS+TLS+WS[CDN]"
-    echoContent yellow "2.Trojan+TLS+gRPC[CDN]"
-    echoContent yellow "3.VMess+TLS+WS[CDN]"
-    echoContent yellow "4.Trojan+TLS"
-    echoContent yellow "5.VLESS+TLS+gRPC[CDN]"
+    echoContent yellow "1.VLESS+TLS+WS[仅CDN推荐]"
+    echoContent yellow "2.Trojan+TLS+gRPC[仅CDN推荐]"
+    echoContent yellow "3.VMess+TLS+WS[仅CDN推荐]"
+    echoContent yellow "4.Trojan+TLS[不推荐]"
+    echoContent yellow "5.VLESS+TLS+gRPC[仅CDN推荐]"
     echoContent yellow "7.VLESS+Reality+uTLS+Vision[推荐]"
-    #    echoContent yellow "8.VLESS+Reality+gRPC"
+    # echoContent yellow "8.VLESS+Reality+gRPC"
     read -r -p "请选择[多选]，[例如:123]:" selectCustomInstallType
     echoContent skyBlue "--------------------------------------------------------------"
     if [[ -z ${selectCustomInstallType} ]]; then
@@ -8391,7 +8397,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.11.8"
+    echoContent green "当前版本：v2.11.9"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus

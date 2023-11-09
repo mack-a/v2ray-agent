@@ -1,4 +1,4 @@
-#  一键脚本快速安装
+# Xray-core/sing-box 一键脚本快速安装
 
 - [感谢 JetBrains 提供的非商业开源软件开发授权](https://www.jetbrains.com/?from=v2ray-agent)
 - [Thanks for non-commercial open source development authorization by JetBrains](https://www.jetbrains.com/?from=v2ray-agent)
@@ -13,21 +13,44 @@
 
 # 一、项目介绍
 
-- [一键安装教程【推荐】](https://www.v2ray-agent.com/archives/1682491479771)
-- 支持Xray-core/sing-box/Hysteria/Tuic
-- 支持多种传输协议，VLESS（Reality）、VMess、Trojan、Hysteria、Tuic，支持多种协议组合。
-- 支持自动申请和更新证书
-- 支持自主更换伪装站点
-- [支持批量添加CDN节点并配合ClashMeta自动优选](https://www.v2ray-agent.com/archives/1684858575649)
-- 支持订阅以及多VPS组合订阅
-- [支持多种分流工具（Warp、IPv6、任意门、DNS、VMess(ws)、SNI反向代理）](https://www.v2ray-agent.com/archives/ba-he-yi-jiao-ben-yu-ming-fen-liu-jiao-cheng)
-- 支持批量新增端口
-- 支持Core的升级以及回退
-- [支持无域名版本的VLESS Reality搭建](https://www.v2ray-agent.com/archives/1680104902581)
-- [Reality教程和介绍【推荐】](https://www.v2ray-agent.com/archives/1680104902581)
-- [搭建最新的Vision和Reality防止VPS端口封禁](https://www.v2ray-agent.com/archives/1680104902581)
+## 核心
 
-# 二、线路推荐
+- Xray-core
+- v2ray-core[暂停维护]
+- sing-box
+
+## 协议
+
+> 以下均使用TLS，支持多种协议组合
+
+- VLESS(Reality、Vision、TCP、WS、gRPC)
+- VMess(TCP、WS)
+- Trojan(TCP、gRPC)
+- Hysteria2
+- Tuic
+
+## 功能
+
+- [支持无域名版本的VLESS Reality搭建](https://www.v2ray-agent.com/archives/1680104902581)
+- [支持多种分流用于解锁（wireguard、IPv6、任意门、DNS、VMess(ws)、SNI反向代理）](https://www.v2ray-agent.com/archives/ba-he-yi-jiao-ben-yu-ming-fen-liu-jiao-cheng)
+- [支持批量添加CDN节点并配合ClashMeta自动优选](https://www.v2ray-agent.com/archives/1684858575649)
+- 支持证书自动申请及更新
+- [支持订阅以及多VPS组合订阅](https://www.v2ray-agent.com/archives/1681804748677)
+- 支持批量新增端口
+- 支持核心的升级以及回退
+- 支持自主更换伪装站点
+- 支持BT下载管理以及域名黑名单管理
+
+
+# 二、使用指南
+
+- [脚本快速搭建教程](https://www.v2ray-agent.com/archives/1682491479771)
+- [垃圾VPS大救星，hysteria2最新协议一键搭建](https://www.v2ray-agent.com/archives/1697162969693)
+- [Tuic V5性能提升及使用方法](https://www.v2ray-agent.com/archives/1687167522196)
+- [Cloudflare优选IP、自动选择最快节点教程](https://www.v2ray-agent.com/archives/1684858575649)
+- [脚本异常处理](https://www.v2ray-agent.com/archives/1684115970026)
+
+# 三、线路推荐
 
 > 再好的协议也比不上一个高品质的VPS。推荐以下线路
 
@@ -38,7 +61,7 @@
 - [日本软银](https://www.v2ray-agent.com/tags/ruan-yin)
 - [CMI](https://www.v2ray-agent.com/tags/cmi)
 
-# 三、安装使用
+# 四、安装使用
 
 ## 1.下载脚本
 
@@ -56,7 +79,7 @@ wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-
 wget -P /root -N --no-check-certificate "https://www.v2ray-agent.com/v2ray-agent/install.sh" && chmod 700 /root/install.sh && /root/install.sh
 ```
 
-## [2.搭建教程](https://www.v2ray-agent.com/archives/1682491479771)
+## [2.脚本快速搭建教程](https://www.v2ray-agent.com/archives/1682491479771)
 
 # 四、反馈和建议
 
@@ -74,7 +97,3 @@ wget -P /root -N --no-check-certificate "https://www.v2ray-agent.com/v2ray-agent
 # 六、许可证
 
 [AGPL-3.0](https://github.com/mack-a/v2ray-agent/blob/master/LICENSE)
-
-## Stargazers over time
-
-[![Stargazers over time](https://starchart.cc/mack-a/v2ray-agent.svg)](https://starchart.cc/mack-a/v2ray-agent)
