@@ -264,13 +264,13 @@ initVar() {
     hysteriaProtocol=
 
     # hysteria延迟
-    hysteriaLag=
+    #    hysteriaLag=
 
     # hysteria下行速度
-    hysteriaClientDownloadSpeed=
+    hysteria2ClientDownloadSpeed=
 
     # hysteria上行速度
-    hysteriaClientUploadSpeed=
+    hysteria2ClientUploadSpeed=
 
     # Reality
     realityPrivateKey=
@@ -551,8 +551,8 @@ checkFirewalldAllowPort() {
 readHysteriaConfig() {
     if [[ -n "${hysteriaConfigPath}" ]]; then
         #        hysteriaLag=$(jq -r .hysteriaLag <"${hysteriaConfigPath}client_network.json")
-        #        hysteriaClientDownloadSpeed=$(jq -r .hysteriaClientDownloadSpeed <"${hysteriaConfigPath}client_network.json")
-        #        hysteriaClientUploadSpeed=$(jq -r .hysteriaClientUploadSpeed <"${hysteriaConfigPath}client_network.json")
+        #        hysteria2ClientDownloadSpeed=$(jq -r .hysteria2ClientDownloadSpeed <"${hysteriaConfigPath}client_network.json")
+        #        hysteria2ClientUploadSpeed=$(jq -r .hysteria2ClientUploadSpeed <"${hysteriaConfigPath}client_network.json")
         hysteriaPort=$(jq -r .listen <"${hysteriaConfigPath}config.json" | awk -F "[:]" '{print $2}')
         #        hysteriaProtocol=$(jq -r .protocol <"${hysteriaConfigPath}config.json")
     fi
@@ -567,6 +567,8 @@ readSingBoxConfig() {
 
         if grep -q 'hysteria2' </etc/v2ray-agent/sing-box/conf/config.json; then
             hysteriaPort=$(jq -r '.inbounds[]|select(.type=="hysteria2")|(.listen_port)' <"${singBoxConfigPath}config.json")
+            hysteria2ClientUploadSpeed=$(jq -r '.inbounds[]|select(.type=="hysteria2")|(.up_mbps)' <"${singBoxConfigPath}config.json")
+            hysteria2ClientDownloadSpeed=$(jq -r '.inbounds[]|select(.type=="hysteria2")|(.down_mbps)' <"${singBoxConfigPath}config.json")
         fi
     fi
 }
@@ -2843,37 +2845,21 @@ initHysteriaProtocol() {
 }
 
 # 初始化hysteria网络信息
-initHysteriaNetwork() {
+initHysteria2Network() {
 
-    echoContent yellow "请输入本地到服务器的平均延迟，请按照真实情况填写（默认：180，单位：ms）"
-    read -r -p "延迟:" hysteriaLag
-    if [[ -z "${hysteriaLag}" ]]; then
-        hysteriaLag=180
-        echoContent yellow "\n ---> 延迟: ${hysteriaLag}\n"
-    fi
-
-    echoContent yellow "请输入本地带宽峰值的下行速度（默认：100，单位：Mbps）"
-    read -r -p "下行速度:" hysteriaClientDownloadSpeed
-    if [[ -z "${hysteriaClientDownloadSpeed}" ]]; then
-        hysteriaClientDownloadSpeed=100
-        echoContent yellow "\n ---> 下行速度: ${hysteriaClientDownloadSpeed}\n"
+    echoContent yellow "请输入本地带宽峰值的下行速度（默认：50，单位：Mbps）"
+    read -r -p "下行速度:" hysteria2ClientDownloadSpeed
+    if [[ -z "${hysteria2ClientDownloadSpeed}" ]]; then
+        hysteria2ClientDownloadSpeed=50
+        echoContent yellow "\n ---> 下行速度: ${hysteria2ClientDownloadSpeed}\n"
     fi
 
     echoContent yellow "请输入本地带宽峰值的上行速度（默认：50，单位：Mbps）"
-    read -r -p "上行速度:" hysteriaClientUploadSpeed
-    if [[ -z "${hysteriaClientUploadSpeed}" ]]; then
-        hysteriaClientUploadSpeed=50
-        echoContent yellow "\n ---> 上行速度: ${hysteriaClientUploadSpeed}\n"
+    read -r -p "上行速度:" hysteria2ClientUploadSpeed
+    if [[ -z "${hysteria2ClientUploadSpeed}" ]]; then
+        hysteria2ClientUploadSpeed=50
+        echoContent yellow "\n ---> 上行速度: ${hysteria2ClientUploadSpeed}\n"
     fi
-
-    cat <<EOF >/etc/v2ray-agent/hysteria/conf/client_network.json
-{
-	"hysteriaLag":"${hysteriaLag}",
-	"hysteriaClientUploadSpeed":"${hysteriaClientUploadSpeed}",
-	"hysteriaClientDownloadSpeed":"${hysteriaClientDownloadSpeed}"
-}
-EOF
-
 }
 
 # hy端口跳跃
@@ -3143,6 +3129,7 @@ initSingBoxTuicConfig() {
         "congestion_control": "${tuicAlgorithm}",
         "tls": {
             "enabled": true,
+            "server_name":"${currentHost}",
             "alpn": [
                 "h3"
             ],
@@ -3373,7 +3360,8 @@ initSingBoxHysteria2Config() {
     echoContent skyBlue "\n进度 $1/${totalProgress} : 初始化Hysteria2配置"
 
     initHysteriaPort
-    # todo 123123
+    initHysteria2Network
+
     cat <<EOF >/etc/v2ray-agent/sing-box/conf/config/hysteria2.json
 {
     "inbounds": [
@@ -3382,8 +3370,11 @@ initSingBoxHysteria2Config() {
             "listen": "::",
             "listen_port": ${hysteriaPort},
             "users": $(initXrayClients 6),
+            "up_mbps":${hysteria2ClientUploadSpeed},
+            "down_mbps":${hysteria2ClientDownloadSpeed},
             "tls": {
                 "enabled": true,
+                "server_name":"${currentHost}",
                 "alpn": [
                     "h3"
                 ],
@@ -3394,7 +3385,6 @@ initSingBoxHysteria2Config() {
     ]
 }
 EOF
-    #    initSingBoxSocks5OutboundsConfig
 }
 
 # sing-box Tuic安装
@@ -4530,9 +4520,13 @@ EOF
     server: ${currentHost}
     port: ${hysteriaPort}
     password: ${id}
+    alpn:
+        - h3
     sni: ${currentHost}
+    up: "${hysteria2ClientDownloadSpeed} Mbps"
+    down: "${hysteria2ClientUploadSpeed} Mbps"
 EOF
-        echoContent yellow " ---> 二维码 Hysteria(TLS)"
+        echoContent yellow " ---> 二维码 Hysteria2(TLS)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=hysteria2%3A%2F%2F${id}%40${currentHost}%3A${hysteriaPort}%3Fpeer%3D${currentHost}%26insecure%3D0%26sni%3D${currentHost}%26alpn%3Dh3%23${email}\n"
 
     elif [[ "${type}" == "vlessReality" ]]; then
@@ -8429,7 +8423,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.11.10"
+    echoContent green "当前版本：v2.11.11"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
