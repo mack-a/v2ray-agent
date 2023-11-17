@@ -4597,7 +4597,7 @@ EOF
         echoContent green "    协议类型:Tuic，地址:${currentHost}，端口：${tuicPort}，uuid：${id}，password：${id}，congestion-controller:${tuicAlgorithm}，alpn: h3，账户名:${email}\n"
 
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
-tuic://${id}@${currentHost}:${tuicPort}?peer=${currentHost}&congestion_control=${tuicAlgorithm}&password=${id}&insecure=0&sni=${currentHost}&alpn=h3#${email}
+tuic://${id}:${id}@${currentHost}:${tuicPort}?congestion_control=${tuicAlgorithm}&alpn=h3&sni=${currentHost}&udp_relay_mode=quic&allow_insecure=0#${email}
 EOF
         echoContent yellow " ---> v2rayN(Tuic+TLS)"
         echo "{\"relay\": {\"server\": \"${currentHost}:${tuicPort}\",\"uuid\": \"${id}\",\"password\": \"${id}\",\"ip\": \"$(getPublicIP 4)\",\"congestion_control\": \"${tuicAlgorithm}\",\"alpn\": [\"h3\"]},\"local\": {\"server\": \"127.0.0.1:7798\"},\"log_level\": \"warn\"}" | jq
@@ -4616,6 +4616,8 @@ EOF
     reduce-rtt: true
     sni: ${email}
 EOF
+        echoContent yellow "\n ---> 二维码 Tuic"
+        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=tuic%3A%2F%2F${id}%3A${id}%40${currentHost}%3A${tuicPort}%3Fcongestion_control%3D${tuicAlgorithm}%26alpn%3Dh3%26sni%3D${currentHost}%26udp_relay_mode%3Dquic%26allow_insecure%3D0%23${email}\n"
     fi
 
 }
@@ -8475,7 +8477,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.11.14"
+    echoContent green "当前版本：v2.11.15"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
