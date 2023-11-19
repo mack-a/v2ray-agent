@@ -567,8 +567,8 @@ readSingBoxConfig() {
 
         if grep -q 'hysteria2' </etc/v2ray-agent/sing-box/conf/config.json; then
             hysteriaPort=$(jq -r '.inbounds[]|select(.type=="hysteria2")|(.listen_port)' <"${singBoxConfigPath}config.json")
-            hysteria2ClientUploadSpeed=$(jq -r '.inbounds[]|select(.type=="hysteria2")|(.up_mbps)' <"${singBoxConfigPath}config.json")
-            hysteria2ClientDownloadSpeed=$(jq -r '.inbounds[]|select(.type=="hysteria2")|(.down_mbps)' <"${singBoxConfigPath}config.json")
+            hysteria2ClientUploadSpeed=$(jq -r '.inbounds[]|select(.type=="hysteria2")|(.down_mbps)' <"${singBoxConfigPath}config.json")
+            hysteria2ClientDownloadSpeed=$(jq -r '.inbounds[]|select(.type=="hysteria2")|(.up_mbps)' <"${singBoxConfigPath}config.json")
         fi
     fi
 }
@@ -2847,10 +2847,10 @@ initHysteriaProtocol() {
 # 初始化hysteria网络信息
 initHysteria2Network() {
 
-    echoContent yellow "请输入本地带宽峰值的下行速度（默认：50，单位：Mbps）"
+    echoContent yellow "请输入本地带宽峰值的下行速度（默认：100，单位：Mbps）"
     read -r -p "下行速度:" hysteria2ClientDownloadSpeed
     if [[ -z "${hysteria2ClientDownloadSpeed}" ]]; then
-        hysteria2ClientDownloadSpeed=50
+        hysteria2ClientDownloadSpeed=100
         echoContent yellow "\n ---> 下行速度: ${hysteria2ClientDownloadSpeed}\n"
     fi
 
@@ -3372,8 +3372,8 @@ initSingBoxHysteria2Config() {
             "listen": "::",
             "listen_port": ${hysteriaPort},
             "users": $(initXrayClients 6),
-            "up_mbps":${hysteria2ClientUploadSpeed},
-            "down_mbps":${hysteria2ClientDownloadSpeed},
+            "up_mbps":${hysteria2ClientDownloadSpeed},
+            "down_mbps":${hysteria2ClientUploadSpeed},
             "tls": {
                 "enabled": true,
                 "server_name":"${currentHost}",
@@ -4525,8 +4525,8 @@ EOF
     alpn:
         - h3
     sni: ${currentHost}
-    up: "${hysteria2ClientDownloadSpeed} Mbps"
-    down: "${hysteria2ClientUploadSpeed} Mbps"
+    up: "${hysteria2ClientUploadSpeed} Mbps"
+    down: "${hysteria2ClientDownloadSpeed} Mbps"
 EOF
         echoContent yellow " ---> 二维码 Hysteria2(TLS)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=hysteria2%3A%2F%2F${id}%40${currentHost}%3A${hysteriaPort}%3Fpeer%3D${currentHost}%26insecure%3D0%26sni%3D${currentHost}%26alpn%3Dh3%23${email}\n"
@@ -8483,7 +8483,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.11.17"
+    echoContent green "当前版本：v2.11.18"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
