@@ -4172,17 +4172,13 @@ EOF
             "network": "tcp",
             "security": "tls",
             "tlsSettings": {
+              "rejectUnknownSni": true,
               "minVersion": "1.2",
-              "alpn": [
-                "http/1.1",
-                "h2"
-              ],
               "certificates": [
                 {
                   "certificateFile": "/etc/v2ray-agent/tls/${domain}.crt",
                   "keyFile": "/etc/v2ray-agent/tls/${domain}.key",
-                  "ocspStapling": 3600,
-                  "usage":"encipherment"
+                  "ocspStapling": 3600
                 }
               ]
             }
@@ -6115,7 +6111,7 @@ installSniffing() {
     readInstallType
     find ${configPath} -name "*inbounds.json*" | awk -F "[c][o][n][f][/]" '{print $2}' | while read -r inbound; do
         if ! grep -q "destOverride" <"${configPath}${inbound}"; then
-            sniffing=$(jq -r '.inbounds[0].sniffing = {"enabled":true,"destOverride":["http","tls"]}' "${configPath}${inbound}")
+            sniffing=$(jq -r '.inbounds[0].sniffing = {"enabled":true,"destOverride":["http","tls","quic"]}' "${configPath}${inbound}")
             echo "${sniffing}" | jq . >"${configPath}${inbound}"
         fi
     done
@@ -6258,10 +6254,17 @@ installWarpReg() {
 
 # 展示warp分流域名
 showWireGuardDomain() {
-    # todo
     # xray
-    jq -r -c '.routing.rules[]|select (.outboundTag=="wireguard_out_'"${type}"'")|.domain' ${configPath}09_routing.json | jq -r
+    if [[ -f "${configPath}09_routing.json" ]]; then
+        echoContent yellow "Xray-core"
+        jq -r -c '.routing.rules[]|select (.outboundTag=="wireguard_out_'"${type}"'")|.domain' ${configPath}09_routing.json | jq -r
+    fi
+
     # sing-box
+    if [[ -f "${singBoxConfigPath}config/wireguard_out_${type}_route.json" ]]; then
+        echoContent yellow "sing-box"
+        jq -r -c '.route.rules[]|select (.outbound=="wireguard_out_'"${type}"'")|.geosite' "${singBoxConfigPath}config/wireguard_out_${type}_route.json" | jq -r
+    fi
 }
 
 # 添加WireGuard分流
@@ -6354,6 +6357,7 @@ EOF
 
         echoContent green " ---> WARP分流卸载成功"
     fi
+
     # sing-box
     if [[ -n "${singBoxConfigPath}" ]]; then
         removeSingBoxRouteRule "wireguard_out_${type}"
@@ -8483,7 +8487,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.11.18"
+    echoContent green "当前版本：v2.11.19"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
