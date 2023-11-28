@@ -238,6 +238,8 @@ initVar() {
 
     # ssl类型
     sslType=
+    # SSL CF API Token
+    cfAPIToken=
 
     # ssl邮箱
     sslEmail=
@@ -246,13 +248,13 @@ initVar() {
     sslRenewalDays=90
 
     # dns ssl状态
-    dnsSSLStatus=
+    #    dnsSSLStatus=
 
     # dns tls domain
     dnsTLSDomain=
 
     # 该域名是否通过dns安装通配符证书
-    installDNSACMEStatus=
+    #    installDNSACMEStatus=
 
     # 自定义端口
     customPort=
@@ -296,13 +298,18 @@ initVar() {
 
 # 读取tls证书详情
 readAcmeTLS() {
+    local readAcmeDomain=
     if [[ -n "${currentHost}" ]]; then
-        dnsTLSDomain=$(echo "${currentHost}" | awk -F "[.]" '{print $(NF-1)"."$NF}')
+        readAcmeDomain="${currentHost}"
+    else
+        readAcmeDomain="${domain}"
     fi
+    dnsTLSDomain=$(echo "${readAcmeDomain}" | awk -F "." '{$1="";print $0}' | sed 's/^[[:space:]]*//' | sed 's/ /./g')
     if [[ -d "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc" && -f "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.key" && -f "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.cer" ]]; then
-        installDNSACMEStatus=true
+        installedDNSAPIStatus=true
     fi
 }
+
 # 读取默认自定义端口
 readCustomPort() {
     if [[ -n "${configPath}" && -z "${realityStatus}" ]]; then
@@ -1091,15 +1098,15 @@ checkDNSIP() {
     local domain=$1
     local dnsIP=
     local type=4
-    dnsIP=$(dig @1.1.1.1 +time=1 +short "${domain}")
+    dnsIP=$(dig @1.1.1.1 +time=2 +short "${domain}")
     if [[ -z "${dnsIP}" ]]; then
-        dnsIP=$(dig @8.8.8.8 +time=1 +short "${domain}")
+        dnsIP=$(dig @8.8.8.8 +time=2 +short "${domain}")
     fi
     if echo "${dnsIP}" | grep -q "timed out" || [[ -z "${dnsIP}" ]]; then
         echo
         echoContent red " ---> 无法通过DNS获取域名 IPv4 地址"
         echoContent green " ---> 尝试检查域名 IPv6 地址"
-        dnsIP=$(dig @2606:4700:4700::1111 +time=1 aaaa +short "${domain}")
+        dnsIP=$(dig @2606:4700:4700::1111 +time=2 aaaa +short "${domain}")
         type=6
         if echo "${dnsIP}" | grep -q "network unreachable" || [[ -z "${dnsIP}" ]]; then
             echoContent red " ---> 无法通过DNS获取域名IPv6地址，退出安装"
@@ -1151,8 +1158,8 @@ EOF
     handleNginx start
 
     # 检查域名+端口的开放
-    checkPortOpenResult=$(curl -s -m 2 "http://${domain}:${port}/checkPort")
-    localIP=$(curl -s -m 2 "http://${domain}:${port}/ip")
+    checkPortOpenResult=$(curl -s -m 10 "http://${domain}:${port}/checkPort")
+    localIP=$(curl -s -m 10 "http://${domain}:${port}/ip")
     rm "${nginxConfigPath}checkPortOpen.conf"
     handleNginx stop
     if [[ "${checkPortOpenResult}" == "fjkvymb6len" ]]; then
@@ -1199,38 +1206,11 @@ initTLSNginxConfig() {
         echoContent red "  域名不可为空--->"
         initTLSNginxConfig 3
     else
-        dnsTLSDomain=$(echo "${domain}" | awk -F "[.]" '{print $(NF-1)"."$NF}')
+        dnsTLSDomain=$(echo "${domain}" | awk -F "." '{$1="";print $0}' | sed 's/^[[:space:]]*//' | sed 's/ /./g')
         customPortFunction
         # 修改配置
         handleNginx stop
-        #        touch ${nginxConfigPath}alone.conf
-        #        nginxIPort=80
-        #        if [[ "${wildcardDomainStatus}" == "true" ]]; then
-        #            nginxIPort=${port}
-        #        fi
-        #
-        #        cat <<EOF >${nginxConfigPath}alone.conf
-        #server {
-        #    listen ${port};
-        #    listen [::]:${port};
-        #    server_name ${domain};
-        #    location /test {
-        #    	return 200 'fjkvymb6len';
-        #    }
-        #	location /ip {
-        #		proxy_set_header Host \$host;
-        #        proxy_set_header X-Real-IP \$remote_addr;
-        #        proxy_set_header REMOTE-HOST \$remote_addr;
-        #        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        #		default_type text/plain;
-        #		return 200 \$proxy_add_x_forwarded_for;
-        #	}
-        #}
-        #EOF
     fi
-
-    #    readAcmeTLS
-    #    handleNginx start
 }
 
 # 删除nginx默认的配置
@@ -1247,6 +1227,10 @@ updateRedirectNginxConf() {
     local redirectDomain=
     redirectDomain=${domain}:${port}
 
+    local nginxH2Conf=
+    nginxH2Conf="listen 127.0.0.1:31302 http2 so_keepalive=on;"
+    nginxVersion=$(nginx -v 2>&1)
+
     cat <<EOF >${nginxConfigPath}alone.conf
     server {
     		listen 127.0.0.1:31300;
@@ -1256,9 +1240,6 @@ updateRedirectNginxConf() {
 EOF
 
     if echo "${selectCustomInstallType}" | grep -q 2 && echo "${selectCustomInstallType}" | grep -q 5 || [[ -z "${selectCustomInstallType}" ]]; then
-        local nginxH2Conf=
-        nginxH2Conf="listen 127.0.0.1:31302 http2 so_keepalive=on;"
-        nginxVersion=$(nginx -v 2>&1)
 
         if echo "${nginxVersion}" | grep -q "1.25"; then
             nginxH2Conf="listen 127.0.0.1:31302 so_keepalive=on;http2 on;"
@@ -1299,14 +1280,16 @@ server {
 		grpc_pass grpc://127.0.0.1:31304;
 	}
 	location / {
-        	add_header Strict-Transport-Security "max-age=15552000; preload" always;
     }
 }
 EOF
     elif echo "${selectCustomInstallType}" | grep -q 5 || [[ -z "${selectCustomInstallType}" ]]; then
+        if echo "${nginxVersion}" | grep -q "1.25"; then
+            nginxH2Conf="listen 127.0.0.1:31302 so_keepalive=on;http2 on;"
+        fi
         cat <<EOF >>${nginxConfigPath}alone.conf
 server {
-	listen 127.0.0.1:31302 http2;
+	${nginxH2Conf}
 	server_name ${domain};
 	root ${nginxStaticPath};
 	location ~ ^/s/(clashMeta|default|clashMetaProfiles)/(.*) {
@@ -1328,10 +1311,12 @@ server {
 EOF
 
     elif echo "${selectCustomInstallType}" | grep -q 2 || [[ -z "${selectCustomInstallType}" ]]; then
-
+        if echo "${nginxVersion}" | grep -q "1.25"; then
+            nginxH2Conf="listen 127.0.0.1:31302 so_keepalive=on;http2 on;"
+        fi
         cat <<EOF >>${nginxConfigPath}alone.conf
 server {
-	listen 127.0.0.1:31302 http2;
+	${nginxH2Conf}
 	server_name ${domain};
 	root ${nginxStaticPath};
 	location ~ ^/s/(clashMeta|default|clashMetaProfiles)/(.*) {
@@ -1352,10 +1337,13 @@ server {
 }
 EOF
     else
+        if echo "${nginxVersion}" | grep -q "1.25"; then
+            nginxH2Conf="listen 127.0.0.1:31302 so_keepalive=on;http2 on;"
+        fi
 
         cat <<EOF >>${nginxConfigPath}alone.conf
 server {
-	listen 127.0.0.1:31302 http2;
+	${nginxH2Conf}
 	server_name ${domain};
 	root ${nginxStaticPath};
 
@@ -1379,7 +1367,6 @@ server {
             alias /etc/v2ray-agent/subscribe/\$1/\$2;
         }
 	location / {
-		add_header Strict-Transport-Security "max-age=15552000; preload" always;
 	}
 }
 EOF
@@ -1413,7 +1400,6 @@ checkIP() {
             echoContent yellow " ---> 检测到的ip如下:[${localIP}]"
             exit 0
         fi
-        #        echoContent green " ---> 当前域名ip为:[${localIP}]"
         echoContent green " ---> 检查当前域名IP正确"
     fi
 }
@@ -1442,6 +1428,42 @@ customSSLEmail() {
     fi
 
 }
+# DNS API申请证书
+switchDNSAPI() {
+    read -r -p "是否使用DNS API申请证书？[y/n]:" dnsAPIStatus
+    if [[ "${dnsAPIStatus}" == "y" ]]; then
+        echoContent red "\n=============================================================="
+        echoContent yellow "1.cloudflare[默认]"
+        echoContent red "=============================================================="
+        read -r -p "请选择[回车]使用默认:" selectDNSAPIType
+        case ${selectDNSAPIType} in
+        1)
+            dnsAPIType="cloudflare"
+            ;;
+        *)
+            dnsAPIType="cloudflare"
+            ;;
+        esac
+        initDNSAPIConfig "${dnsAPIType}"
+    fi
+}
+# 初始化dns配置
+initDNSAPIConfig() {
+    if [[ "$1" == "cloudflare" ]]; then
+        echoContent yellow "\n CF_Token参考配置教程：https://www.v2ray-agent.com/archives/1701160377972\n"
+        read -r -p "请输入API Token:" cfAPIToken
+        if [[ -z "${cfAPIToken}" ]]; then
+            echoContent red " ---> 输入为空，请重新输入"
+            initDNSAPIConfig "$1"
+        else
+            echo
+            read -r -p "是否使用*.${dnsTLSDomain}进行API申请通配符证书？[y/n]:" dnsAPIStatus
+            if [[ "${dnsAPIStatus}" != "y" ]]; then
+                exit 0
+            fi
+        fi
+    fi
+}
 # 选择ssl安装类型
 switchSSLType() {
     if [[ -z "${sslType}" ]]; then
@@ -1465,8 +1487,11 @@ switchSSLType() {
             sslType="letsencrypt"
             ;;
         esac
+        if [[ -n "${dnsAPIType}" && "${sslType}" == "buypass" ]]; then
+            echoContent red " ---> buypass不支持API申请证书"
+            exit 0
+        fi
         echo "${sslType}" >/etc/v2ray-agent/tls/ssl_type
-
     fi
 }
 
@@ -1477,26 +1502,7 @@ selectAcmeInstallSSL() {
     if echo "${localIP}" | grep -q ":"; then
         installSSLIPv6="--listen-v6"
     fi
-    echo
-    if [[ -n "${customPort}" ]]; then
-        if [[ "${selectSSLType}" == "3" ]]; then
-            echoContent red " ---> buypass不支持免费通配符证书"
-            echo
-            exit
-        fi
-        dnsSSLStatus=true
-        #    else
-        #        if [[ -z "${dnsSSLStatus}" ]]; then
-        #            read -r -p "是否使用DNS申请证书，如不会使用DNS申请证书请输入n[y/n]:" installSSLDNStatus
-        #
-        #            if [[ ${installSSLDNStatus} == 'y' ]]; then
-        #                dnsSSLStatus=true
-        #            else
-        #                dnsSSLStatus=false
-        #            fi
-        #        fi
 
-    fi
     acmeInstallSSL
 
     readAcmeTLS
@@ -1504,41 +1510,9 @@ selectAcmeInstallSSL() {
 
 # 安装SSL证书
 acmeInstallSSL() {
-    if [[ "${dnsSSLStatus}" == "true" ]]; then
-
-        sudo "$HOME/.acme.sh/acme.sh" --issue -d "*.${dnsTLSDomain}" -d "${dnsTLSDomain}" --dns --yes-I-know-dns-manual-mode-enough-go-ahead-please -k ec-256 --server "${sslType}" ${installSSLIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
-
-        local txtValue=
-        txtValue=$(tail -n 10 /etc/v2ray-agent/tls/acme.log | grep "TXT value" | awk -F "'" '{print $2}')
-        if [[ -n "${txtValue}" ]]; then
-            echoContent green " ---> 请手动添加DNS TXT记录"
-            echoContent yellow " ---> 添加方法请参考此教程，https://github.com/mack-a/v2ray-agent/blob/master/documents/dns_txt.md"
-            echoContent yellow " ---> 如同一个域名多台机器安装通配符证书，请添加多个TXT记录，不需要修改以前添加的TXT记录"
-            echoContent green " --->  name：_acme-challenge"
-            echoContent green " --->  value：${txtValue}"
-            echoContent yellow " ---> 添加完成后等请等待1-2分钟"
-            echo
-            read -r -p "是否添加完成[y/n]:" addDNSTXTRecordStatus
-            if [[ "${addDNSTXTRecordStatus}" == "y" ]]; then
-                local txtAnswer=
-                txtAnswer=$(dig @1.1.1.1 +nocmd "_acme-challenge.${dnsTLSDomain}" txt +noall +answer | awk -F "[\"]" '{print $2}')
-                if echo "${txtAnswer}" | grep -q "^${txtValue}"; then
-                    echoContent green " ---> TXT记录验证通过"
-                    echoContent green " ---> 生成证书中"
-                    if [[ -n "${installSSLIPv6}" ]]; then
-                        sudo "$HOME/.acme.sh/acme.sh" --renew -d "*.${dnsTLSDomain}" -d "${dnsTLSDomain}" --yes-I-know-dns-manual-mode-enough-go-ahead-please --ecc --server "${sslType}" ${installSSLIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
-                    else
-                        sudo "$HOME/.acme.sh/acme.sh" --renew -d "*.${dnsTLSDomain}" -d "${dnsTLSDomain}" --yes-I-know-dns-manual-mode-enough-go-ahead-please --ecc --server "${sslType}" 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
-                    fi
-                else
-                    echoContent red " ---> 验证失败，请等待1-2分钟后重新尝试"
-                    acmeInstallSSL
-                fi
-            else
-                echoContent red " ---> 放弃"
-                exit 0
-            fi
-        fi
+    if [[ -n "${dnsAPIType}" ]]; then
+        echoContent green " ---> 生成通配符证书中"
+        sudo CF_Token="${cfAPIToken}" "$HOME/.acme.sh/acme.sh" --issue -d "*.${dnsTLSDomain}" --dns dns_cf -k ec-256 --server "${sslType}" ${installSSLIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
     else
         echoContent green " ---> 生成证书中"
         sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --server "${sslType}" ${installSSLIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
@@ -1610,16 +1584,21 @@ checkPort() {
 # 安装TLS
 installTLS() {
     echoContent skyBlue "\n进度  $1/${totalProgress} : 申请TLS证书\n"
+    readAcmeTLS
     local tlsDomain=${domain}
 
     # 安装tls
-    if [[ -f "/etc/v2ray-agent/tls/${tlsDomain}.crt" && -f "/etc/v2ray-agent/tls/${tlsDomain}.key" && -n $(cat "/etc/v2ray-agent/tls/${tlsDomain}.crt") ]] || [[ -d "$HOME/.acme.sh/${tlsDomain}_ecc" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]]; then
+    if [[ -f "/etc/v2ray-agent/tls/${tlsDomain}.crt" && -f "/etc/v2ray-agent/tls/${tlsDomain}.key" && -n $(cat "/etc/v2ray-agent/tls/${tlsDomain}.crt") ]] || [[ -d "$HOME/.acme.sh/${tlsDomain}_ecc" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]] || [[ "${installedDNSAPIStatus}" == "true" ]]; then
         echoContent green " ---> 检测到证书"
-        # checkTLStatus
         renewalTLS
 
         if [[ -z $(find /etc/v2ray-agent/tls/ -name "${tlsDomain}.crt") ]] || [[ -z $(find /etc/v2ray-agent/tls/ -name "${tlsDomain}.key") ]] || [[ -z $(cat "/etc/v2ray-agent/tls/${tlsDomain}.crt") ]]; then
-            sudo "$HOME/.acme.sh/acme.sh" --installcert -d "${tlsDomain}" --fullchainpath "/etc/v2ray-agent/tls/${tlsDomain}.crt" --keypath "/etc/v2ray-agent/tls/${tlsDomain}.key" --ecc >/dev/null
+            if [[ "${installedDNSAPIStatus}" == "true" ]]; then
+                sudo "$HOME/.acme.sh/acme.sh" --installcert -d "*.${dnsTLSDomain}" --fullchainpath "/etc/v2ray-agent/tls/${tlsDomain}.crt" --keypath "/etc/v2ray-agent/tls/${tlsDomain}.key" --ecc >/dev/null
+            else
+                sudo "$HOME/.acme.sh/acme.sh" --installcert -d "${tlsDomain}" --fullchainpath "/etc/v2ray-agent/tls/${tlsDomain}.crt" --keypath "/etc/v2ray-agent/tls/${tlsDomain}.key" --ecc >/dev/null
+            fi
+
         else
             echoContent yellow " ---> 如未过期或者自定义证书请选择[n]\n"
             read -r -p "是否重新安装？[y/n]:" reInstallStatus
@@ -1630,23 +1609,20 @@ installTLS() {
         fi
 
     elif [[ -d "$HOME/.acme.sh" ]] && [[ ! -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" || ! -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" ]]; then
-        echoContent green " ---> 安装TLS证书，需要依赖80端口"
-        allowPort 80
-        if [[ "${installDNSACMEStatus}" != "true" ]]; then
-            switchSSLType
-            customSSLEmail
-            selectAcmeInstallSSL
-            #   else
-            #   echoContent green " ---> 检测到已安装通配符证书，自动生成中"
+        switchDNSAPI
+        if [[ -z "${dnsAPIType}" ]]; then
+            echoContent yellow "\n ---> 不采用API申请证书"
+            echoContent green " ---> 安装TLS证书，需要依赖80端口"
+            allowPort 80
         fi
-        #        if [[ "${installDNSACMEStatus}" == "true" ]]; then
-        #            echo
-        #            if [[ -d "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc" && -f "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.key" && -f "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.cer" ]]; then
-        #                sudo "$HOME/.acme.sh/acme.sh" --installcert -d "*.${dnsTLSDomain}" --fullchainpath "/etc/v2ray-agent/tls/${tlsDomain}.crt" --keypath "/etc/v2ray-agent/tls/${tlsDomain}.key" --ecc >/dev/null
-        #            fi
-        #
-        #        el
-        if [[ -d "$HOME/.acme.sh/${tlsDomain}_ecc" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]]; then
+
+        switchSSLType
+        customSSLEmail
+        selectAcmeInstallSSL
+
+        if [[ "${installedDNSAPIStatus}" == "true" ]]; then
+            sudo "$HOME/.acme.sh/acme.sh" --installcert -d "*.${dnsTLSDomain}" --fullchainpath "/etc/v2ray-agent/tls/${tlsDomain}.crt" --keypath "/etc/v2ray-agent/tls/${tlsDomain}.key" --ecc >/dev/null
+        else
             sudo "$HOME/.acme.sh/acme.sh" --installcert -d "${tlsDomain}" --fullchainpath "/etc/v2ray-agent/tls/${tlsDomain}.crt" --keypath "/etc/v2ray-agent/tls/${tlsDomain}.key" --ecc >/dev/null
         fi
 
@@ -1842,10 +1818,10 @@ renewalTLS() {
             sslRenewalDays=180
         fi
     fi
-    if [[ -d "$HOME/.acme.sh/${domain}_ecc" && -f "$HOME/.acme.sh/${domain}_ecc/${domain}.key" && -f "$HOME/.acme.sh/${domain}_ecc/${domain}.cer" ]] || [[ "${installDNSACMEStatus}" == "true" ]]; then
+    if [[ -d "$HOME/.acme.sh/${domain}_ecc" && -f "$HOME/.acme.sh/${domain}_ecc/${domain}.key" && -f "$HOME/.acme.sh/${domain}_ecc/${domain}.cer" ]] || [[ "${installedDNSAPIStatus}" == "true" ]]; then
         modifyTime=
 
-        if [[ "${installDNSACMEStatus}" == "true" ]]; then
+        if [[ "${installedDNSAPIStatus}" == "true" ]]; then
             modifyTime=$(stat --format=%z "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.cer")
         else
             modifyTime=$(stat --format=%z "$HOME/.acme.sh/${domain}_ecc/${domain}.cer")
@@ -4855,10 +4831,9 @@ backupNginxConfig() {
 }
 # 添加302配置
 addNginx302() {
-    #	local line302Result=
-    #	line302Result=$(| tail -n 1)
+
     local count=1
-    grep -n "Strict-Transport-Security" <"${nginxConfigPath}alone.conf" | while read -r line; do
+    grep -n "location / {" <"${nginxConfigPath}alone.conf" | while read -r line; do
         if [[ -n "${line}" ]]; then
             local insertIndex=
             insertIndex="$(echo "${line}" | awk -F "[:]" '{print $1}')"
@@ -7731,127 +7706,127 @@ rule-providers:
     type: http
     behavior: classical
     interval: 86400
-    url: https://ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Lan/Lan.yaml
+    url: https://mirror.ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Lan/Lan.yaml
     path: ./Rules/lan.yaml
   reject:
     type: http
     behavior: domain
-    url: https://ghproxy.com/https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/reject.txt
+    url: https://mirror.ghproxy.com/https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/reject.txt
     path: ./ruleset/reject.yaml
     interval: 86400
   proxy:
     type: http
     behavior: domain
-    url: https://ghproxy.com/https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/proxy.txt
+    url: https://mirror.ghproxy.com/https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/proxy.txt
     path: ./ruleset/proxy.yaml
     interval: 86400
   direct:
     type: http
     behavior: domain
-    url: https://ghproxy.com/https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/direct.txt
+    url: https://mirror.ghproxy.com/https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/direct.txt
     path: ./ruleset/direct.yaml
     interval: 86400
   private:
     type: http
     behavior: domain
-    url: https://ghproxy.com/https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/private.txt
+    url: https://mirror.ghproxy.com/https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/private.txt
     path: ./ruleset/private.yaml
     interval: 86400
   gfw:
     type: http
     behavior: domain
-    url: https://ghproxy.com/https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/gfw.txt
+    url: https://mirror.ghproxy.com/https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/gfw.txt
     path: ./ruleset/gfw.yaml
     interval: 86400
   greatfire:
     type: http
     behavior: domain
-    url: https://ghproxy.com/https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/greatfire.txt
+    url: https://mirror.ghproxy.com/https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/greatfire.txt
     path: ./ruleset/greatfire.yaml
     interval: 86400
   tld-not-cn:
     type: http
     behavior: domain
-    url: https://ghproxy.com/https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/tld-not-cn.txt
+    url: https://mirror.ghproxy.com/https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/tld-not-cn.txt
     path: ./ruleset/tld-not-cn.yaml
     interval: 86400
   telegramcidr:
     type: http
     behavior: ipcidr
-    url: https://ghproxy.com/https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/telegramcidr.txt
+    url: https://mirror.ghproxy.com/https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/telegramcidr.txt
     path: ./ruleset/telegramcidr.yaml
     interval: 86400
   applications:
     type: http
     behavior: classical
-    url: https://ghproxy.com/https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/applications.txt
+    url: https://mirror.ghproxy.com/https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/applications.txt
     path: ./ruleset/applications.yaml
     interval: 86400
   Disney:
     type: http
     behavior: classical
-    url: https://ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Disney/Disney.yaml
+    url: https://mirror.ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Disney/Disney.yaml
     path: ./ruleset/disney.yaml
     interval: 86400
   Netflix:
     type: http
     behavior: classical
-    url: https://ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Netflix/Netflix.yaml
+    url: https://mirror.ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Netflix/Netflix.yaml
     path: ./ruleset/netflix.yaml
     interval: 86400
   YouTube:
     type: http
     behavior: classical
-    url: https://ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/YouTube/YouTube.yaml
+    url: https://mirror.ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/YouTube/YouTube.yaml
     path: ./ruleset/youtube.yaml
     interval: 86400
   HBO:
     type: http
     behavior: classical
-    url: https://ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/HBO/HBO.yaml
+    url: https://mirror.ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/HBO/HBO.yaml
     path: ./ruleset/hbo.yaml
     interval: 86400
   OpenAI:
     type: http
     behavior: classical
-    url: https://ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/OpenAI/OpenAI.yaml
+    url: https://mirror.ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/OpenAI/OpenAI.yaml
     path: ./ruleset/openai.yaml
     interval: 86400
   Bing:
     type: http
     behavior: classical
-    url: https://ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Bing/Bing.yaml
+    url: https://mirror.ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Bing/Bing.yaml
     path: ./ruleset/bing.yaml
     interval: 86400
   Google:
     type: http
     behavior: classical
-    url: https://ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Google/Google.yaml
+    url: https://mirror.ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Google/Google.yaml
     path: ./ruleset/google.yaml
     interval: 86400
   GitHub:
     type: http
     behavior: classical
-    url: https://ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/GitHub/GitHub.yaml
+    url: https://mirror.ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/GitHub/GitHub.yaml
     path: ./ruleset/github.yaml
     interval: 86400
   Spotify:
     type: http
     behavior: classical
-    url: https://ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Spotify/Spotify.yaml
+    url: https://mirror.ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Spotify/Spotify.yaml
     path: ./ruleset/spotify.yaml
     interval: 86400
   ChinaMaxDomain:
     type: http
     behavior: domain
     interval: 86400
-    url: https://ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/ChinaMax/ChinaMax_Domain.yaml
+    url: https://mirror.ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/ChinaMax/ChinaMax_Domain.yaml
     path: ./Rules/ChinaMaxDomain.yaml
   ChinaMaxIPNoIPv6:
     type: http
     behavior: ipcidr
     interval: 86400
-    url: https://ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/ChinaMax/ChinaMax_IP_No_IPv6.yaml
+    url: https://mirror.ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/ChinaMax/ChinaMax_IP_No_IPv6.yaml
     path: ./Rules/ChinaMaxIPNoIPv6.yaml
 rules:
   - RULE-SET,YouTube,YouTube,no-resolve
@@ -8487,7 +8462,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.11.19"
+    echoContent green "当前版本：v2.11.20"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
@@ -8522,7 +8497,7 @@ menu() {
     echoContent yellow "11.分流工具"
     echoContent yellow "12.添加新端口"
     echoContent yellow "13.BT下载管理"
-    echoContent yellow "14.切换alpn"
+    #    echoContent yellow "14.切换alpn"
     echoContent yellow "15.域名黑名单"
     echoContent skyBlue "-------------------------版本管理-----------------------------"
     echoContent yellow "16.core管理"
