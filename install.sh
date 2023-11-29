@@ -1231,6 +1231,10 @@ updateRedirectNginxConf() {
     nginxH2Conf="listen 127.0.0.1:31302 http2 so_keepalive=on;"
     nginxVersion=$(nginx -v 2>&1)
 
+    if echo "${nginxVersion}" | grep -q "1.25"; then
+        nginxH2Conf="listen 127.0.0.1:31302 so_keepalive=on;http2 on;"
+    fi
+
     cat <<EOF >${nginxConfigPath}alone.conf
     server {
     		listen 127.0.0.1:31300;
@@ -1241,9 +1245,6 @@ EOF
 
     if echo "${selectCustomInstallType}" | grep -q 2 && echo "${selectCustomInstallType}" | grep -q 5 || [[ -z "${selectCustomInstallType}" ]]; then
 
-        if echo "${nginxVersion}" | grep -q "1.25"; then
-            nginxH2Conf="listen 127.0.0.1:31302 so_keepalive=on;http2 on;"
-        fi
         cat <<EOF >>${nginxConfigPath}alone.conf
 server {
 	${nginxH2Conf}
@@ -1284,9 +1285,6 @@ server {
 }
 EOF
     elif echo "${selectCustomInstallType}" | grep -q 5 || [[ -z "${selectCustomInstallType}" ]]; then
-        if echo "${nginxVersion}" | grep -q "1.25"; then
-            nginxH2Conf="listen 127.0.0.1:31302 so_keepalive=on;http2 on;"
-        fi
         cat <<EOF >>${nginxConfigPath}alone.conf
 server {
 	${nginxH2Conf}
@@ -1298,7 +1296,6 @@ server {
     }
 	location /${currentPath}grpc {
 		client_max_body_size 0;
-#		keepalive_time 1071906480m;
 		keepalive_requests 4294967296;
 		client_body_timeout 1071906480m;
  		send_timeout 1071906480m;
@@ -1311,9 +1308,6 @@ server {
 EOF
 
     elif echo "${selectCustomInstallType}" | grep -q 2 || [[ -z "${selectCustomInstallType}" ]]; then
-        if echo "${nginxVersion}" | grep -q "1.25"; then
-            nginxH2Conf="listen 127.0.0.1:31302 so_keepalive=on;http2 on;"
-        fi
         cat <<EOF >>${nginxConfigPath}alone.conf
 server {
 	${nginxH2Conf}
@@ -1337,9 +1331,6 @@ server {
 }
 EOF
     else
-        if echo "${nginxVersion}" | grep -q "1.25"; then
-            nginxH2Conf="listen 127.0.0.1:31302 so_keepalive=on;http2 on;"
-        fi
 
         cat <<EOF >>${nginxConfigPath}alone.conf
 server {
@@ -8462,7 +8453,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.11.20"
+    echoContent green "当前版本：v2.11.21"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
