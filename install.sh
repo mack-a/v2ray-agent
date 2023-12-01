@@ -1116,7 +1116,7 @@ checkDNSIP() {
     local publicIP=
 
     publicIP=$(getPublicIP "${type}")
-    if [[ "${publicIP}" != "${dnsIP}" ]]; then
+    if [[ ! "${dnsIP}" == *"${publicIP}"* ]]; then
         echoContent red " ---> 域名解析IP与当前服务器IP不一致\n"
         echoContent yellow " ---> 请检查域名解析是否生效以及正确"
         echoContent green " ---> 当前VPS IP：${publicIP}"
