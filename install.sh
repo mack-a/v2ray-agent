@@ -7608,6 +7608,7 @@ proxy-groups:
       - ${subscribeSalt}_provider
     proxies:
       - 流媒体
+      - 手动切换
       - 自动选择
   - name: Spotify
     type: select
@@ -7624,6 +7625,7 @@ proxy-groups:
       - ${subscribeSalt}_provider
     proxies:
       - 流媒体
+      - 手动切换
       - 自动选择
   - name: Bing
     type: select
@@ -7637,12 +7639,14 @@ proxy-groups:
       - ${subscribeSalt}_provider
     proxies:
       - 自动选择
+      - 手动切换
   - name: Disney
     type: select
     use:
       - ${subscribeSalt}_provider
     proxies:
       - 流媒体
+      - 手动切换
       - 自动选择
   - name: GitHub
     type: select
@@ -8435,7 +8439,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v2.11.24"
+    echoContent green "当前版本：v2.11.25"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
