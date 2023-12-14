@@ -41,7 +41,6 @@
 - 支持自主更换伪装站点
 - 支持BT下载管理以及域名黑名单管理
 
-
 # 二、使用指南
 
 - [脚本快速搭建教程](https://www.v2ray-agent.com/archives/1682491479771)
@@ -70,7 +69,11 @@
 - Github
 
 ```
+# 稳定版本
 wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh" && chmod 700 /root/install.sh && /root/install.sh
+
+# 抢先版本
+wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/beta/install.sh" && chmod 700 /root/install.sh && /root/install.sh
 ```
 
 - 官方网站【备用】
