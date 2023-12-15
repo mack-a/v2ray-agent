@@ -185,6 +185,11 @@ initVar() {
     singBoxHysteria2Port=
     singBoxTuicPort=
 
+    # nginx订阅端口
+    subscribePort=
+
+    subscribeType=
+
     # sing-box reality serverName publicKey
     singBoxVLESSRealityGRPCServerName=
     singBoxVLESSRealityVisionServerName=
@@ -331,6 +336,18 @@ readCustomPort() {
         fi
     fi
 }
+
+# 读取nginx订阅端口
+readNginxSubscribe() {
+    subscribeType="https"
+    if [[ -f "${nginxConfigPath}subscribe.conf" ]]; then
+        subscribePort=$(grep "listen" "${nginxConfigPath}subscribe.conf" | awk '{print $2}')
+        if ! grep -q "ssl" "${nginxConfigPath}subscribe.conf"; then
+            subscribeType="http"
+        fi
+    fi
+}
+
 # 检测安装方式
 readInstallType() {
     coreInstallType=
@@ -3456,7 +3473,7 @@ initXrayConfig() {
             uuid=$(/etc/v2ray-agent/xray/xray uuid)
         fi
 
-        echoContent yellow "\n请输入自定义用户名[需合法]，[回车]随机随机用户名"
+        echoContent yellow "\n请输入自定义用户名[需合法]，[回车]随机用户名"
         read -r -p '用户名:' customEmail
         if [[ -z ${customEmail} ]]; then
             customEmail="$(echo "${uuid}" | cut -d "-" -f 1)-VLESS_TCP/TLS_Vision"
@@ -4912,6 +4929,7 @@ unInstall() {
     rm -rf /etc/v2ray-agent
     rm -rf ${nginxConfigPath}alone.conf
     rm -rf ${nginxConfigPath}checkPortOpen.conf >/dev/null 2>&1
+    rm -rf ${nginxConfigPath}subscribe.conf >/dev/null 2>&1
 
     if [[ -d "${nginxStaticPath}" && -f "${nginxStaticPath}/check" ]]; then
         rm -rf "${nginxStaticPath}"
@@ -7182,10 +7200,6 @@ manageAccount() {
     if [[ "${manageAccountStatus}" == "1" ]]; then
         showAccounts 1
     elif [[ "${manageAccountStatus}" == "2" ]]; then
-        if [[ "${coreInstallType}" == "2" ]]; then
-            echoContent red "\n ---> 此功能仅支持Xray-core内核，请等待后续更新"
-            exit 0
-        fi
         subscribe
     elif [[ "${manageAccountStatus}" == "3" ]]; then
         if [[ "${coreInstallType}" == "2" ]]; then
@@ -7207,6 +7221,56 @@ manageAccount() {
         removeUser
     else
         echoContent red " ---> 选择错误"
+    fi
+}
+
+# 安装订阅
+installSubscribe() {
+    readNginxSubscribe
+    local nginxSubscribeListen=
+    local nginxSubscribeSSL=
+    local serverName=
+    local SSLType=
+
+    if [[ "${coreInstallType}" == "2" && -z "${subscribePort}" ]]; then
+
+        nginxVersion=$(nginx -v 2>&1)
+
+        mapfile -t result < <(initSingBoxPort "${subscribePort}")
+
+        if ! echo "${currentInstallProtocolType}" | grep -q -E "0|1|2|3|4|5|6｜9"; then
+            echoContent green "未发现tls证书，使用无加密订阅，可能被运营商拦截。请注意风险"
+            read -r -p "是否使用[y/n]？" addNginxSubscribeStatus
+            if [[ "${addNginxSubscribeStatus}" != "y" ]]; then
+                echoContent yellow " ---> 退出安装"
+                exit
+            fi
+            #           ipv6 listen [::]:${result[-1]};
+        else
+            SSLType="ssl"
+            serverName="server_name ${currentHost};"
+            nginxSubscribeSSL="ssl_certificate /etc/v2ray-agent/tls/${currentHost}.crt;ssl_certificate_key /etc/v2ray-agent/tls/${currentHost}.key;"
+        fi
+
+        if echo "${nginxVersion}" | grep -q "1.25" && [[ $(echo "${nginxVersion}" | awk -F "[.]" '{print $3}') -gt 0 ]]; then
+            nginxSubscribeListen="listen ${result[-1]} ${SSLType} so_keepalive=on;http2 on;"
+        else
+            nginxSubscribeListen="listen ${result[-1]} ${SSLType} http2 so_keepalive=on;"
+        fi
+
+        cat <<EOF >${nginxConfigPath}subscribe.conf
+server {
+    ${nginxSubscribeListen}
+    ${serverName}
+    ${nginxSubscribeSSL}
+    client_max_body_size 100m;
+    root ${nginxStaticPath};
+    location ~ ^/s/(clashMeta|default|clashMetaProfiles)/(.*) {
+        default_type 'text/plain; charset=utf-8';
+        alias /etc/v2ray-agent/subscribe/\$1/\$2;
+    }
+}
+EOF
     fi
 }
 
@@ -7659,8 +7723,11 @@ initRandomSalt() {
 # 订阅
 subscribe() {
     readInstallProtocolType
-
-    if echo "${currentInstallProtocolType}" | grep -q 0 && [[ -n "${configPath}" ]]; then
+    handleNginx stop
+    installSubscribe
+    readNginxSubscribe
+    handleNginx start
+    if [[ "${coreInstallType}" == "1" || "${coreInstallType}" == "2" ]]; then
 
         echoContent skyBlue "-------------------------备注---------------------------------"
         echoContent yellow "# 查看订阅会重新生成本地账号的订阅"
@@ -7722,11 +7789,18 @@ subscribe() {
                 if [[ -n "${currentDefaultPort}" && "${currentDefaultPort}" != "443" ]]; then
                     currentDomain="${currentHost}:${currentDefaultPort}"
                 fi
+                if [[ -n "${subscribePort}" ]]; then
+                    if [[ "${subscribeType}" == "http" ]]; then
+                        currentDomain="$(getPublicIP):${subscribePort}"
+                    else
+                        currentDomain="${currentHost}:${subscribePort}"
+                    fi
+                fi
                 echoContent skyBlue "\n----------默认订阅----------\n"
                 echoContent green "email:${email}\n"
-                echoContent yellow "url:https://${currentDomain}/s/default/${emailMd5}\n"
+                echoContent yellow "url:${subscribeType}://${currentDomain}/s/default/${emailMd5}\n"
                 echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://${currentDomain}/s/default/${emailMd5}\n"
-                echo "https://${currentDomain}/s/default/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
+                echo "${subscribeType}://${currentDomain}/s/default/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
 
                 # clashMeta
                 if [[ -f "/etc/v2ray-agent/subscribe_local/clashMeta/${email}" ]]; then
@@ -7745,12 +7819,12 @@ subscribe() {
 
                     sed -i '1i\proxies:' "/etc/v2ray-agent/subscribe/clashMeta/${emailMd5}"
 
-                    local clashProxyUrl="https://${currentDomain}/s/clashMeta/${emailMd5}"
+                    local clashProxyUrl="${subscribeType}://${currentDomain}/s/clashMeta/${emailMd5}"
                     clashMetaConfig "${clashProxyUrl}" "${emailMd5}"
                     echoContent skyBlue "\n----------clashMeta订阅----------\n"
-                    echoContent yellow "url:https://${currentDomain}/s/clashMetaProfiles/${emailMd5}\n"
+                    echoContent yellow "url:${subscribeType}://${currentDomain}/s/clashMetaProfiles/${emailMd5}\n"
                     echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://${currentDomain}/s/clashMetaProfiles/${emailMd5}\n"
-                    echo "https://${currentDomain}/s/clashMetaProfiles/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
+                    echo "${subscribeType}://${currentDomain}/s/clashMetaProfiles/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
                 fi
 
                 echoContent skyBlue "--------------------------------------------------------------"
@@ -8230,7 +8304,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.1.0-beta"
+    echoContent green "当前版本：v3.1.1-beta"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
