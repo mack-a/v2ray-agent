@@ -443,10 +443,10 @@ readInstallProtocolType() {
 
     done < <(find ${configPath} -name "*inbounds.json" | awk -F "[.]" '{print $1}')
 
-    if [[ "${coreInstallType}" == "1" && -n "${singBoxConfigPath}" && -f "/etc/v2ray-agent/sing-box/conf/config.json" ]] && grep -q 'hysteria2' </etc/v2ray-agent/sing-box/conf/config.json; then
+    if [[ "${coreInstallType}" == "1" && -n "${singBoxConfigPath}" && -f "/etc/v2ray-agent/sing-box/conf/06_hysteria2_inbounds.json" ]]; then
         currentInstallProtocolType=${currentInstallProtocolType}'6'
     fi
-    if [[ "${coreInstallType}" == "1" && -n "${singBoxConfigPath}" && -f "/etc/v2ray-agent/sing-box/conf/config.json" ]] && grep -q 'tuic' </etc/v2ray-agent/sing-box/conf/config.json; then
+    if [[ "${coreInstallType}" == "1" && -n "${singBoxConfigPath}" && -f "/etc/v2ray-agent/sing-box/conf/09_tuic_inbounds.json" ]]; then
         currentInstallProtocolType=${currentInstallProtocolType}'9'
     fi
 }
@@ -588,7 +588,8 @@ checkFirewalldAllowPort() {
 
 # 读取Tuic配置
 readSingBoxConfig() {
-    if [[ -n "${singBoxConfigPath}" ]] && [[ -f "${singBoxConfigPath}09_tuic_inbounds.json" ]]; then
+    if [[ -n "${singBoxConfigPath}" ]]; then
+
         if [[ -f "${singBoxConfigPath}09_tuic_inbounds.json" ]]; then
             tuicPort=$(jq -r '.inbounds[0].listen_port' "${singBoxConfigPath}09_tuic_inbounds.json")
             tuicAlgorithm=$(jq -r '.inbounds[0].congestion_control' "${singBoxConfigPath}09_tuic_inbounds.json")
@@ -598,20 +599,21 @@ readSingBoxConfig() {
             hysteria2ClientUploadSpeed=$(jq -r '.inbounds[0].down_mbps' "${singBoxConfigPath}06_hysteria2_inbounds.json")
             hysteria2ClientDownloadSpeed=$(jq -r '.inbounds[0].up_mbps' "${singBoxConfigPath}06_hysteria2_inbounds.json")
         fi
+
     fi
 }
 
 # 卸载 sing-box
 unInstallSingBox() {
     local type=$1
-    if [[ -n "${singBoxConfigPath}" ]] && [[ -f "/etc/v2ray-agent/sing-box/conf/config.json" ]]; then
+    if [[ -n "${singBoxConfigPath}" ]]; then
         if grep -q 'tuic' </etc/v2ray-agent/sing-box/conf/config.json && [[ "${type}" == "tuic" ]]; then
-            rm "${singBoxConfigPath}config/tuic.json"
+            rm "${singBoxConfigPath}tuic.json"
             echoContent green " ---> 删除sing-box tuic配置成功"
         fi
 
         if grep -q 'hysteria2' </etc/v2ray-agent/sing-box/conf/config.json && [[ "${type}" == "hysteria2" ]]; then
-            rm "${singBoxConfigPath}config/hysteria2.json"
+            rm "${singBoxConfigPath}hysteria2.json"
             echoContent green " ---> 删除sing-box hysteria2配置成功"
         fi
         rm "${singBoxConfigPath}config.json"
@@ -809,6 +811,7 @@ readConfigHostPathUUID
 #readInstallAlpn
 readCustomPort
 readXrayCoreRealityConfig
+readSingBoxConfig
 # -------------------------------------------------------------
 
 # 初始化安装目录
@@ -3060,8 +3063,8 @@ EOF
 initSingBoxRouteConfig() {
     downloadSingBoxGeositeDB
     local outboundTag=$1
-    if [[ ! -f "${singBoxConfigPath}config/${outboundTag}_route.json" ]]; then
-        cat <<EOF >"${singBoxConfigPath}config/${outboundTag}_route.json"
+    if [[ ! -f "${singBoxConfigPath}${outboundTag}_route.json" ]]; then
+        cat <<EOF >"${singBoxConfigPath}${outboundTag}_route.json"
 {
     "route": {
         "geosite": {
@@ -3096,8 +3099,8 @@ configurationSingBoxRoute() {
     if [[ "${type}" == "add" ]]; then
         addSingBoxRouteRule "${outboundTag}" "${content}"
     elif [[ "${type}" == "delete" ]]; then
-        if [[ -f "${singBoxConfigPath}config/${outboundTag}_route.json" ]]; then
-            rm "${singBoxConfigPath}config/${outboundTag}_route.json"
+        if [[ -f "${singBoxConfigPath}${outboundTag}_route.json" ]]; then
+            rm "${singBoxConfigPath}${outboundTag}_route.json"
             echoContent green "\n ---> 删除成功"
         fi
     fi
@@ -3105,13 +3108,14 @@ configurationSingBoxRoute() {
 
 # 添加sing-box路由规则
 addSingBoxRouteRule() {
+
     local outboundTag=$1
     local domainList=$2
 
     initSingBoxRouteConfig "${outboundTag}"
     local rules
 
-    rules=$(jq -r '.route.rules[]|select(.outbound=="'"${outboundTag}"'")' "${singBoxConfigPath}config/${outboundTag}_route.json")
+    rules=$(jq -r '.route.rules[]|select(.outbound=="'"${outboundTag}"'")' "${singBoxConfigPath}${outboundTag}_route.json")
 
     while read -r line; do
         if echo "${rules}" | grep -q "${line}"; then
@@ -3126,21 +3130,21 @@ addSingBoxRouteRule() {
     done < <(echo "${domainList}" | tr ',' '\n')
 
     local delRules
-    delRules=$(jq -r 'del(.route.rules[]|select(.outbound=="'"${outboundTag}"'"))' "${singBoxConfigPath}config/${outboundTag}_route.json")
-    echo "${delRules}" >"${singBoxConfigPath}config/${outboundTag}_route.json"
+    delRules=$(jq -r 'del(.route.rules[]|select(.outbound=="'"${outboundTag}"'"))' "${singBoxConfigPath}${outboundTag}_route.json")
+    echo "${delRules}" >"${singBoxConfigPath}${outboundTag}_route.json"
 
     local routeRules
-    routeRules=$(jq -r ".route.rules += [${rules}]" "${singBoxConfigPath}config/${outboundTag}_route.json")
-    echo "${routeRules}" >"${singBoxConfigPath}config/${outboundTag}_route.json"
+    routeRules=$(jq -r ".route.rules += [${rules}]" "${singBoxConfigPath}${outboundTag}_route.json")
+    echo "${routeRules}" >"${singBoxConfigPath}${outboundTag}_route.json"
 }
 
 # 移除sing-box route rule
 removeSingBoxRouteRule() {
     local outboundTag=$1
     local delRules
-    if [[ -f "${singBoxConfigPath}config/${outboundTag}_route.json" ]]; then
-        delRules=$(jq -r 'del(.route.rules[]|select(.outbound=="'"${outboundTag}"'"))' "${singBoxConfigPath}config/${outboundTag}_route.json")
-        echo "${delRules}" >"${singBoxConfigPath}config/${outboundTag}_route.json"
+    if [[ -f "${singBoxConfigPath}${outboundTag}_route.json" ]]; then
+        delRules=$(jq -r 'del(.route.rules[]|select(.outbound=="'"${outboundTag}"'"))' "${singBoxConfigPath}${outboundTag}_route.json")
+        echo "${delRules}" >"${singBoxConfigPath}${outboundTag}_route.json"
     fi
 }
 
@@ -3153,7 +3157,7 @@ addSingBoxOutbound() {
         type=ipv6
     fi
     if [[ -n "${detour}" ]]; then
-        cat <<EOF >"${singBoxConfigPath}config/${tag}.json"
+        cat <<EOF >"${singBoxConfigPath}${tag}.json"
 {
      "outbounds": [
         {
@@ -3167,7 +3171,7 @@ addSingBoxOutbound() {
 EOF
     elif echo "${tag}" | grep -q "direct"; then
 
-        cat <<EOF >"${singBoxConfigPath}config/${tag}.json"
+        cat <<EOF >"${singBoxConfigPath}${tag}.json"
 {
      "outbounds": [
         {
@@ -3178,7 +3182,7 @@ EOF
 }
 EOF
     else
-        cat <<EOF >"${singBoxConfigPath}config/${tag}.json"
+        cat <<EOF >"${singBoxConfigPath}${tag}.json"
 {
      "outbounds": [
         {
@@ -3196,15 +3200,15 @@ EOF
 removeSingBoxOutbound() {
 
     local tag=$1
-    if [[ -f "${singBoxConfigPath}config/${tag}.json" ]]; then
-        rm "${singBoxConfigPath}config/${tag}.json"
+    if [[ -f "${singBoxConfigPath}${tag}.json" ]]; then
+        rm "${singBoxConfigPath}${tag}.json"
     fi
 
 }
 # 初始化wireguard出站信息
 addSingBoxWireGuardOut() {
     readConfigWarpReg
-    cat <<EOF >"${singBoxConfigPath}config/wireguard_outbound.json"
+    cat <<EOF >"${singBoxConfigPath}wireguard_outbound.json"
 {
      "outbounds": [
 
@@ -3227,62 +3231,6 @@ addSingBoxWireGuardOut() {
 EOF
 }
 
-# sing-box outbound配置
-configurationSingBoxOutbound() {
-    #  add remove
-    local type=$1
-    local outboundTag=$2
-    local content=$3
-    if [[ "${outboundTag}" == "" ]]; then
-        echo
-    fi
-}
-
-# 初始化sing-box socks5 出站
-initSingBoxSocks5OutboundsConfig() {
-    local uuid=
-    uuid=$(/etc/v2ray-agent/xray/xray uuid)
-    cat <<EOF >/etc/v2ray-agent/sing-box/conf/config/socks5_outbounds.json
-{
-     "outbounds": [
-    {
-        "type": "socks",
-        "tag": "singBoxSocks5Out",
-        "version": "5",
-        "server":"127.0.0.1",
-        "server_port":31295,
-        "username": "singBox_socks5_outbound",
-        "password": "${uuid}",
-        "network":"udp"
-    }
-]
-}
-EOF
-
-    cat <<EOF >${configPath}/02_socks_inbounds_singbox.json
-{
-  "inbounds": [
-    {
-      "listen": "127.0.0.1",
-      "port": 31295,
-      "protocol": "Socks",
-      "tag": "socksSingBoxOutbound",
-      "settings": {
-        "auth": "password",
-        "accounts": [
-          {
-            "user": "singBox_socks5_outbound",
-            "pass": "${uuid}"
-          }
-        ],
-        "udp": true,
-        "ip": "127.0.0.1"
-      }
-    }
-  ]
-}
-EOF
-}
 # 初始化 sing-box Hysteria2 配置
 initSingBoxHysteria2Config() {
     echoContent skyBlue "\n进度 $1/${totalProgress} : 初始化Hysteria2配置"
@@ -5167,8 +5115,8 @@ addUser() {
                 clients=$(initSingBoxClients 6 "${uuid}" "${email}")
             fi
 
-            clients=$(jq -r ".inbounds[0].users = ${clients}" "${singBoxConfigPath}config/hysteria2.json")
-            echo "${clients}" | jq . >"${singBoxConfigPath}config/hysteria2.json"
+            clients=$(jq -r ".inbounds[0].users = ${clients}" "${singBoxConfigPath}hysteria2.json")
+            echo "${clients}" | jq . >"${singBoxConfigPath}hysteria2.json"
         fi
 
         # tuic
@@ -5180,9 +5128,9 @@ addUser() {
                 clients=$(initSingBoxClients 9 "${uuid}" "${email}")
             fi
 
-            clients=$(jq -r ".inbounds[0].users = ${clients}" "${singBoxConfigPath}config/tuic.json")
+            clients=$(jq -r ".inbounds[0].users = ${clients}" "${singBoxConfigPath}tuic.json")
 
-            echo "${clients}" | jq . >"${singBoxConfigPath}config/tuic.json"
+            echo "${clients}" | jq . >"${singBoxConfigPath}tuic.json"
         fi
     done
     reloadCore
@@ -5262,13 +5210,13 @@ removeUser() {
 
         if echo ${currentInstallProtocolType} | grep -q 6; then
             local hysteriaResult
-            hysteriaResult=$(jq -r 'del(.inbounds[0].users['${delUserIndex}'])' "${singBoxConfigPath}config/hysteria2.json")
-            echo "${hysteriaResult}" | jq . >"${singBoxConfigPath}config/hysteria2.json"
+            hysteriaResult=$(jq -r 'del(.inbounds[0].users['${delUserIndex}'])' "${singBoxConfigPath}hysteria2.json")
+            echo "${hysteriaResult}" | jq . >"${singBoxConfigPath}hysteria2.json"
         fi
         if echo ${currentInstallProtocolType} | grep -q 9; then
             local tuicResult
-            tuicResult=$(jq -r 'del(.inbounds[0].users['${delUserIndex}'])' "${singBoxConfigPath}config/tuic.json")
-            echo "${tuicResult}" | jq . >"${singBoxConfigPath}config/tuic.json"
+            tuicResult=$(jq -r 'del(.inbounds[0].users['${delUserIndex}'])' "${singBoxConfigPath}tuic.json")
+            echo "${tuicResult}" | jq . >"${singBoxConfigPath}tuic.json"
         fi
         reloadCore
     fi
@@ -5475,8 +5423,16 @@ ipv6Routing() {
     echoContent red "=============================================================="
     read -r -p "请选择:" ipv6Status
     if [[ "${ipv6Status}" == "1" ]]; then
+        if [[ "${coreInstallType}" == "1" ]]; then
+            echoContent yellow "Xray-core："
+            jq -r -c '.routing.rules[]|select (.outboundTag=="IPv6_out")|.domain' ${configPath}09_routing.json | jq -r
+        fi
 
-        jq -r -c '.routing.rules[]|select (.outboundTag=="IPv6_out")|.domain' ${configPath}09_routing.json | jq -r
+        if [[ -n "${singBoxConfigPath}" ]]; then
+            echoContent yellow "sing-box："
+            jq -r -c '.route.rules[]|select (.outbound=="IPv6_out")|.geosite' "${singBoxConfigPath}IPv6_out_route.json" | jq -r
+        fi
+
         exit 0
     elif [[ "${ipv6Status}" == "2" ]]; then
         echoContent red "=============================================================="
@@ -5485,17 +5441,22 @@ ipv6Routing() {
         echoContent yellow "# 使用教程：https://www.v2ray-agent.com/archives/ba-he-yi-jiao-ben-yu-ming-fen-liu-jiao-cheng \n"
 
         read -r -p "请按照上面示例录入域名:" domainList
-        addInstallRouting IPv6_out outboundTag "${domainList}"
+        if [[ "${coreInstallType}" == "1" ]]; then
+            addInstallRouting IPv6_out outboundTag "${domainList}"
 
-        unInstallOutbounds IPv6_out
+            unInstallOutbounds IPv6_out
 
-        outbounds=$(jq -r '.outbounds += [{"protocol":"freedom","settings":{"domainStrategy":"UseIPv6"},"tag":"IPv6_out"}]' ${configPath}10_ipv4_outbounds.json)
+            outbounds=$(jq -r '.outbounds += [{"protocol":"freedom","settings":{"domainStrategy":"UseIPv6"},"tag":"IPv6_out"}]' ${configPath}10_ipv4_outbounds.json)
 
-        echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
+            echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
+        fi
 
-        configurationSingBoxRoute add IPv6_out "${domainList}"
-        addSingBoxOutbound IPv6_out
-        addSingBoxOutbound IPv4_out
+        if [[ "${coreInstallType}" == "2" ]]; then
+            configurationSingBoxRoute add IPv6_out "${domainList}"
+            addSingBoxOutbound IPv6_out
+            addSingBoxOutbound IPv4_out
+        fi
+
         echoContent green " ---> 添加成功"
 
     elif [[ "${ipv6Status}" == "3" ]]; then
@@ -5981,9 +5942,9 @@ showWireGuardDomain() {
     fi
 
     # sing-box
-    if [[ -f "${singBoxConfigPath}config/wireguard_out_${type}_route.json" ]]; then
+    if [[ -f "${singBoxConfigPath}wireguard_out_${type}_route.json" ]]; then
         echoContent yellow "sing-box"
-        jq -r -c '.route.rules[]|select (.outbound=="wireguard_out_'"${type}"'")|.geosite' "${singBoxConfigPath}config/wireguard_out_${type}_route.json" | jq -r
+        jq -r -c '.route.rules[]|select (.outbound=="wireguard_out_'"${type}"'")|.geosite' "${singBoxConfigPath}wireguard_out_${type}_route.json" | jq -r
     fi
 }
 
@@ -5993,7 +5954,7 @@ addWireGuardRoute() {
     local tag=$2
     local domainList=$3
     # xray
-    if [[ -n "${configPath}" ]]; then
+    if [[ "${coreInstallType}" == "1" ]]; then
 
         addInstallRouting wireguard_out_"${type}" "${tag}" "${domainList}"
         unInstallOutbounds wireguard_out_"${type}"
@@ -6031,8 +5992,8 @@ unInstallWireGuard() {
     fi
 
     if [[ -n "${singBoxConfigPath}" ]]; then
-        if [[ ! -f "${singBoxConfigPath}config/wireguard_out_IPv6_route.json" && ! -f "${singBoxConfigPath}config/wireguard_out_IPv4_route.json" ]]; then
-            rm "${singBoxConfigPath}config/wireguard_outbound.json" >/dev/null 2>&1
+        if [[ ! -f "${singBoxConfigPath}wireguard_out_IPv6_route.json" && ! -f "${singBoxConfigPath}wireguard_out_IPv4_route.json" ]]; then
+            rm "${singBoxConfigPath}wireguard_outbound.json" >/dev/null 2>&1
             rm -rf /etc/v2ray-agent/warp/config >/dev/null 2>&1
         fi
     fi
@@ -6224,15 +6185,31 @@ routingToolsMenu() {
         ipv6Routing 1
         ;;
     4)
+        if [[ -n "${singBoxConfigPath}" ]]; then
+            echoContent red "\n ---> 此功能仅支持Xray-core内核，请等待后续更新"
+            exit 0
+        fi
         dokodemoDoorRouting 1
         ;;
     5)
+        if [[ -n "${singBoxConfigPath}" ]]; then
+            echoContent red "\n ---> 此功能仅支持Xray-core内核，请等待后续更新"
+            exit 0
+        fi
         dnsRouting 1
         ;;
     6)
+        if [[ -n "${singBoxConfigPath}" ]]; then
+            echoContent red "\n ---> 此功能仅支持Xray-core内核，请等待后续更新"
+            exit 0
+        fi
         vmessWSRouting 1
         ;;
     7)
+        if [[ -n "${singBoxConfigPath}" ]]; then
+            echoContent red "\n ---> 此功能仅支持Xray-core内核，请等待后续更新"
+            exit 0
+        fi
         sniRouting 1
         ;;
     esac
@@ -8200,7 +8177,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.1.2-beta"
+    echoContent green "当前版本：v3.1.3-beta"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
