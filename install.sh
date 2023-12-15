@@ -4988,24 +4988,6 @@ updateV2RayCDN() {
         echoContent red " ---> 未安装可用类型"
     fi
 }
-
-# manageUser 用户管理
-manageUser() {
-    echoContent skyBlue "\n进度 $1/${totalProgress} : 多用户管理"
-    echoContent skyBlue "-----------------------------------------------------"
-    echoContent yellow "1.添加用户"
-    echoContent yellow "2.删除用户"
-    echoContent skyBlue "-----------------------------------------------------"
-    read -r -p "请选择:" manageUserType
-    if [[ "${manageUserType}" == "1" ]]; then
-        addUser
-    elif [[ "${manageUserType}" == "2" ]]; then
-        removeUser
-    else
-        echoContent red " ---> 选择错误"
-    fi
-}
-
 # 自定义uuid
 customUUID() {
     read -r -p "请输入合法的UUID，[回车]随机UUID:" currentCustomUUID
@@ -5057,7 +5039,7 @@ customUserEmail() {
 }
 
 # 添加用户
-addUserXray() {
+addUser() {
     read -r -p "请输入要添加的用户数量:" userNum
     echo
     if [[ -z ${userNum} || ${userNum} -le 0 ]]; then
@@ -5079,7 +5061,12 @@ addUserXray() {
         # VLESS TCP
         if echo "${currentInstallProtocolType}" | grep -q 0; then
             local clients=
-            clients=$(initXrayClients 0 "${uuid}" "${email}")
+            if [[ "${coreInstallType}" == "1" ]]; then
+                clients=$(initXrayClients 0 "${uuid}" "${email}")
+            elif [[ "${coreInstallType}" == "2" ]]; then
+                clients=$(initXrayClients 0 "${uuid}" "${email}")
+            fi
+
             clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}${frontingType}.json)
             echo "${clients}" | jq . >${configPath}${frontingType}.json
         fi
@@ -5087,7 +5074,12 @@ addUserXray() {
         # VLESS WS
         if echo "${currentInstallProtocolType}" | grep -q 1; then
             local clients=
-            clients=$(initXrayClients 1 "${uuid}" "${email}")
+            if [[ "${coreInstallType}" == "1" ]]; then
+                clients=$(initXrayClients 1 "${uuid}" "${email}")
+            elif [[ "${coreInstallType}" == "2" ]]; then
+                clients=$(initSingBoxClients 1 "${uuid}" "${email}")
+            fi
+
             clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}03_VLESS_WS_inbounds.json)
             echo "${clients}" | jq . >${configPath}03_VLESS_WS_inbounds.json
         fi
@@ -5095,14 +5087,24 @@ addUserXray() {
         # trojan grpc
         if echo "${currentInstallProtocolType}" | grep -q 2; then
             local clients=
-            clients=$(initXrayClients 2 "${uuid}" "${email}")
+            if [[ "${coreInstallType}" == "1" ]]; then
+                clients=$(initXrayClients 2 "${uuid}" "${email}")
+            elif [[ "${coreInstallType}" == "2" ]]; then
+                clients=$(initSingBoxClients 2 "${uuid}" "${email}")
+            fi
+
             clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}04_trojan_gRPC_inbounds.json)
             echo "${clients}" | jq . >${configPath}04_trojan_gRPC_inbounds.json
         fi
         # VMess WS
         if echo "${currentInstallProtocolType}" | grep -q 3; then
             local clients=
-            clients=$(initXrayClients 3 "${uuid}" "${email}")
+            if [[ "${coreInstallType}" == "1" ]]; then
+                clients=$(initXrayClients 3 "${uuid}" "${email}")
+            elif [[ "${coreInstallType}" == "2" ]]; then
+                clients=$(initSingBoxClients 3 "${uuid}" "${email}")
+            fi
+
             clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}05_VMess_WS_inbounds.json)
             echo "${clients}" | jq . >${configPath}05_VMess_WS_inbounds.json
         fi
@@ -5110,7 +5112,11 @@ addUserXray() {
         # trojan tcp
         if echo "${currentInstallProtocolType}" | grep -q 4; then
             local clients=
-            clients=$(initXrayClients 4 "${uuid}" "${email}")
+            if [[ "${coreInstallType}" == "1" ]]; then
+                clients=$(initXrayClients 4 "${uuid}" "${email}")
+            elif [[ "${coreInstallType}" == "2" ]]; then
+                clients=$(initSingBoxClients 4 "${uuid}" "${email}")
+            fi
             clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}04_trojan_TCP_inbounds.json)
             echo "${clients}" | jq . >${configPath}04_trojan_TCP_inbounds.json
         fi
@@ -5118,7 +5124,11 @@ addUserXray() {
         # vless grpc
         if echo "${currentInstallProtocolType}" | grep -q 5; then
             local clients=
-            clients=$(initXrayClients 5 "${uuid}" "${email}")
+            if [[ "${coreInstallType}" == "1" ]]; then
+                clients=$(initXrayClients 5 "${uuid}" "${email}")
+            elif [[ "${coreInstallType}" == "2" ]]; then
+                clients=$(initSingBoxClients 5 "${uuid}" "${email}")
+            fi
             clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}06_VLESS_gRPC_inbounds.json)
             echo "${clients}" | jq . >${configPath}06_VLESS_gRPC_inbounds.json
         fi
@@ -5126,7 +5136,11 @@ addUserXray() {
         # vless reality vision
         if echo "${currentInstallProtocolType}" | grep -q 7; then
             local clients=
-            clients=$(initXrayClients 7 "${uuid}" "${email}")
+            if [[ "${coreInstallType}" == "1" ]]; then
+                clients=$(initXrayClients 7 "${uuid}" "${email}")
+            elif [[ "${coreInstallType}" == "2" ]]; then
+                clients=$(initSingBoxClients 7 "${uuid}" "${email}")
+            fi
             clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}07_VLESS_vision_reality_inbounds.json)
             echo "${clients}" | jq . >${configPath}07_VLESS_vision_reality_inbounds.json
         fi
@@ -5134,7 +5148,11 @@ addUserXray() {
         # vless reality grpc
         if echo "${currentInstallProtocolType}" | grep -q 8; then
             local clients=
-            clients=$(initXrayClients 8 "${uuid}" "${email}")
+            if [[ "${coreInstallType}" == "1" ]]; then
+                clients=$(initXrayClients 8 "${uuid}" "${email}")
+            elif [[ "${coreInstallType}" == "2" ]]; then
+                clients=$(initSingBoxClients 8 "${uuid}" "${email}")
+            fi
             clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}08_VLESS_vision_gRPC_inbounds.json)
             echo "${clients}" | jq . >${configPath}08_VLESS_vision_gRPC_inbounds.json
         fi
@@ -5142,7 +5160,12 @@ addUserXray() {
         # hysteria2
         if echo ${currentInstallProtocolType} | grep -q 6; then
             local clients=
-            clients=$(initXrayClients 6 "${uuid}" "${email}")
+
+            if [[ "${coreInstallType}" == "1" ]]; then
+                clients=$(initXrayClients 6 "${uuid}" "${email}")
+            elif [[ "${coreInstallType}" == "2" ]]; then
+                clients=$(initSingBoxClients 6 "${uuid}" "${email}")
+            fi
 
             clients=$(jq -r ".inbounds[0].users = ${clients}" "${singBoxConfigPath}config/hysteria2.json")
             echo "${clients}" | jq . >"${singBoxConfigPath}config/hysteria2.json"
@@ -5151,7 +5174,11 @@ addUserXray() {
         # tuic
         if echo ${currentInstallProtocolType} | grep -q 9; then
             local clients=
-            clients=$(initXrayClients 9 "${uuid}" "${email}")
+            if [[ "${coreInstallType}" == "1" ]]; then
+                clients=$(initXrayClients 9 "${uuid}" "${email}")
+            elif [[ "${coreInstallType}" == "2" ]]; then
+                clients=$(initSingBoxClients 9 "${uuid}" "${email}")
+            fi
 
             clients=$(jq -r ".inbounds[0].users = ${clients}" "${singBoxConfigPath}config/tuic.json")
 
@@ -5162,133 +5189,6 @@ addUserXray() {
     echoContent green " ---> 添加完成"
     manageAccount 1
 }
-# 添加用户
-addUser() {
-
-    echoContent yellow "添加新用户后，需要重新查看订阅"
-    read -r -p "请输入要添加的用户数量:" userNum
-    echo
-    if [[ -z ${userNum} || ${userNum} -le 0 ]]; then
-        echoContent red " ---> 输入有误，请重新输入"
-        exit 0
-    fi
-
-    # 生成用户
-    if [[ "${userNum}" == "1" ]]; then
-        customUUID
-        customUserEmail
-    fi
-
-    while [[ ${userNum} -gt 0 ]]; do
-        local users=
-        ((userNum--)) || true
-        if [[ -n "${currentCustomUUID}" ]]; then
-            uuid=${currentCustomUUID}
-        else
-            uuid=$(${ctlPath} uuid)
-        fi
-
-        if [[ -n "${currentCustomEmail}" ]]; then
-            email=${currentCustomEmail}_${uuid}
-        else
-            email=${currentHost}_${uuid}
-        fi
-
-        #	兼容v2ray-core
-        users="{\"id\":\"${uuid}\",\"flow\":\"xtls-rprx-vision\",\"email\":\"${email}\",\"alterId\":0}"
-
-        if [[ "${coreInstallType}" == "2" ]]; then
-            users="{\"id\":\"${uuid}\",\"email\":\"${email}\",\"alterId\":0}"
-        fi
-
-        if echo ${currentInstallProtocolType} | grep -q 0; then
-            local vlessUsers="${users//\,\"alterId\":0/}"
-            vlessUsers="${users//${email}/${email}_VLESS_TCP}"
-            local vlessTcpResult
-            vlessTcpResult=$(jq -r ".inbounds[0].settings.clients += [${vlessUsers}]" ${configPath}${frontingType}.json)
-            echo "${vlessTcpResult}" | jq . >${configPath}${frontingType}.json
-        fi
-
-        if echo ${currentInstallProtocolType} | grep -q trojan; then
-            local trojanXTLSUsers="${users//\,\"alterId\":0/}"
-            trojanXTLSUsers="${trojanXTLSUsers//${email}/${email}_Trojan_TCP}"
-            trojanXTLSUsers=${trojanXTLSUsers//"id"/"password"}
-
-            local trojanXTLSResult
-            trojanXTLSResult=$(jq -r ".inbounds[0].settings.clients += [${trojanXTLSUsers}]" ${configPath}${frontingType}.json)
-            echo "${trojanXTLSResult}" | jq . >${configPath}${frontingType}.json
-        fi
-
-        if echo ${currentInstallProtocolType} | grep -q 1; then
-            local vlessUsers="${users//\,\"alterId\":0/}"
-            vlessUsers="${vlessUsers//${email}/${email}_VLESS_TCP}"
-            vlessUsers="${vlessUsers//\"flow\":\"xtls-rprx-vision\"\,/}"
-            local vlessWsResult
-            vlessWsResult=$(jq -r ".inbounds[0].settings.clients += [${vlessUsers}]" ${configPath}03_VLESS_WS_inbounds.json)
-            echo "${vlessWsResult}" | jq . >${configPath}03_VLESS_WS_inbounds.json
-        fi
-
-        if echo ${currentInstallProtocolType} | grep -q 2; then
-            local trojangRPCUsers="${users//\"flow\":\"xtls-rprx-vision\"\,/}"
-            trojangRPCUsers="${trojangRPCUsers//${email}/${email}_Trojan_gRPC}"
-            trojangRPCUsers="${trojangRPCUsers//\,\"alterId\":0/}"
-            trojangRPCUsers=${trojangRPCUsers//"id"/"password"}
-
-            local trojangRPCResult
-            trojangRPCResult=$(jq -r ".inbounds[0].settings.clients += [${trojangRPCUsers}]" ${configPath}04_trojan_gRPC_inbounds.json)
-            echo "${trojangRPCResult}" | jq . >${configPath}04_trojan_gRPC_inbounds.json
-        fi
-
-        if echo ${currentInstallProtocolType} | grep -q 3; then
-            local vmessUsers="${users//\"flow\":\"xtls-rprx-vision\"\,/}"
-            vmessUsers="${vmessUsers//${email}/${email}_VMess_TCP}"
-            local vmessWsResult
-            vmessWsResult=$(jq -r ".inbounds[0].settings.clients += [${vmessUsers}]" ${configPath}05_VMess_WS_inbounds.json)
-            echo "${vmessWsResult}" | jq . >${configPath}05_VMess_WS_inbounds.json
-        fi
-
-        if echo ${currentInstallProtocolType} | grep -q 5; then
-            local vlessGRPCUsers="${users//\"flow\":\"xtls-rprx-vision\"\,/}"
-            vlessGRPCUsers="${vlessGRPCUsers//\,\"alterId\":0/}"
-            vlessGRPCUsers="${vlessGRPCUsers//${email}/${email}_VLESS_gRPC}"
-            local vlessGRPCResult
-            vlessGRPCResult=$(jq -r ".inbounds[0].settings.clients += [${vlessGRPCUsers}]" ${configPath}06_VLESS_gRPC_inbounds.json)
-            echo "${vlessGRPCResult}" | jq . >${configPath}06_VLESS_gRPC_inbounds.json
-        fi
-
-        if echo ${currentInstallProtocolType} | grep -q 4; then
-            local trojanUsers="${users//\"flow\":\"xtls-rprx-vision\"\,/}"
-            trojanUsers="${trojanUsers//id/password}"
-            trojanUsers="${trojanUsers//\,\"alterId\":0/}"
-            trojanUsers="${trojanUsers//${email}/${email}_Trojan_TCP}"
-
-            local trojanTCPResult
-            trojanTCPResult=$(jq -r ".inbounds[0].settings.clients += [${trojanUsers}]" ${configPath}04_trojan_TCP_inbounds.json)
-            echo "${trojanTCPResult}" | jq . >${configPath}04_trojan_TCP_inbounds.json
-        fi
-        # hysteria2
-        # todo 修改为sing-box
-        if echo ${currentInstallProtocolType} | grep -q 6; then
-            local hysteriaResult
-            users="{\"password\":\"${uuid}\",\"name\":\"${email}_singbox_hysteria2\"}"
-            hysteriaResult=$(jq -r ".inbounds[0].users += [${users}]" "${singBoxConfigPath}config/hysteria2.json")
-            echo "${hysteriaResult}" | jq . >"${hysteriaConfigPath}config/hysteria2.json"
-        fi
-
-        # tuic
-        if echo ${currentInstallProtocolType} | grep -q 9; then
-            local hysteriaResult
-            users="{\"password\":\"${uuid}\",\"uuid\":\"${uuid}\",\"name\":\"${email}_singbox_tuic\"}"
-            hysteriaResult=$(jq -r ".inbounds[0].users += [\"${uuid}\"]" "${hysteriaConfigPath}config/tuic.json")
-            echo "${hysteriaResult}" | jq . >"${hysteriaConfigPath}config/tuic.json"
-        fi
-    done
-
-    reloadCore
-    echoContent green " ---> 添加完成"
-    manageAccount 1
-}
-
 # 移除用户
 removeUser() {
     local uuid=
@@ -7208,11 +7108,7 @@ manageAccount() {
         fi
         addSubscribeMenu 1
     elif [[ "${manageAccountStatus}" == "4" ]]; then
-        if [[ "${coreInstallType}" == "2" ]]; then
-            echoContent red "\n ---> 此功能仅支持Xray-core内核，请等待后续更新"
-            exit 0
-        fi
-        addUserXray
+        addUser
     elif [[ "${manageAccountStatus}" == "5" ]]; then
         if [[ "${coreInstallType}" == "2" ]]; then
             echoContent red "\n ---> 此功能仅支持Xray-core内核，请等待后续更新"
@@ -8304,7 +8200,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.1.1-beta"
+    echoContent green "当前版本：v3.1.2-beta"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
