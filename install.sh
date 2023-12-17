@@ -3940,12 +3940,12 @@ EOF
       "users":$(initSingBoxClients 7),
       "tls": {
         "enabled": true,
-        "server_name": ${realityServerNames},
+        "server_name": "${realityServerNames}",
         "reality": {
             "enabled": true,
             "handshake":{
-                "server":${realityServerNames},
-                "server_port":443
+                "server": "${realityServerNames}",
+                "server_port":${realityDomainPort}
             },
             "private_key": "${realityPrivateKey}",
             "short_id": [
@@ -3980,12 +3980,12 @@ EOF
       "tag": "VLESSRealityGRPC",
       "tls": {
         "enabled": true,
-        "server_name": ${realityServerNames},
+        "server_name": "${realityServerNames}",
         "reality": {
             "enabled": true,
             "handshake":{
-                "server":${realityServerNames},
-                "server_port":443
+                "server":"${realityServerNames}",
+                "server_port":${realityDomainPort}
             },
             "private_key": "${realityPrivateKey}",
             "short_id": [
@@ -4680,6 +4680,10 @@ updateNginxBlog() {
     read -r -p "请选择:" selectInstallNginxBlogType
 
     if [[ "${selectInstallNginxBlogType}" == "10" ]]; then
+        if [[ "${coreInstallType}" == "2" ]]; then
+            echoContent red "\n ---> 此功能仅支持Xray-core内核，请等待后续更新"
+            exit 0
+        fi
         echoContent red "\n=============================================================="
         echoContent yellow "重定向的优先级更高，配置302之后如果更改伪装站点，根路由下伪装站点将不起作用"
         echoContent yellow "如想要伪装站点实现作用需删除302重定向配置\n"
@@ -5521,6 +5525,10 @@ EOF
 
 # bt下载管理
 btTools() {
+    if [[ "${coreInstallType}" == "2" ]]; then
+        echoContent red "\n ---> 此功能仅支持Xray-core内核，请等待后续更新"
+        exit 0
+    fi
     if [[ -z "${configPath}" ]]; then
         echoContent red " ---> 未安装，请使用脚本安装"
         menu
@@ -5636,6 +5644,10 @@ blacklist() {
         echoContent green " ---> 添加成功"
 
     elif [[ "${blacklistStatus}" == "3" ]]; then
+        if [[ "${coreInstallType}" == "2" ]]; then
+            echoContent red "\n ---> 此功能仅支持Xray-core内核，请等待后续更新"
+            exit 0
+        fi
         addInstallRouting blackhole_out outboundTag "cn"
 
         unInstallOutbounds blackhole_out
@@ -7837,7 +7849,7 @@ initRealityDest() {
         read -r -p "请输入[回车]使用随机:" realityDestDomain
         if [[ -z "${realityDestDomain}" ]]; then
             local randomNum=
-            randomNum=$((RANDOM % 24 + 1))
+            randomNum=$((RANDOM % 19 + 1))
             realityDestDomain=$(echo "${realityDestDomainList}" | awk -F ',' -v randomNum="$randomNum" '{print $randomNum":443"}')
         fi
         if ! echo "${realityDestDomain}" | grep -q ":"; then
@@ -7851,6 +7863,7 @@ initRealityDest() {
 }
 # 初始化客户端可用的ServersName
 initRealityClientServersName() {
+    # todo 兼容xray
     if [[ -n "${domain}" && "${coreInstallType}" == "1" ]]; then
         realityServerNames=\"${domain}\"
     elif [[ -n "${realityDestDomain}" ]]; then
@@ -7858,19 +7871,24 @@ initRealityClientServersName() {
 
         realityServerNames=\"${realityServerNames//,/\",\"}\"
     else
+        local realityDestDomainList="gateway.icloud.com,itunes.apple.com,swdist.apple.com,swcdn.apple.com,updates.cdn-apple.com,mensura.cdn-apple.com,osxapps.itunes.apple.com,aod.itunes.apple.com,download-installer.cdn.mozilla.net,addons.mozilla.org,s0.awsstatic.com,d1.awsstatic.com,images-na.ssl-images-amazon.com,m.media-amazon.com,player.live-video.net,one-piece.com,lol.secure.dyn.riotcdn.net,www.lovelive-anime.jp,www.nokia.com"
+        realityDomainPort=443
         echoContent skyBlue "\n================ 配置客户端可用的serverNames ===============\n"
         echoContent yellow "#注意事项"
-        echoContent green "客户端可用的serverNames 列表：https://www.v2ray-agent.com/archives/1680104902581#heading-8\n"
-        echoContent yellow "录入示例:addons.mozilla.org\n"
-        read -r -p "请输入[回车]使用随机:" realityServerNames
+        echoContent green "客户端可用的serverNames 列表：https://www.v2ray-agent.com/archives/1689439383686#heading-3\n"
+        echoContent yellow "录入示例:addons.mozilla.org:443\n"
+        read -r -p "请输入目标域名，[回车]随机域名，默认端口443:" realityServerNames
         if [[ -z "${realityServerNames}" ]]; then
-            realityServerNames=\"addons.mozilla.org\"
-        else
-            realityServerNames=\"${realityServerNames//,/\",\"}\"
+            randomNum=$((RANDOM % 19 + 1))
+            realityServerNames=$(echo "${realityDestDomainList}" | awk -F ',' -v randomNum="$randomNum" '{print $randomNum}')
+        fi
+        if echo "${realityServerNames}" | grep -q ":"; then
+            realityDomainPort=$(echo "${realityServerNames}" | awk -F "[:]" '{print $2}')
+            realityServerNames=$(echo "${realityServerNames}" | awk -F "[:]" '{print $1}')
         fi
     fi
 
-    echoContent yellow "\n ---> 客户端可用域名: ${realityServerNames}\n"
+    echoContent yellow "\n ---> 客户端可用域名: ${realityServerNames}:${realityDomainPort}\n"
 }
 # 初始化reality端口
 initRealityPort() {
@@ -8177,7 +8195,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.1.3-beta"
+    echoContent green "当前版本：v3.1.4-beta"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
