@@ -292,7 +292,7 @@ initVar() {
 
     # Reality
     realityPrivateKey=
-    realityServerNames=
+    realityServerName=
     realityDestDomain=
 
     # 端口状态
@@ -553,7 +553,7 @@ getPublicIP() {
     if [[ -n "$1" ]]; then
         type=$1
     fi
-    if [[ -n "${currentHost}" && -n "${currentRealityServerNames}" && "${currentRealityServerNames}" == "${currentHost}" && -z "$1" ]]; then
+    if [[ -n "${currentHost}" && -n "${currentrealityServerName}" && "${currentrealityServerName}" == "${currentHost}" && -z "$1" ]]; then
         echo "${currentHost}"
     else
         local currentIP=
@@ -635,13 +635,13 @@ unInstallSingBox() {
 
 # 读取xray reality配置
 readXrayCoreRealityConfig() {
-    currentRealityServerNames=
+    currentrealityServerName=
     currentRealityPublicKey=
     currentRealityPrivateKey=
     currentRealityPort=
 
     if [[ -n "${realityStatus}" ]]; then
-        currentRealityServerNames=$(jq -r .inbounds[0].streamSettings.realitySettings.serverNames[0] "${configPath}07_VLESS_vision_reality_inbounds.json")
+        currentrealityServerName=$(jq -r .inbounds[0].streamSettings.realitySettings.serverNames[0] "${configPath}07_VLESS_vision_reality_inbounds.json")
         currentRealityPublicKey=$(jq -r .inbounds[0].streamSettings.realitySettings.publicKey "${configPath}07_VLESS_vision_reality_inbounds.json")
         currentRealityPrivateKey=$(jq -r .inbounds[0].streamSettings.realitySettings.privateKey "${configPath}07_VLESS_vision_reality_inbounds.json")
         currentRealityPort=$(jq -r .inbounds[0].port "${configPath}07_VLESS_vision_reality_inbounds.json")
@@ -1138,31 +1138,29 @@ checkPortOpen() {
     local port=$1
     local domain=$2
     local checkPortOpenResult=
-
     allowPort "${port}"
 
     # 初始化nginx配置
     touch ${nginxConfigPath}checkPortOpen.conf
     cat <<EOF >${nginxConfigPath}checkPortOpen.conf
-    server {
-        listen ${port};
-        listen [::]:${port};
-        server_name ${domain};
-        location /checkPort {
-            return 200 'fjkvymb6len';
-        }
-        location /ip {
-            proxy_set_header Host \$host;
-            proxy_set_header X-Real-IP \$remote_addr;
-            proxy_set_header REMOTE-HOST \$remote_addr;
-            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-            default_type text/plain;
-            return 200 \$proxy_add_x_forwarded_for;
-        }
+server {
+    listen ${port};
+    listen [::]:${port};
+    server_name ${domain};
+    location /checkPort {
+        return 200 'fjkvymb6len';
     }
+    location /ip {
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header REMOTE-HOST \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        default_type text/plain;
+        return 200 \$proxy_add_x_forwarded_for;
+    }
+}
 EOF
     handleNginx start
-
     # 检查域名+端口的开放
     checkPortOpenResult=$(curl -s -m 10 "http://${domain}:${port}/checkPort")
     localIP=$(curl -s -m 10 "http://${domain}:${port}/ip")
@@ -1213,7 +1211,7 @@ initTLSNginxConfig() {
         initTLSNginxConfig 3
     else
         dnsTLSDomain=$(echo "${domain}" | awk -F "." '{$1="";print $0}' | sed 's/^[[:space:]]*//' | sed 's/ /./g')
-        if [[ "${coreInstallType}" == "1" || "${selectCoreType}" == "1" ]]; then
+        if [[ "${selectCoreType}" == "1" ]]; then
             customPortFunction
         fi
         # 修改配置
@@ -2651,8 +2649,8 @@ initSingBoxClients() {
     local users=
     users=[]
     while read -r user; do
-        uuid=$(echo "${user}" | jq -r .uuid)
-        name=$(echo "${user}" | jq -r .name | awk -F "[-]" '{print $1}')
+        uuid=$(echo "${user}" | jq -r .uuid//.id)
+        name=$(echo "${user}" | jq -r .name//.email | awk -F "[-]" '{print $1}')
         currentUser=
         # VLESS Vision
         if echo "${type}" | grep -q "0"; then
@@ -3750,7 +3748,7 @@ EOF
     if echo "${selectCustomInstallType}" | grep -q 7 || [[ "$1" == "all" ]]; then
         echoContent skyBlue "\n===================== 配置VLESS+Reality =====================\n"
         initRealityPort
-        initRealityDest
+        #        initRealityDest
         initRealityClientServersName
         initRealityKey
 
@@ -3776,10 +3774,10 @@ EOF
         "security": "reality",
         "realitySettings": {
             "show": false,
-            "dest": "${realityDestDomain}",
+            "dest": "${realityServerName}:${realityDomainPort}",
             "xver": 0,
             "serverNames": [
-                ${realityServerNames}
+                "${realityServerName}"
             ],
             "privateKey": "${realityPrivateKey}",
             "publicKey": "${realityPublicKey}",
@@ -3897,6 +3895,7 @@ initSingBoxConfig() {
         checkDNSIP "${domain}"
         removeNginxDefaultConf
         handleSingBox stop
+
         checkPortOpen "${result[-1]}" "${domain}"
         cat <<EOF >/etc/v2ray-agent/sing-box/conf/config/02_VLESS_TCP_inbounds.json
 {
@@ -3940,11 +3939,11 @@ EOF
       "users":$(initSingBoxClients 7),
       "tls": {
         "enabled": true,
-        "server_name": "${realityServerNames}",
+        "server_name": "${realityServerName}",
         "reality": {
             "enabled": true,
             "handshake":{
-                "server": "${realityServerNames}",
+                "server": "${realityServerName}",
                 "server_port":${realityDomainPort}
             },
             "private_key": "${realityPrivateKey}",
@@ -3980,11 +3979,11 @@ EOF
       "tag": "VLESSRealityGRPC",
       "tls": {
         "enabled": true,
-        "server_name": "${realityServerNames}",
+        "server_name": "${realityServerName}",
         "reality": {
             "enabled": true,
             "handshake":{
-                "server":"${realityServerNames}",
+                "server":"${realityServerName}",
                 "server_port":${realityDomainPort}
             },
             "private_key": "${realityPrivateKey}",
@@ -4302,7 +4301,7 @@ EOF
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=hysteria2%3A%2F%2F${id}%40${currentHost}%3A${port}%3Fpeer%3D${currentHost}%26insecure%3D0%26sni%3D${currentHost}%26alpn%3Dh3%23${email}\n"
 
     elif [[ "${type}" == "vlessReality" ]]; then
-        local realityServerName=${currentRealityServerNames}
+        local realityServerName=${currentrealityServerName}
         local publicKey=${currentRealityPublicKey}
         if [[ "${coreInstallType}" == "2" ]]; then
             realityServerName=${singBoxVLESSRealityVisionServerName}
@@ -4336,7 +4335,7 @@ EOF
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40$(getPublicIP)%3A${port}%3Fencryption%3Dnone%26security%3Dreality%26type%3Dtcp%26sni%3D${realityServerName}%26fp%3Dchrome%26pbk%3D${publicKey}%26sid%3D6ba85179e30d4fc2%26flow%3Dxtls-rprx-vision%23${email}\n"
 
     elif [[ "${type}" == "vlessRealityGRPC" ]]; then
-        local realityServerName=${currentRealityServerNames}
+        local realityServerName=${currentrealityServerName}
         local publicKey=${currentRealityPublicKey}
         if [[ "${coreInstallType}" == "2" ]]; then
             realityServerName=${singBoxVLESSRealityGRPCServerName}
@@ -7117,13 +7116,12 @@ installSubscribe() {
     local serverName=
     local SSLType=
 
-    if [[ "${coreInstallType}" == "2" && -z "${subscribePort}" ]]; then
+    if [[ "${coreInstallType}" == "2" || "${selectCoreType}" == "2" ]] && [[ -z "${subscribePort}" ]]; then
 
         nginxVersion=$(nginx -v 2>&1)
-
+        echoContent skyBlue "配置https订阅\n"
         mapfile -t result < <(initSingBoxPort "${subscribePort}")
-
-        if ! echo "${currentInstallProtocolType}" | grep -q -E "0|1|2|3|4|5|6｜9"; then
+        if ! echo "${selectCustomInstallType}" | grep -q -E "0|1|2|3|4|5|6｜9" && [[ "${selectInstallType}" == "2" ]]; then
             echoContent green "未发现tls证书，使用无加密订阅，可能被运营商拦截。请注意风险"
             read -r -p "是否使用[y/n]？" addNginxSubscribeStatus
             if [[ "${addNginxSubscribeStatus}" != "y" ]]; then
@@ -7132,9 +7130,16 @@ installSubscribe() {
             fi
             #           ipv6 listen [::]:${result[-1]};
         else
+            local subscribeServerName=
+            if [[ -n "${currentHost}" ]]; then
+                subscribeServerName="${currentHost}"
+            else
+                subscribeServerName="${domain}"
+            fi
+
             SSLType="ssl"
-            serverName="server_name ${currentHost};"
-            nginxSubscribeSSL="ssl_certificate /etc/v2ray-agent/tls/${currentHost}.crt;ssl_certificate_key /etc/v2ray-agent/tls/${currentHost}.key;"
+            serverName="server_name ${subscribeServerName};"
+            nginxSubscribeSSL="ssl_certificate /etc/v2ray-agent/tls/${subscribeServerName}.crt;ssl_certificate_key /etc/v2ray-agent/tls/${subscribeServerName}.key;"
         fi
 
         if echo "${nginxVersion}" | grep -q "1.25" && [[ $(echo "${nginxVersion}" | awk -F "[.]" '{print $3}') -gt 0 ]]; then
@@ -7645,6 +7650,7 @@ subscribe() {
         showAccounts >/dev/null
 
         if [[ -n $(ls /etc/v2ray-agent/subscribe_local/default/) ]]; then
+            local subscribePortLocal="${subscribePort}"
             find /etc/v2ray-agent/subscribe_local/default/* | while read -r email; do
                 email=$(echo "${email}" | awk -F "[d][e][f][a][u][l][t][/]" '{print $2}')
                 # md5加密
@@ -7674,7 +7680,7 @@ subscribe() {
                 if [[ -n "${currentDefaultPort}" && "${currentDefaultPort}" != "443" ]]; then
                     currentDomain="${currentHost}:${currentDefaultPort}"
                 fi
-                if [[ -n "${subscribePort}" ]]; then
+                if [[ -n "${subscribePortLocal}" ]]; then
                     if [[ "${subscribeType}" == "http" ]]; then
                         currentDomain="$(getPublicIP):${subscribePort}"
                     else
@@ -7842,14 +7848,14 @@ initRealityDest() {
         realityDestDomain=${domain}:${port}
     else
         local realityDestDomainList=
-        realityDestDomainList="gateway.icloud.com,itunes.apple.com,swdist.apple.com,swcdn.apple.com,updates.cdn-apple.com,mensura.cdn-apple.com,osxapps.itunes.apple.com,aod.itunes.apple.com,download-installer.cdn.mozilla.net,addons.mozilla.org,s0.awsstatic.com,d1.awsstatic.com,images-na.ssl-images-amazon.com,m.media-amazon.com,player.live-video.net,one-piece.com,lol.secure.dyn.riotcdn.net,www.lovelive-anime.jp,www.nokia.com"
+        realityDestDomainList="gateway.icloud.com,itunes.apple.com,swdist.apple.com,swcdn.apple.com,updates.cdn-apple.com,mensura.cdn-apple.com,osxapps.itunes.apple.com,aod.itunes.apple.com,download-installer.cdn.mozilla.net,addons.mozilla.org,s0.awsstatic.com,d1.awsstatic.com,images-na.ssl-images-amazon.com,m.media-amazon.com,player.live-video.net,one-piece.com,lol.secure.dyn.riotcdn.net,www.lovelive-anime.jp,www.swift.com,academy.nvidia.com,www.cisco.com,www.asus.com,www.samsung.com,www.amd.com,www.googletagmanager.com,cdn-dynmedia-1.microsoft.com,update.microsoft,software.download.prss.microsoft.com,dl.google.com,www.google-analytics.com"
 
         echoContent skyBlue "\n===== 生成配置回落的域名 例如:[addons.mozilla.org:443] ======\n"
         echoContent green "回落域名列表：https://www.v2ray-agent.com/archives/1680104902581#heading-8\n"
         read -r -p "请输入[回车]使用随机:" realityDestDomain
         if [[ -z "${realityDestDomain}" ]]; then
             local randomNum=
-            randomNum=$((RANDOM % 19 + 1))
+            randomNum=$((RANDOM % 30 + 1))
             realityDestDomain=$(echo "${realityDestDomainList}" | awk -F ',' -v randomNum="$randomNum" '{print $randomNum":443"}')
         fi
         if ! echo "${realityDestDomain}" | grep -q ":"; then
@@ -7863,32 +7869,43 @@ initRealityDest() {
 }
 # 初始化客户端可用的ServersName
 initRealityClientServersName() {
-    # todo 兼容xray
-    if [[ -n "${domain}" && "${coreInstallType}" == "1" ]]; then
-        realityServerNames=\"${domain}\"
-    elif [[ -n "${realityDestDomain}" ]]; then
-        realityServerNames=$(echo "${realityDestDomain}" | cut -d ":" -f 1)
+    realityServerName=
+    if [[ -n "${domain}" ]]; then
+        echo
+        read -r -p "是否使用${domain}此域名作为Reality目标域名 ？[y/n]:" realityServerNameCurrentDomainStatus
+        if [[ "${realityServerNameCurrentDomainStatus}" == "y" ]]; then
+            realityServerName="${domain}"
+            if [[ "${selectCoreType}" == "1" ]]; then
+                realityDomainPort="${port}"
+            fi
 
-        realityServerNames=\"${realityServerNames//,/\",\"}\"
-    else
-        local realityDestDomainList="gateway.icloud.com,itunes.apple.com,swdist.apple.com,swcdn.apple.com,updates.cdn-apple.com,mensura.cdn-apple.com,osxapps.itunes.apple.com,aod.itunes.apple.com,download-installer.cdn.mozilla.net,addons.mozilla.org,s0.awsstatic.com,d1.awsstatic.com,images-na.ssl-images-amazon.com,m.media-amazon.com,player.live-video.net,one-piece.com,lol.secure.dyn.riotcdn.net,www.lovelive-anime.jp,www.nokia.com"
+            if [[ "${selectCoreType}" == "2" && -z "${subscribePort}" ]]; then
+                echo
+                installSubscribe
+                readNginxSubscribe
+                realityDomainPort="${subscribePort}"
+            fi
+        fi
+    fi
+    if [[ -z "${realityServerName}" ]]; then
+        local realityDestDomainList="gateway.icloud.com,itunes.apple.com,swdist.apple.com,swcdn.apple.com,updates.cdn-apple.com,mensura.cdn-apple.com,osxapps.itunes.apple.com,aod.itunes.apple.com,download-installer.cdn.mozilla.net,addons.mozilla.org,s0.awsstatic.com,d1.awsstatic.com,images-na.ssl-images-amazon.com,m.media-amazon.com,player.live-video.net,one-piece.com,lol.secure.dyn.riotcdn.net,www.lovelive-anime.jp,www.swift.com,academy.nvidia.com,www.cisco.com,www.asus.com,www.samsung.com,www.amd.com,www.googletagmanager.com,cdn-dynmedia-1.microsoft.com,update.microsoft,software.download.prss.microsoft.com,dl.google.com,www.google-analytics.com"
         realityDomainPort=443
         echoContent skyBlue "\n================ 配置客户端可用的serverNames ===============\n"
         echoContent yellow "#注意事项"
-        echoContent green "客户端可用的serverNames 列表：https://www.v2ray-agent.com/archives/1689439383686#heading-3\n"
+        echoContent green "Reality目标可用域名列表：https://www.v2ray-agent.com/archives/1689439383686#heading-3\n"
         echoContent yellow "录入示例:addons.mozilla.org:443\n"
-        read -r -p "请输入目标域名，[回车]随机域名，默认端口443:" realityServerNames
-        if [[ -z "${realityServerNames}" ]]; then
-            randomNum=$((RANDOM % 19 + 1))
-            realityServerNames=$(echo "${realityDestDomainList}" | awk -F ',' -v randomNum="$randomNum" '{print $randomNum}')
+        read -r -p "请输入目标域名，[回车]随机域名，默认端口443:" realityServerName
+        if [[ -z "${realityServerName}" ]]; then
+            randomNum=$((RANDOM % 30 + 1))
+            realityServerName=$(echo "${realityDestDomainList}" | awk -F ',' -v randomNum="$randomNum" '{print $randomNum}')
         fi
-        if echo "${realityServerNames}" | grep -q ":"; then
-            realityDomainPort=$(echo "${realityServerNames}" | awk -F "[:]" '{print $2}')
-            realityServerNames=$(echo "${realityServerNames}" | awk -F "[:]" '{print $1}')
+        if echo "${realityServerName}" | grep -q ":"; then
+            realityDomainPort=$(echo "${realityServerName}" | awk -F "[:]" '{print $2}')
+            realityServerName=$(echo "${realityServerName}" | awk -F "[:]" '{print $1}')
         fi
     fi
 
-    echoContent yellow "\n ---> 客户端可用域名: ${realityServerNames}:${realityDomainPort}\n"
+    echoContent yellow "\n ---> 客户端可用域名: ${realityServerName}:${realityDomainPort}\n"
 }
 # 初始化reality端口
 initRealityPort() {
@@ -7932,7 +7949,7 @@ initXrayRealityConfig() {
     echoContent skyBlue "\n进度  $1/${totalProgress} : 初始化 Xray-core reality配置"
     initRealityPort
     initRealityKey
-    initRealityDest
+    #    initRealityDest
     initRealityClientServersName
 }
 # 修改reality域名端口等信息
@@ -7941,7 +7958,7 @@ updateXrayRealityConfig() {
     local realityVisionResult
     realityVisionResult=$(jq -r ".inbounds[0].port = ${realityPort}" ${configPath}07_VLESS_vision_reality_inbounds.json)
     realityVisionResult=$(echo "${realityVisionResult}" | jq -r ".inbounds[0].streamSettings.realitySettings.dest = \"${realityDestDomain}\"")
-    realityVisionResult=$(echo "${realityVisionResult}" | jq -r ".inbounds[0].streamSettings.realitySettings.serverNames = [${realityServerNames}]")
+    realityVisionResult=$(echo "${realityVisionResult}" | jq -r ".inbounds[0].streamSettings.realitySettings.serverNames = [${realityServerName}]")
     realityVisionResult=$(echo "${realityVisionResult}" | jq -r ".inbounds[0].streamSettings.realitySettings.privateKey = \"${realityPrivateKey}\"")
     realityVisionResult=$(echo "${realityVisionResult}" | jq -r ".inbounds[0].streamSettings.realitySettings.publicKey = \"${realityPublicKey}\"")
     echo "${realityVisionResult}" | jq . >${configPath}07_VLESS_vision_reality_inbounds.json
@@ -8195,7 +8212,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.1.4-beta"
+    echoContent green "当前版本：v3.1.5-beta"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
