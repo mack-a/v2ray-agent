@@ -366,10 +366,12 @@ readInstallType() {
                 if [[ -f "${configPath}07_VLESS_vision_reality_inbounds.json" ]]; then
                     realityStatus=1
                 fi
+                if [[ -f "/etc/v2ray-agent/sing-box/conf/config/06_hysteria2_inbounds.json" || -f "/etc/v2ray-agent/sing-box/conf/config/09_tuic_inbounds.json" ]]; then
+                    singBoxConfigPath=/etc/v2ray-agent/sing-box/conf/config/
+                fi
             fi
-        fi
-        # 检测sing-box
-        if [[ -d "/etc/v2ray-agent/sing-box" && -f "/etc/v2ray-agent/sing-box/sing-box" && -f "/etc/v2ray-agent/sing-box/conf/config.json" ]]; then
+        elif [[ -d "/etc/v2ray-agent/sing-box" && -f "/etc/v2ray-agent/sing-box/sing-box" && -f "/etc/v2ray-agent/sing-box/conf/config.json" ]]; then
+            # 检测sing-box
             coreInstallType=2
             configPath=/etc/v2ray-agent/sing-box/conf/config/
             singBoxConfigPath=/etc/v2ray-agent/sing-box/conf/config/
@@ -408,7 +410,7 @@ readInstallProtocolType() {
         if echo "${row}" | grep -q hysteria2_inbounds; then
             currentInstallProtocolType=${currentInstallProtocolType}'6'
             if [[ "${coreInstallType}" == "2" ]]; then
-                frontingType=hysteria2_inbounds
+                frontingType=06_hysteria2_inbounds
                 singBoxHysteria2Port=$(jq .inbounds[0].listen_port "${row}.json")
             fi
         fi
@@ -443,11 +445,15 @@ readInstallProtocolType() {
 
     done < <(find ${configPath} -name "*inbounds.json" | awk -F "[.]" '{print $1}')
 
-    if [[ "${coreInstallType}" == "1" && -n "${singBoxConfigPath}" && -f "/etc/v2ray-agent/sing-box/conf/06_hysteria2_inbounds.json" ]]; then
-        currentInstallProtocolType=${currentInstallProtocolType}'6'
-    fi
-    if [[ "${coreInstallType}" == "1" && -n "${singBoxConfigPath}" && -f "/etc/v2ray-agent/sing-box/conf/09_tuic_inbounds.json" ]]; then
-        currentInstallProtocolType=${currentInstallProtocolType}'9'
+    if [[ "${coreInstallType}" == "1" && -n "${singBoxConfigPath}" ]]; then
+        if [[ -f "${singBoxConfigPath}06_hysteria2_inbounds.json" ]]; then
+            currentInstallProtocolType=${currentInstallProtocolType}'6'
+            singBoxHysteria2Port=$(jq .inbounds[0].listen_port "${singBoxConfigPath}06_hysteria2_inbounds.json")
+        fi
+        if [[ -f "${singBoxConfigPath}09_tuic_inbounds.json" ]]; then
+            currentInstallProtocolType=${currentInstallProtocolType}'9'
+            singBoxTuicPort=$(jq .inbounds[0].listen_port "${singBoxConfigPath}09_tuic_inbounds.json")
+        fi
     fi
 }
 
@@ -3278,7 +3284,9 @@ singBoxTuicInstall() {
 
     totalProgress=5
     installSingBox 1
-    initSingBoxTuicConfig 2
+    selectCustomInstallType=9
+    #    initSingBoxTuicConfig 2
+    initSingBoxConfig custom 2
     installSingBoxService 3
     reloadCore
     showAccounts 4
@@ -3297,7 +3305,8 @@ singBoxHysteria2Install() {
 
     totalProgress=5
     installSingBox 1
-    initSingBoxHysteria2Config 2
+    selectCustomInstallType=6
+    initSingBoxConfig custom 2
     installSingBoxService 3
     reloadCore
     showAccounts 4
@@ -3850,9 +3859,16 @@ initTCPBrutal() {
 # 初始化sing-box配置文件
 initSingBoxConfig() {
     echoContent skyBlue "\n进度 $2/${totalProgress} : 初始化sing-box配置"
+
     echo
     local uuid=
     local addClientsStatus=
+    local sslDomain=
+    if [[ -n "${domain}" ]]; then
+        sslDomain="${domain}"
+    elif [[ -n "${currentHost}" ]]; then
+        sslDomain="${currentHost}"
+    fi
     if [[ -n "${currentUUID}" ]]; then
         read -r -p "读取到上次用户配置，是否使用上次安装的配置 ？[y/n]:" historyUUIDStatus
         if [[ "${historyUUIDStatus}" == "y" ]]; then
@@ -3911,10 +3927,10 @@ initSingBoxConfig() {
           "tag":"VLESSTCP",
           "users":$(initSingBoxClients 0),
           "tls":{
-            "server_name": "${domain}",
+            "server_name": "${sslDomain}",
             "enabled": true,
-            "certificate_path": "/etc/v2ray-agent/tls/${domain}.crt",
-            "key_path": "/etc/v2ray-agent/tls/${domain}.key"
+            "certificate_path": "/etc/v2ray-agent/tls/${sslDomain}.crt",
+            "key_path": "/etc/v2ray-agent/tls/${sslDomain}.key"
           }
         }
     ]
@@ -4015,7 +4031,6 @@ EOF
         mapfile -t result < <(initSingBoxPort "${singBoxHysteria2Port}")
         echoContent green "\n ---> Hysteria2端口：${result[-1]}"
         initHysteria2Network
-
         cat <<EOF >/etc/v2ray-agent/sing-box/conf/config/06_hysteria2_inbounds.json
 {
     "inbounds": [
@@ -4028,12 +4043,12 @@ EOF
             "down_mbps":${hysteria2ClientUploadSpeed},
             "tls": {
                 "enabled": true,
-                "server_name":"${domain}",
+                "server_name":"${sslDomain}",
                 "alpn": [
                     "h3"
                 ],
-                "certificate_path": "/etc/v2ray-agent/tls/${domain}.crt",
-                "key_path": "/etc/v2ray-agent/tls/${domain}.key"
+                "certificate_path": "/etc/v2ray-agent/tls/${sslDomain}.crt",
+                "key_path": "/etc/v2ray-agent/tls/${sslDomain}.key"
             }
         }
     ]
@@ -4044,7 +4059,7 @@ EOF
     fi
 
     if echo "${selectCustomInstallType}" | grep -q 9 || [[ "$1" == "all" ]]; then
-        echoContent red "\n================== 配置 Tuic ==================\n"
+        echoContent red "\n==================== 配置 Tuic =====================\n"
         echo
         mapfile -t result < <(initSingBoxPort "${singBoxTuicPort}")
         echoContent green "\n ---> Tuic端口：${result[-1]}"
@@ -4061,12 +4076,12 @@ EOF
             "congestion_control": "${tuicAlgorithm}",
             "tls": {
                 "enabled": true,
-                "server_name":"${domain}",
+                "server_name":"${sslDomain}",
                 "alpn": [
                     "h3"
                 ],
-                "certificate_path": "/etc/v2ray-agent/tls/${domain}.crt",
-                "key_path": "/etc/v2ray-agent/tls/${domain}.key"
+                "certificate_path": "/etc/v2ray-agent/tls/${sslDomain}.crt",
+                "key_path": "/etc/v2ray-agent/tls/${sslDomain}.key"
             }
         }
     ]
@@ -4539,12 +4554,16 @@ showAccounts() {
         done
     fi
     # hysteria2
-    if echo ${currentInstallProtocolType} | grep -q 6; then
+    if echo ${currentInstallProtocolType} | grep -q 6 || [[ -n "${hysteriaPort}" ]]; then
         echoContent skyBlue "\n================================  Hysteria2 TLS [推荐] ================================\n"
-        jq -r -c '.inbounds[]|.users[]' "${configPath}06_hysteria2_inbounds.json" | while read -r user; do
+        local path="${configPath}"
+        if [[ "${coreInstallType}" == "1" ]]; then
+            path="${singBoxConfigPath}"
+        fi
+        jq -r -c '.inbounds[]|.users[]' "${path}06_hysteria2_inbounds.json" | while read -r user; do
             echoContent skyBlue "\n ---> 账号:$(echo "${user}" | jq -r .name)"
             echo
-            defaultBase64Code hysteria "${currentDefaultPort}${singBoxHysteria2Port}" "$(echo "${user}" | jq -r .name)" "$(echo "${user}" | jq -r .password)"
+            defaultBase64Code hysteria "${singBoxHysteria2Port}" "$(echo "${user}" | jq -r .name)" "$(echo "${user}" | jq -r .password)"
         done
 
     fi
@@ -4576,12 +4595,16 @@ showAccounts() {
         done
     fi
     # tuic
-    if echo ${currentInstallProtocolType} | grep -q 9; then
+    if echo ${currentInstallProtocolType} | grep -q 9 || [[ -n "${tuicPort}" ]]; then
         echoContent skyBlue "\n================================  Tuic TLS [推荐]  ================================\n"
-        jq -r -c '.inbounds[].users[]' "${configPath}09_tuic_inbounds.json" | while read -r user; do
+        local path="${configPath}"
+        if [[ "${coreInstallType}" == "1" ]]; then
+            path="${singBoxConfigPath}"
+        fi
+        jq -r -c '.inbounds[].users[]' "${path}09_tuic_inbounds.json" | while read -r user; do
             echoContent skyBlue "\n ---> 账号:$(echo "${user}" | jq -r .name)"
             echo
-            defaultBase64Code tuic "${currentDefaultPort}${singBoxTuicPort}" "$(echo "${user}" | jq -r .name)" "$(echo "${user}" | jq -r .uuid)_$(echo "${user}" | jq -r .password)"
+            defaultBase64Code tuic "${singBoxTuicPort}" "$(echo "${user}" | jq -r .name)" "$(echo "${user}" | jq -r .uuid)_$(echo "${user}" | jq -r .password)"
         done
 
     fi
@@ -6532,7 +6555,8 @@ reloadCore() {
     if [[ "${coreInstallType}" == "1" ]]; then
         handleXray stop
         handleXray start
-    elif [[ "${coreInstallType}" == "2" ]]; then
+    fi
+    if [[ "${coreInstallType}" == "2" || -n "${singBoxConfigPath}" ]]; then
         handleSingBox stop
         handleSingBox start
     fi
@@ -7056,7 +7080,7 @@ coreVersionManageMenu() {
 
     if [[ "${selectCore}" == "1" ]]; then
         xrayVersionManageMenu 1
-    elif [[ "${coreInstallType}" == "2" ]]; then
+    elif [[ "${selectCore}" == "2" ]]; then
         singBoxVersionManageMenu 1
     fi
 }
@@ -8080,11 +8104,10 @@ manageHysteria() {
     echoContent skyBlue "\n进度  1/1 : Hysteria2 管理"
     echoContent red "\n=============================================================="
     local hysteria2Status=
-    if [[ -n "${singBoxConfigPath}" ]] && [[ -f "/etc/v2ray-agent/sing-box/conf/config.json" ]] && grep -q 'hysteria2' </etc/v2ray-agent/sing-box/conf/config.json; then
+    if [[ -n "${singBoxConfigPath}" ]] && [[ -f "/etc/v2ray-agent/sing-box/conf/config/06_hysteria2_inbounds.json" ]]; then
         echoContent yellow " 依赖第三方sing-box\n"
         echoContent yellow "1.重新安装"
         echoContent yellow "2.卸载"
-        #        echoContent yellow "3.sing-box core管理"
         hysteria2Status=true
     else
         echoContent yellow "1.安装"
@@ -8105,7 +8128,7 @@ manageTuic() {
     echoContent skyBlue "\n进度  1/1 : Tuic管理"
     echoContent red "\n=============================================================="
     local tuicStatus=
-    if [[ -n "${singBoxConfigPath}" ]] && [[ -f "/etc/v2ray-agent/sing-box/conf/config.json" ]] && grep -q 'tuic' </etc/v2ray-agent/sing-box/conf/config.json; then
+    if [[ -n "${singBoxConfigPath}" ]] && [[ -f "/etc/v2ray-agent/sing-box/conf/config/09_tuic_inbounds.json" ]]; then
         echoContent yellow " 依赖第三方sing-box\n"
         echoContent yellow "1.重新安装"
         echoContent yellow "2.卸载"
@@ -8220,7 +8243,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.1.6-beta"
+    echoContent green "当前版本：v3.1.7-beta"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
