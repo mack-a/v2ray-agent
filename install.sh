@@ -417,7 +417,7 @@ readInstallProtocolType() {
         if echo "${row}" | grep -q VLESS_vision_reality_inbounds; then
             currentInstallProtocolType=${currentInstallProtocolType}'7'
             if [[ "${coreInstallType}" == "2" ]]; then
-                frontingType=07_VLESS_vision_reality_inbounds
+                frontingTypeReality=07_VLESS_vision_reality_inbounds
                 singBoxVLESSRealityVisionPort=$(jq -r .inbounds[0].listen_port "${row}.json")
                 singBoxVLESSRealityVisionServerName=$(jq -r .inbounds[0].tls.server_name "${row}.json")
                 if [[ -f "${configPath}reality_key" ]]; then
@@ -428,7 +428,7 @@ readInstallProtocolType() {
         if echo "${row}" | grep -q VLESS_vision_gRPC_inbounds; then
             currentInstallProtocolType=${currentInstallProtocolType}'8'
             if [[ "${coreInstallType}" == "2" ]]; then
-                frontingType=08_VLESS_vision_reality_inbounds
+                frontingTypeReality=08_VLESS_vision_gRPC_inbounds
                 singBoxVLESSRealityGRPCPort=$(jq -r .inbounds[0].listen_port "${row}.json")
                 singBoxVLESSRealityGRPCServerName=$(jq -r .inbounds[0].tls.server_name "${row}.json")
                 if [[ -f "${configPath}reality_key" ]]; then
@@ -704,17 +704,21 @@ readConfigHostPathUUID() {
             fi
         fi
     elif [[ "${coreInstallType}" == "2" ]]; then
-
-        currentHost=$(jq -r .inbounds[0].tls.server_name ${configPath}${frontingType}.json)
+        if [[ -n "${frontingType}" ]]; then
+            currentHost=$(jq -r .inbounds[0].tls.server_name ${configPath}${frontingType}.json)
+            currentUUID=$(jq -r .inbounds[0].users[0].uuid ${configPath}${frontingType}.json)
+            currentClients=$(jq -r .inbounds[0].users ${configPath}${frontingType}.json)
+        else
+            currentUUID=$(jq -r .inbounds[0].users[0].uuid ${configPath}${frontingTypeReality}.json)
+            currentClients=$(jq -r .inbounds[0].users ${configPath}${frontingTypeReality}.json)
+        fi
 
         # currentAdd=$(jq -r .inbounds[0].settings.clients[0].add ${configPath}${frontingType}.json)
 
         if [[ "${currentAdd}" == "null" ]]; then
             currentAdd=${currentHost}
         fi
-        currentUUID=$(jq -r .inbounds[0].users[0].uuid ${configPath}${frontingType}.json)
-        #        currentPort=$(jq .inbounds[0].port ${configPath}${frontingType}.json)
-        currentClients=$(jq -r .inbounds[0].users ${configPath}${frontingType}.json)
+
     fi
 
     # 读取path
@@ -7160,7 +7164,7 @@ installSubscribe() {
 
         mapfile -t result < <(initSingBoxPort "${subscribePort}")
 
-        if (! echo "${selectCustomInstallType}" | grep -q -E "0|1|2|3|4|5|6｜9" || ! echo "${currentInstallProtocolType}" | grep -q -E "0|1|2|3|4|5|6｜9") && [[ "${selectInstallType}" == "2" ]]; then
+        if (! echo "${selectCustomInstallType}" | grep -q -E "0|1|2|3|4|5|6｜9" || ! echo "${currentInstallProtocolType}" | grep -q -E "0|1|2|3|4|5|6｜9") && [[ "${selectInstallType}" == "2" || "${coreInstallType}" == "2" ]]; then
             echoContent green "未发现tls证书，使用无加密订阅，可能被运营商拦截。请注意风险"
             read -r -p "是否使用[y/n]？" addNginxSubscribeStatus
             if [[ "${addNginxSubscribeStatus}" != "y" ]]; then
@@ -7200,6 +7204,8 @@ server {
     }
 }
 EOF
+        handleNginx stop
+        handleNginx start
     fi
 }
 # 卸载订阅
@@ -7656,10 +7662,9 @@ initRandomSalt() {
 # 订阅
 subscribe() {
     readInstallProtocolType
-    handleNginx stop
+
     installSubscribe
     readNginxSubscribe
-    handleNginx start
     if [[ "${coreInstallType}" == "1" || "${coreInstallType}" == "2" ]]; then
 
         echoContent skyBlue "-------------------------备注---------------------------------"
@@ -8257,7 +8262,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.1.9-beta"
+    echoContent green "当前版本：v3.1.10-beta"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
