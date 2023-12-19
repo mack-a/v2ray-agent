@@ -2072,9 +2072,8 @@ v2rayVersionManageMenu() {
 # xray版本管理
 xrayVersionManageMenu() {
     echoContent skyBlue "\n进度  $1/${totalProgress} : Xray版本管理"
-    if [[ ! -d "/etc/v2ray-agent/xray/" ]]; then
+    if [[ "${coreInstallType}" != "1" ]]; then
         echoContent red " ---> 没有检测到安装目录，请执行脚本安装内容"
-        menu
         exit 0
     fi
     echoContent red "\n=============================================================="
@@ -2086,6 +2085,7 @@ xrayVersionManageMenu() {
     echoContent yellow "6.重启Xray-core"
     echoContent yellow "7.更新geosite、geoip"
     echoContent yellow "8.设置自动更新geo文件[每天凌晨更新]"
+    echoContent yellow "9.查看日志"
     echoContent red "=============================================================="
     read -r -p "请选择:" selectXrayType
     if [[ "${selectXrayType}" == "1" ]]; then
@@ -2119,6 +2119,8 @@ xrayVersionManageMenu() {
         updateGeoSite
     elif [[ "${selectXrayType}" == "8" ]]; then
         installCronUpdateGeo
+    elif [[ "${selectXrayType}" == "9" ]]; then
+        checkLog 1
     fi
 }
 
@@ -7154,10 +7156,11 @@ installSubscribe() {
     if [[ "${coreInstallType}" == "2" || "${selectCoreType}" == "2" ]] && [[ -z "${subscribePort}" ]]; then
 
         nginxVersion=$(nginx -v 2>&1)
-        echoContent skyBlue "配置订阅中\n"
+        echoContent yellow " ---> 配置订阅中\n"
 
         mapfile -t result < <(initSingBoxPort "${subscribePort}")
-        if ! echo "${selectCustomInstallType}" | grep -q -E "0|1|2|3|4|5|6｜9" || ! echo "${currentInstallProtocolType}" | grep -q -E "0|1|2|3|4|5|6｜9"; then
+
+        if (! echo "${selectCustomInstallType}" | grep -q -E "0|1|2|3|4|5|6｜9" || ! echo "${currentInstallProtocolType}" | grep -q -E "0|1|2|3|4|5|6｜9") && [[ "${selectInstallType}" == "2" ]]; then
             echoContent green "未发现tls证书，使用无加密订阅，可能被运营商拦截。请注意风险"
             read -r -p "是否使用[y/n]？" addNginxSubscribeStatus
             if [[ "${addNginxSubscribeStatus}" != "y" ]]; then
@@ -8202,7 +8205,7 @@ hysteriaVersionManageMenu() {
 # sing-box 版本管理
 singBoxVersionManageMenu() {
     echoContent skyBlue "\n进度  $1/${totalProgress} : sing-box 版本管理"
-    if [[ ! -f "/etc/v2ray-agent/sing-box/sing-box" ]]; then
+    if [[ -z "${singBoxConfigPath}" ]]; then
         echoContent red " ---> 没有检测到安装程序，请执行脚本安装内容"
         menu
         exit 0
@@ -8226,6 +8229,9 @@ singBoxVersionManageMenu() {
     echoContent red "=============================================================="
 
     read -r -p "请选择:" selectSingBoxType
+    if [[ ! -f "${singBoxConfigPath}../box.log" ]]; then
+        touch "${singBoxConfigPath}../box.log" >/dev/null 2>&1
+    fi
     if [[ "${selectSingBoxType}" == "1" ]]; then
         installSingBox 1
         handleSingBox start
@@ -8251,7 +8257,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.1.8-beta"
+    echoContent green "当前版本：v3.1.9-beta"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
@@ -8285,7 +8291,7 @@ menu() {
     echoContent yellow "17.更新脚本"
     echoContent yellow "18.安装BBR、DD脚本"
     echoContent skyBlue "-------------------------脚本管理-----------------------------"
-    echoContent yellow "19.查看日志"
+    #    echoContent yellow "19.查看日志"
     echoContent yellow "20.卸载脚本"
     echoContent red "=============================================================="
     mkdirTools
@@ -8346,9 +8352,9 @@ menu() {
     18)
         bbrInstall
         ;;
-    19)
-        checkLog 1
-        ;;
+        #    19)
+        #        checkLog 1
+        #        ;;
     20)
         unInstall 1
         ;;
