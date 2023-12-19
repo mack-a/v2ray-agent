@@ -683,9 +683,13 @@ readConfigHostPathUUID() {
         fi
 
         # reality
-        if [[ -n "${realityStatus}" && -z "${currentClients}" ]]; then
-            currentUUID=$(jq -r .inbounds[0].settings.clients[0].id ${configPath}07_VLESS_vision_reality_inbounds.json)
-            currentClients=$(jq -r .inbounds[0].settings.clients ${configPath}07_VLESS_vision_reality_inbounds.json)
+        if echo ${currentInstallProtocolType} | grep -q 7; then
+            #            currentUUID=$(jq -r .inbounds[0].settings.clients[0].id ${configPath}07_VLESS_vision_reality_inbounds.json)
+            #            currentClients=$(jq -r .inbounds[0].settings.clients ${configPath}07_VLESS_vision_reality_inbounds.json)
+            xrayVLESSRealityVisionPort=$(jq -r .inbounds[0].port ${configPath}07_VLESS_vision_reality_inbounds.json)
+            if [[ "${currentPort}" == "${xrayVLESSRealityVisionPort}" ]]; then
+                xrayVLESSRealityVisionPort="${currentDefaultPort}"
+            fi
         fi
     elif [[ "${coreInstallType}" == "2" ]]; then
         currentHost=$(jq -r .inbounds[0].tls.server_name ${configPath}${frontingType}.json)
@@ -4555,7 +4559,7 @@ showAccounts() {
 
             echoContent skyBlue "\n ---> 账号:${email}"
             echo
-            defaultBase64Code vlessReality "${currentDefaultPort}${singBoxVLESSRealityVisionPort}" "${email}" "$(echo "${user}" | jq -r .id//.uuid)"
+            defaultBase64Code vlessReality "${xrayVLESSRealityVisionPort}${singBoxVLESSRealityVisionPort}" "${email}" "$(echo "${user}" | jq -r .id//.uuid)"
         done
     fi
     # VLESS reality gRPC
@@ -4568,7 +4572,7 @@ showAccounts() {
 
             echoContent skyBlue "\n ---> 账号:${email}"
             echo
-            defaultBase64Code vlessRealityGRPC "${currentDefaultPort}${singBoxVLESSRealityGRPCPort}" "${email}" "$(echo "${user}" | jq -r .id//.uuid)"
+            defaultBase64Code vlessRealityGRPC "${xrayVLESSRealityVisionPort}${singBoxVLESSRealityGRPCPort}" "${email}" "$(echo "${user}" | jq -r .id//.uuid)"
         done
     fi
     # tuic
@@ -6797,7 +6801,7 @@ customXrayInstall() {
         if ! echo "${selectCustomInstallType}" | grep -q "0"; then
             selectCustomInstallType="0${selectCustomInstallType}"
         fi
-
+        unInstallSubscribe
         checkBTPanel
         totalProgress=12
         installTools 1
@@ -6886,7 +6890,7 @@ selectCoreInstall() {
 
 # xray-core 安装
 xrayCoreInstall() {
-
+    unInstallSubscribe
     checkBTPanel
     selectCustomInstallType=
     totalProgress=13
@@ -7162,6 +7166,10 @@ server {
 }
 EOF
     fi
+}
+# 卸载订阅
+unInstallSubscribe() {
+    rm -rf ${nginxConfigPath}subscribe.conf >/dev/null 2>&1
 }
 
 # 添加订阅
@@ -8212,7 +8220,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.1.5-beta"
+    echoContent green "当前版本：v3.1.6-beta"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
@@ -8230,7 +8238,7 @@ menu() {
 
     echoContent yellow "2.任意组合安装"
     echoContent yellow "4.Hysteria2管理"
-    echoContent yellow "5.REALITY管理"
+    #    echoContent yellow "5.REALITY管理"
     echoContent yellow "6.Tuic管理"
     echoContent skyBlue "-------------------------工具管理-----------------------------"
     echoContent yellow "7.账号管理"
@@ -8265,9 +8273,9 @@ menu() {
     4)
         manageHysteria
         ;;
-    5)
-        manageReality 1
-        ;;
+        #    5)
+        #        manageReality 1
+        #        ;;
     6)
         manageTuic
         ;;
