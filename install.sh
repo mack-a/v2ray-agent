@@ -372,6 +372,7 @@ readInstallType() {
             fi
         elif [[ -d "/etc/v2ray-agent/sing-box" && -f "/etc/v2ray-agent/sing-box/sing-box" && -f "/etc/v2ray-agent/sing-box/conf/config.json" ]]; then
             # 检测sing-box
+            ctlPath=/etc/v2ray-agent/sing-box/sing-box
             coreInstallType=2
             configPath=/etc/v2ray-agent/sing-box/conf/config/
             singBoxConfigPath=/etc/v2ray-agent/sing-box/conf/config/
@@ -626,12 +627,12 @@ unInstallSingBox() {
     local type=$1
     if [[ -n "${singBoxConfigPath}" ]]; then
         if grep -q 'tuic' </etc/v2ray-agent/sing-box/conf/config.json && [[ "${type}" == "tuic" ]]; then
-            rm "${singBoxConfigPath}tuic.json"
+            rm "${singBoxConfigPath}09_tuic_inbounds.json"
             echoContent green " ---> 删除sing-box tuic配置成功"
         fi
 
         if grep -q 'hysteria2' </etc/v2ray-agent/sing-box/conf/config.json && [[ "${type}" == "hysteria2" ]]; then
-            rm "${singBoxConfigPath}hysteria2.json"
+            rm "${singBoxConfigPath}06_hysteria2_inbounds.json"
             echoContent green " ---> 删除sing-box hysteria2配置成功"
         fi
         rm "${singBoxConfigPath}config.json"
@@ -4982,7 +4983,12 @@ customUUID() {
     read -r -p "请输入合法的UUID，[回车]随机UUID:" currentCustomUUID
     echo
     if [[ -z "${currentCustomUUID}" ]]; then
-        currentCustomUUID=$(${ctlPath} uuid)
+        if [[ "${selectInstallType}" == "1" || "${coreInstallType}" == "1" ]]; then
+            currentCustomUUID=$(${ctlPath} uuid)
+        elif [[ "${selectInstallType}" == "2" || "${coreInstallType}" == "2" ]]; then
+            currentCustomUUID=$(${ctlPath} generate uuid)
+        fi
+
         echoContent yellow "uuid：${currentCustomUUID}\n"
 
     else
@@ -5035,6 +5041,12 @@ addUser() {
         echoContent red " ---> 输入有误，请重新输入"
         exit 0
     fi
+    local userConfig=
+    if [[ "${coreInstallType}" == "1" ]]; then
+        userConfig=".inbounds[0].settings.clients"
+    elif [[ "${coreInstallType}" == "2" ]]; then
+        userConfig=".inbounds[0].users"
+    fi
 
     while [[ ${userNum} -gt 0 ]]; do
         readConfigHostPathUUID
@@ -5053,10 +5065,9 @@ addUser() {
             if [[ "${coreInstallType}" == "1" ]]; then
                 clients=$(initXrayClients 0 "${uuid}" "${email}")
             elif [[ "${coreInstallType}" == "2" ]]; then
-                clients=$(initXrayClients 0 "${uuid}" "${email}")
+                clients=$(initSingBoxClients 0 "${uuid}" "${email}")
             fi
-
-            clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}${frontingType}.json)
+            clients=$(jq -r "${userConfig} = ${clients}" ${configPath}${frontingType}.json)
             echo "${clients}" | jq . >${configPath}${frontingType}.json
         fi
 
@@ -5069,7 +5080,7 @@ addUser() {
                 clients=$(initSingBoxClients 1 "${uuid}" "${email}")
             fi
 
-            clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}03_VLESS_WS_inbounds.json)
+            clients=$(jq -r "${userConfig} = ${clients}" ${configPath}03_VLESS_WS_inbounds.json)
             echo "${clients}" | jq . >${configPath}03_VLESS_WS_inbounds.json
         fi
 
@@ -5082,7 +5093,7 @@ addUser() {
                 clients=$(initSingBoxClients 2 "${uuid}" "${email}")
             fi
 
-            clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}04_trojan_gRPC_inbounds.json)
+            clients=$(jq -r "${userConfig} = ${clients}" ${configPath}04_trojan_gRPC_inbounds.json)
             echo "${clients}" | jq . >${configPath}04_trojan_gRPC_inbounds.json
         fi
         # VMess WS
@@ -5094,7 +5105,7 @@ addUser() {
                 clients=$(initSingBoxClients 3 "${uuid}" "${email}")
             fi
 
-            clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}05_VMess_WS_inbounds.json)
+            clients=$(jq -r "${userConfig} = ${clients}" ${configPath}05_VMess_WS_inbounds.json)
             echo "${clients}" | jq . >${configPath}05_VMess_WS_inbounds.json
         fi
 
@@ -5106,7 +5117,7 @@ addUser() {
             elif [[ "${coreInstallType}" == "2" ]]; then
                 clients=$(initSingBoxClients 4 "${uuid}" "${email}")
             fi
-            clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}04_trojan_TCP_inbounds.json)
+            clients=$(jq -r "${userConfig} = ${clients}" ${configPath}04_trojan_TCP_inbounds.json)
             echo "${clients}" | jq . >${configPath}04_trojan_TCP_inbounds.json
         fi
 
@@ -5118,7 +5129,7 @@ addUser() {
             elif [[ "${coreInstallType}" == "2" ]]; then
                 clients=$(initSingBoxClients 5 "${uuid}" "${email}")
             fi
-            clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}06_VLESS_gRPC_inbounds.json)
+            clients=$(jq -r "${userConfig} = ${clients}" ${configPath}06_VLESS_gRPC_inbounds.json)
             echo "${clients}" | jq . >${configPath}06_VLESS_gRPC_inbounds.json
         fi
 
@@ -5130,7 +5141,7 @@ addUser() {
             elif [[ "${coreInstallType}" == "2" ]]; then
                 clients=$(initSingBoxClients 7 "${uuid}" "${email}")
             fi
-            clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}07_VLESS_vision_reality_inbounds.json)
+            clients=$(jq -r "${userConfig} = ${clients}" ${configPath}07_VLESS_vision_reality_inbounds.json)
             echo "${clients}" | jq . >${configPath}07_VLESS_vision_reality_inbounds.json
         fi
 
@@ -5142,7 +5153,7 @@ addUser() {
             elif [[ "${coreInstallType}" == "2" ]]; then
                 clients=$(initSingBoxClients 8 "${uuid}" "${email}")
             fi
-            clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}08_VLESS_vision_gRPC_inbounds.json)
+            clients=$(jq -r "${userConfig} = ${clients}" ${configPath}08_VLESS_vision_gRPC_inbounds.json)
             echo "${clients}" | jq . >${configPath}08_VLESS_vision_gRPC_inbounds.json
         fi
 
@@ -5156,8 +5167,8 @@ addUser() {
                 clients=$(initSingBoxClients 6 "${uuid}" "${email}")
             fi
 
-            clients=$(jq -r ".inbounds[0].users = ${clients}" "${singBoxConfigPath}hysteria2.json")
-            echo "${clients}" | jq . >"${singBoxConfigPath}hysteria2.json"
+            clients=$(jq -r ".inbounds[0].users = ${clients}" "${singBoxConfigPath}06_hysteria2_inbounds.json")
+            echo "${clients}" | jq . >"${singBoxConfigPath}06_hysteria2_inbounds.json"
         fi
 
         # tuic
@@ -5169,9 +5180,9 @@ addUser() {
                 clients=$(initSingBoxClients 9 "${uuid}" "${email}")
             fi
 
-            clients=$(jq -r ".inbounds[0].users = ${clients}" "${singBoxConfigPath}tuic.json")
+            clients=$(jq -r ".inbounds[0].users = ${clients}" "${singBoxConfigPath}09_tuic_inbounds.json")
 
-            echo "${clients}" | jq . >"${singBoxConfigPath}tuic.json"
+            echo "${clients}" | jq . >"${singBoxConfigPath}09_tuic_inbounds.json"
         fi
     done
     reloadCore
@@ -5180,34 +5191,36 @@ addUser() {
 }
 # 移除用户
 removeUser() {
+    local userConfigType=
+    if [[ -n "${frontingType}" ]]; then
+        userConfigType="${frontingType}"
+    elif [[ -n "${frontingTypeReality}" ]]; then
+        userConfigType="${frontingTypeReality}"
+    fi
+
     local uuid=
-    if echo ${currentInstallProtocolType} | grep -q 0 || echo ${currentInstallProtocolType} | grep -q trojan; then
-        jq -r -c .inbounds[0].settings.clients[].email ${configPath}${frontingType}.json | awk '{print NR""":"$0}'
-        read -r -p "请选择要删除的用户编号[仅支持单个删除]:" delUserIndex
-        if [[ $(jq -r '.inbounds[0].settings.clients|length' ${configPath}${frontingType}.json) -lt ${delUserIndex} ]]; then
-            echoContent red " ---> 选择错误"
-        else
-            delUserIndex=$((delUserIndex - 1))
-            local vlessTcpResult
-            uuid=$(jq -r ".inbounds[0].settings.clients[${delUserIndex}].id" ${configPath}${frontingType}.json)
-            vlessTcpResult=$(jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])' ${configPath}${frontingType}.json)
-            echo "${vlessTcpResult}" | jq . >${configPath}${frontingType}.json
+    if [[ -n "${userConfigType}" ]]; then
+        if [[ "${coreInstallType}" == "1" ]]; then
+            jq -r -c .inbounds[0].settings.clients[].email ${configPath}${userConfigType}.json | awk '{print NR""":"$0}'
+        elif [[ "${coreInstallType}" == "2" ]]; then
+            jq -r -c .inbounds[0].users[].name ${configPath}${userConfigType}.json | awk '{print NR""":"$0}'
         fi
-    elif [[ -n "${realityStatus}" ]]; then
-        jq -r -c .inbounds[0].settings.clients[].email ${configPath}07_VLESS_vision_reality_inbounds.json | awk '{print NR""":"$0}'
+
         read -r -p "请选择要删除的用户编号[仅支持单个删除]:" delUserIndex
-        if [[ $(jq -r '.inbounds[0].settings.clients|length' ${configPath}07_VLESS_vision_reality_inbounds.json) -lt ${delUserIndex} ]]; then
+        if [[ $(jq -r '.inbounds[0].settings.clients|length' ${configPath}${userConfigType}.json) -lt ${delUserIndex} && $(jq -r '.inbounds[0].users|length' ${configPath}${userConfigType}.json) -lt ${delUserIndex} ]]; then
             echoContent red " ---> 选择错误"
         else
             delUserIndex=$((delUserIndex - 1))
-            local vlessRealityResult
-            uuid=$(jq -r ".inbounds[0].settings.clients[${delUserIndex}].id" ${configPath}${frontingType}.json)
-            vlessRealityResult=$(jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])' ${configPath}07_VLESS_vision_reality_inbounds.json)
-            echo "${vlessRealityResult}" | jq . >${configPath}07_VLESS_vision_reality_inbounds.json
         fi
     fi
 
     if [[ -n "${delUserIndex}" ]]; then
+
+        if echo ${currentInstallProtocolType} | grep -q 0; then
+            local vlessVision
+            vlessVision=$(jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}']//.inbounds[0].users['${delUserIndex}'])' ${configPath}02_VLESS_TCP_inbounds.json)
+            echo "${vlessVision}" | jq . >${configPath}02_VLESS_TCP_inbounds.json
+        fi
         if echo ${currentInstallProtocolType} | grep -q 1; then
             local vlessWSResult
             vlessWSResult=$(jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])' ${configPath}03_VLESS_WS_inbounds.json)
@@ -5240,24 +5253,24 @@ removeUser() {
 
         if echo ${currentInstallProtocolType} | grep -q 7; then
             local vlessRealityResult
-            vlessRealityResult=$(jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])' ${configPath}07_VLESS_vision_reality_inbounds.json)
+            vlessRealityResult=$(jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}']//.inbounds[0].users['${delUserIndex}'])' ${configPath}07_VLESS_vision_reality_inbounds.json)
             echo "${vlessRealityResult}" | jq . >${configPath}07_VLESS_vision_reality_inbounds.json
         fi
         if echo ${currentInstallProtocolType} | grep -q 8; then
             local vlessRealityGRPCResult
-            vlessRealityGRPCResult=$(jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])' ${configPath}08_VLESS_vision_gRPC_inbounds.json)
+            vlessRealityGRPCResult=$(jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}']//.inbounds[0].users['${delUserIndex}'])' ${configPath}08_VLESS_vision_gRPC_inbounds.json)
             echo "${vlessRealityGRPCResult}" | jq . >${configPath}08_VLESS_vision_gRPC_inbounds.json
         fi
 
         if echo ${currentInstallProtocolType} | grep -q 6; then
             local hysteriaResult
-            hysteriaResult=$(jq -r 'del(.inbounds[0].users['${delUserIndex}'])' "${singBoxConfigPath}hysteria2.json")
-            echo "${hysteriaResult}" | jq . >"${singBoxConfigPath}hysteria2.json"
+            hysteriaResult=$(jq -r 'del(.inbounds[0].users['${delUserIndex}'])' "${singBoxConfigPath}06_hysteria2_inbounds.json")
+            echo "${hysteriaResult}" | jq . >"${singBoxConfigPath}06_hysteria2_inbounds.json"
         fi
         if echo ${currentInstallProtocolType} | grep -q 9; then
             local tuicResult
-            tuicResult=$(jq -r 'del(.inbounds[0].users['${delUserIndex}'])' "${singBoxConfigPath}tuic.json")
-            echo "${tuicResult}" | jq . >"${singBoxConfigPath}tuic.json"
+            tuicResult=$(jq -r 'del(.inbounds[0].users['${delUserIndex}'])' "${singBoxConfigPath}09_tuic_inbounds.json")
+            echo "${tuicResult}" | jq . >"${singBoxConfigPath}09_tuic_inbounds.json"
         fi
         reloadCore
     fi
@@ -7133,10 +7146,6 @@ manageAccount() {
     elif [[ "${manageAccountStatus}" == "4" ]]; then
         addUser
     elif [[ "${manageAccountStatus}" == "5" ]]; then
-        if [[ "${coreInstallType}" == "2" ]]; then
-            echoContent red "\n ---> 此功能仅支持Xray-core内核，请等待后续更新"
-            exit 0
-        fi
         removeUser
     else
         echoContent red " ---> 选择错误"
@@ -8256,7 +8265,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.1.11-beta"
+    echoContent green "当前版本：v3.1.12-beta"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
