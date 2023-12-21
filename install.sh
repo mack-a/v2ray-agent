@@ -1482,6 +1482,10 @@ initDNSAPIConfig() {
             initDNSAPIConfig "$1"
         else
             echo
+            if ! echo "${dnsTLSDomain}" | grep -q "."; then
+                echoContent green " ---> 不支持此域名申请通配符证书，建议使用此格式[xx.xx.xx]"
+                exit 0
+            fi
             read -r -p "是否使用*.${dnsTLSDomain}进行API申请通配符证书？[y/n]:" dnsAPIStatus
             if [[ "${dnsAPIStatus}" != "y" ]]; then
                 exit 0
