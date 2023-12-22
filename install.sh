@@ -1725,7 +1725,12 @@ randomPathFunction() {
 }
 # Nginx伪装博客
 nginxBlog() {
-    echoContent skyBlue "\n进度 $1/${totalProgress} : 添加伪装站点"
+    if [[ -n "$1" ]]; then
+        echoContent skyBlue "\n进度 $1/${totalProgress} : 添加伪装站点"
+    else
+        echoContent yellow "\n开始添加伪装站点"
+    fi
+
     if [[ -d "${nginxStaticPath}" && -f "${nginxStaticPath}/check" ]]; then
         echo
         read -r -p "检测到安装伪装站点，是否需要重新安装[y/n]:" nginxBlogInstallStatus
@@ -3931,7 +3936,8 @@ initSingBoxConfig() {
 
     # VLESS Vision
     if echo "${selectCustomInstallType}" | grep -q 0 || [[ "$1" == "all" ]]; then
-        echoContent red "\n===================== 配置VLESS+Vision =====================\n"
+        echoContent yellow "\n===================== 配置VLESS+Vision =====================\n"
+        echoContent skyBlue "\n开始配置VLESS+Vision协议端口"
         echo
         mapfile -t result < <(initSingBoxPort "${singBoxVLESSVisionPort}")
         echoContent green "\n ---> VLESS_Vision端口：${result[-1]}"
@@ -3966,10 +3972,12 @@ EOF
 
     # VLESS_Reality_Vision
     if echo "${selectCustomInstallType}" | grep -q 7 || [[ "$1" == "all" ]]; then
-        echoContent red "\n================= 配置VLESS+Reality+Vision =================\n"
+        echoContent yellow "\n================= 配置VLESS+Reality+Vision =================\n"
         initRealityClientServersName
         initRealityKey
+        echoContent skyBlue "\n开始配置VLESS+Reality+Vision协议端口"
         echo
+
         mapfile -t result < <(initSingBoxPort "${singBoxVLESSRealityVisionPort}")
         echoContent green "\n ---> VLESS_Reality_Vision端口：${result[-1]}"
         cat <<EOF >/etc/v2ray-agent/sing-box/conf/config/07_VLESS_vision_reality_inbounds.json
@@ -4006,9 +4014,10 @@ EOF
     fi
 
     if echo "${selectCustomInstallType}" | grep -q 8 || [[ "$1" == "all" ]]; then
-        echoContent red "\n================== 配置VLESS+Reality+gRPC ==================\n"
+        echoContent yellow "\n================== 配置VLESS+Reality+gRPC ==================\n"
         initRealityClientServersName
         initRealityKey
+        echoContent skyBlue "\n开始配置VLESS+Reality+gRPC协议端口"
         echo
         mapfile -t result < <(initSingBoxPort "${singBoxVLESSRealityGRPCPort}")
         echoContent green "\n ---> VLESS_Reality_gPRC端口：${result[-1]}"
@@ -4050,7 +4059,8 @@ EOF
     fi
 
     if echo "${selectCustomInstallType}" | grep -q 6 || [[ "$1" == "all" ]]; then
-        echoContent red "\n================== 配置 Hysteria2 ==================\n"
+        echoContent yellow "\n================== 配置 Hysteria2 ==================\n"
+        echoContent skyBlue "\n开始配置Hysteria2协议端口"
         echo
         mapfile -t result < <(initSingBoxPort "${singBoxHysteria2Port}")
         echoContent green "\n ---> Hysteria2端口：${result[-1]}"
@@ -4083,7 +4093,8 @@ EOF
     fi
 
     if echo "${selectCustomInstallType}" | grep -q 9 || [[ "$1" == "all" ]]; then
-        echoContent red "\n==================== 配置 Tuic =====================\n"
+        echoContent yellow "\n==================== 配置 Tuic =====================\n"
+        echoContent skyBlue "\n开始配置Tuic协议端口"
         echo
         mapfile -t result < <(initSingBoxPort "${singBoxTuicPort}")
         echoContent green "\n ---> Tuic端口：${result[-1]}"
@@ -7167,9 +7178,11 @@ installSubscribe() {
     if [[ "${coreInstallType}" == "2" || "${selectCoreType}" == "2" ]] && [[ -z "${subscribePort}" ]]; then
 
         nginxVersion=$(nginx -v 2>&1)
-        echoContent yellow " ---> 配置订阅中\n"
+        echoContent yellow "开始配置订阅，请输入订阅的端口\n"
 
         mapfile -t result < <(initSingBoxPort "${subscribePort}")
+        echoContent yellow " ---> 开始配置订阅的伪装站点\n"
+        nginxBlog
 
         if ( ([[ -n "${selectCustomInstallType}" ]] && ! echo "${selectCustomInstallType}" | grep -q -E "0|1|2|3|4|5|6|9") || ([[ -n "${currentInstallProtocolType}" ]] && ! echo "${currentInstallProtocolType}" | grep -q -E "0|1|2|3|4|5|6|9")) && [[ "${selectInstallType}" == "2" || "${coreInstallType}" == "2" ]]; then
             echoContent green "未发现tls证书，使用无加密订阅，可能被运营商拦截。请注意风险"
@@ -7671,6 +7684,7 @@ subscribe() {
     readInstallProtocolType
 
     installSubscribe
+
     readNginxSubscribe
     if [[ "${coreInstallType}" == "1" || "${coreInstallType}" == "2" ]]; then
 
@@ -7860,7 +7874,7 @@ switchAlpn() {
 
 # 初始化realityKey
 initRealityKey() {
-    echoContent skyBlue "\n========================= 生成key ==========================\n"
+    echoContent skyBlue "\n生成Reality key\n"
     if [[ -n "${currentRealityPublicKey}" ]]; then
         read -r -p "读取到上次安装记录，是否使用上次安装时的PublicKey/PrivateKey ？[y/n]:" historyKeyStatus
         if [[ "${historyKeyStatus}" == "y" ]]; then
@@ -8269,7 +8283,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.1.13"
+    echoContent green "当前版本：v3.1.14"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
@@ -8286,9 +8300,12 @@ menu() {
     fi
 
     echoContent yellow "2.任意组合安装"
-    echoContent yellow "4.Hysteria2管理"
-    #    echoContent yellow "5.REALITY管理"
-    echoContent yellow "6.Tuic管理"
+    if [[ "${coreInstallType}" != "2" ]]; then
+        echoContent yellow "4.Hysteria2管理"
+        #    echoContent yellow "5.REALITY管理"
+        echoContent yellow "6.Tuic管理"
+    fi
+
     echoContent skyBlue "-------------------------工具管理-----------------------------"
     echoContent yellow "7.账号管理"
     echoContent yellow "8.更换伪装站"
