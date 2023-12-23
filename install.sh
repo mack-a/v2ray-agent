@@ -366,10 +366,13 @@ readInstallType() {
                 if [[ -f "${configPath}07_VLESS_vision_reality_inbounds.json" ]]; then
                     realityStatus=1
                 fi
+                if [[ -f "/etc/v2ray-agent/sing-box/conf/config/06_hysteria2_inbounds.json" || -f "/etc/v2ray-agent/sing-box/conf/config/09_tuic_inbounds.json" ]]; then
+                    singBoxConfigPath=/etc/v2ray-agent/sing-box/conf/config/
+                fi
             fi
-        fi
-        # 检测sing-box
-        if [[ -d "/etc/v2ray-agent/sing-box" && -f "/etc/v2ray-agent/sing-box/sing-box" && -f "/etc/v2ray-agent/sing-box/conf/config.json" ]]; then
+        elif [[ -d "/etc/v2ray-agent/sing-box" && -f "/etc/v2ray-agent/sing-box/sing-box" && -f "/etc/v2ray-agent/sing-box/conf/config.json" ]]; then
+            # 检测sing-box
+            ctlPath=/etc/v2ray-agent/sing-box/sing-box
             coreInstallType=2
             configPath=/etc/v2ray-agent/sing-box/conf/config/
             singBoxConfigPath=/etc/v2ray-agent/sing-box/conf/config/
@@ -381,6 +384,15 @@ readInstallType() {
 readInstallProtocolType() {
     currentInstallProtocolType=
     frontingType=
+    singBoxVLESSVisionPort=
+    singBoxHysteria2Port=
+    frontingTypeReality=
+    singBoxVLESSRealityVisionPort=
+    singBoxVLESSRealityVisionServerName=
+    singBoxVLESSRealityGRPCPort=
+    singBoxVLESSRealityGRPCServerName=
+    singBoxTuicPort=
+    singBoxHysteria2Port=
 
     while read -r row; do
         if echo "${row}" | grep -q VLESS_TCP_inbounds; then
@@ -408,13 +420,14 @@ readInstallProtocolType() {
         if echo "${row}" | grep -q hysteria2_inbounds; then
             currentInstallProtocolType=${currentInstallProtocolType}'6'
             if [[ "${coreInstallType}" == "2" ]]; then
-                frontingType=hysteria2_inbounds
+                frontingType=06_hysteria2_inbounds
                 singBoxHysteria2Port=$(jq .inbounds[0].listen_port "${row}.json")
             fi
         fi
         if echo "${row}" | grep -q VLESS_vision_reality_inbounds; then
             currentInstallProtocolType=${currentInstallProtocolType}'7'
             if [[ "${coreInstallType}" == "2" ]]; then
+                frontingTypeReality=07_VLESS_vision_reality_inbounds
                 singBoxVLESSRealityVisionPort=$(jq -r .inbounds[0].listen_port "${row}.json")
                 singBoxVLESSRealityVisionServerName=$(jq -r .inbounds[0].tls.server_name "${row}.json")
                 if [[ -f "${configPath}reality_key" ]]; then
@@ -425,6 +438,7 @@ readInstallProtocolType() {
         if echo "${row}" | grep -q VLESS_vision_gRPC_inbounds; then
             currentInstallProtocolType=${currentInstallProtocolType}'8'
             if [[ "${coreInstallType}" == "2" ]]; then
+                frontingTypeReality=08_VLESS_vision_gRPC_inbounds
                 singBoxVLESSRealityGRPCPort=$(jq -r .inbounds[0].listen_port "${row}.json")
                 singBoxVLESSRealityGRPCServerName=$(jq -r .inbounds[0].tls.server_name "${row}.json")
                 if [[ -f "${configPath}reality_key" ]]; then
@@ -435,7 +449,7 @@ readInstallProtocolType() {
         if echo "${row}" | grep -q tuic_inbounds; then
             currentInstallProtocolType=${currentInstallProtocolType}'9'
             if [[ "${coreInstallType}" == "2" ]]; then
-                frontingType=tuic_inbounds
+                frontingType=09_tuic_inbounds
                 singBoxTuicPort=$(jq .inbounds[0].listen_port "${row}.json")
             fi
 
@@ -443,11 +457,15 @@ readInstallProtocolType() {
 
     done < <(find ${configPath} -name "*inbounds.json" | awk -F "[.]" '{print $1}')
 
-    if [[ "${coreInstallType}" == "1" && -n "${singBoxConfigPath}" && -f "/etc/v2ray-agent/sing-box/conf/06_hysteria2_inbounds.json" ]]; then
-        currentInstallProtocolType=${currentInstallProtocolType}'6'
-    fi
-    if [[ "${coreInstallType}" == "1" && -n "${singBoxConfigPath}" && -f "/etc/v2ray-agent/sing-box/conf/09_tuic_inbounds.json" ]]; then
-        currentInstallProtocolType=${currentInstallProtocolType}'9'
+    if [[ "${coreInstallType}" == "1" && -n "${singBoxConfigPath}" ]]; then
+        if [[ -f "${singBoxConfigPath}06_hysteria2_inbounds.json" ]]; then
+            currentInstallProtocolType=${currentInstallProtocolType}'6'
+            singBoxHysteria2Port=$(jq .inbounds[0].listen_port "${singBoxConfigPath}06_hysteria2_inbounds.json")
+        fi
+        if [[ -f "${singBoxConfigPath}09_tuic_inbounds.json" ]]; then
+            currentInstallProtocolType=${currentInstallProtocolType}'9'
+            singBoxTuicPort=$(jq .inbounds[0].listen_port "${singBoxConfigPath}09_tuic_inbounds.json")
+        fi
     fi
 }
 
@@ -588,6 +606,8 @@ checkFirewalldAllowPort() {
 
 # 读取Tuic配置
 readSingBoxConfig() {
+    tuicPort=
+    hysteriaPort=
     if [[ -n "${singBoxConfigPath}" ]]; then
 
         if [[ -f "${singBoxConfigPath}09_tuic_inbounds.json" ]]; then
@@ -599,7 +619,6 @@ readSingBoxConfig() {
             hysteria2ClientUploadSpeed=$(jq -r '.inbounds[0].down_mbps' "${singBoxConfigPath}06_hysteria2_inbounds.json")
             hysteria2ClientDownloadSpeed=$(jq -r '.inbounds[0].up_mbps' "${singBoxConfigPath}06_hysteria2_inbounds.json")
         fi
-
     fi
 }
 
@@ -608,12 +627,12 @@ unInstallSingBox() {
     local type=$1
     if [[ -n "${singBoxConfigPath}" ]]; then
         if grep -q 'tuic' </etc/v2ray-agent/sing-box/conf/config.json && [[ "${type}" == "tuic" ]]; then
-            rm "${singBoxConfigPath}tuic.json"
+            rm "${singBoxConfigPath}09_tuic_inbounds.json"
             echoContent green " ---> 删除sing-box tuic配置成功"
         fi
 
         if grep -q 'hysteria2' </etc/v2ray-agent/sing-box/conf/config.json && [[ "${type}" == "hysteria2" ]]; then
-            rm "${singBoxConfigPath}hysteria2.json"
+            rm "${singBoxConfigPath}06_hysteria2_inbounds.json"
             echoContent green " ---> 删除sing-box hysteria2配置成功"
         fi
         rm "${singBoxConfigPath}config.json"
@@ -692,16 +711,21 @@ readConfigHostPathUUID() {
             fi
         fi
     elif [[ "${coreInstallType}" == "2" ]]; then
-        currentHost=$(jq -r .inbounds[0].tls.server_name ${configPath}${frontingType}.json)
+        if [[ -n "${frontingType}" ]]; then
+            currentHost=$(jq -r .inbounds[0].tls.server_name ${configPath}${frontingType}.json)
+            currentUUID=$(jq -r .inbounds[0].users[0].uuid ${configPath}${frontingType}.json)
+            currentClients=$(jq -r .inbounds[0].users ${configPath}${frontingType}.json)
+        else
+            currentUUID=$(jq -r .inbounds[0].users[0].uuid ${configPath}${frontingTypeReality}.json)
+            currentClients=$(jq -r .inbounds[0].users ${configPath}${frontingTypeReality}.json)
+        fi
 
-        #        currentAdd=$(jq -r .inbounds[0].settings.clients[0].add ${configPath}${frontingType}.json)
+        # currentAdd=$(jq -r .inbounds[0].settings.clients[0].add ${configPath}${frontingType}.json)
 
         if [[ "${currentAdd}" == "null" ]]; then
             currentAdd=${currentHost}
         fi
-        currentUUID=$(jq -r .inbounds[0].users[0].uuid ${configPath}${frontingType}.json)
-        #        currentPort=$(jq .inbounds[0].port ${configPath}${frontingType}.json)
-        currentClients=$(jq -r .inbounds[0].users ${configPath}${frontingType}.json)
+
     fi
 
     # 读取path
@@ -2059,9 +2083,8 @@ v2rayVersionManageMenu() {
 # xray版本管理
 xrayVersionManageMenu() {
     echoContent skyBlue "\n进度  $1/${totalProgress} : Xray版本管理"
-    if [[ ! -d "/etc/v2ray-agent/xray/" ]]; then
+    if [[ "${coreInstallType}" != "1" ]]; then
         echoContent red " ---> 没有检测到安装目录，请执行脚本安装内容"
-        menu
         exit 0
     fi
     echoContent red "\n=============================================================="
@@ -2073,6 +2096,7 @@ xrayVersionManageMenu() {
     echoContent yellow "6.重启Xray-core"
     echoContent yellow "7.更新geosite、geoip"
     echoContent yellow "8.设置自动更新geo文件[每天凌晨更新]"
+    echoContent yellow "9.查看日志"
     echoContent red "=============================================================="
     read -r -p "请选择:" selectXrayType
     if [[ "${selectXrayType}" == "1" ]]; then
@@ -2106,6 +2130,8 @@ xrayVersionManageMenu() {
         updateGeoSite
     elif [[ "${selectXrayType}" == "8" ]]; then
         installCronUpdateGeo
+    elif [[ "${selectXrayType}" == "9" ]]; then
+        checkLog 1
     fi
 }
 
@@ -2571,8 +2597,8 @@ initXrayClients() {
     local users=
     users=[]
     while read -r user; do
-        uuid=$(echo "${user}" | jq -r .id)
-        email=$(echo "${user}" | jq -r .email | awk -F "[-]" '{print $1}')
+        uuid=$(echo "${user}" | jq -r .id//.uuid)
+        email=$(echo "${user}" | jq -r .email//.name | awk -F "[-]" '{print $1}')
         currentUser=
         if echo "${type}" | grep -q "0"; then
             currentUser="{\"id\":\"${uuid}\",\"flow\":\"xtls-rprx-vision\",\"email\":\"${email}-VLESS_TCP/TLS_Vision\"}"
@@ -3278,7 +3304,9 @@ singBoxTuicInstall() {
 
     totalProgress=5
     installSingBox 1
-    initSingBoxTuicConfig 2
+    selectCustomInstallType=9
+    #    initSingBoxTuicConfig 2
+    initSingBoxConfig custom 2
     installSingBoxService 3
     reloadCore
     showAccounts 4
@@ -3297,7 +3325,8 @@ singBoxHysteria2Install() {
 
     totalProgress=5
     installSingBox 1
-    initSingBoxHysteria2Config 2
+    selectCustomInstallType=6
+    initSingBoxConfig custom 2
     installSingBoxService 3
     reloadCore
     showAccounts 4
@@ -3850,9 +3879,16 @@ initTCPBrutal() {
 # 初始化sing-box配置文件
 initSingBoxConfig() {
     echoContent skyBlue "\n进度 $2/${totalProgress} : 初始化sing-box配置"
+
     echo
     local uuid=
     local addClientsStatus=
+    local sslDomain=
+    if [[ -n "${domain}" ]]; then
+        sslDomain="${domain}"
+    elif [[ -n "${currentHost}" ]]; then
+        sslDomain="${currentHost}"
+    fi
     if [[ -n "${currentUUID}" ]]; then
         read -r -p "读取到上次用户配置，是否使用上次安装的配置 ？[y/n]:" historyUUIDStatus
         if [[ "${historyUUIDStatus}" == "y" ]]; then
@@ -3911,17 +3947,17 @@ initSingBoxConfig() {
           "tag":"VLESSTCP",
           "users":$(initSingBoxClients 0),
           "tls":{
-            "server_name": "${domain}",
+            "server_name": "${sslDomain}",
             "enabled": true,
-            "certificate_path": "/etc/v2ray-agent/tls/${domain}.crt",
-            "key_path": "/etc/v2ray-agent/tls/${domain}.key"
+            "certificate_path": "/etc/v2ray-agent/tls/${sslDomain}.crt",
+            "key_path": "/etc/v2ray-agent/tls/${sslDomain}.key"
           }
         }
     ]
 }
 EOF
     else
-        rm /etc/v2ray-agent/sing-box/conf/config/01_VLESS_TCP_inbounds.json >/dev/null 2>&1
+        rm /etc/v2ray-agent/sing-box/conf/config/02_VLESS_TCP_inbounds.json >/dev/null 2>&1
     fi
 
     # VLESS_Reality_Vision
@@ -3962,7 +3998,7 @@ EOF
 }
 EOF
     else
-        rm /etc/v2ray-agent/sing-box/conf/config/02_VLESS_vision_reality_inbounds.json >/dev/null 2>&1
+        rm /etc/v2ray-agent/sing-box/conf/config/07_VLESS_vision_reality_inbounds.json >/dev/null 2>&1
     fi
 
     if echo "${selectCustomInstallType}" | grep -q 8 || [[ "$1" == "all" ]]; then
@@ -4006,7 +4042,7 @@ EOF
 }
 EOF
     else
-        rm /etc/v2ray-agent/sing-box/conf/03_VLESS_vision_gRPC_inbounds.json >/dev/null 2>&1
+        rm /etc/v2ray-agent/sing-box/conf/config/08_VLESS_vision_gRPC_inbounds.json >/dev/null 2>&1
     fi
 
     if echo "${selectCustomInstallType}" | grep -q 6 || [[ "$1" == "all" ]]; then
@@ -4015,7 +4051,6 @@ EOF
         mapfile -t result < <(initSingBoxPort "${singBoxHysteria2Port}")
         echoContent green "\n ---> Hysteria2端口：${result[-1]}"
         initHysteria2Network
-
         cat <<EOF >/etc/v2ray-agent/sing-box/conf/config/06_hysteria2_inbounds.json
 {
     "inbounds": [
@@ -4028,23 +4063,23 @@ EOF
             "down_mbps":${hysteria2ClientUploadSpeed},
             "tls": {
                 "enabled": true,
-                "server_name":"${domain}",
+                "server_name":"${sslDomain}",
                 "alpn": [
                     "h3"
                 ],
-                "certificate_path": "/etc/v2ray-agent/tls/${domain}.crt",
-                "key_path": "/etc/v2ray-agent/tls/${domain}.key"
+                "certificate_path": "/etc/v2ray-agent/tls/${sslDomain}.crt",
+                "key_path": "/etc/v2ray-agent/tls/${sslDomain}.key"
             }
         }
     ]
 }
 EOF
     else
-        rm /etc/v2ray-agent/sing-box/conf/06_hysteria2_inbounds.json >/dev/null 2>&1
+        rm /etc/v2ray-agent/sing-box/conf/config/06_hysteria2_inbounds.json >/dev/null 2>&1
     fi
 
     if echo "${selectCustomInstallType}" | grep -q 9 || [[ "$1" == "all" ]]; then
-        echoContent red "\n================== 配置 Tuic ==================\n"
+        echoContent red "\n==================== 配置 Tuic =====================\n"
         echo
         mapfile -t result < <(initSingBoxPort "${singBoxTuicPort}")
         echoContent green "\n ---> Tuic端口：${result[-1]}"
@@ -4061,19 +4096,19 @@ EOF
             "congestion_control": "${tuicAlgorithm}",
             "tls": {
                 "enabled": true,
-                "server_name":"${domain}",
+                "server_name":"${sslDomain}",
                 "alpn": [
                     "h3"
                 ],
-                "certificate_path": "/etc/v2ray-agent/tls/${domain}.crt",
-                "key_path": "/etc/v2ray-agent/tls/${domain}.key"
+                "certificate_path": "/etc/v2ray-agent/tls/${sslDomain}.crt",
+                "key_path": "/etc/v2ray-agent/tls/${sslDomain}.key"
             }
         }
     ]
 }
 EOF
     else
-        rm /etc/v2ray-agent/sing-box/conf/09_tuic_inbounds.json >/dev/null 2>&1
+        rm /etc/v2ray-agent/sing-box/conf/config/09_tuic_inbounds.json >/dev/null 2>&1
     fi
 }
 # 初始化Xray Reality配置
@@ -4419,16 +4454,14 @@ showAccounts() {
     readInstallType
     readInstallProtocolType
     readConfigHostPathUUID
-    readSingBoxConfig
     readXrayCoreRealityConfig
+    readSingBoxConfig
 
     echo
     echoContent skyBlue "\n进度 $1/${totalProgress} : 账号"
-    local show
 
     # VLESS TCP
     if echo ${currentInstallProtocolType} | grep -q 0; then
-        show=1
 
         echoContent skyBlue "============================= VLESS TCP TLS_Vision [推荐] ==============================\n"
         jq .inbounds[0].settings.clients//.inbounds[0].users ${configPath}02_VLESS_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
@@ -4539,19 +4572,22 @@ showAccounts() {
         done
     fi
     # hysteria2
-    if echo ${currentInstallProtocolType} | grep -q 6; then
+    if echo ${currentInstallProtocolType} | grep -q 6 || [[ -n "${hysteriaPort}" ]]; then
         echoContent skyBlue "\n================================  Hysteria2 TLS [推荐] ================================\n"
-        jq -r -c '.inbounds[]|.users[]' "${configPath}06_hysteria2_inbounds.json" | while read -r user; do
+        local path="${configPath}"
+        if [[ "${coreInstallType}" == "1" ]]; then
+            path="${singBoxConfigPath}"
+        fi
+        jq -r -c '.inbounds[]|.users[]' "${path}06_hysteria2_inbounds.json" | while read -r user; do
             echoContent skyBlue "\n ---> 账号:$(echo "${user}" | jq -r .name)"
             echo
-            defaultBase64Code hysteria "${currentDefaultPort}${singBoxHysteria2Port}" "$(echo "${user}" | jq -r .name)" "$(echo "${user}" | jq -r .password)"
+            defaultBase64Code hysteria "${singBoxHysteria2Port}" "$(echo "${user}" | jq -r .name)" "$(echo "${user}" | jq -r .password)"
         done
 
     fi
 
     # VLESS reality vision
     if echo ${currentInstallProtocolType} | grep -q 7; then
-        show=1
         echoContent skyBlue "============================= VLESS reality_vision [推荐]  ==============================\n"
         jq .inbounds[0].settings.clients//.inbounds[0].users ${configPath}07_VLESS_vision_reality_inbounds.json | jq -c '.[]' | while read -r user; do
             local email=
@@ -4564,7 +4600,6 @@ showAccounts() {
     fi
     # VLESS reality gRPC
     if echo ${currentInstallProtocolType} | grep -q 8; then
-        show=1
         echoContent skyBlue "============================== VLESS reality_gRPC [推荐] ===============================\n"
         jq .inbounds[0].settings.clients//.inbounds[0].users ${configPath}08_VLESS_vision_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
             local email=
@@ -4576,18 +4611,18 @@ showAccounts() {
         done
     fi
     # tuic
-    if echo ${currentInstallProtocolType} | grep -q 9; then
+    if echo ${currentInstallProtocolType} | grep -q 9 || [[ -n "${tuicPort}" ]]; then
         echoContent skyBlue "\n================================  Tuic TLS [推荐]  ================================\n"
-        jq -r -c '.inbounds[].users[]' "${configPath}09_tuic_inbounds.json" | while read -r user; do
+        local path="${configPath}"
+        if [[ "${coreInstallType}" == "1" ]]; then
+            path="${singBoxConfigPath}"
+        fi
+        jq -r -c '.inbounds[].users[]' "${path}09_tuic_inbounds.json" | while read -r user; do
             echoContent skyBlue "\n ---> 账号:$(echo "${user}" | jq -r .name)"
             echo
-            defaultBase64Code tuic "${currentDefaultPort}${singBoxTuicPort}" "$(echo "${user}" | jq -r .name)" "$(echo "${user}" | jq -r .uuid)_$(echo "${user}" | jq -r .password)"
+            defaultBase64Code tuic "${singBoxTuicPort}" "$(echo "${user}" | jq -r .name)" "$(echo "${user}" | jq -r .uuid)_$(echo "${user}" | jq -r .password)"
         done
 
-    fi
-
-    if [[ -z ${show} ]]; then
-        echoContent red " ---> 未安装"
     fi
 }
 # 移除nginx302配置
@@ -4948,7 +4983,12 @@ customUUID() {
     read -r -p "请输入合法的UUID，[回车]随机UUID:" currentCustomUUID
     echo
     if [[ -z "${currentCustomUUID}" ]]; then
-        currentCustomUUID=$(${ctlPath} uuid)
+        if [[ "${selectInstallType}" == "1" || "${coreInstallType}" == "1" ]]; then
+            currentCustomUUID=$(${ctlPath} uuid)
+        elif [[ "${selectInstallType}" == "2" || "${coreInstallType}" == "2" ]]; then
+            currentCustomUUID=$(${ctlPath} generate uuid)
+        fi
+
         echoContent yellow "uuid：${currentCustomUUID}\n"
 
     else
@@ -5001,6 +5041,12 @@ addUser() {
         echoContent red " ---> 输入有误，请重新输入"
         exit 0
     fi
+    local userConfig=
+    if [[ "${coreInstallType}" == "1" ]]; then
+        userConfig=".inbounds[0].settings.clients"
+    elif [[ "${coreInstallType}" == "2" ]]; then
+        userConfig=".inbounds[0].users"
+    fi
 
     while [[ ${userNum} -gt 0 ]]; do
         readConfigHostPathUUID
@@ -5019,10 +5065,9 @@ addUser() {
             if [[ "${coreInstallType}" == "1" ]]; then
                 clients=$(initXrayClients 0 "${uuid}" "${email}")
             elif [[ "${coreInstallType}" == "2" ]]; then
-                clients=$(initXrayClients 0 "${uuid}" "${email}")
+                clients=$(initSingBoxClients 0 "${uuid}" "${email}")
             fi
-
-            clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}${frontingType}.json)
+            clients=$(jq -r "${userConfig} = ${clients}" ${configPath}${frontingType}.json)
             echo "${clients}" | jq . >${configPath}${frontingType}.json
         fi
 
@@ -5035,7 +5080,7 @@ addUser() {
                 clients=$(initSingBoxClients 1 "${uuid}" "${email}")
             fi
 
-            clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}03_VLESS_WS_inbounds.json)
+            clients=$(jq -r "${userConfig} = ${clients}" ${configPath}03_VLESS_WS_inbounds.json)
             echo "${clients}" | jq . >${configPath}03_VLESS_WS_inbounds.json
         fi
 
@@ -5048,7 +5093,7 @@ addUser() {
                 clients=$(initSingBoxClients 2 "${uuid}" "${email}")
             fi
 
-            clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}04_trojan_gRPC_inbounds.json)
+            clients=$(jq -r "${userConfig} = ${clients}" ${configPath}04_trojan_gRPC_inbounds.json)
             echo "${clients}" | jq . >${configPath}04_trojan_gRPC_inbounds.json
         fi
         # VMess WS
@@ -5060,7 +5105,7 @@ addUser() {
                 clients=$(initSingBoxClients 3 "${uuid}" "${email}")
             fi
 
-            clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}05_VMess_WS_inbounds.json)
+            clients=$(jq -r "${userConfig} = ${clients}" ${configPath}05_VMess_WS_inbounds.json)
             echo "${clients}" | jq . >${configPath}05_VMess_WS_inbounds.json
         fi
 
@@ -5072,7 +5117,7 @@ addUser() {
             elif [[ "${coreInstallType}" == "2" ]]; then
                 clients=$(initSingBoxClients 4 "${uuid}" "${email}")
             fi
-            clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}04_trojan_TCP_inbounds.json)
+            clients=$(jq -r "${userConfig} = ${clients}" ${configPath}04_trojan_TCP_inbounds.json)
             echo "${clients}" | jq . >${configPath}04_trojan_TCP_inbounds.json
         fi
 
@@ -5084,7 +5129,7 @@ addUser() {
             elif [[ "${coreInstallType}" == "2" ]]; then
                 clients=$(initSingBoxClients 5 "${uuid}" "${email}")
             fi
-            clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}06_VLESS_gRPC_inbounds.json)
+            clients=$(jq -r "${userConfig} = ${clients}" ${configPath}06_VLESS_gRPC_inbounds.json)
             echo "${clients}" | jq . >${configPath}06_VLESS_gRPC_inbounds.json
         fi
 
@@ -5096,7 +5141,7 @@ addUser() {
             elif [[ "${coreInstallType}" == "2" ]]; then
                 clients=$(initSingBoxClients 7 "${uuid}" "${email}")
             fi
-            clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}07_VLESS_vision_reality_inbounds.json)
+            clients=$(jq -r "${userConfig} = ${clients}" ${configPath}07_VLESS_vision_reality_inbounds.json)
             echo "${clients}" | jq . >${configPath}07_VLESS_vision_reality_inbounds.json
         fi
 
@@ -5108,7 +5153,7 @@ addUser() {
             elif [[ "${coreInstallType}" == "2" ]]; then
                 clients=$(initSingBoxClients 8 "${uuid}" "${email}")
             fi
-            clients=$(jq -r ".inbounds[0].settings.clients = ${clients}" ${configPath}08_VLESS_vision_gRPC_inbounds.json)
+            clients=$(jq -r "${userConfig} = ${clients}" ${configPath}08_VLESS_vision_gRPC_inbounds.json)
             echo "${clients}" | jq . >${configPath}08_VLESS_vision_gRPC_inbounds.json
         fi
 
@@ -5122,8 +5167,8 @@ addUser() {
                 clients=$(initSingBoxClients 6 "${uuid}" "${email}")
             fi
 
-            clients=$(jq -r ".inbounds[0].users = ${clients}" "${singBoxConfigPath}hysteria2.json")
-            echo "${clients}" | jq . >"${singBoxConfigPath}hysteria2.json"
+            clients=$(jq -r ".inbounds[0].users = ${clients}" "${singBoxConfigPath}06_hysteria2_inbounds.json")
+            echo "${clients}" | jq . >"${singBoxConfigPath}06_hysteria2_inbounds.json"
         fi
 
         # tuic
@@ -5135,9 +5180,9 @@ addUser() {
                 clients=$(initSingBoxClients 9 "${uuid}" "${email}")
             fi
 
-            clients=$(jq -r ".inbounds[0].users = ${clients}" "${singBoxConfigPath}tuic.json")
+            clients=$(jq -r ".inbounds[0].users = ${clients}" "${singBoxConfigPath}09_tuic_inbounds.json")
 
-            echo "${clients}" | jq . >"${singBoxConfigPath}tuic.json"
+            echo "${clients}" | jq . >"${singBoxConfigPath}09_tuic_inbounds.json"
         fi
     done
     reloadCore
@@ -5146,34 +5191,36 @@ addUser() {
 }
 # 移除用户
 removeUser() {
+    local userConfigType=
+    if [[ -n "${frontingType}" ]]; then
+        userConfigType="${frontingType}"
+    elif [[ -n "${frontingTypeReality}" ]]; then
+        userConfigType="${frontingTypeReality}"
+    fi
+
     local uuid=
-    if echo ${currentInstallProtocolType} | grep -q 0 || echo ${currentInstallProtocolType} | grep -q trojan; then
-        jq -r -c .inbounds[0].settings.clients[].email ${configPath}${frontingType}.json | awk '{print NR""":"$0}'
-        read -r -p "请选择要删除的用户编号[仅支持单个删除]:" delUserIndex
-        if [[ $(jq -r '.inbounds[0].settings.clients|length' ${configPath}${frontingType}.json) -lt ${delUserIndex} ]]; then
-            echoContent red " ---> 选择错误"
-        else
-            delUserIndex=$((delUserIndex - 1))
-            local vlessTcpResult
-            uuid=$(jq -r ".inbounds[0].settings.clients[${delUserIndex}].id" ${configPath}${frontingType}.json)
-            vlessTcpResult=$(jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])' ${configPath}${frontingType}.json)
-            echo "${vlessTcpResult}" | jq . >${configPath}${frontingType}.json
+    if [[ -n "${userConfigType}" ]]; then
+        if [[ "${coreInstallType}" == "1" ]]; then
+            jq -r -c .inbounds[0].settings.clients[].email ${configPath}${userConfigType}.json | awk '{print NR""":"$0}'
+        elif [[ "${coreInstallType}" == "2" ]]; then
+            jq -r -c .inbounds[0].users[].name ${configPath}${userConfigType}.json | awk '{print NR""":"$0}'
         fi
-    elif [[ -n "${realityStatus}" ]]; then
-        jq -r -c .inbounds[0].settings.clients[].email ${configPath}07_VLESS_vision_reality_inbounds.json | awk '{print NR""":"$0}'
+
         read -r -p "请选择要删除的用户编号[仅支持单个删除]:" delUserIndex
-        if [[ $(jq -r '.inbounds[0].settings.clients|length' ${configPath}07_VLESS_vision_reality_inbounds.json) -lt ${delUserIndex} ]]; then
+        if [[ $(jq -r '.inbounds[0].settings.clients|length' ${configPath}${userConfigType}.json) -lt ${delUserIndex} && $(jq -r '.inbounds[0].users|length' ${configPath}${userConfigType}.json) -lt ${delUserIndex} ]]; then
             echoContent red " ---> 选择错误"
         else
             delUserIndex=$((delUserIndex - 1))
-            local vlessRealityResult
-            uuid=$(jq -r ".inbounds[0].settings.clients[${delUserIndex}].id" ${configPath}${frontingType}.json)
-            vlessRealityResult=$(jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])' ${configPath}07_VLESS_vision_reality_inbounds.json)
-            echo "${vlessRealityResult}" | jq . >${configPath}07_VLESS_vision_reality_inbounds.json
         fi
     fi
 
     if [[ -n "${delUserIndex}" ]]; then
+
+        if echo ${currentInstallProtocolType} | grep -q 0; then
+            local vlessVision
+            vlessVision=$(jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}']//.inbounds[0].users['${delUserIndex}'])' ${configPath}02_VLESS_TCP_inbounds.json)
+            echo "${vlessVision}" | jq . >${configPath}02_VLESS_TCP_inbounds.json
+        fi
         if echo ${currentInstallProtocolType} | grep -q 1; then
             local vlessWSResult
             vlessWSResult=$(jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])' ${configPath}03_VLESS_WS_inbounds.json)
@@ -5206,24 +5253,24 @@ removeUser() {
 
         if echo ${currentInstallProtocolType} | grep -q 7; then
             local vlessRealityResult
-            vlessRealityResult=$(jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])' ${configPath}07_VLESS_vision_reality_inbounds.json)
+            vlessRealityResult=$(jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}']//.inbounds[0].users['${delUserIndex}'])' ${configPath}07_VLESS_vision_reality_inbounds.json)
             echo "${vlessRealityResult}" | jq . >${configPath}07_VLESS_vision_reality_inbounds.json
         fi
         if echo ${currentInstallProtocolType} | grep -q 8; then
             local vlessRealityGRPCResult
-            vlessRealityGRPCResult=$(jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}'])' ${configPath}08_VLESS_vision_gRPC_inbounds.json)
+            vlessRealityGRPCResult=$(jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}']//.inbounds[0].users['${delUserIndex}'])' ${configPath}08_VLESS_vision_gRPC_inbounds.json)
             echo "${vlessRealityGRPCResult}" | jq . >${configPath}08_VLESS_vision_gRPC_inbounds.json
         fi
 
         if echo ${currentInstallProtocolType} | grep -q 6; then
             local hysteriaResult
-            hysteriaResult=$(jq -r 'del(.inbounds[0].users['${delUserIndex}'])' "${singBoxConfigPath}hysteria2.json")
-            echo "${hysteriaResult}" | jq . >"${singBoxConfigPath}hysteria2.json"
+            hysteriaResult=$(jq -r 'del(.inbounds[0].users['${delUserIndex}'])' "${singBoxConfigPath}06_hysteria2_inbounds.json")
+            echo "${hysteriaResult}" | jq . >"${singBoxConfigPath}06_hysteria2_inbounds.json"
         fi
         if echo ${currentInstallProtocolType} | grep -q 9; then
             local tuicResult
-            tuicResult=$(jq -r 'del(.inbounds[0].users['${delUserIndex}'])' "${singBoxConfigPath}tuic.json")
-            echo "${tuicResult}" | jq . >"${singBoxConfigPath}tuic.json"
+            tuicResult=$(jq -r 'del(.inbounds[0].users['${delUserIndex}'])' "${singBoxConfigPath}09_tuic_inbounds.json")
+            echo "${tuicResult}" | jq . >"${singBoxConfigPath}09_tuic_inbounds.json"
         fi
         reloadCore
     fi
@@ -6532,7 +6579,8 @@ reloadCore() {
     if [[ "${coreInstallType}" == "1" ]]; then
         handleXray stop
         handleXray start
-    elif [[ "${coreInstallType}" == "2" ]]; then
+    fi
+    if [[ "${coreInstallType}" == "2" || -n "${singBoxConfigPath}" ]]; then
         handleSingBox stop
         handleSingBox start
     fi
@@ -6736,21 +6784,25 @@ EOF
 customSingBoxInstall() {
     echoContent skyBlue "\n========================个性化安装============================"
     echoContent yellow "0.VLESS+Vision+TCP"
+    echoContent yellow "6.Hysteria2"
     echoContent yellow "7.VLESS+Reality+Vision"
     echoContent yellow "8.VLESS+Reality+gRPC"
-    #    echoContent yellow "4.Hysteria2"
-    #    echoContent yellow "5.Tuic"
+    echoContent yellow "9.Tuic"
+
     read -r -p "请选择[多选]，[例如:123]:" selectCustomInstallType
     echoContent skyBlue "--------------------------------------------------------------"
 
-    if [[ "${selectCustomInstallType}" =~ ^[0-8]+$ ]]; then
-        checkBTPanel
+    if [[ "${selectCustomInstallType}" =~ ^[0-9]+$ ]]; then
+        #        checkBTPanel
         totalProgress=17
         installTools 1
         # 申请tls
-        initTLSNginxConfig 2
-        installTLS 3
-        handleNginx stop
+        if echo "${selectCustomInstallType}" | grep -q -E "0|6|9"; then
+            initTLSNginxConfig 2
+            installTLS 3
+            handleNginx stop
+        fi
+
         # 随机path
         #        if echo "${selectCustomInstallType}" | grep -q 1 || echo "${selectCustomInstallType}" | grep -q 3 || echo "${selectCustomInstallType}" | grep -q 4; then
         #            randomPathFunction 5
@@ -6760,19 +6812,17 @@ customSingBoxInstall() {
         #        updateRedirectNginxConf
         #        handleNginx start
 
-        # 安装V2Ray
-        #        installV2Ray 8
-        installSingBox
-        #        installV2RayService 9
-        installSingBoxService
-        initSingBoxConfig custom 10
+        installSingBox 4
+        installSingBoxService 5
+        initSingBoxConfig custom 6
+        unInstallSubscribe
         cleanUp xrayDel
-        installCronTLS 14
+        installCronTLS 7
         handleSingBox stop
         handleSingBox start
         # 生成账号
-        #        checkGFWStatue 15
-        #        showAccounts 16
+        checkGFWStatue 8
+        showAccounts 9
     else
         echoContent red " ---> 输入不合法"
         customSingBoxInstall
@@ -6874,8 +6924,6 @@ selectCoreInstall() {
         ;;
     2)
         if [[ "${selectInstallType}" == "2" ]]; then
-            echoContent red "\n ---> 暂不支持，请等待后续更新"
-            exit 0
             customSingBoxInstall
         else
             singBoxInstall
@@ -6970,14 +7018,10 @@ singBoxInstall() {
     cleanUp xrayDel
     installCronTLS 8
 
-    # updateRedirectNginxConf
-
     handleSingBox stop
-    handleNginx stop
     sleep 2
     handleSingBox start
 
-    #    handleNginx start
     # 生成账号
     #    checkGFWStatue 12
     showAccounts 9
@@ -7056,7 +7100,7 @@ coreVersionManageMenu() {
 
     if [[ "${selectCore}" == "1" ]]; then
         xrayVersionManageMenu 1
-    elif [[ "${coreInstallType}" == "2" ]]; then
+    elif [[ "${selectCore}" == "2" ]]; then
         singBoxVersionManageMenu 1
     fi
 }
@@ -7102,10 +7146,6 @@ manageAccount() {
     elif [[ "${manageAccountStatus}" == "4" ]]; then
         addUser
     elif [[ "${manageAccountStatus}" == "5" ]]; then
-        if [[ "${coreInstallType}" == "2" ]]; then
-            echoContent red "\n ---> 此功能仅支持Xray-core内核，请等待后续更新"
-            exit 0
-        fi
         removeUser
     else
         echoContent red " ---> 选择错误"
@@ -7123,9 +7163,11 @@ installSubscribe() {
     if [[ "${coreInstallType}" == "2" || "${selectCoreType}" == "2" ]] && [[ -z "${subscribePort}" ]]; then
 
         nginxVersion=$(nginx -v 2>&1)
-        echoContent skyBlue "配置https订阅\n"
+        echoContent yellow " ---> 配置订阅中\n"
+
         mapfile -t result < <(initSingBoxPort "${subscribePort}")
-        if ! echo "${selectCustomInstallType}" | grep -q -E "0|1|2|3|4|5|6｜9" && [[ "${selectInstallType}" == "2" ]]; then
+
+        if ( ([[ -n "${selectCustomInstallType}" ]] && ! echo "${selectCustomInstallType}" | grep -q -E "0|1|2|3|4|5|6|9") || ([[ -n "${currentInstallProtocolType}" ]] && ! echo "${currentInstallProtocolType}" | grep -q -E "0|1|2|3|4|5|6|9")) && [[ "${selectInstallType}" == "2" || "${coreInstallType}" == "2" ]]; then
             echoContent green "未发现tls证书，使用无加密订阅，可能被运营商拦截。请注意风险"
             read -r -p "是否使用[y/n]？" addNginxSubscribeStatus
             if [[ "${addNginxSubscribeStatus}" != "y" ]]; then
@@ -7165,6 +7207,8 @@ server {
     }
 }
 EOF
+        handleNginx stop
+        handleNginx start
     fi
 }
 # 卸载订阅
@@ -7621,10 +7665,9 @@ initRandomSalt() {
 # 订阅
 subscribe() {
     readInstallProtocolType
-    handleNginx stop
+
     installSubscribe
     readNginxSubscribe
-    handleNginx start
     if [[ "${coreInstallType}" == "1" || "${coreInstallType}" == "2" ]]; then
 
         echoContent skyBlue "-------------------------备注---------------------------------"
@@ -8080,11 +8123,10 @@ manageHysteria() {
     echoContent skyBlue "\n进度  1/1 : Hysteria2 管理"
     echoContent red "\n=============================================================="
     local hysteria2Status=
-    if [[ -n "${singBoxConfigPath}" ]] && [[ -f "/etc/v2ray-agent/sing-box/conf/config.json" ]] && grep -q 'hysteria2' </etc/v2ray-agent/sing-box/conf/config.json; then
+    if [[ -n "${singBoxConfigPath}" ]] && [[ -f "/etc/v2ray-agent/sing-box/conf/config/06_hysteria2_inbounds.json" ]]; then
         echoContent yellow " 依赖第三方sing-box\n"
         echoContent yellow "1.重新安装"
         echoContent yellow "2.卸载"
-        #        echoContent yellow "3.sing-box core管理"
         hysteria2Status=true
     else
         echoContent yellow "1.安装"
@@ -8105,7 +8147,7 @@ manageTuic() {
     echoContent skyBlue "\n进度  1/1 : Tuic管理"
     echoContent red "\n=============================================================="
     local tuicStatus=
-    if [[ -n "${singBoxConfigPath}" ]] && [[ -f "/etc/v2ray-agent/sing-box/conf/config.json" ]] && grep -q 'tuic' </etc/v2ray-agent/sing-box/conf/config.json; then
+    if [[ -n "${singBoxConfigPath}" ]] && [[ -f "/etc/v2ray-agent/sing-box/conf/config/09_tuic_inbounds.json" ]]; then
         echoContent yellow " 依赖第三方sing-box\n"
         echoContent yellow "1.重新安装"
         echoContent yellow "2.卸载"
@@ -8130,7 +8172,7 @@ singBoxLog() {
   "log": {
     "disabled": $1,
     "level": "debug",
-    "output": "/etc/v2ray-agent/sing-box/box.log",
+    "output": "/etc/v2ray-agent/sing-box/conf/box.log",
     "timestamp": true
   }
 }
@@ -8171,7 +8213,7 @@ hysteriaVersionManageMenu() {
 # sing-box 版本管理
 singBoxVersionManageMenu() {
     echoContent skyBlue "\n进度  $1/${totalProgress} : sing-box 版本管理"
-    if [[ ! -f "/etc/v2ray-agent/sing-box/sing-box" ]]; then
+    if [[ -z "${singBoxConfigPath}" ]]; then
         echoContent red " ---> 没有检测到安装程序，请执行脚本安装内容"
         menu
         exit 0
@@ -8195,6 +8237,9 @@ singBoxVersionManageMenu() {
     echoContent red "=============================================================="
 
     read -r -p "请选择:" selectSingBoxType
+    if [[ ! -f "${singBoxConfigPath}../box.log" ]]; then
+        touch "${singBoxConfigPath}../box.log" >/dev/null 2>&1
+    fi
     if [[ "${selectSingBoxType}" == "1" ]]; then
         installSingBox 1
         handleSingBox start
@@ -8220,7 +8265,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.1.6-beta"
+    echoContent green "当前版本：v3.1.12-beta"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
@@ -8254,7 +8299,7 @@ menu() {
     echoContent yellow "17.更新脚本"
     echoContent yellow "18.安装BBR、DD脚本"
     echoContent skyBlue "-------------------------脚本管理-----------------------------"
-    echoContent yellow "19.查看日志"
+    #    echoContent yellow "19.查看日志"
     echoContent yellow "20.卸载脚本"
     echoContent red "=============================================================="
     mkdirTools
@@ -8315,9 +8360,9 @@ menu() {
     18)
         bbrInstall
         ;;
-    19)
-        checkLog 1
-        ;;
+        #    19)
+        #        checkLog 1
+        #        ;;
     20)
         unInstall 1
         ;;
