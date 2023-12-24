@@ -5537,31 +5537,35 @@ ipv6Routing() {
         read -r -p "是否确认设置？[y/n]:" IPv6OutStatus
 
         if [[ "${IPv6OutStatus}" == "y" ]]; then
-            cat <<EOF >${configPath}10_ipv4_outbounds.json
-            {
-                "outbounds":[
-                    {
-                        "protocol":"freedom",
-                        "settings":{
-                            "domainStrategy":"UseIPv6"
-                        },
-                        "tag":"IPv6_out"
-                    }
-                ]
-            }
+            if [[ "${coreInstallType}" == "1" ]]; then
+                cat <<EOF >${configPath}10_ipv4_outbounds.json
+{
+    "outbounds":[
+        {
+            "protocol":"freedom",
+            "settings":{
+                "domainStrategy":"UseIPv6"
+            },
+            "tag":"IPv6_out"
+        }
+    ]
+}
 EOF
-            rm ${configPath}09_routing.json >/dev/null 2>&1
+                rm ${configPath}09_routing.json >/dev/null 2>&1
+            fi
+            if [[ "${coreInstallType}" == "2" ]]; then
+                configurationSingBoxRoute delete wireguard_out_IPv4
+                configurationSingBoxRoute delete wireguard_out_IPv6
+                removeSingBoxOutbound IPv4_out
+                removeSingBoxOutbound wireguard_out_IPv4
+                removeSingBoxOutbound wireguard_outbound
+
+                addSingBoxOutbound IPv6_out
+            fi
+
             echoContent green " ---> IPv6全局出站设置成功"
-
-            configurationSingBoxRoute delete wireguard_out_IPv4
-            configurationSingBoxRoute delete wireguard_out_IPv6
-            removeSingBoxOutbound IPv4_out
-            removeSingBoxOutbound wireguard_out_IPv4
-            removeSingBoxOutbound wireguard_outbound
-
-            addSingBoxOutbound IPv6_out
-
         else
+
             echoContent green " ---> 放弃设置"
             exit 0
         fi
@@ -6169,57 +6173,62 @@ warpRoutingReg() {
 
         if [[ "${warpOutStatus}" == "y" ]]; then
             readConfigWarpReg
-
-            cat <<EOF >${configPath}10_ipv4_outbounds.json
+            if [[ "${coreInstallType}" == "1" ]]; then
+                cat <<EOF >${configPath}10_ipv4_outbounds.json
 {
-    "outbounds":[
-        {
-            "protocol": "wireguard",
-            "settings": {
-                "secretKey": "${secretKeyWarpReg}",
-                "address": [
-                    "${address}"
-                ],
-                "peers": [
-                    {
-                        "publicKey": "${publicKeyWarpReg}",
-                        "allowedIPs": [
-                            "0.0.0.0/0",
-                             "::/0"
-                        ],
-                        "endpoint": "162.159.192.1:2408"
-                    }
-                ],
-                "reserved": ${reservedWarpReg},
-                "mtu": 1280
-            },
-            "tag": "wireguard_out_${type}"
-        }
-    ]
+   "outbounds":[
+       {
+           "protocol": "wireguard",
+           "settings": {
+               "secretKey": "${secretKeyWarpReg}",
+               "address": [
+                   "${address}"
+               ],
+               "peers": [
+                   {
+                       "publicKey": "${publicKeyWarpReg}",
+                       "allowedIPs": [
+                           "0.0.0.0/0",
+                            "::/0"
+                       ],
+                       "endpoint": "162.159.192.1:2408"
+                   }
+               ],
+               "reserved": ${reservedWarpReg},
+               "mtu": 1280
+           },
+           "tag": "wireguard_out_${type}"
+       }
+   ]
 }
 EOF
-            rm ${configPath}09_routing.json >/dev/null 2>&1
+                rm ${configPath}09_routing.json >/dev/null 2>&1
 
-            configurationSingBoxRoute delete IPv4
-            configurationSingBoxRoute delete IPv6
-
-            removeSingBoxOutbound direct
-
-            removeSingBoxOutbound IPv4_out
-            removeSingBoxOutbound IPv6_out
-
-            configurationSingBoxRoute delete wireguard_out_IPv4
-            configurationSingBoxRoute delete wireguard_out_IPv6
-
-            if [[ "${type}" == "IPv4" ]]; then
-                removeSingBoxOutbound wireguard_out_IPv6
-            else
-                removeSingBoxOutbound wireguard_out_IPv4
             fi
 
-            # outbound
-            addSingBoxOutbound "wireguard_out_${type}" "wireguard_out"
-            addSingBoxWireGuardOut
+            if [[ "${coreInstallType}" == "2" ]]; then
+                configurationSingBoxRoute delete IPv4
+                configurationSingBoxRoute delete IPv6
+
+                removeSingBoxOutbound direct
+
+                removeSingBoxOutbound IPv4_out
+                removeSingBoxOutbound IPv6_out
+
+                configurationSingBoxRoute delete wireguard_out_IPv4
+                configurationSingBoxRoute delete wireguard_out_IPv6
+
+                if [[ "${type}" == "IPv4" ]]; then
+                    removeSingBoxOutbound wireguard_out_IPv6
+                else
+                    removeSingBoxOutbound wireguard_out_IPv4
+                fi
+
+                # outbound
+                addSingBoxOutbound "wireguard_out_${type}" "wireguard_out"
+                addSingBoxWireGuardOut
+            fi
+
             echoContent green " ---> WARP全局出站设置成功"
         else
             echoContent green " ---> 放弃设置"
@@ -8283,7 +8292,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.1.14"
+    echoContent green "当前版本：v3.1.15"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
