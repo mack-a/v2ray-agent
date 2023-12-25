@@ -3619,7 +3619,7 @@ EOF
 	]
 }
 EOF
-    else
+    elif [[ -z "$3" ]]; then
         rm /etc/v2ray-agent/xray/conf/04_trojan_TCP_inbounds.json >/dev/null 2>&1
     fi
 
@@ -3650,7 +3650,7 @@ EOF
 ]
 }
 EOF
-    else
+    elif [[ -z "$3" ]]; then
         rm /etc/v2ray-agent/xray/conf/03_VLESS_WS_inbounds.json >/dev/null 2>&1
     fi
 
@@ -3685,7 +3685,7 @@ EOF
     ]
 }
 EOF
-    else
+    elif [[ -z "$3" ]]; then
         rm /etc/v2ray-agent/xray/conf/04_trojan_gRPC_inbounds.json >/dev/null 2>&1
     fi
 
@@ -3715,7 +3715,7 @@ EOF
 ]
 }
 EOF
-    else
+    elif [[ -z "$3" ]]; then
         rm /etc/v2ray-agent/xray/conf/05_VMess_WS_inbounds.json >/dev/null 2>&1
     fi
 
@@ -3742,7 +3742,7 @@ EOF
 ]
 }
 EOF
-    else
+    elif [[ -z "$3" ]]; then
         rm /etc/v2ray-agent/xray/conf/06_VLESS_gRPC_inbounds.json >/dev/null 2>&1
     fi
     # VLESS Vision
@@ -3782,7 +3782,7 @@ EOF
     ]
 }
 EOF
-    else
+    elif [[ -z "$3" ]]; then
         rm /etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json >/dev/null 2>&1
     fi
 
@@ -3862,7 +3862,7 @@ EOF
 }
 EOF
 
-    else
+    elif [[ -z "$3" ]]; then
         rm /etc/v2ray-agent/xray/conf/07_VLESS_vision_reality_inbounds.json >/dev/null 2>&1
         rm /etc/v2ray-agent/xray/conf/08_VLESS_vision_gRPC_inbounds.json >/dev/null 2>&1
     fi
@@ -3966,7 +3966,7 @@ initSingBoxConfig() {
     ]
 }
 EOF
-    else
+    elif [[ -z "$3" ]]; then
         rm /etc/v2ray-agent/sing-box/conf/config/02_VLESS_TCP_inbounds.json >/dev/null 2>&1
     fi
 
@@ -4009,7 +4009,7 @@ EOF
   ]
 }
 EOF
-    else
+    elif [[ -z "$3" ]]; then
         rm /etc/v2ray-agent/sing-box/conf/config/07_VLESS_vision_reality_inbounds.json >/dev/null 2>&1
     fi
 
@@ -4054,7 +4054,7 @@ EOF
   ]
 }
 EOF
-    else
+    elif [[ -z "$3" ]]; then
         rm /etc/v2ray-agent/sing-box/conf/config/08_VLESS_vision_gRPC_inbounds.json >/dev/null 2>&1
     fi
 
@@ -4088,7 +4088,7 @@ EOF
     ]
 }
 EOF
-    else
+    elif [[ -z "$3" ]]; then
         rm /etc/v2ray-agent/sing-box/conf/config/06_hysteria2_inbounds.json >/dev/null 2>&1
     fi
 
@@ -4122,7 +4122,7 @@ EOF
     ]
 }
 EOF
-    else
+    elif [[ -z "$3" ]]; then
         rm /etc/v2ray-agent/sing-box/conf/config/09_tuic_inbounds.json >/dev/null 2>&1
     fi
 }
@@ -7192,8 +7192,17 @@ installSubscribe() {
         mapfile -t result < <(initSingBoxPort "${subscribePort}")
         echoContent yellow " ---> 开始配置订阅的伪装站点\n"
         nginxBlog
+        local httpSubscribeStatus=
 
-        if ( ([[ -n "${selectCustomInstallType}" ]] && ! echo "${selectCustomInstallType}" | grep -q -E "0|1|2|3|4|5|6|9") || ([[ -n "${currentInstallProtocolType}" ]] && ! echo "${currentInstallProtocolType}" | grep -q -E "0|1|2|3|4|5|6|9")) && [[ "${selectInstallType}" == "2" || "${coreInstallType}" == "2" ]]; then
+        if [[ "${selectInstallType}" == "2" || "${coreInstallType}" == "2" ]]; then
+            if [[ -n "${selectCustomInstallType}" ]] && ! echo "${selectCustomInstallType}" | grep -q -E "0|1|2|3|4|5|6|9"; then
+                httpSubscribeStatus=true
+            elif [[ -n "${currentInstallProtocolType}" ]] && ! echo "${currentInstallProtocolType}" | grep -q -E "0|1|2|3|4|5|6|9"; then
+                httpSubscribeStatus=true
+            fi
+        fi
+
+        if [[ "${httpSubscribeStatus}" == "true" ]]; then
             echoContent green "未发现tls证书，使用无加密订阅，可能被运营商拦截。请注意风险"
             read -r -p "是否使用[y/n]？" addNginxSubscribeStatus
             if [[ "${addNginxSubscribeStatus}" != "y" ]]; then
@@ -8066,38 +8075,30 @@ xrayCoreRealityInstall() {
 }
 
 # reality管理
+
 manageReality() {
-    if [[ "${coreInstallType}" == "2" ]]; then
-        echoContent red "\n ---> 此功能仅支持Xray-core内核，请全部安装或者个性化安装Hysteria2"
+    readInstallProtocolType
+    if ! echo "${currentInstallProtocolType}" | grep -q -E "7|8" || [[ -z "${coreInstallType}" ]]; then
+        echoContent red "\n ---> 请先安装Reality协议"
         exit 0
     fi
-    echoContent skyBlue "\n进度  1/1 : reality管理"
-    echoContent red "\n=============================================================="
 
-    if [[ -n "${realityStatus}" ]]; then
-        echoContent yellow "1.重新安装"
-        echoContent yellow "2.卸载"
-        echoContent yellow "3.更换配置"
-    else
-        echoContent yellow "1.安装"
+    if [[ "${coreInstallType}" == "1" ]]; then
+        selectCustomInstallType=7
+        initXrayConfig custom 1 true
+    elif [[ "${coreInstallType}" == "2" ]]; then
+        if echo "${currentInstallProtocolType}" | grep -q "7"; then
+            selectCustomInstallType=7
+        fi
+        if echo "${currentInstallProtocolType}" | grep -q "8"; then
+            selectCustomInstallType=8
+        fi
+        initSingBoxConfig custom 1 true
     fi
-    echoContent yellow "4.扫描Reality域名"
-    echoContent red "=============================================================="
-    read -r -p "请选择:" installRealityStatus
 
-    if [[ "${installRealityStatus}" == "1" ]]; then
-        selectCustomInstallType="7"
-        xrayCoreRealityInstall
-    elif [[ "${installRealityStatus}" == "2" ]]; then
-        unInstallXrayCoreReality
-    elif [[ "${installRealityStatus}" == "3" ]]; then
-        initXrayRealityConfig 1
-        updateXrayRealityConfig
-    elif [[ "${installRealityStatus}" == "4" ]]; then
-        installRealityScanner
-        realityScanner
-    fi
+    reloadCore
 }
+
 # 安装reality scanner
 installRealityScanner() {
     if [[ ! -f "/etc/v2ray-agent/xray/reality_scan/RealiTLScanner-linux-64" ]]; then
@@ -8292,7 +8293,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.1.15"
+    echoContent green "当前版本：v3.1.16"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
@@ -8311,8 +8312,10 @@ menu() {
     echoContent yellow "2.任意组合安装"
     if [[ "${coreInstallType}" != "2" ]]; then
         echoContent yellow "4.Hysteria2管理"
-        #    echoContent yellow "5.REALITY管理"
+        echoContent yellow "5.REALITY管理"
         echoContent yellow "6.Tuic管理"
+    else
+        echoContent yellow "5.REALITY管理"
     fi
 
     echoContent skyBlue "-------------------------工具管理-----------------------------"
@@ -8348,9 +8351,9 @@ menu() {
     4)
         manageHysteria
         ;;
-        #    5)
-        #        manageReality 1
-        #        ;;
+    5)
+        manageReality 1
+        ;;
     6)
         manageTuic
         ;;
