@@ -3314,8 +3314,7 @@ singBoxTuicInstall() {
     totalProgress=5
     installSingBox 1
     selectCustomInstallType=9
-    #    initSingBoxTuicConfig 2
-    initSingBoxConfig custom 2
+    initSingBoxConfig custom 2 true
     installSingBoxService 3
     reloadCore
     showAccounts 4
@@ -3335,7 +3334,7 @@ singBoxHysteria2Install() {
     totalProgress=5
     installSingBox 1
     selectCustomInstallType=6
-    initSingBoxConfig custom 2
+    initSingBoxConfig custom 2 true
     installSingBoxService 3
     reloadCore
     showAccounts 4
@@ -8075,11 +8074,10 @@ xrayCoreRealityInstall() {
 }
 
 # reality管理
-
 manageReality() {
     readInstallProtocolType
     if ! echo "${currentInstallProtocolType}" | grep -q -E "7|8" || [[ -z "${coreInstallType}" ]]; then
-        echoContent red "\n ---> 请先安装Reality协议"
+        echoContent red "\n ---> 请先安装Reality协议，参考教程 https://www.v2ray-agent.com/archives/1680104902581#heading-11"
         exit 0
     fi
 
@@ -8163,7 +8161,6 @@ manageHysteria() {
     echoContent red "=============================================================="
     read -r -p "请选择:" installHysteria2Status
     if [[ "${installHysteria2Status}" == "1" ]]; then
-        unInstallHysteriaCore
         singBoxHysteria2Install
     elif [[ "${installHysteria2Status}" == "2" && "${hysteria2Status}" == "true" ]]; then
         unInstallSingBox hysteria2
@@ -8187,7 +8184,6 @@ manageTuic() {
     echoContent red "=============================================================="
     read -r -p "请选择:" installTuicStatus
     if [[ "${installTuicStatus}" == "1" ]]; then
-        unInstallTuicCore
         singBoxTuicInstall
     elif [[ "${installTuicStatus}" == "2" && "${tuicStatus}" == "true" ]]; then
         unInstallSingBox tuic
@@ -8293,7 +8289,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.1.16"
+    echoContent green "当前版本：v3.1.17"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
