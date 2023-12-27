@@ -5006,14 +5006,15 @@ customUUID() {
         echoContent yellow "uuid：${currentCustomUUID}\n"
 
     else
-        jq -r -c '.inbounds[0].settings.clients[].id' ${configPath}${frontingType}.json | while read -r line; do
-            if [[ "${line}" == "${currentCustomUUID}" ]]; then
-                echo >/tmp/v2ray-agent
-            fi
-        done
-        if [[ -f "/tmp/v2ray-agent" && -n $(cat /tmp/v2ray-agent) ]]; then
+        local checkUUID=
+        if [[ "${coreInstallType}" == "1" ]]; then
+            checkUUID=$(jq -r --arg currentUUID "$currentCustomUUID" ".inbounds[0].settings.clients[] | select(.uuid | index(\$currentUUID) != null) | .name" ${configPath}${frontingType}.json)
+        elif [[ "${coreInstallType}" == "2" ]]; then
+            checkUUID=$(jq -r --arg currentUUID "$currentCustomUUID" ".inbounds[0].users[] | select(.uuid | index(\$currentUUID) != null) | .name" ${configPath}${frontingType}.json)
+        fi
+
+        if [[ -n "${checkUUID}" ]]; then
             echoContent red " ---> UUID不可重复"
-            rm /tmp/v2ray-agent
             exit 0
         fi
     fi
@@ -5027,24 +5028,18 @@ customUserEmail() {
         currentCustomEmail="${currentCustomUUID}"
         echoContent yellow "email: ${currentCustomEmail}\n"
     else
-        local defaultConfig=${frontingType}
-
-        if echo "${currentInstallProtocolType}" | grep -q "7" && [[ -z "${frontingType}" ]]; then
-            defaultConfig="07_VLESS_vision_reality_inbounds"
+        local checkEmail=
+        if [[ "${coreInstallType}" == "1" ]]; then
+            checkEmail=$(jq -r --arg currentEmail "$currentCustomEmail" ".inbounds[0].settings.clients[] | select(.name | index(\$currentEmail) != null) | .name" ${configPath}${frontingType}.json)
+        elif [[ "${coreInstallType}" == "2" ]]; then
+            checkEmail=$(jq -r --arg currentEmail "$currentCustomEmail" ".inbounds[0].users[] | select(.name | index(\$currentEmail) != null) | .name" ${configPath}${frontingType}.json)
         fi
 
-        jq -r -c '.inbounds[0].settings.clients[].email' ${configPath}${defaultConfig}.json | while read -r line; do
-            if [[ "${line}" == "${currentCustomEmail}" ]]; then
-                echo >/tmp/v2ray-agent
-            fi
-        done
-        if [[ -f "/tmp/v2ray-agent" && -n $(cat /tmp/v2ray-agent) ]]; then
+        if [[ -n "${checkEmail}" ]]; then
             echoContent red " ---> email不可重复"
-            rm /tmp/v2ray-agent
             exit 0
         fi
     fi
-    #	fi
 }
 
 # 添加用户
@@ -5177,7 +5172,7 @@ addUser() {
 
             if [[ "${coreInstallType}" == "1" ]]; then
                 clients=$(initXrayClients 6 "${uuid}" "${email}")
-            elif [[ "${coreInstallType}" == "2" ]]; then
+            elif [[ -n "${singBoxConfigPath}" ]]; then
                 clients=$(initSingBoxClients 6 "${uuid}" "${email}")
             fi
 
@@ -7162,10 +7157,6 @@ manageAccount() {
     elif [[ "${manageAccountStatus}" == "2" ]]; then
         subscribe
     elif [[ "${manageAccountStatus}" == "3" ]]; then
-        if [[ "${coreInstallType}" == "2" ]]; then
-            echoContent red "\n ---> 此功能仅支持Xray-core内核，请等待后续更新"
-            exit 0
-        fi
         addSubscribeMenu 1
     elif [[ "${manageAccountStatus}" == "4" ]]; then
         addUser
@@ -8290,7 +8281,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.1.18"
+    echoContent green "当前版本：v3.1.19"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
