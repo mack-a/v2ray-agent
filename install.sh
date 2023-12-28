@@ -7147,7 +7147,7 @@ manageAccount() {
     echoContent yellow "# 如安装了Hysteria或者Tuic，账号会同时添加到相应的类型下面\n"
     echoContent yellow "1.查看账号"
     echoContent yellow "2.查看订阅"
-    echoContent yellow "3.添加订阅"
+    echoContent yellow "3.管理其他订阅"
     echoContent yellow "4.添加用户"
     echoContent yellow "5.删除用户"
     echoContent red "=============================================================="
@@ -7252,9 +7252,15 @@ addSubscribeMenu() {
     if [[ "${addSubscribeStatus}" == "1" ]]; then
         addOtherSubscribe
     elif [[ "${addSubscribeStatus}" == "2" ]]; then
-        rm -rf /etc/v2ray-agent/subscribe_remote/clashMeta/*
-        rm -rf /etc/v2ray-agent/subscribe_remote/default/*
-        echo >/etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl
+        grep -v '^$' "/etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl" | awk '{print NR""":"$0}'
+        read -r -p "请选择要删除的订阅编号[仅支持单个删除]:" delSubscribeIndex
+        if [[ -z "${delSubscribeIndex}" ]]; then
+            echoContent green " ---> 不可以为空"
+            exit 0
+        fi
+
+        sed -i "$((delSubscribeIndex + 1))d" "/etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl" >/dev/null 2>&1
+
         echoContent green " ---> 其他机器订阅删除成功"
         subscribe
     fi
@@ -7271,6 +7277,11 @@ addOtherSubscribe() {
     elif ! echo "${remoteSubscribeUrl}" | grep -q ":"; then
         echoContent red " ---> 规则不合法"
     else
+
+        if [[ -f "/etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl" ]] && grep -q "${remoteSubscribeUrl}" /etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl; then
+            echoContent red " ---> 此订阅已添加"
+            exit 0
+        fi
         echo "${remoteSubscribeUrl}" >>/etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl
         local remoteUrl=
         remoteUrl=$(echo "${remoteSubscribeUrl}" | awk -F "[:]" '{print $1":"$2}')
@@ -7284,12 +7295,13 @@ addOtherSubscribe() {
 
                 local emailMd5=
                 emailMd5=$(echo -n "${email}$(cat "/etc/v2ray-agent/subscribe_local/subscribeSalt")"$'\n' | md5sum | awk '{print $1}')
-
                 local clashMetaProxies=
                 clashMetaProxies=$(curl -s -4 "https://${remoteUrl}/s/clashMeta/${emailMd5}" | sed '/proxies:/d' | sed "s/${email}/${email}_${serverAlias}/g")
-
                 local default=
-                default=$(curl -s -4 "https://${remoteUrl}/s/default/${emailMd5}" | base64 -d | sed "s/${email}/${email}_${serverAlias}/g")
+                default=$(curl -s -4 "https://${remoteUrl}/s/default/${emailMd5}")
+                if ! echo "${default}" | grep -q "nginx"; then
+                    default=$(echo "${default}" | base64 -d | sed "s/${email}/${email}_${serverAlias}/g" 2>&1)
+                fi
 
                 if echo "${default}" | grep -q "${email}"; then
                     echo "${default}" >>"/etc/v2ray-agent/subscribe/default/${emailMd5}"
@@ -7299,7 +7311,6 @@ addOtherSubscribe() {
                 else
                     echoContent red " ---> 通用订阅 ${email} 不存在"
                 fi
-
                 if echo "${clashMetaProxies}" | grep -q "${email}"; then
                     echo "${clashMetaProxies}" >>"/etc/v2ray-agent/subscribe/clashMeta/${emailMd5}"
                     echo "${clashMetaProxies}" >>"/etc/v2ray-agent/subscribe_remote/clashMeta/${email}"
@@ -7741,7 +7752,7 @@ subscribe() {
                     echo >"/etc/v2ray-agent/subscribe_remote/default/${email}_tmp"
                     while read -r remoteUrl; do
                         updateRemoteSubscribe "${emailMd5}" "${email}" "${remoteUrl}" "default"
-                    done < <(grep "VLESS_TCP/TLS_Vision" <"/etc/v2ray-agent/subscribe_remote/default/${email}" | awk -F "@" '{print $2}' | awk -F "?" '{print $1}')
+                    done < <(grep -E "VLESS_TCP/TLS_Vision|singbox_tuic|singbox_hysteria2" <"/etc/v2ray-agent/subscribe_remote/default/${email}" | head -1 | awk -F "@" '{print $2}' | awk -F "?" '{print $1}')
 
                     echo >"/etc/v2ray-agent/subscribe_remote/default/${email}"
                     cat "/etc/v2ray-agent/subscribe_remote/default/${email}_tmp" >"/etc/v2ray-agent/subscribe_remote/default/${email}"
@@ -7780,7 +7791,7 @@ subscribe() {
                         echo >"/etc/v2ray-agent/subscribe_remote/clashMeta/${email}_tmp"
                         while read -r remoteUrl; do
                             updateRemoteSubscribe "${emailMd5}" "${email}" "${remoteUrl}" "ClashMeta"
-                        done < <(grep -A3 "VLESS_TCP/TLS_Vision" <"/etc/v2ray-agent/subscribe_remote/clashMeta/${email}" | awk '/server:|port:/ {print $2}' | paste -d ':' - -)
+                        done < <(grep -A3 -E "VLESS_TCP/TLS_Vision|singbox_tuic|singbox_hysteria2" <"/etc/v2ray-agent/subscribe_remote/clashMeta/${email}" | awk '/server:|port:/ {print $2}' | paste -d ':' - - | head -1)
                         echo >"/etc/v2ray-agent/subscribe_remote/clashMeta/${email}"
                         cat "/etc/v2ray-agent/subscribe_remote/clashMeta/${email}_tmp" >"/etc/v2ray-agent/subscribe_remote/clashMeta/${email}"
                         cat "/etc/v2ray-agent/subscribe_remote/clashMeta/${email}" >>"/etc/v2ray-agent/subscribe/clashMeta/${emailMd5}"
@@ -7814,8 +7825,8 @@ updateRemoteSubscribe() {
     remoteDomain=$(echo "${remoteUrl}" | awk -F ":" '{print $1}')
     local serverAlias=
     serverAlias=$(grep "${remoteDomain}" <"/etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl" | awk -F ":" '{print $3}')
-
-    if [[ "${type}" == "ClashMeta" ]]; then
+    if [[ "${type}" == "ClashMeta" && -n "${serverAlias}" ]]; then
+        remoteUrl=$(grep "${remoteDomain}" "/etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl" | grep -v '^$' | awk -F ":" '{print $1":"$2}')
         local clashMetaProxies=
         clashMetaProxies=$(curl -s -4 "https://${remoteUrl}/s/clashMeta/${emailMD5}" | sed '/proxies:/d' | sed "s/${email}/${email}_${serverAlias}/g")
         if echo "${clashMetaProxies}" | grep -q "${email}"; then
@@ -7825,9 +7836,14 @@ updateRemoteSubscribe() {
         else
             echoContent red " ---> clashMeta订阅 ${remoteDomain}:${email}不存在"
         fi
-    elif [[ "${type}" == "default" ]]; then
+    elif [[ "${type}" == "default" && -n "${serverAlias}" ]]; then
+        remoteUrl=$(grep "${remoteDomain}" "/etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl" | grep -v '^$' | awk -F ":" '{print $1":"$2}')
         local default=
-        default=$(curl -s -4 "https://${remoteUrl}/s/default/${emailMD5}" | base64 -d | sed "s/${email}/${email}_${serverAlias}/g")
+        default=$(curl -s -4 "https://${remoteUrl}/s/default/${emailMD5}")
+
+        if ! echo "${default}" | grep -q "nginx"; then
+            default=$(echo "${default}" | base64 -d | sed "s/${email}/${email}_${serverAlias}/g")
+        fi
         if echo "${default}" | grep -q "${email}"; then
             echo "${default}" >>"/etc/v2ray-agent/subscribe_remote/default/${email}_tmp"
 
@@ -8281,7 +8297,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.1.19"
+    echoContent green "当前版本：v3.1.20"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
