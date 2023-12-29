@@ -184,6 +184,7 @@ initVar() {
     singBoxVLESSRealityGRPCPort=
     singBoxHysteria2Port=
     singBoxTuicPort=
+    singBoxVMessWSPort=
 
     # nginx订阅端口
     subscribePort=
@@ -392,7 +393,7 @@ readInstallProtocolType() {
     singBoxVLESSRealityGRPCPort=
     singBoxVLESSRealityGRPCServerName=
     singBoxTuicPort=
-    singBoxHysteria2Port=
+    singBoxVMessWSPort=
 
     while read -r row; do
         if echo "${row}" | grep -q VLESS_TCP_inbounds; then
@@ -410,6 +411,10 @@ readInstallProtocolType() {
         fi
         if echo "${row}" | grep -q VMess_WS_inbounds; then
             currentInstallProtocolType=${currentInstallProtocolType}'3'
+            if [[ "${coreInstallType}" == "2" ]]; then
+                frontingType=05_VMess_WS_inbounds
+                singBoxVMessWSPort=$(jq .inbounds[0].listen_port "${row}.json")
+            fi
         fi
         if echo "${row}" | grep -q trojan_TCP_inbounds; then
             currentInstallProtocolType=${currentInstallProtocolType}'4'
@@ -676,6 +681,7 @@ readConfigHostPathUUID() {
     currentHost=
     currentPort=
     currentAdd=
+    singBoxVMessWSPath=
 
     if [[ "${coreInstallType}" == "1" ]]; then
 
@@ -722,37 +728,42 @@ readConfigHostPathUUID() {
 
         # currentAdd=$(jq -r .inbounds[0].settings.clients[0].add ${configPath}${frontingType}.json)
 
-        if [[ "${currentAdd}" == "null" ]]; then
+        if [[ -z "${currentAdd}" ]]; then
             currentAdd=${currentHost}
         fi
 
     fi
 
     # 读取path
-    if [[ -n "${configPath}" && -n "${frontingType}" && "${coreInstallType}" == "1" ]]; then
-        local fallback
-        fallback=$(jq -r -c '.inbounds[0].settings.fallbacks[]|select(.path)' ${configPath}${frontingType}.json | head -1)
+    if [[ -n "${configPath}" && -n "${frontingType}" ]]; then
+        if [[ "${coreInstallType}" == "1" ]]; then
+            local fallback
+            fallback=$(jq -r -c '.inbounds[0].settings.fallbacks[]|select(.path)' ${configPath}${frontingType}.json | head -1)
 
-        local path
-        path=$(echo "${fallback}" | jq -r .path | awk -F "[/]" '{print $2}')
+            local path
+            path=$(echo "${fallback}" | jq -r .path | awk -F "[/]" '{print $2}')
 
-        if [[ $(echo "${fallback}" | jq -r .dest) == 31297 ]]; then
-            currentPath=$(echo "${path}" | awk -F "[w][s]" '{print $1}')
-        elif [[ $(echo "${fallback}" | jq -r .dest) == 31299 ]]; then
-            currentPath=$(echo "${path}" | awk -F "[v][w][s]" '{print $1}')
-        fi
+            if [[ $(echo "${fallback}" | jq -r .dest) == 31297 ]]; then
+                currentPath=$(echo "${path}" | awk -F "[w][s]" '{print $1}')
+            elif [[ $(echo "${fallback}" | jq -r .dest) == 31299 ]]; then
+                currentPath=$(echo "${path}" | awk -F "[v][w][s]" '{print $1}')
+            fi
 
-        # 尝试读取alpn h2 Path
-        if [[ -z "${currentPath}" ]]; then
-            dest=$(jq -r -c '.inbounds[0].settings.fallbacks[]|select(.alpn)|.dest' ${configPath}${frontingType}.json | head -1)
-            if [[ "${dest}" == "31302" || "${dest}" == "31304" ]]; then
-                checkBTPanel
-                if grep -q "trojangrpc {" <${nginxConfigPath}alone.conf; then
-                    currentPath=$(grep "trojangrpc {" <${nginxConfigPath}alone.conf | awk -F "[/]" '{print $2}' | awk -F "[t][r][o][j][a][n]" '{print $1}')
-                elif grep -q "grpc {" <${nginxConfigPath}alone.conf; then
-                    currentPath=$(grep "grpc {" <${nginxConfigPath}alone.conf | head -1 | awk -F "[/]" '{print $2}' | awk -F "[g][r][p][c]" '{print $1}')
+            # 尝试读取alpn h2 Path
+            if [[ -z "${currentPath}" ]]; then
+                dest=$(jq -r -c '.inbounds[0].settings.fallbacks[]|select(.alpn)|.dest' ${configPath}${frontingType}.json | head -1)
+                if [[ "${dest}" == "31302" || "${dest}" == "31304" ]]; then
+                    checkBTPanel
+                    if grep -q "trojangrpc {" <${nginxConfigPath}alone.conf; then
+                        currentPath=$(grep "trojangrpc {" <${nginxConfigPath}alone.conf | awk -F "[/]" '{print $2}' | awk -F "[t][r][o][j][a][n]" '{print $1}')
+                    elif grep -q "grpc {" <${nginxConfigPath}alone.conf; then
+                        currentPath=$(grep "grpc {" <${nginxConfigPath}alone.conf | head -1 | awk -F "[/]" '{print $2}' | awk -F "[g][r][p][c]" '{print $1}')
+                    fi
                 fi
             fi
+        elif [[ "${coreInstallType}" == "2" && -f "${singBoxConfigPath}05_VMess_WS_inbounds.json" ]]; then
+            singBoxVMessWSPath=$(jq -r .inbounds[0].transport.path "${singBoxConfigPath}05_VMess_WS_inbounds.json")
+            currentPath=$(jq -r .inbounds[0].transport.path "${singBoxConfigPath}05_VMess_WS_inbounds.json" | awk -F "[/]" '{print $2}')
         fi
 
     fi
@@ -1693,7 +1704,11 @@ initRandomPath() {
 
 # 自定义/随机路径
 randomPathFunction() {
-    echoContent skyBlue "\n进度  $1/${totalProgress} : 生成随机路径"
+    if [[ -n $1 ]]; then
+        echoContent skyBlue "\n进度  $1/${totalProgress} : 生成随机路径"
+    else
+        echoContent skyBlue "生成随机路径"
+    fi
 
     if [[ -n "${currentPath}" ]]; then
         echo
@@ -2694,6 +2709,10 @@ initSingBoxClients() {
         # VLESS Vision
         if echo "${type}" | grep -q "0"; then
             currentUser="{\"uuid\":\"${uuid}\",\"flow\":\"xtls-rprx-vision\",\"name\":\"${name}-VLESS_TCP/TLS_Vision\"}"
+            users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
+        fi
+        if echo "${type}" | grep -q "3"; then
+            currentUser="{\"uuid\":\"${uuid}\",\"name\":\"${name}-VMess_WS\",\"alterId\": 0}"
             users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
         fi
 
@@ -3969,6 +3988,47 @@ EOF
         rm /etc/v2ray-agent/sing-box/conf/config/02_VLESS_TCP_inbounds.json >/dev/null 2>&1
     fi
 
+    if echo "${selectCustomInstallType}" | grep -q 3 || [[ "$1" == "all" ]]; then
+        echoContent yellow "\n===================== 配置VMess+ws =====================\n"
+        echoContent skyBlue "\n开始配置VMess+ws协议端口"
+        echo
+        mapfile -t result < <(initSingBoxPort "${singBoxVMessWSPort}")
+        echoContent green "\n ---> VLESS_Vision端口：${result[-1]}"
+
+        checkDNSIP "${domain}"
+        removeNginxDefaultConf
+        handleSingBox stop
+        randomPathFunction
+        checkPortOpen "${result[-1]}" "${domain}"
+        cat <<EOF >/etc/v2ray-agent/sing-box/conf/config/05_VMess_WS_inbounds.json
+{
+    "inbounds":[
+        {
+          "type": "vmess",
+          "listen":"::",
+          "listen_port":${result[-1]},
+          "tag":"VMessWS",
+          "users":$(initSingBoxClients 3),
+          "tls":{
+            "server_name": "${sslDomain}",
+            "enabled": true,
+            "certificate_path": "/etc/v2ray-agent/tls/${sslDomain}.crt",
+            "key_path": "/etc/v2ray-agent/tls/${sslDomain}.key"
+          },
+          "transport": {
+            "type": "ws",
+            "path": "/${currentPath}",
+            "max_early_data": 2048,
+            "early_data_header_name": "Sec-WebSocket-Protocol"
+          }
+        }
+    ]
+}
+EOF
+    elif [[ -z "$3" ]]; then
+        rm /etc/v2ray-agent/sing-box/conf/config/02_VLESS_TCP_inbounds.json >/dev/null 2>&1
+    fi
+
     # VLESS_Reality_Vision
     if echo "${selectCustomInstallType}" | grep -q 7 || [[ "$1" == "all" ]]; then
         echoContent yellow "\n================= 配置VLESS+Reality+Vision =================\n"
@@ -4163,6 +4223,7 @@ defaultBase64Code() {
     local email=$3
     local id=$4
     local add=$5
+    local path=$6
     local user=
     user=$(echo "${email}" | awk -F "[-]" '{print $1}')
 
@@ -4192,11 +4253,11 @@ EOF
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${currentHost}%3A${port}%3Fencryption%3Dnone%26fp%3Dchrome%26security%3Dtls%26type%3Dtcp%26${currentHost}%3D${currentHost}%26headerType%3Dnone%26sni%3D${currentHost}%26flow%3Dxtls-rprx-vision%23${email}\n"
 
     elif [[ "${type}" == "vmessws" ]]; then
-        qrCodeBase64Default=$(echo -n "{\"port\":${port},\"ps\":\"${email}\",\"tls\":\"tls\",\"id\":\"${id}\",\"aid\":0,\"v\":2,\"host\":\"${currentHost}\",\"type\":\"none\",\"path\":\"/${currentPath}vws\",\"net\":\"ws\",\"add\":\"${add}\",\"allowInsecure\":0,\"method\":\"none\",\"peer\":\"${currentHost}\",\"sni\":\"${currentHost}\"}" | base64 -w 0)
+        qrCodeBase64Default=$(echo -n "{\"port\":${port},\"ps\":\"${email}\",\"tls\":\"tls\",\"id\":\"${id}\",\"aid\":0,\"v\":2,\"host\":\"${currentHost}\",\"type\":\"none\",\"path\":\"${path}\",\"net\":\"ws\",\"add\":\"${add}\",\"allowInsecure\":0,\"method\":\"none\",\"peer\":\"${currentHost}\",\"sni\":\"${currentHost}\"}" | base64 -w 0)
         qrCodeBase64Default="${qrCodeBase64Default// /}"
 
         echoContent yellow " ---> 通用json(VMess+WS+TLS)"
-        echoContent green "    {\"port\":${port},\"ps\":\"${email}\",\"tls\":\"tls\",\"id\":\"${id}\",\"aid\":0,\"v\":2,\"host\":\"${currentHost}\",\"type\":\"none\",\"path\":\"/${currentPath}vws\",\"net\":\"ws\",\"add\":\"${add}\",\"allowInsecure\":0,\"method\":\"none\",\"peer\":\"${currentHost}\",\"sni\":\"${currentHost}\"}\n"
+        echoContent green "    {\"port\":${port},\"ps\":\"${email}\",\"tls\":\"tls\",\"id\":\"${id}\",\"aid\":0,\"v\":2,\"host\":\"${currentHost}\",\"type\":\"none\",\"path\":\"${path}\",\"net\":\"ws\",\"add\":\"${add}\",\"allowInsecure\":0,\"method\":\"none\",\"peer\":\"${currentHost}\",\"sni\":\"${currentHost}\"}\n"
         echoContent yellow " ---> 通用vmess(VMess+WS+TLS)链接"
         echoContent green "    vmess://${qrCodeBase64Default}\n"
         echoContent yellow " ---> 二维码 vmess(VMess+WS+TLS)"
@@ -4218,7 +4279,7 @@ EOF
     servername: ${currentHost}
     network: ws
     ws-opts:
-      path: /${currentPath}vws
+      path: ${path}
       headers:
         Host: ${currentHost}
 EOF
@@ -4536,18 +4597,20 @@ showAccounts() {
         echoContent skyBlue "\n================================ VMess WS TLS [仅CDN推荐]  ================================\n"
         local path="${currentPath}vws"
         if [[ ${coreInstallType} == "1" ]]; then
-            path="${currentPath}vws"
+            path="/${currentPath}vws"
+        elif [[ "${coreInstallType}" == "2" ]]; then
+            path="${singBoxVMessWSPath}"
         fi
-        jq .inbounds[0].settings.clients ${configPath}05_VMess_WS_inbounds.json | jq -c '.[]' | while read -r user; do
+        jq .inbounds[0].settings.clients//.inbounds[0].users ${configPath}05_VMess_WS_inbounds.json | jq -c '.[]' | while read -r user; do
             local email=
-            email=$(echo "${user}" | jq -r .email)
+            email=$(echo "${user}" | jq -r .email//.name)
 
             echoContent skyBlue "\n ---> 账号:${email}"
             echo
             local count=
             while read -r line; do
                 if [[ -n "${line}" ]]; then
-                    defaultBase64Code vmessws "${currentDefaultPort}" "${email}${count}" "$(echo "${user}" | jq -r .id)" "${line}"
+                    defaultBase64Code vmessws "${singBoxVMessWSPort}" "${email}${count}" "$(echo "${user}" | jq -r .id//.uuid)" "${line}" "${path}"
                     count=$((count + 1))
                 fi
             done < <(echo "${currentAdd}" | tr ',' '\n')
@@ -6803,6 +6866,7 @@ EOF
 customSingBoxInstall() {
     echoContent skyBlue "\n========================个性化安装============================"
     echoContent yellow "0.VLESS+Vision+TCP"
+    echoContent yellow "3.VMess+TLS+WS[仅CDN推荐]"
     echoContent yellow "6.Hysteria2"
     echoContent yellow "7.VLESS+Reality+Vision"
     echoContent yellow "8.VLESS+Reality+gRPC"
@@ -6816,20 +6880,11 @@ customSingBoxInstall() {
         totalProgress=9
         installTools 1
         # 申请tls
-        if echo "${selectCustomInstallType}" | grep -q -E "0|6|9"; then
+        if echo "${selectCustomInstallType}" | grep -q -E "0|3|6|9"; then
             initTLSNginxConfig 2
             installTLS 3
             handleNginx stop
         fi
-
-        # 随机path
-        #        if echo "${selectCustomInstallType}" | grep -q 1 || echo "${selectCustomInstallType}" | grep -q 3 || echo "${selectCustomInstallType}" | grep -q 4; then
-        #            randomPathFunction 5
-        #            customCDNIP 6
-        #        fi
-        #        nginxBlog 7
-        #        updateRedirectNginxConf
-        #        handleNginx start
 
         installSingBox 4
         installSingBoxService 5
@@ -7282,47 +7337,47 @@ addOtherSubscribe() {
             echoContent red " ---> 此订阅已添加"
             exit 0
         fi
+
         echo "${remoteSubscribeUrl}" >>/etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl
-        local remoteUrl=
-        remoteUrl=$(echo "${remoteSubscribeUrl}" | awk -F "[:]" '{print $1":"$2}')
-
-        local serverAlias=
-        serverAlias=$(echo "${remoteSubscribeUrl}" | awk -F "[:]" '{print $3}')
-
-        if [[ -n $(ls /etc/v2ray-agent/subscribe/clashMeta/) || -n $(ls /etc/v2ray-agent/subscribe/default/) ]]; then
-            find /etc/v2ray-agent/subscribe_local/default/* | while read -r email; do
-                email=$(echo "${email}" | awk -F "[d][e][f][a][u][l][t][/]" '{print $2}')
-
-                local emailMd5=
-                emailMd5=$(echo -n "${email}$(cat "/etc/v2ray-agent/subscribe_local/subscribeSalt")"$'\n' | md5sum | awk '{print $1}')
-                local clashMetaProxies=
-                clashMetaProxies=$(curl -s -4 "https://${remoteUrl}/s/clashMeta/${emailMd5}" | sed '/proxies:/d' | sed "s/${email}/${email}_${serverAlias}/g")
-                local default=
-                default=$(curl -s -4 "https://${remoteUrl}/s/default/${emailMd5}")
-                if ! echo "${default}" | grep -q "nginx"; then
-                    default=$(echo "${default}" | base64 -d | sed "s/${email}/${email}_${serverAlias}/g" 2>&1)
-                fi
-
-                if echo "${default}" | grep -q "${email}"; then
-                    echo "${default}" >>"/etc/v2ray-agent/subscribe/default/${emailMd5}"
-                    echo "${default}" >>"/etc/v2ray-agent/subscribe_remote/default/${email}"
-
-                    echoContent green " ---> 通用订阅 ${email} 添加成功"
-                else
-                    echoContent red " ---> 通用订阅 ${email} 不存在"
-                fi
-                if echo "${clashMetaProxies}" | grep -q "${email}"; then
-                    echo "${clashMetaProxies}" >>"/etc/v2ray-agent/subscribe/clashMeta/${emailMd5}"
-                    echo "${clashMetaProxies}" >>"/etc/v2ray-agent/subscribe_remote/clashMeta/${email}"
-
-                    echoContent green " ---> clashMeta订阅 ${email} 添加成功"
-                else
-                    echoContent red " ---> clashMeta订阅 ${email}不存在"
-                fi
-            done
-        else
-            echoContent red " ---> 请先查看订阅，再进行添加订阅"
-        fi
+        subscribe
+        #        local remoteUrl=
+        #        remoteUrl=$(echo "${remoteSubscribeUrl}" | awk -F "[:]" '{print $1":"$2}')
+        #
+        #        local serverAlias=
+        #        serverAlias=$(echo "${remoteSubscribeUrl}" | awk -F "[:]" '{print $3}')
+        #
+        #        if [[ -n $(ls /etc/v2ray-agent/subscribe/clashMeta/) || -n $(ls /etc/v2ray-agent/subscribe/default/) ]]; then
+        #            find /etc/v2ray-agent/subscribe_local/default/* | while read -r email; do
+        #                email=$(echo "${email}" | awk -F "[d][e][f][a][u][l][t][/]" '{print $2}')
+        #
+        #                local emailMd5=
+        #                emailMd5=$(echo -n "${email}$(cat "/etc/v2ray-agent/subscribe_local/subscribeSalt")"$'\n' | md5sum | awk '{print $1}')
+        #
+        #                local default=
+        #                default=$(curl -s -4 "https://${remoteUrl}/s/default/${emailMd5}")
+        #
+        #                if ! echo "${default}" | grep -q "nginx" && [[ -n "${default}" ]]; then
+        #                    default=$(echo "${default}" | base64 -d | sed "s/${email}/${email}_${serverAlias}/g" 2>&1)
+        #
+        #                    echo "${default}" >>"/etc/v2ray-agent/subscribe_remote/default/${email}_${remoteUrl}"
+        #                    echoContent green " ---> 通用订阅 ${email} 添加成功"
+        #                else
+        #                    echoContent red " ---> 通用订阅 ${email} 不存在"
+        #                fi
+        #
+        #                local clashMetaProxies=
+        #                clashMetaProxies=$(curl -s -4 "https://${remoteUrl}/s/clashMeta/${emailMd5}" | sed '/proxies:/d' | sed "s/${email}/${email}_${serverAlias}/g")
+        #                if ! echo "${default}" | grep -q "nginx" && [[ -n "${clashMetaProxies}" ]]; then
+        #                    echo "${clashMetaProxies}" >>"/etc/v2ray-agent/subscribe_remote/clashMeta/${email}_${remoteUrl}"
+        #
+        #                    echoContent green " ---> clashMeta订阅 ${email} 添加成功"
+        #                else
+        #                    echoContent red " ---> clashMeta订阅 ${email}不存在"
+        #                fi
+        #            done
+        #        else
+        #            echoContent red " ---> 请先查看订阅，再进行添加订阅"
+        #        fi
     fi
 }
 # clashMeta配置文件
@@ -7736,29 +7791,25 @@ subscribe() {
         rm -rf /etc/v2ray-agent/subscribe/clashMeta/*
         rm -rf /etc/v2ray-agent/subscribe_local/default/*
         rm -rf /etc/v2ray-agent/subscribe_local/clashMeta/*
+
         showAccounts >/dev/null
 
         if [[ -n $(ls /etc/v2ray-agent/subscribe_local/default/) ]]; then
+            if [[ -n $(cat "/etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl") ]]; then
+                read -r -p "读取到其他订阅，是否更新？[y/n]" updateOtherSubscribeStatus
+            fi
+
             local subscribePortLocal="${subscribePort}"
             find /etc/v2ray-agent/subscribe_local/default/* | while read -r email; do
                 email=$(echo "${email}" | awk -F "[d][e][f][a][u][l][t][/]" '{print $2}')
-                # md5加密
+
                 local emailMd5=
                 emailMd5=$(echo -n "${email}${subscribeSalt}"$'\n' | md5sum | awk '{print $1}')
 
                 cat "/etc/v2ray-agent/subscribe_local/default/${email}" >>"/etc/v2ray-agent/subscribe/default/${emailMd5}"
-
-                if [[ -f "/etc/v2ray-agent/subscribe_remote/default/${email}" ]]; then
-                    echo >"/etc/v2ray-agent/subscribe_remote/default/${email}_tmp"
-                    while read -r remoteUrl; do
-                        updateRemoteSubscribe "${emailMd5}" "${email}" "${remoteUrl}" "default"
-                    done < <(grep -E "VLESS_TCP/TLS_Vision|singbox_tuic|singbox_hysteria2" <"/etc/v2ray-agent/subscribe_remote/default/${email}" | head -1 | awk -F "@" '{print $2}' | awk -F "?" '{print $1}')
-
-                    echo >"/etc/v2ray-agent/subscribe_remote/default/${email}"
-                    cat "/etc/v2ray-agent/subscribe_remote/default/${email}_tmp" >"/etc/v2ray-agent/subscribe_remote/default/${email}"
-                    cat "/etc/v2ray-agent/subscribe_remote/default/${email}" >>"/etc/v2ray-agent/subscribe/default/${emailMd5}"
+                if [[ "${updateOtherSubscribeStatus}" == "y" ]]; then
+                    updateRemoteSubscribe "${emailMd5}" "${email}"
                 fi
-
                 local base64Result
                 base64Result=$(base64 -w 0 "/etc/v2ray-agent/subscribe/default/${emailMd5}")
                 echo "${base64Result}" >"/etc/v2ray-agent/subscribe/default/${emailMd5}"
@@ -7776,6 +7827,7 @@ subscribe() {
                         currentDomain="${currentHost}:${subscribePort}"
                     fi
                 fi
+
                 echoContent skyBlue "\n----------默认订阅----------\n"
                 echoContent green "email:${email}\n"
                 echoContent yellow "url:${subscribeType}://${currentDomain}/s/default/${emailMd5}\n"
@@ -7786,16 +7838,6 @@ subscribe() {
                 if [[ -f "/etc/v2ray-agent/subscribe_local/clashMeta/${email}" ]]; then
 
                     cat "/etc/v2ray-agent/subscribe_local/clashMeta/${email}" >>"/etc/v2ray-agent/subscribe/clashMeta/${emailMd5}"
-
-                    if [[ -f "/etc/v2ray-agent/subscribe_remote/clashMeta/${email}" ]]; then
-                        echo >"/etc/v2ray-agent/subscribe_remote/clashMeta/${email}_tmp"
-                        while read -r remoteUrl; do
-                            updateRemoteSubscribe "${emailMd5}" "${email}" "${remoteUrl}" "ClashMeta"
-                        done < <(grep -A3 -E "VLESS_TCP/TLS_Vision|singbox_tuic|singbox_hysteria2" <"/etc/v2ray-agent/subscribe_remote/clashMeta/${email}" | awk '/server:|port:/ {print $2}' | paste -d ':' - - | head -1)
-                        echo >"/etc/v2ray-agent/subscribe_remote/clashMeta/${email}"
-                        cat "/etc/v2ray-agent/subscribe_remote/clashMeta/${email}_tmp" >"/etc/v2ray-agent/subscribe_remote/clashMeta/${email}"
-                        cat "/etc/v2ray-agent/subscribe_remote/clashMeta/${email}" >>"/etc/v2ray-agent/subscribe/clashMeta/${emailMd5}"
-                    fi
 
                     sed -i '1i\proxies:' "/etc/v2ray-agent/subscribe/clashMeta/${emailMd5}"
 
@@ -7817,41 +7859,41 @@ subscribe() {
 
 # 更新远程订阅
 updateRemoteSubscribe() {
+
     local emailMD5=$1
     local email=$2
-    local remoteUrl=$3
-    local type=$4
-    local remoteDomain=
-    remoteDomain=$(echo "${remoteUrl}" | awk -F ":" '{print $1}')
-    local serverAlias=
-    serverAlias=$(grep "${remoteDomain}" <"/etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl" | awk -F ":" '{print $3}')
-    if [[ "${type}" == "ClashMeta" && -n "${serverAlias}" ]]; then
-        remoteUrl=$(grep "${remoteDomain}" "/etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl" | grep -v '^$' | awk -F ":" '{print $1":"$2}')
+    while read -r line; do
+        local serverAlias=
+        serverAlias=$(echo "${line}" | awk -F "[:]" '{print $3}')
+
+        local remoteUrl=
+        remoteUrl=$(echo "${line}" | awk -F "[:]" '{print $1":"$2}')
+
         local clashMetaProxies=
         clashMetaProxies=$(curl -s -4 "https://${remoteUrl}/s/clashMeta/${emailMD5}" | sed '/proxies:/d' | sed "s/${email}/${email}_${serverAlias}/g")
-        if echo "${clashMetaProxies}" | grep -q "${email}"; then
-            echo "${clashMetaProxies}" >>"/etc/v2ray-agent/subscribe_remote/clashMeta/${email}_tmp"
 
-            echoContent green " ---> clashMeta订阅 ${remoteDomain}:${email} 更新成功"
+        if ! echo "${clashMetaProxies}" | grep -q "nginx" && [[ -n "${clashMetaProxies}" ]]; then
+            #            echo "${clashMetaProxies}" >"/etc/v2ray-agent/subscribe_remote/clashMeta/${email}_${remoteUrl}"
+            echo "${clashMetaProxies}" >>"/etc/v2ray-agent/subscribe/clashMeta/${emailMD5}"
+            echoContent green " ---> clashMeta订阅 ${remoteUrl}:${email} 更新成功"
         else
-            echoContent red " ---> clashMeta订阅 ${remoteDomain}:${email}不存在"
+            echoContent red " ---> clashMeta订阅 ${remoteUrl}:${email}不存在"
         fi
-    elif [[ "${type}" == "default" && -n "${serverAlias}" ]]; then
-        remoteUrl=$(grep "${remoteDomain}" "/etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl" | grep -v '^$' | awk -F ":" '{print $1":"$2}')
+
         local default=
         default=$(curl -s -4 "https://${remoteUrl}/s/default/${emailMD5}")
 
-        if ! echo "${default}" | grep -q "nginx"; then
+        if ! echo "${default}" | grep -q "nginx" && [[ -n "${default}" ]]; then
             default=$(echo "${default}" | base64 -d | sed "s/${email}/${email}_${serverAlias}/g")
-        fi
-        if echo "${default}" | grep -q "${email}"; then
-            echo "${default}" >>"/etc/v2ray-agent/subscribe_remote/default/${email}_tmp"
+            #            echo "${default}" >"/etc/v2ray-agent/subscribe_remote/default/${email}_${remoteUrl}"
+            echo "${default}" >>"/etc/v2ray-agent/subscribe/default/${emailMD5}"
 
-            echoContent green " ---> 通用订阅 ${remoteDomain}:${email} 更新成功"
+            echoContent green " ---> 通用订阅 ${remoteUrl}:${email} 更新成功"
         else
-            echoContent red " ---> 通用订阅 ${remoteDomain}:${email} 不存在"
+            echoContent red " ---> 通用订阅 ${remoteUrl}:${email} 不存在"
         fi
-    fi
+
+    done < <(grep -v '^$' <"/etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl")
 }
 
 # 切换alpn
@@ -8297,7 +8339,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.1.20"
+    echoContent green "当前版本：v3.1.21"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
