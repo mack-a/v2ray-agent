@@ -6395,29 +6395,25 @@ routingToolsMenu() {
         ;;
     4)
         if [[ -n "${singBoxConfigPath}" ]]; then
-            echoContent red "\n ---> 此功能仅支持Xray-core内核，请等待后续更新"
-            exit 0
+            echoContent red "\n ---> 此功能不支持Hysteria2、Tuic"
         fi
         dokodemoDoorRouting 1
         ;;
     5)
         if [[ -n "${singBoxConfigPath}" ]]; then
-            echoContent red "\n ---> 此功能仅支持Xray-core内核，请等待后续更新"
-            exit 0
+            echoContent red "\n ---> 此功能不支持Hysteria2、Tuic"
         fi
         dnsRouting 1
         ;;
     6)
         if [[ -n "${singBoxConfigPath}" ]]; then
-            echoContent red "\n ---> 此功能仅支持Xray-core内核，请等待后续更新"
-            exit 0
+            echoContent red "\n ---> 此功能不支持Hysteria2、Tuic"
         fi
         vmessWSRouting 1
         ;;
     7)
         if [[ -n "${singBoxConfigPath}" ]]; then
-            echoContent red "\n ---> 此功能仅支持Xray-core内核，请等待后续更新"
-            exit 0
+            echoContent red "\n ---> 此功能不支持Hysteria2、Tuic"
         fi
         sniRouting 1
         ;;
@@ -6944,6 +6940,10 @@ customSingBoxInstall() {
         echoContent red " ---> 请使用英文逗号分隔"
         exit 0
     fi
+    if [[ "${selectCustomInstallType}" != "10" ]] && ((${#selectCustomInstallType} >= 2)) && ! echo "${selectCustomInstallType}" | grep -q ","; then
+        echoContent red " ---> 多选请使用英文逗号分隔"
+        exit 0
+    fi
     if [[ "${selectCustomInstallType: -1}" != "," ]]; then
         selectCustomInstallType="${selectCustomInstallType},"
     fi
@@ -6995,6 +6995,10 @@ customXrayInstall() {
     echoContent skyBlue "--------------------------------------------------------------"
     if echo "${selectCustomInstallType}" | grep -q "，"; then
         echoContent red " ---> 请使用英文逗号分隔"
+        exit 0
+    fi
+    if ((${#selectCustomInstallType} >= 2)) && ! echo "${selectCustomInstallType}" | grep -q ","; then
+        echoContent red " ---> 多选请使用英文逗号分隔"
         exit 0
     fi
     if [[ "${selectCustomInstallType: -1}" != "," ]]; then
@@ -8428,7 +8432,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.1.23"
+    echoContent green "当前版本：v3.1.24"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
