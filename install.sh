@@ -319,9 +319,12 @@ readAcmeTLS() {
     local readAcmeDomain=
     if [[ -n "${currentHost}" ]]; then
         readAcmeDomain="${currentHost}"
-    else
+    fi
+
+    if [[ -n "${domain}" ]]; then
         readAcmeDomain="${domain}"
     fi
+
     dnsTLSDomain=$(echo "${readAcmeDomain}" | awk -F "." '{$1="";print $0}' | sed 's/^[[:space:]]*//' | sed 's/ /./g')
     if [[ -d "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc" && -f "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.key" && -f "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.cer" ]]; then
         installedDNSAPIStatus=true
@@ -1502,7 +1505,7 @@ initDNSAPIConfig() {
             initDNSAPIConfig "$1"
         else
             echo
-            if ! echo "${dnsTLSDomain}" | grep -q "."; then
+            if ! echo "${dnsTLSDomain}" | grep -q "." || [[ -z $(echo "${dnsTLSDomain}" | awk -F "[.]" '{print $1}') ]]; then
                 echoContent green " ---> 不支持此域名申请通配符证书，建议使用此格式[xx.xx.xx]"
                 exit 0
             fi
@@ -2704,16 +2707,17 @@ initSingBoxClients() {
     local type=",$1,"
     local newUUID=$2
     local newName=$3
+
     if [[ -n "${newUUID}" ]]; then
         local newUser=
-        newUser="{\"uuid\":\"${uuid}\",\"flow\":\"xtls-rprx-vision\",\"name\":\"${newName}-VLESS_TCP/TLS_Vision\"}"
+        newUser="{\"uuid\":\"${newUUID}\",\"flow\":\"xtls-rprx-vision\",\"name\":\"${newName}-VLESS_TCP/TLS_Vision\"}"
         currentClients=$(echo "${currentClients}" | jq -r ". +=[${newUser}]")
     fi
     local users=
     users=[]
     while read -r user; do
-        uuid=$(echo "${user}" | jq -r .uuid//.id)
-        name=$(echo "${user}" | jq -r .name//.email | awk -F "[-]" '{print $1}')
+        uuid=$(echo "${user}" | jq -r .uuid//.id//.password)
+        name=$(echo "${user}" | jq -r .name//.email//.username | awk -F "[-]" '{print $1}')
         currentUser=
         # VLESS Vision
         if echo "${type}" | grep -q ",0,"; then
@@ -5197,7 +5201,7 @@ addUser() {
         email=${currentCustomEmail}
 
         # VLESS TCP
-        if echo "${currentInstallProtocolType}" | grep -q 0; then
+        if echo "${currentInstallProtocolType}" | grep -q ",0,"; then
             local clients=
             if [[ "${coreInstallType}" == "1" ]]; then
                 clients=$(initXrayClients 0 "${uuid}" "${email}")
@@ -5209,7 +5213,7 @@ addUser() {
         fi
 
         # VLESS WS
-        if echo "${currentInstallProtocolType}" | grep -q 1; then
+        if echo "${currentInstallProtocolType}" | grep -q ",1,"; then
             local clients=
             if [[ "${coreInstallType}" == "1" ]]; then
                 clients=$(initXrayClients 1 "${uuid}" "${email}")
@@ -5222,7 +5226,7 @@ addUser() {
         fi
 
         # trojan grpc
-        if echo "${currentInstallProtocolType}" | grep -q 2; then
+        if echo "${currentInstallProtocolType}" | grep -q ",2,"; then
             local clients=
             if [[ "${coreInstallType}" == "1" ]]; then
                 clients=$(initXrayClients 2 "${uuid}" "${email}")
@@ -5234,7 +5238,7 @@ addUser() {
             echo "${clients}" | jq . >${configPath}04_trojan_gRPC_inbounds.json
         fi
         # VMess WS
-        if echo "${currentInstallProtocolType}" | grep -q 3; then
+        if echo "${currentInstallProtocolType}" | grep -q ",3,"; then
             local clients=
             if [[ "${coreInstallType}" == "1" ]]; then
                 clients=$(initXrayClients 3 "${uuid}" "${email}")
@@ -5247,7 +5251,7 @@ addUser() {
         fi
 
         # trojan tcp
-        if echo "${currentInstallProtocolType}" | grep -q 4; then
+        if echo "${currentInstallProtocolType}" | grep -q ",4,"; then
             local clients=
             if [[ "${coreInstallType}" == "1" ]]; then
                 clients=$(initXrayClients 4 "${uuid}" "${email}")
@@ -5259,7 +5263,7 @@ addUser() {
         fi
 
         # vless grpc
-        if echo "${currentInstallProtocolType}" | grep -q 5; then
+        if echo "${currentInstallProtocolType}" | grep -q ",5,"; then
             local clients=
             if [[ "${coreInstallType}" == "1" ]]; then
                 clients=$(initXrayClients 5 "${uuid}" "${email}")
@@ -5271,7 +5275,7 @@ addUser() {
         fi
 
         # vless reality vision
-        if echo "${currentInstallProtocolType}" | grep -q 7; then
+        if echo "${currentInstallProtocolType}" | grep -q ",7,"; then
             local clients=
             if [[ "${coreInstallType}" == "1" ]]; then
                 clients=$(initXrayClients 7 "${uuid}" "${email}")
@@ -5283,7 +5287,7 @@ addUser() {
         fi
 
         # vless reality grpc
-        if echo "${currentInstallProtocolType}" | grep -q 8; then
+        if echo "${currentInstallProtocolType}" | grep -q ",8,"; then
             local clients=
             if [[ "${coreInstallType}" == "1" ]]; then
                 clients=$(initXrayClients 8 "${uuid}" "${email}")
@@ -5320,6 +5324,14 @@ addUser() {
             clients=$(jq -r ".inbounds[0].users = ${clients}" "${singBoxConfigPath}09_tuic_inbounds.json")
 
             echo "${clients}" | jq . >"${singBoxConfigPath}09_tuic_inbounds.json"
+        fi
+        # naive
+        if echo ${currentInstallProtocolType} | grep -q ",10,"; then
+            local clients=
+            clients=$(initSingBoxClients 10 "${uuid}" "${email}")
+            clients=$(jq -r ".inbounds[0].users = ${clients}" "${singBoxConfigPath}10_naive_inbounds.json")
+
+            echo "${clients}" | jq . >"${singBoxConfigPath}10_naive_inbounds.json"
         fi
     done
     reloadCore
@@ -6143,6 +6155,7 @@ installWarpReg() {
 
 # 展示warp分流域名
 showWireGuardDomain() {
+    local type=$1
     # xray
     if [[ -f "${configPath}09_routing.json" ]]; then
         echoContent yellow "Xray-core"
@@ -6152,7 +6165,7 @@ showWireGuardDomain() {
     # sing-box
     if [[ -f "${singBoxConfigPath}wireguard_out_${type}_route.json" ]]; then
         echoContent yellow "sing-box"
-        jq -r -c '.route.rules[]|select (.outbound=="wireguard_out_'"${type}"'")|.geosite' "${singBoxConfigPath}wireguard_out_${type}_route.json" | jq -r
+        jq -r -c '.route.rules[]' "${singBoxConfigPath}wireguard_out_${type}_route.json" | jq -r
     fi
 }
 
@@ -6275,7 +6288,7 @@ warpRoutingReg() {
     fi
 
     if [[ "${warpStatus}" == "1" ]]; then
-        showWireGuardDomain
+        showWireGuardDomain "${type}"
         exit 0
     elif [[ "${warpStatus}" == "2" ]]; then
         echoContent yellow "# 注意事项"
@@ -7380,6 +7393,9 @@ EOF
         handleNginx stop
         handleNginx start
     fi
+    if [[ -z $(pgrep -f "nginx") ]]; then
+        handleNginx start
+    fi
 }
 # 卸载订阅
 unInstallSubscribe() {
@@ -8077,7 +8093,7 @@ initRealityDest() {
         realityDestDomain=${domain}:${port}
     else
         local realityDestDomainList=
-        realityDestDomainList="gateway.icloud.com,itunes.apple.com,swdist.apple.com,swcdn.apple.com,updates.cdn-apple.com,mensura.cdn-apple.com,osxapps.itunes.apple.com,aod.itunes.apple.com,download-installer.cdn.mozilla.net,addons.mozilla.org,s0.awsstatic.com,d1.awsstatic.com,images-na.ssl-images-amazon.com,m.media-amazon.com,player.live-video.net,one-piece.com,lol.secure.dyn.riotcdn.net,www.lovelive-anime.jp,www.swift.com,academy.nvidia.com,www.cisco.com,www.samsung.com,www.amd.com,www.googletagmanager.com,cdn-dynmedia-1.microsoft.com,update.microsoft,software.download.prss.microsoft.com,dl.google.com,www.google-analytics.com"
+        realityDestDomainList="gateway.icloud.com,itunes.apple.com,swdist.apple.com,swcdn.apple.com,updates.cdn-apple.com,mensura.cdn-apple.com,osxapps.itunes.apple.com,aod.itunes.apple.com,download-installer.cdn.mozilla.net,addons.mozilla.org,s0.awsstatic.com,d1.awsstatic.com,images-na.ssl-images-amazon.com,m.media-amazon.com,player.live-video.net,one-piece.com,lol.secure.dyn.riotcdn.net,www.lovelive-anime.jp,www.swift.com,academy.nvidia.com,www.cisco.com,www.samsung.com,www.amd.com,cdn-dynmedia-1.microsoft.com,update.microsoft,software.download.prss.microsoft.com,dl.google.com,www.google-analytics.com"
 
         echoContent skyBlue "\n===== 生成配置回落的域名 例如:[addons.mozilla.org:443] ======\n"
         echoContent green "回落域名列表：https://www.v2ray-agent.com/archives/1680104902581#heading-8\n"
@@ -8117,7 +8133,7 @@ initRealityClientServersName() {
         fi
     fi
     if [[ -z "${realityServerName}" ]]; then
-        local realityDestDomainList="gateway.icloud.com,itunes.apple.com,swdist.apple.com,swcdn.apple.com,updates.cdn-apple.com,mensura.cdn-apple.com,osxapps.itunes.apple.com,aod.itunes.apple.com,download-installer.cdn.mozilla.net,addons.mozilla.org,s0.awsstatic.com,d1.awsstatic.com,images-na.ssl-images-amazon.com,m.media-amazon.com,player.live-video.net,one-piece.com,lol.secure.dyn.riotcdn.net,www.lovelive-anime.jp,www.swift.com,academy.nvidia.com,www.cisco.com,www.asus.com,www.samsung.com,www.amd.com,www.googletagmanager.com,cdn-dynmedia-1.microsoft.com,update.microsoft,software.download.prss.microsoft.com,dl.google.com,www.google-analytics.com"
+        local realityDestDomainList="gateway.icloud.com,itunes.apple.com,swdist.apple.com,swcdn.apple.com,updates.cdn-apple.com,mensura.cdn-apple.com,osxapps.itunes.apple.com,aod.itunes.apple.com,download-installer.cdn.mozilla.net,addons.mozilla.org,s0.awsstatic.com,d1.awsstatic.com,images-na.ssl-images-amazon.com,m.media-amazon.com,player.live-video.net,one-piece.com,lol.secure.dyn.riotcdn.net,www.lovelive-anime.jp,www.swift.com,academy.nvidia.com,www.cisco.com,www.asus.com,www.samsung.com,www.amd.com,cdn-dynmedia-1.microsoft.com,update.microsoft,software.download.prss.microsoft.com,dl.google.com,www.google-analytics.com"
         realityDomainPort=443
         echoContent skyBlue "\n================ 配置客户端可用的serverNames ===============\n"
         echoContent yellow "#注意事项"
@@ -8432,7 +8448,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.1.24"
+    echoContent green "当前版本：v3.1.25"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
