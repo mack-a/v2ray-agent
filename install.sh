@@ -1556,10 +1556,15 @@ switchSSLType() {
 
 # 选择acme安装证书方式
 selectAcmeInstallSSL() {
-    local installSSLIPv6=
+    local sslIPv6=
+    local currentIPType=
+    currentIPType=$(curl -s -4 http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | cut -d "=" -f 2)
 
-    if echo "${localIP}" | grep -q ":"; then
-        installSSLIPv6="--listen-v6"
+    if [[ -z "${currentIPType}" ]]; then
+        currentIPType=$(curl -s -6 http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | cut -d "=" -f 2)
+        if [[ -n "${currentIPType}" ]]; then
+            sslIPv6="--listen-v6"
+        fi
     fi
 
     acmeInstallSSL
@@ -1571,10 +1576,10 @@ selectAcmeInstallSSL() {
 acmeInstallSSL() {
     if [[ -n "${dnsAPIType}" ]]; then
         echoContent green " ---> 生成通配符证书中"
-        sudo CF_Token="${cfAPIToken}" "$HOME/.acme.sh/acme.sh" --issue -d "*.${dnsTLSDomain}" --dns dns_cf -k ec-256 --server "${sslType}" ${installSSLIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
+        sudo CF_Token="${cfAPIToken}" "$HOME/.acme.sh/acme.sh" --issue -d "*.${dnsTLSDomain}" --dns dns_cf -k ec-256 --server "${sslType}" ${sslIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
     else
         echoContent green " ---> 生成证书中"
-        sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --server "${sslType}" ${installSSLIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
+        sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --server "${sslType}" ${sslIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
     fi
 }
 # 自定义端口
@@ -6599,7 +6604,7 @@ socks5InboundRoutingMenu() {
             echoContent yellow "\n ---> 下列内容需要配置到其他机器的出站，请不要进行代理行为\n"
             echoContent green " 端口：$(jq .inbounds[0].listen_port ${singBoxConfigPath}20_socks5_inbounds.json)"
             echoContent green " 用户名称：$(jq -r .inbounds[0].users[0].username ${singBoxConfigPath}20_socks5_inbounds.json)"
-            echoContent green " 用户密码：$(jq -r.inbounds[0].users[0].password ${singBoxConfigPath}20_socks5_inbounds.json)"
+            echoContent green " 用户密码：$(jq -r .inbounds[0].users[0].password ${singBoxConfigPath}20_socks5_inbounds.json)"
         else
             echoContent red " ---> 未安装相应功能"
             socks5InboundRoutingMenu
@@ -8828,7 +8833,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.1.30"
+    echoContent green "当前版本：v3.1.31"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
