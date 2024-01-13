@@ -16,7 +16,6 @@
 ## 核心
 
 - Xray-core
-- v2ray-core[暂停维护]
 - sing-box
 
 ## 协议
@@ -26,17 +25,20 @@
 - VLESS(Reality、Vision、TCP、WS、gRPC)
 - VMess(TCP、WS)
 - Trojan(TCP、gRPC)
-- Hysteria2
-- Tuic
+- Hysteria2(sing-box)
+- Tuic(sing-box)
+- NaiveProxy(sing-box)
 
 ## 功能
 
+- 支持不同核心之间的配置读取
+- 支持个性化安装单个协议
 - [支持无域名版本的VLESS Reality搭建](https://www.v2ray-agent.com/archives/1680104902581)
-- [支持多种分流用于解锁（wireguard、IPv6、任意门、DNS、VMess(ws)、SNI反向代理）](https://www.v2ray-agent.com/archives/ba-he-yi-jiao-ben-yu-ming-fen-liu-jiao-cheng)
+- [支持多种分流用于解锁（wireguard、IPv6、Socks5、DNS、VMess(ws)、SNI反向代理）](https://www.v2ray-agent.com/archives/ba-he-yi-jiao-ben-yu-ming-fen-liu-jiao-cheng)
 - [支持批量添加CDN节点并配合ClashMeta自动优选](https://www.v2ray-agent.com/archives/1684858575649)
-- 支持证书自动申请及更新
+- 支持普通证书和通配符证书自动申请及更新
 - [支持订阅以及多VPS组合订阅](https://www.v2ray-agent.com/archives/1681804748677)
-- 支持批量新增端口
+- 支持批量新增端口[仅支持Xray-core]
 - 支持核心的升级以及回退
 - 支持自主更换伪装站点
 - 支持BT下载管理以及域名黑名单管理
@@ -51,13 +53,17 @@
 
 # 三、线路推荐
 
-> 再好的协议也比不上一个高品质的VPS。推荐以下线路
-
 - [VPS选购指南,避坑指南](https://www.v2ray-agent.com/archives/1679975663984)
+
+## 1.高端
+
 - [CN2 GIA](https://www.v2ray-agent.com/tags/cn2-gia)
 - [AS9929](https://www.v2ray-agent.com/tags/as9929)
-- [AS4837](https://www.v2ray-agent.com/tags/as4837)
 - [日本软银](https://www.v2ray-agent.com/tags/ruan-yin)
+
+## 2.性价比
+
+- [AS4837](https://www.v2ray-agent.com/tags/as4837)
 - [CMI](https://www.v2ray-agent.com/tags/cmi)
 
 # 四、安装使用
@@ -82,20 +88,21 @@ wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-
 wget -P /root -N --no-check-certificate "https://www.v2ray-agent.com/v2ray-agent/install.sh" && chmod 700 /root/install.sh && /root/install.sh
 ```
 
-## [2.脚本快速搭建教程](https://www.v2ray-agent.com/archives/1682491479771)
+## 2.使用
+
+- [2.脚本快速搭建教程](https://www.v2ray-agent.com/archives/1682491479771)
 
 # 四、反馈和建议
 
-> 如果您在使用过程中遇到任何问题或者有任何建议，欢迎在这里提交[issue](https://github.com/mack-a/v2ray-agent/issues)
-> ，或者[加入](https://t.me/technologyshare)这个电报群进行交流。
+- 提交[issue](https://github.com/mack-a/v2ray-agent/issues)、[加入](https://t.me/technologyshare)群聊
 
 # 五、捐赠
 
-> 感谢您对开源项目的关注和支持。如果您觉得这个项目对您有帮助，欢迎通过以下方式进行捐赠。
+- 感谢您对开源项目的关注和支持。如果您觉得这个项目对您有帮助，欢迎通过以下方式进行捐赠。
 
-[购买VPS捐赠](https://www.v2ray-agent.com/categories/vps)
+- [购买VPS捐赠](https://www.v2ray-agent.com/categories/vps)
 
-[通过虚拟币向我捐赠](https://www.v2ray-agent.com/1679123834836)
+- [通过虚拟币向我捐赠](https://www.v2ray-agent.com/1679123834836)
 
 # 六、许可证
 
