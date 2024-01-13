@@ -6836,7 +6836,7 @@ EOF
     if [[ "${coreInstallType}" == "1" ]]; then
         unInstallOutbounds socks5_outbound
 
-        outbounds=$(jq -r ".outbounds += [{\"protocol\":\"socks\",\"tag\": \"socks5_outbound\",\"servers\": {\"address\": \"${socks5RoutingOutboundIP}\",\"port\": \"${socks5RoutingOutboundPort}\",\"users\": [{\"user\": \"${socks5RoutingOutboundUserName}\",\"pass\": \"${socks5RoutingOutboundPassword}\"}]}}]" ${configPath}10_ipv4_outbounds.json)
+        outbounds=$(jq -r ".outbounds += [{\"protocol\": \"socks\",\"tag\": \"socks5_outbound\",\"settings\": {\"servers\": [{\"address\": \"${socks5RoutingOutboundIP}\",\"port\": ${socks5RoutingOutboundPort},\"users\": [{\"user\": \"${socks5RoutingOutboundUserName}\",\"pass\": \"${socks5RoutingOutboundPassword}\"}]}]}}]" ${configPath}10_ipv4_outbounds.json)
         echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
     fi
 
@@ -8833,7 +8833,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.1.31"
+    echoContent green "当前版本：v3.1.32"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
