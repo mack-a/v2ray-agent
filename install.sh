@@ -1474,7 +1474,7 @@ customSSLEmail() {
             read -r -p "请输入邮箱地址:" sslEmail
             if echo "${sslEmail}" | grep -q "@"; then
                 echo "ACCOUNT_EMAIL='${sslEmail}'" >>/root/.acme.sh/account.conf
-                echoContent green " ---> 添加成功"
+                echoContent green " ---> 添加完毕"
             else
                 echoContent yellow "请重新输入正确的邮箱格式[例: username@example.com]"
                 customSSLEmail
@@ -2005,8 +2005,8 @@ installSingBox() {
     echoContent skyBlue "\n进度  $1/${totalProgress} : 安装sing-box"
 
     if [[ -z "${singBoxConfigPath}" ]]; then
-        version="v1.7.8"
-        #        version=$(curl -s "https://api.github.com/repos/SagerNet/sing-box/releases?per_page=10" | jq -r ".[]|select (.prerelease==${prereleaseStatus})|.tag_name" | head -1)
+        #        version="v1.7.8"
+        version=$(curl -s "https://api.github.com/repos/SagerNet/sing-box/releases?per_page=10" | jq -r ".[]|select (.prerelease==${prereleaseStatus})|.tag_name" | head -1)
 
         echoContent green " ---> sing-box版本:${version}"
 
@@ -3184,51 +3184,48 @@ downloadSingBoxGeositeDB() {
     fi
 }
 
-# sing-box 路由规则配置配置
-configurationSingBoxRoute() {
-    local type=$1
-    local outboundTag=$2
-    local content=$3
-    if [[ "${type}" == "add" ]]; then
-        addSingBoxRouteRule "${outboundTag}" "${content}"
-    elif [[ "${type}" == "delete" ]]; then
-        if [[ -f "${singBoxConfigPath}${outboundTag}_route.json" ]]; then
-            rm "${singBoxConfigPath}${outboundTag}_route.json"
-            echoContent green "\n ---> 删除成功"
-        fi
-    fi
-}
-
 # 添加sing-box路由规则
 addSingBoxRouteRule() {
-
     local outboundTag=$1
+    # 域名列表
     local domainList=$2
+    # 路由文件名称
+    local routingName=$3
 
-    initSingBoxRouteConfig "${outboundTag}"
-    local rules
+    local rules=
+    rules=$(initSingBoxRules "${domainList}" "${routingName}")
 
-    rules=$(jq -r '.route.rules[]|select(.outbound=="'"${outboundTag}"'")' "${singBoxConfigPath}${outboundTag}_route.json")
+    # domain精确匹配规则
+    local domainRules=
+    domainRules=$(echo "${rules}" | jq .domainRules)
 
-    while read -r line; do
-        if echo "${rules}" | grep -q "${line}"; then
-            echoContent yellow " ---> ${line}已存在，跳过"
-        else
-            if echo "${line}" | grep -q "\."; then
-                rules=$(echo "${rules}" | jq -r ".domain +=[\"${line}\"]")
-            else
-                rules=$(echo "${rules}" | jq -r ".geosite +=[\"${line}\"]")
-            fi
-        fi
-    done < <(echo "${domainList}" | tr ',' '\n')
+    # ruleSet规则集
+    local ruleSet=
+    ruleSet=$(echo "${rules}" | jq .ruleSet)
 
-    local delRules
-    delRules=$(jq -r 'del(.route.rules[]|select(.outbound=="'"${outboundTag}"'"))' "${singBoxConfigPath}${outboundTag}_route.json")
-    echo "${delRules}" >"${singBoxConfigPath}${outboundTag}_route.json"
+    # ruleSet规则tag
+    local ruleSetTag=[]
+    if [[ "$(echo "${ruleSet}" | jq '.|length')" != "0" ]]; then
+        ruleSetTag=$(echo "${ruleSet}" | jq '.|map(.tag)')
+    fi
 
-    local routeRules
-    routeRules=$(jq -r ".route.rules += [${rules}]" "${singBoxConfigPath}${outboundTag}_route.json")
-    echo "${routeRules}" >"${singBoxConfigPath}${outboundTag}_route.json"
+    if [[ -n "${singBoxConfigPath}" ]]; then
+        cat <<EOF >"${singBoxConfigPath}${routingName}.json"
+{
+  "route": {
+    "rules": [
+      {
+        "rule_set":${ruleSetTag},
+        "domain":${domainRules},
+        "outbound": "${outboundTag}"
+      }
+    ],
+    "rule_set":${ruleSet}
+  }
+}
+EOF
+    fi
+
 }
 
 # 移除sing-box route rule
@@ -5046,7 +5043,7 @@ EOF
 EOF
             done < <(echo "${newPort}" | tr ',' '\n')
 
-            echoContent green " ---> 添加成功"
+            echoContent green " ---> 添加完毕"
             reloadCore
             addCorePort
         fi
@@ -5690,12 +5687,13 @@ ipv6Routing() {
         fi
 
         if [[ -n "${singBoxConfigPath}" ]]; then
-            configurationSingBoxRoute add IPv6_out "${domainList}"
+            addSingBoxRouteRule "IPv6_out" "${domainList}" "IPv6_route"
+
             addSingBoxOutbound IPv6_out
             addSingBoxOutbound IPv4_out
         fi
 
-        echoContent green " ---> 添加成功"
+        echoContent green " ---> 添加完毕"
 
     elif [[ "${ipv6Status}" == "3" ]]; then
 
@@ -5888,7 +5886,7 @@ blacklist() {
 
         echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
 
-        echoContent green " ---> 添加成功"
+        echoContent green " ---> 添加完毕"
 
     elif [[ "${blacklistStatus}" == "3" ]]; then
         if [[ "${coreInstallType}" == "2" ]]; then
@@ -6097,7 +6095,7 @@ warpRouting() {
 
         echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
 
-        echoContent green " ---> 添加成功"
+        echoContent green " ---> 添加完毕"
 
     elif [[ "${warpStatus}" == "3" ]]; then
 
@@ -6227,7 +6225,7 @@ addWireGuardRoute() {
     if [[ -n "${singBoxConfigPath}" ]]; then
 
         # rule
-        addSingBoxRouteRule "wireguard_out_${type}" "${domainList}"
+        addSingBoxRouteRule "wireguard_out_${type}" "${domainList}" "wireguard_out_${type}_route"
         addSingBoxOutbound "wireguard_out_${type}" "wireguard_out"
         addSingBoxOutbound direct
         # outbound
@@ -6336,7 +6334,7 @@ warpRoutingReg() {
 
         read -r -p "请按照上面示例录入域名:" domainList
         addWireGuardRoute "${type}" outboundTag "${domainList}"
-        echoContent green " ---> 添加成功"
+        echoContent green " ---> 添加完毕"
 
     elif [[ "${warpStatus}" == "3" ]]; then
 
@@ -6733,6 +6731,24 @@ EOF
 
 }
 
+# 初始化sing-box rule配置
+initSingBoxRules() {
+    local domainRules=[]
+    local ruleSet=[]
+    while read -r line; do
+        local geositeStatus
+        geositeStatus=$(curl -s "https://api.github.com/repos/SagerNet/sing-geosite/contents/geosite-${line}.srs?ref=rule-set" | jq .message)
+
+        if [[ "${geositeStatus}" == "null" ]]; then
+            ruleSet=$(echo "${ruleSet}" | jq -r ". += [{\"tag\":\"${line}_$2\",\"type\":\"remote\",\"format\":\"binary\",\"url\":\"https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-${line}.srs\"}]")
+        else
+            domainRules=$(echo "${domainRules}" | jq -r ". += [\"${line}\"]")
+
+        fi
+    done < <(echo "$1" | tr ',' '\n')
+    echo "{ \"domainRules\":${domainRules},\"ruleSet\":${ruleSet}}"
+}
+
 # socks5 inbound routing规则
 setSocks5InboundRouting() {
     if [[ "$1" == "addRules" && ! -f "${singBoxConfigPath}socks5_inbound_route.json" ]]; then
@@ -6756,35 +6772,44 @@ setSocks5InboundRouting() {
 
     echoContent red "=============================================================="
     echoContent skyBlue "请输入要分流的域名\n"
-    echoContent yellow "目前仅支持精确匹配，请等待后续更新\n"
+    echoContent yellow "支持Xray-core geosite匹配，支持sing-box1.8+ rule_set匹配\n"
     echoContent yellow "非增量添加，会替换原有规则\n"
-    echoContent yellow "录入示例:netflix.com,openai.com\n"
+    echoContent yellow "当输入的规则匹配到geosite或者rule_set后会使用相应的规则\n"
+    echoContent yellow "如无法匹配则，则使用domain精确匹配\n"
+    echoContent yellow "录入示例:netflix,openai,v2ray-agent.com\n"
     read -r -p "域名:" socks5InboundRoutingDomain
     if [[ -z "${socks5InboundRoutingDomain}" ]]; then
         echoContent red " ---> 域名不可为空"
         exit 0
     fi
-    socks5InboundRoutingDomain=$(echo "\"${socks5InboundRoutingDomain}"\" | jq -c '.|split(",")')
-    if [[ -n "${singBoxConfigPath}" ]]; then
-        cat <<EOF >"${singBoxConfigPath}socks5_inbound_route.json"
-{
-  "route": {
-    "rules": [
-      {
-        "inbound": [
-          "socks5_inbound"
-        ],
-        "domain":${socks5InboundRoutingDomain},
-        "source_ip_cidr": ${socks5InboundRoutingIPs},
-        "outbound": "direct"
-      }
-    ]
-  }
-}
-EOF
-        addSingBoxOutbound block
-        addSingBoxOutbound direct
-    fi
+    addSingBoxRouteRule "direct" "${socks5InboundRoutingDomain}" "socks5_inbound_route"
+    local route=
+    route=$(jq ".route.rules[0].inbound = [\"socks5_inbound\"]" "${singBoxConfigPath}socks5_inbound_route.json")
+    route=$(echo "${route}" | jq ".route.rules[0].source_ip_cidr=${socks5InboundRoutingIPs}")
+    echo "${route}" | jq . >"${singBoxConfigPath}socks5_inbound_route.json"
+
+    #    if [[ -n "${singBoxConfigPath}" ]]; then
+    #        cat <<EOF >"${singBoxConfigPath}socks5_inbound_route.json"
+    #{
+    #  "route": {
+    #    "rules": [
+    #      {
+    #        "inbound": [
+    #          "socks5_inbound"
+    #        ],
+    #        "rule_set":${ruleSetTag},
+    #        "domain":${domainRules},
+    #        "source_ip_cidr": ${socks5InboundRoutingIPs},
+    #        "outbound": "direct"
+    #      }
+    #    ],
+    #    "rule_set":${ruleSet}
+    #  }
+    #}
+    #EOF
+    addSingBoxOutbound block
+    addSingBoxOutbound direct
+    #    fi
 }
 
 # socks5 出站
@@ -6852,37 +6877,38 @@ setSocks5OutboundRouting() {
 
     echoContent red "=============================================================="
     echoContent skyBlue "请输入要分流的域名\n"
-    echoContent yellow "目前仅支持精确匹配，请等待后续更新\n"
+    echoContent yellow "支持Xray-core geosite匹配，支持sing-box1.8+ rule_set匹配\n"
     echoContent yellow "非增量添加，会替换原有规则\n"
-    echoContent yellow "录入示例:netflix.com,openai.com\n"
+    echoContent yellow "当输入的规则匹配到geosite或者rule_set后会使用相应的规则\n"
+    echoContent yellow "如无法匹配则，则使用domain精确匹配\n"
+    echoContent yellow "录入示例:netflix,openai,v2ray-agent.com\n"
     read -r -p "域名:" socks5RoutingOutboundDomain
     if [[ -z "${socks5RoutingOutboundDomain}" ]]; then
         echoContent red " ---> IP不可为空"
         exit 0
     fi
-    socks5RoutingOutboundDomain=$(echo "\"${socks5RoutingOutboundDomain}"\" | jq -c '.|split(",")')
-
-    if [[ -n "${singBoxConfigPath}" ]]; then
-        cat <<EOF >"${singBoxConfigPath}socks5_outbound_route.json"
-{
-    "route": {
-        "rules": [
-            {
-                "domain":${socks5RoutingOutboundDomain},
-                "outbound": "socks5_outbound"
-            }
-        ]
-    }
-}
-EOF
-        addSingBoxOutbound direct
-    fi
+    addSingBoxRouteRule "socks5_outbound" "${socks5RoutingOutboundDomain}" "socks5_outbound_route"
+    addSingBoxOutbound direct
 
     if [[ "${coreInstallType}" == "1" ]]; then
 
         unInstallRouting "socks5_outbound" "outboundTag"
-        local routing=
-        routing=$(jq -r ".routing.rules += [{\"type\": \"field\",\"domain\": ${socks5RoutingOutboundDomain},\"outboundTag\": \"socks5_outbound\"}]" ${configPath}09_routing.json)
+        local domainRules=[]
+        while read -r line; do
+            if echo "${routingRule}" | grep -q "${line}"; then
+                echoContent yellow " ---> ${line}已存在，跳过"
+            else
+                local geositeStatus
+                geositeStatus=$(curl -s "https://api.github.com/repos/v2fly/domain-list-community/contents/data/${line}" | jq .message)
+
+                if [[ "${geositeStatus}" == "null" ]]; then
+                    domainRules=$(echo "${domainRules}" | jq -r ". += [\"geosite:${line}\"]")
+                else
+                    domainRules=$(echo "${domainRules}" | jq -r ". += [\"domain:${line}\"]")
+                fi
+            fi
+        done < <(echo "${socks5RoutingOutboundDomain}" | tr ',' '\n')
+        routing=$(jq -r ".routing.rules += [{\"type\": \"field\",\"domain\": ${domainRules},\"outboundTag\": \"socks5_outbound\"}]" ${configPath}09_routing.json)
         echo "${routing}" | jq . >${configPath}09_routing.json
     fi
 }
@@ -8833,7 +8859,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.1.32"
+    echoContent green "当前版本：v3.1.33"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
