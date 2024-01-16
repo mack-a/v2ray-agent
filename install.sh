@@ -4826,7 +4826,7 @@ checkNginx302() {
         local domain302Result=
         domain302Result=$(curl -L -s "https://${currentHost}:${currentPort}")
         if [[ -n "${domain302Result}" ]]; then
-            echoContent green " ---> 302重定向设置成功"
+            echoContent green " ---> 302重定向设置完毕"
             exit 0
         fi
     fi
@@ -5699,8 +5699,8 @@ ipv6Routing() {
 
         echoContent red "=============================================================="
         echoContent yellow "# 注意事项\n"
-        echoContent yellow "1.会删除设置的所有分流规则"
-        echoContent yellow "2.会删除除IPv6之外的所有出站规则\n"
+        echoContent yellow "1.会删除所有设置的分流规则"
+        echoContent yellow "2.会删除IPv6之外的所有出站规则\n"
         read -r -p "是否确认设置？[y/n]:" IPv6OutStatus
 
         if [[ "${IPv6OutStatus}" == "y" ]]; then
@@ -5736,7 +5736,7 @@ EOF
                 addSingBoxOutbound IPv6_out
             fi
 
-            echoContent green " ---> IPv6全局出站设置成功"
+            echoContent green " ---> IPv6全局出站设置完毕"
         else
 
             echoContent green " ---> 放弃设置"
@@ -6101,7 +6101,7 @@ warpRouting() {
 
         echoContent red "=============================================================="
         echoContent yellow "# 注意事项\n"
-        echoContent yellow "1.会删除设置的所有分流规则"
+        echoContent yellow "1.会删除所有设置的分流规则"
         echoContent yellow "2.会删除除WARP之外的所有出站规则\n"
         read -r -p "是否确认设置？[y/n]:" warpOutStatus
 
@@ -6125,7 +6125,7 @@ warpRouting() {
 }
 EOF
             rm ${configPath}09_routing.json >/dev/null 2>&1
-            echoContent green " ---> WARP全局出站设置成功"
+            echoContent green " ---> WARP全局出站设置完毕"
         else
             echoContent green " ---> 放弃设置"
             exit 0
@@ -6340,7 +6340,7 @@ warpRoutingReg() {
 
         echoContent red "=============================================================="
         echoContent yellow "# 注意事项\n"
-        echoContent yellow "1.会删除设置的所有分流规则"
+        echoContent yellow "1.会删除所有设置的分流规则"
         echoContent yellow "2.会删除除WARP[第三方]之外的所有出站规则\n"
         read -r -p "是否确认设置？[y/n]:" warpOutStatus
 
@@ -6404,7 +6404,7 @@ EOF
                 addSingBoxWireGuardOut
             fi
 
-            echoContent green " ---> WARP全局出站设置成功"
+            echoContent green " ---> WARP全局出站设置完毕"
         else
             echoContent green " ---> 放弃设置"
             exit 0
@@ -6618,8 +6618,9 @@ socks5OutboundRoutingMenu() {
     echoContent red "\n=============================================================="
 
     echoContent yellow "1.安装Socks5出站"
-    echoContent yellow "2.查看分流规则"
-    echoContent yellow "3.添加分流规则"
+    echoContent yellow "2.设置Socks5全局转发"
+    echoContent yellow "3.查看分流规则"
+    echoContent yellow "4.添加分流规则"
     read -r -p "请选择:" selectType
     case ${selectType} in
     1)
@@ -6629,16 +6630,66 @@ socks5OutboundRoutingMenu() {
         socks5OutboundRoutingMenu
         ;;
     2)
-        showSingBoxRoutingRules socks5_outbound_route
+        setSocks5Outbound
+        setSocks5OutboundRoutingAll
+        reloadCore
         socks5OutboundRoutingMenu
         ;;
     3)
+        showSingBoxRoutingRules socks5_outbound_route
+        socks5OutboundRoutingMenu
+        ;;
+    4)
         setSocks5OutboundRouting addRules
         reloadCore
         socks5OutboundRoutingMenu
         ;;
     esac
 
+}
+
+# socks5全局
+setSocks5OutboundRoutingAll() {
+
+    echoContent red "=============================================================="
+    echoContent yellow "# 注意事项\n"
+    echoContent yellow "1.会删除所有已经设置的分流规则，包括其他分流（warp、IPv6等）"
+    echoContent yellow "2.会删除Socks5之外的所有出站规则\n"
+    read -r -p "是否确认设置？[y/n]:" socksOutStatus
+
+    if [[ "${socksOutStatus}" == "y" ]]; then
+        if [[ "${coreInstallType}" == "1" ]]; then
+            cat <<EOF >${configPath}10_ipv4_outbounds.json
+{
+    "outbounds":[
+        {
+            "protocol":"freedom",
+            "settings":{
+            },
+            "tag":"socks5_outbound"
+        }
+    ]
+}
+EOF
+            rm ${configPath}09_routing.json >/dev/null 2>&1
+        fi
+        if [[ -n "${singBoxConfigPath}" ]]; then
+
+            removeSingBoxConfig IPv4_out
+            removeSingBoxConfig wireguard_out_IPv4
+            removeSingBoxConfig wireguard_out_IPv4_route
+
+            removeSingBoxConfig IPv6_out
+            removeSingBoxConfig wireguard_out_IPv6
+            removeSingBoxConfig wireguard_out_IPv6_route
+
+            removeSingBoxConfig wireguard_outbound
+
+            removeSingBoxConfig socks5_inbound_route
+        fi
+
+        echoContent green " ---> Socks5全局出站设置完毕"
+    fi
 }
 # socks5 分流规则
 showSingBoxRoutingRules() {
@@ -6776,40 +6827,27 @@ setSocks5InboundRouting() {
     echoContent yellow "非增量添加，会替换原有规则\n"
     echoContent yellow "当输入的规则匹配到geosite或者rule_set后会使用相应的规则\n"
     echoContent yellow "如无法匹配则，则使用domain精确匹配\n"
-    echoContent yellow "录入示例:netflix,openai,v2ray-agent.com\n"
-    read -r -p "域名:" socks5InboundRoutingDomain
-    if [[ -z "${socks5InboundRoutingDomain}" ]]; then
-        echoContent red " ---> 域名不可为空"
-        exit 0
-    fi
-    addSingBoxRouteRule "direct" "${socks5InboundRoutingDomain}" "socks5_inbound_route"
-    local route=
-    route=$(jq ".route.rules[0].inbound = [\"socks5_inbound\"]" "${singBoxConfigPath}socks5_inbound_route.json")
-    route=$(echo "${route}" | jq ".route.rules[0].source_ip_cidr=${socks5InboundRoutingIPs}")
-    echo "${route}" | jq . >"${singBoxConfigPath}socks5_inbound_route.json"
 
-    #    if [[ -n "${singBoxConfigPath}" ]]; then
-    #        cat <<EOF >"${singBoxConfigPath}socks5_inbound_route.json"
-    #{
-    #  "route": {
-    #    "rules": [
-    #      {
-    #        "inbound": [
-    #          "socks5_inbound"
-    #        ],
-    #        "rule_set":${ruleSetTag},
-    #        "domain":${domainRules},
-    #        "source_ip_cidr": ${socks5InboundRoutingIPs},
-    #        "outbound": "direct"
-    #      }
-    #    ],
-    #    "rule_set":${ruleSet}
-    #  }
-    #}
-    #EOF
-    addSingBoxOutbound block
-    addSingBoxOutbound direct
-    #    fi
+    read -r -p "是否允许所有网站？请选择[y/n]:" socks5InboundRoutingDomainStatus
+    if [[ "${socks5InboundRoutingDomainStatus}" == "y" ]]; then
+        addSingBoxOutbound direct
+    else
+        echoContent yellow "录入示例:netflix,openai,v2ray-agent.com\n"
+        read -r -p "域名:" socks5InboundRoutingDomain
+        if [[ -z "${socks5InboundRoutingDomain}" ]]; then
+            echoContent red " ---> 域名不可为空"
+            exit 0
+        fi
+        addSingBoxRouteRule "direct" "${socks5InboundRoutingDomain}" "socks5_inbound_route"
+        local route=
+        route=$(jq ".route.rules[0].inbound = [\"socks5_inbound\"]" "${singBoxConfigPath}socks5_inbound_route.json")
+        route=$(echo "${route}" | jq ".route.rules[0].source_ip_cidr=${socks5InboundRoutingIPs}")
+        echo "${route}" | jq . >"${singBoxConfigPath}socks5_inbound_route.json"
+
+        addSingBoxOutbound block
+        addSingBoxOutbound direct
+    fi
+
 }
 
 # socks5 出站
@@ -6864,7 +6902,6 @@ EOF
         outbounds=$(jq -r ".outbounds += [{\"protocol\": \"socks\",\"tag\": \"socks5_outbound\",\"settings\": {\"servers\": [{\"address\": \"${socks5RoutingOutboundIP}\",\"port\": ${socks5RoutingOutboundPort},\"users\": [{\"user\": \"${socks5RoutingOutboundUserName}\",\"pass\": \"${socks5RoutingOutboundPassword}\"}]}]}}]" ${configPath}10_ipv4_outbounds.json)
         echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
     fi
-
 }
 
 # socks5 outbound routing规则
@@ -8859,7 +8896,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.1.33"
+    echoContent green "当前版本：v3.1.34"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
