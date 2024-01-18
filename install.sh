@@ -361,7 +361,7 @@ readInstallType() {
 
     # 1.检测安装目录
     if [[ -d "/etc/v2ray-agent" ]]; then
-        if [[ -d "/etc/v2ray-agent/xray" && -f "/etc/v2ray-agent/xray/xray" ]]; then
+        if [[ -f "/etc/v2ray-agent/xray/xray" ]]; then
             # 检测xray-core
             if [[ -d "/etc/v2ray-agent/xray/conf" ]] && [[ -f "/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/02_trojan_TCP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/07_VLESS_vision_reality_inbounds.json" ]]; then
                 # xray-core
@@ -375,7 +375,7 @@ readInstallType() {
                     singBoxConfigPath=/etc/v2ray-agent/sing-box/conf/config/
                 fi
             fi
-        elif [[ -d "/etc/v2ray-agent/sing-box" && -f "/etc/v2ray-agent/sing-box/sing-box" && -f "/etc/v2ray-agent/sing-box/conf/config.json" ]]; then
+        elif [[ -f "/etc/v2ray-agent/sing-box/sing-box" && -f "/etc/v2ray-agent/sing-box/conf/config.json" ]]; then
             # 检测sing-box
             ctlPath=/etc/v2ray-agent/sing-box/sing-box
             coreInstallType=2
@@ -2277,6 +2277,7 @@ updateV2Ray() {
 # 更新Xray
 updateXray() {
     readInstallType
+
     if [[ -z "${coreInstallType}" ]]; then
         if [[ -n "$1" ]]; then
             version=$1
@@ -2326,7 +2327,7 @@ updateXray() {
         else
             read -r -p "最新版本为:${version}，是否更新？[y/n]:" installXrayStatus
             if [[ "${installXrayStatus}" == "y" ]]; then
-                rm -f /etc/v2ray-agent/xray/xray
+                rm /etc/v2ray-agent/xray/xray
                 updateXray
             else
                 echoContent green " ---> 放弃更新"
@@ -6807,8 +6808,9 @@ initSingBoxRules() {
 
 # socks5 inbound routing规则
 setSocks5InboundRouting() {
-    if [[ "$1" == "addRules" && ! -f "${singBoxConfigPath}socks5_inbound_route.json" ]]; then
+    if [[ "$1" == "addRules" && ! -f "${singBoxConfigPath}socks5_inbound_route.json" && ! -f "${configPath}09_routing.json" ]]; then
         echoContent red " ---> 请安装入站分流后再添加分流规则"
+        echoContent red " ---> 如已选择允许所有网站，请重新安装分流后设置规则"
         exit 0
     fi
     local socks5InboundRoutingIPs=
@@ -6912,7 +6914,7 @@ EOF
 # socks5 outbound routing规则
 setSocks5OutboundRouting() {
 
-    if [[ "$1" == "addRules" && ! -f "${singBoxConfigPath}socks5_outbound_route.json" ]]; then
+    if [[ "$1" == "addRules" && ! -f "${singBoxConfigPath}socks5_outbound_route.json" && ! -f "${configPath}09_routing.json" ]]; then
         echoContent red " ---> 请安装出站分流后再添加分流规则"
         exit 0
     fi
@@ -7716,7 +7718,7 @@ unInstallXrayCoreReality() {
 coreVersionManageMenu() {
 
     if [[ -z "${coreInstallType}" ]]; then
-        echoContent red "\n >没有检测到安装目录，请执行脚本安装内容"
+        echoContent red "\n ---> >没有检测到安装目录，请执行脚本安装内容"
         menu
         exit 0
     fi
@@ -8902,7 +8904,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.1.35"
+    echoContent green "当前版本：v3.1.36"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
