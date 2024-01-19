@@ -6571,6 +6571,7 @@ socks5Routing() {
 }
 # Socks5入站菜单
 socks5InboundRoutingMenu() {
+    readInstallType
     echoContent skyBlue "\n功能 1/1 : Socks5入站"
     echoContent red "\n=============================================================="
 
@@ -6726,17 +6727,19 @@ removeSocks5Routing() {
 
         removeSingBoxConfig socks5_outbound_route
         removeSingBoxConfig socks5_inbound_route
-
     elif [[ "${unInstallSocks5RoutingStatus}" == "2" ]]; then
 
         removeSingBoxConfig 20_socks5_inbounds
         removeSingBoxConfig socks5_inbound_route
+
+        handleSingBox stop
     elif [[ "${unInstallSocks5RoutingStatus}" == "3" ]]; then
         removeSingBoxConfig 20_socks5_inbounds
         removeSingBoxConfig socks5_inbound_route
 
         unInstallOutbounds socks5_outbound
         unInstallRouting socks5_outbound outboundTag
+        handleSingBox stop
     else
         echoContent red " ---> 选择错误"
         exit 0
@@ -6797,10 +6800,9 @@ initSingBoxRules() {
         geositeStatus=$(curl -s "https://api.github.com/repos/SagerNet/sing-geosite/contents/geosite-${line}.srs?ref=rule-set" | jq .message)
 
         if [[ "${geositeStatus}" == "null" ]]; then
-            ruleSet=$(echo "${ruleSet}" | jq -r ". += [{\"tag\":\"${line}_$2\",\"type\":\"remote\",\"format\":\"binary\",\"url\":\"https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-${line}.srs\"}]")
+            ruleSet=$(echo "${ruleSet}" | jq -r ". += [{\"tag\":\"${line}_$2\",\"type\":\"remote\",\"format\":\"binary\",\"url\":\"https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-${line}.srs\",\"download_detour\":\"direct\"}]")
         else
             domainRules=$(echo "${domainRules}" | jq -r ". += [\"${line}\"]")
-
         fi
     done < <(echo "$1" | tr ',' '\n')
     echo "{ \"domainRules\":${domainRules},\"ruleSet\":${ruleSet}}"
@@ -6808,6 +6810,9 @@ initSingBoxRules() {
 
 # socks5 inbound routing规则
 setSocks5InboundRouting() {
+
+    singBoxConfigPath=/etc/v2ray-agent/sing-box/conf/config/
+
     if [[ "$1" == "addRules" && ! -f "${singBoxConfigPath}socks5_inbound_route.json" && ! -f "${configPath}09_routing.json" ]]; then
         echoContent red " ---> 请安装入站分流后再添加分流规则"
         echoContent red " ---> 如已选择允许所有网站，请重新安装分流后设置规则"
@@ -8904,7 +8909,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.1.36"
+    echoContent green "当前版本：v3.1.37"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
