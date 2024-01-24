@@ -3195,7 +3195,6 @@ addSingBoxRouteRule() {
 
     local rules=
     rules=$(initSingBoxRules "${domainList}" "${routingName}")
-
     # domain精确匹配规则
     local domainRules=
     domainRules=$(echo "${rules}" | jq .domainRules)
@@ -3209,8 +3208,8 @@ addSingBoxRouteRule() {
     if [[ "$(echo "${ruleSet}" | jq '.|length')" != "0" ]]; then
         ruleSetTag=$(echo "${ruleSet}" | jq '.|map(.tag)')
     fi
-
     if [[ -n "${singBoxConfigPath}" ]]; then
+
         cat <<EOF >"${singBoxConfigPath}${routingName}.json"
 {
   "route": {
@@ -5877,38 +5876,57 @@ blacklist() {
         echoContent yellow "4.如果域名在预定义域名列表中存在则使用 geosite:xx，如果不存在则默认使用输入的域名"
         echoContent yellow "5.添加规则为增量配置，不会删除之前设置的内容\n"
         read -r -p "请按照上面示例录入域名:" domainList
+        if [[ "${coreInstallType}" == "1" ]]; then
+            if [[ -f "${configPath}09_routing.json" ]]; then
+                addInstallRouting blackhole_out outboundTag "${domainList}"
+            fi
+            unInstallOutbounds blackhole_out
 
-        if [[ -f "${configPath}09_routing.json" ]]; then
-            addInstallRouting blackhole_out outboundTag "${domainList}"
+            outbounds=$(jq -r '.outbounds += [{"protocol":"blackhole","tag":"blackhole_out"}]' ${configPath}10_ipv4_outbounds.json)
+
+            echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
         fi
-        unInstallOutbounds blackhole_out
 
-        outbounds=$(jq -r '.outbounds += [{"protocol":"blackhole","tag":"blackhole_out"}]' ${configPath}10_ipv4_outbounds.json)
-
-        echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
-
+        if [[ -n "${singBoxConfigPath}" ]]; then
+            addSingBoxRouteRule "block_domain_outbound" "${domainList}" "block_domain_route"
+            addSingBoxOutbound "block_domain_outbound"
+            addSingBoxOutbound "direct"
+        fi
         echoContent green " ---> 添加完毕"
 
     elif [[ "${blacklistStatus}" == "3" ]]; then
-        if [[ "${coreInstallType}" == "2" ]]; then
-            echoContent red "\n ---> 此功能仅支持Xray-core内核，请等待后续更新"
-            exit 0
+
+        if [[ "${coreInstallType}" == "1" ]]; then
+            addInstallRouting blackhole_out outboundTag "cn"
+
+            unInstallOutbounds blackhole_out
+
+            outbounds=$(jq -r '.outbounds += [{"protocol":"blackhole","tag":"blackhole_out"}]' ${configPath}10_ipv4_outbounds.json)
+
+            echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
         fi
-        addInstallRouting blackhole_out outboundTag "cn"
 
-        unInstallOutbounds blackhole_out
+        if [[ -n "${singBoxConfigPath}" ]]; then
+            addSingBoxRouteRule "cn_block_outbound" "cn" "cn_block_route"
+            addSingBoxOutbound "cn_block_outbound"
+            addSingBoxOutbound "direct"
+        fi
 
-        outbounds=$(jq -r '.outbounds += [{"protocol":"blackhole","tag":"blackhole_out"}]' ${configPath}10_ipv4_outbounds.json)
-
-        echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
-
-        echoContent green " ---> 屏蔽国内域名成功"
+        echoContent green " ---> 屏蔽国内域名完毕"
 
     elif [[ "${blacklistStatus}" == "4" ]]; then
+        if [[ "${coreInstallType}" == "1" ]]; then
+            unInstallRouting blackhole_out outboundTag
+        fi
 
-        unInstallRouting blackhole_out outboundTag
+        if [[ -n "${singBoxConfigPath}" ]]; then
+            removeSingBoxConfig "cn_block_route"
+            removeSingBoxConfig "cn_block_outbound"
 
-        echoContent green " ---> 域名黑名单删除成功"
+            removeSingBoxConfig "block_domain_route"
+            removeSingBoxConfig "block_domain_outbound"
+        fi
+        echoContent green " ---> 域名黑名单删除完毕"
     else
         echoContent red " ---> 选择错误"
         exit 0
@@ -8909,7 +8927,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.1.37"
+    echoContent green "当前版本：v3.1.38"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
