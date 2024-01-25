@@ -3298,6 +3298,196 @@ EOF
     fi
 }
 
+# 添加Xray-core 出站
+addXrayOutbound() {
+    local tag=$1
+    local domainStrategy=
+
+    if echo "${tag}" | grep -q "IPv4"; then
+        domainStrategy="ForceIPv4"
+    elif echo "${tag}" | grep -q "IPv6"; then
+        domainStrategy="ForceIPv6"
+    fi
+
+    if [[ -n "${domainStrategy}" ]]; then
+        cat <<EOF >"/etc/v2ray-agent/xray/conf/${tag}.json"
+{
+    "outbounds":[
+        {
+            "protocol":"freedom",
+            "settings":{
+                "domainStrategy":"${domainStrategy}"
+            },
+            "tag":"${tag}"
+        }
+    ]
+}
+EOF
+    fi
+    # direct
+    if echo "${tag}" | grep -q "direct"; then
+        cat <<EOF >"/etc/v2ray-agent/xray/conf/${tag}.json"
+{
+    "outbounds":[
+        {
+            "protocol":"freedom",
+            "settings": {},
+            "tag":"direct"
+        }
+    ]
+}
+EOF
+    fi
+    # blackhole
+    if echo "${tag}" | grep -q "blackhole"; then
+        cat <<EOF >"/etc/v2ray-agent/xray/conf/${tag}.json"
+{
+    "outbounds":[
+        {
+            "protocol":"blackhole",
+            "tag":"blackhole_out"
+        }
+    ]
+}
+EOF
+    fi
+    # socks5 outbound
+    if echo "${tag}" | grep -q "socks5"; then
+        cat <<EOF >"/etc/v2ray-agent/xray/conf/${tag}.json"
+{
+  "outbounds": [
+    {
+      "protocol": "socks",
+      "tag": "socks5_outbound",
+      "settings": {
+        "servers": [
+          {
+            "address": "${socks5RoutingOutboundIP}",
+            "port": ${socks5RoutingOutboundPort},
+            "users": [
+              {
+                "user": "${socks5RoutingOutboundUserName}",
+                "pass": "${socks5RoutingOutboundPassword}"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
+EOF
+    fi
+    if echo "${tag}" | grep -q "wireguard_out_IPv4"; then
+        cat <<EOF >"/etc/v2ray-agent/xray/conf/${tag}.json"
+{
+  "outbounds": [
+    {
+      "protocol": "wireguard",
+      "settings": {
+        "secretKey": "${secretKeyWarpReg}",
+        "address": [
+          "${address}"
+        ],
+        "peers": [
+          {
+            "publicKey": "${publicKeyWarpReg}",
+            "allowedIPs": [
+              "0.0.0.0/0",
+              "::/0"
+            ],
+            "endpoint": "162.159.192.1:2408"
+          }
+        ],
+        "reserved": ${reservedWarpReg},
+        "mtu": 1280
+      },
+      "tag": "${tag}"
+    }
+  ]
+}
+EOF
+    fi
+    if echo "${tag}" | grep -q "wireguard_out_IPv6"; then
+        cat <<EOF >"/etc/v2ray-agent/xray/conf/${tag}.json"
+{
+  "outbounds": [
+    {
+      "protocol": "wireguard",
+      "settings": {
+        "secretKey": "${secretKeyWarpReg}",
+        "address": [
+          "${address}"
+        ],
+        "peers": [
+          {
+            "publicKey": "${publicKeyWarpReg}",
+            "allowedIPs": [
+              "0.0.0.0/0",
+              "::/0"
+            ],
+            "endpoint": "162.159.192.1:2408"
+          }
+        ],
+        "reserved": ${reservedWarpReg},
+        "mtu": 1280
+      },
+      "tag": "${tag}"
+    }
+  ]
+}
+EOF
+    fi
+    if echo "${tag}" | grep -q "vmess-out"; then
+        cat <<EOF >"/etc/v2ray-agent/xray/conf/${tag}.json"
+{
+  "outbounds": [
+    {
+      "tag": "${tag}",
+      "protocol": "vmess",
+      "streamSettings": {
+        "network": "ws",
+        "security": "tls",
+        "tlsSettings": {
+          "allowInsecure": false
+        },
+        "wsSettings": {
+          "path": "${setVMessWSTLSPath}"
+        }
+      },
+      "mux": {
+        "enabled": true,
+        "concurrency": 8
+      },
+      "settings": {
+        "vnext": [
+          {
+            "address": "${setVMessWSTLSAddress}",
+            "port": "${setVMessWSTLSPort}",
+            "users": [
+              {
+                "id": "${setVMessWSTLSUUID}",
+                "security": "auto",
+                "alterId": 0
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
+EOF
+    fi
+}
+
+# 删除 Xray-core出站
+removeXrayOutbound() {
+    local tag=$1
+    if [[ -f "/etc/v2ray-agent/xray/conf/${tag}.json" ]]; then
+        rm "/etc/v2ray-agent/xray/conf/${tag}.json" >/dev/null 2>&1
+    fi
+}
 # 移除sing-box配置
 removeSingBoxConfig() {
 
@@ -3573,54 +3763,7 @@ EOF
 EOF
     fi
 
-    # outbounds
-    if [[ ! -f "/etc/v2ray-agent/xray/conf/10_ipv6_outbounds.json" ]]; then
-        if [[ -n "${pingIPv6}" ]]; then
-            cat <<EOF >/etc/v2ray-agent/xray/conf/10_ipv6_outbounds.json
-{
-    "outbounds": [
-        {
-          "protocol": "freedom",
-          "settings": {},
-          "tag": "direct"
-        }
-    ]
-}
-EOF
-
-        else
-            cat <<EOF >/etc/v2ray-agent/xray/conf/10_ipv4_outbounds.json
-{
-    "outbounds":[
-        {
-            "protocol":"freedom",
-            "settings":{
-                "domainStrategy":"UseIPv4"
-            },
-            "tag":"IPv4_out"
-        },
-        {
-            "protocol":"freedom",
-            "settings":{
-                "domainStrategy":"UseIPv6"
-            },
-            "tag":"IPv6_out"
-        },
-        {
-            "protocol":"freedom",
-            "settings": {},
-            "tag":"direct"
-        },
-        {
-            "protocol":"blackhole",
-            "tag":"blackhole_out"
-        }
-    ]
-}
-EOF
-        fi
-    fi
-
+    addXrayOutbound direct
     # dns
     if [[ ! -f "/etc/v2ray-agent/xray/conf/11_dns.json" ]]; then
         cat <<EOF >/etc/v2ray-agent/xray/conf/11_dns.json
@@ -5678,12 +5821,7 @@ ipv6Routing() {
         read -r -p "请按照上面示例录入域名:" domainList
         if [[ "${coreInstallType}" == "1" ]]; then
             addInstallRouting IPv6_out outboundTag "${domainList}"
-
-            unInstallOutbounds IPv6_out
-
-            outbounds=$(jq -r '.outbounds += [{"protocol":"freedom","settings":{"domainStrategy":"UseIPv6"},"tag":"IPv6_out"}]' ${configPath}10_ipv4_outbounds.json)
-
-            echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
+            addXrayOutbound IPv6_out
         fi
 
         if [[ -n "${singBoxConfigPath}" ]]; then
@@ -5705,19 +5843,13 @@ ipv6Routing() {
 
         if [[ "${IPv6OutStatus}" == "y" ]]; then
             if [[ "${coreInstallType}" == "1" ]]; then
-                cat <<EOF >${configPath}10_ipv4_outbounds.json
-{
-    "outbounds":[
-        {
-            "protocol":"freedom",
-            "settings":{
-                "domainStrategy":"UseIPv6"
-            },
-            "tag":"IPv6_out"
-        }
-    ]
-}
-EOF
+                addXrayOutbound IPv6_out
+                removeXrayOutbound IPv4_out
+                removeXrayOutbound direct
+                removeXrayOutbound blackhole_out
+                removeXrayOutbound wireguard_out_IPv4
+                removeXrayOutbound wireguard_out_IPv6
+
                 rm ${configPath}09_routing.json >/dev/null 2>&1
             fi
             if [[ -n "${singBoxConfigPath}" ]]; then
@@ -5747,12 +5879,9 @@ EOF
         if [[ "${coreInstallType}" == "1" ]]; then
             unInstallRouting IPv6_out outboundTag
 
-            unInstallOutbounds IPv6_out
-            if ! grep -q "IPv4_out" <"${configPath}10_ipv4_outbounds.json"; then
-                outbounds=$(jq -r '.outbounds += [{"protocol":"freedom","settings": {"domainStrategy": "UseIPv4"},"tag":"IPv4_out"}]' ${configPath}10_ipv4_outbounds.json)
+            removeXrayOutbound IPv6_out
+            addXrayOutbound direct
 
-                echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
-            fi
         fi
 
         if [[ -n "${singBoxConfigPath}" ]]; then
@@ -5821,22 +5950,16 @@ EOF
         fi
 
         installSniffing
+        removeXrayOutbound blackhole_out
+        addXrayOutbound blackhole_out
 
-        unInstallOutbounds blackhole_out
-
-        outbounds=$(jq -r '.outbounds += [{"protocol":"blackhole","tag":"blackhole_out"}]' ${configPath}10_ipv4_outbounds.json)
-
-        echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
-
-        echoContent green " ---> BT下载禁用成功"
+        echoContent green " ---> BT下载配置完成"
 
     elif [[ "${btStatus}" == "2" ]]; then
 
         unInstallSniffing
 
         unInstallRouting blackhole_out outboundTag bittorrent
-
-        #		unInstallOutbounds blackhole_out
 
         echoContent green " ---> BT下载打开成功"
     else
@@ -5860,7 +5983,7 @@ blacklist() {
     echoContent yellow "1.查看已屏蔽域名"
     echoContent yellow "2.添加域名"
     echoContent yellow "3.屏蔽国内域名"
-    echoContent yellow "4.删除黑名单"
+    echoContent yellow "4.卸载黑名单"
     echoContent red "=============================================================="
 
     read -r -p "请选择:" blacklistStatus
@@ -5877,14 +6000,8 @@ blacklist() {
         echoContent yellow "5.添加规则为增量配置，不会删除之前设置的内容\n"
         read -r -p "请按照上面示例录入域名:" domainList
         if [[ "${coreInstallType}" == "1" ]]; then
-            if [[ -f "${configPath}09_routing.json" ]]; then
-                addInstallRouting blackhole_out outboundTag "${domainList}"
-            fi
-            unInstallOutbounds blackhole_out
-
-            outbounds=$(jq -r '.outbounds += [{"protocol":"blackhole","tag":"blackhole_out"}]' ${configPath}10_ipv4_outbounds.json)
-
-            echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
+            addInstallRouting blackhole_out outboundTag "${domainList}"
+            addXrayOutbound blackhole_out
         fi
 
         if [[ -n "${singBoxConfigPath}" ]]; then
@@ -5899,11 +6016,7 @@ blacklist() {
         if [[ "${coreInstallType}" == "1" ]]; then
             addInstallRouting blackhole_out outboundTag "cn"
 
-            unInstallOutbounds blackhole_out
-
-            outbounds=$(jq -r '.outbounds += [{"protocol":"blackhole","tag":"blackhole_out"}]' ${configPath}10_ipv4_outbounds.json)
-
-            echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
+            addXrayOutbound blackhole_out
         fi
 
         if [[ -n "${singBoxConfigPath}" ]]; then
@@ -5966,13 +6079,7 @@ EOF
     local routingRule=
     routingRule=$(jq -r '.routing.rules[]|select(.outboundTag=="'"${tag}"'")' ${configPath}09_routing.json)
     if [[ -z "${routingRule}" ]]; then
-        if [[ "${tag}" == "dokodemoDoor-80" ]]; then
-            routingRule="{\"type\": \"field\",\"port\": 80,\"domain\": [],\"outboundTag\": \"${tag}\"}"
-        elif [[ "${tag}" == "dokodemoDoor-443" ]]; then
-            routingRule="{\"type\": \"field\",\"port\": 443,\"domain\": [],\"outboundTag\": \"${tag}\"}"
-        else
-            routingRule="{\"type\": \"field\",\"domain\": [],\"outboundTag\": \"${tag}\"}"
-        fi
+        routingRule="{\"type\": \"field\",\"domain\": [],\"outboundTag\": \"${tag}\"}"
     fi
 
     while read -r line; do
@@ -6034,21 +6141,6 @@ unInstallRouting() {
     fi
 }
 
-# 根据tag卸载出站
-unInstallOutbounds() {
-    local tag=$1
-
-    if grep -q "${tag}" ${configPath}10_ipv4_outbounds.json; then
-        local ipv6OutIndex
-        ipv6OutIndex=$(jq .outbounds[].tag ${configPath}10_ipv4_outbounds.json | awk '{print ""NR""":"$0}' | grep "${tag}" | awk -F "[:]" '{print $1}' | head -1)
-        if [[ ${ipv6OutIndex} -gt 0 ]]; then
-            routing=$(jq -r 'del(.outbounds['$((ipv6OutIndex - 1))'])' ${configPath}10_ipv4_outbounds.json)
-            echo "${routing}" | jq . >${configPath}10_ipv4_outbounds.json
-        fi
-    fi
-
-}
-
 # 卸载嗅探
 unInstallSniffing() {
 
@@ -6072,104 +6164,6 @@ installSniffing() {
             fi
         done
     fi
-}
-
-# warp分流
-warpRouting() {
-    echoContent skyBlue "\n进度  $1/${totalProgress} : WARP分流"
-    echoContent red "=============================================================="
-    if [[ -z $(which warp-cli) ]]; then
-        echo
-        read -r -p "WARP未安装，是否安装 ？[y/n]:" installCloudflareWarpStatus
-        if [[ "${installCloudflareWarpStatus}" == "y" ]]; then
-            installWarp
-        else
-            echoContent yellow " ---> 放弃安装"
-            exit 0
-        fi
-    fi
-
-    echoContent red "\n=============================================================="
-    echoContent yellow "1.查看已分流域名"
-    echoContent yellow "2.添加域名"
-    echoContent yellow "3.设置WARP全局"
-    echoContent yellow "4.卸载WARP分流"
-    echoContent red "=============================================================="
-    read -r -p "请选择:" warpStatus
-    if [[ "${warpStatus}" == "1" ]]; then
-        jq -r -c '.routing.rules[]|select (.outboundTag=="warp-socks-out")|.domain' ${configPath}09_routing.json | jq -r
-        exit 0
-    elif [[ "${warpStatus}" == "2" ]]; then
-        echoContent yellow "# 注意事项"
-        echoContent yellow "# 使用教程：https://www.v2ray-agent.com/archives/1683226921000 \n"
-
-        read -r -p "请按照上面示例录入域名:" domainList
-
-        addInstallRouting warp-socks-out outboundTag "${domainList}"
-
-        unInstallOutbounds warp-socks-out
-
-        local outbounds
-        outbounds=$(jq -r '.outbounds += [{"protocol":"socks","settings":{"servers":[{"address":"127.0.0.1","port":31303}]},"tag":"warp-socks-out"}]' ${configPath}10_ipv4_outbounds.json)
-
-        echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
-
-        echoContent green " ---> 添加完毕"
-
-    elif [[ "${warpStatus}" == "3" ]]; then
-
-        echoContent red "=============================================================="
-        echoContent yellow "# 注意事项\n"
-        echoContent yellow "1.会删除所有设置的分流规则"
-        echoContent yellow "2.会删除除WARP之外的所有出站规则\n"
-        read -r -p "是否确认设置？[y/n]:" warpOutStatus
-
-        if [[ "${warpOutStatus}" == "y" ]]; then
-            cat <<EOF >${configPath}10_ipv4_outbounds.json
-{
-    "outbounds":[
-        {
-          "protocol": "socks",
-          "settings": {
-            "servers": [
-              {
-                "address": "127.0.0.1",
-                "port": 31303
-              }
-            ]
-          },
-          "tag": "warp-socks-out"
-        }
-    ]
-}
-EOF
-            rm ${configPath}09_routing.json >/dev/null 2>&1
-            echoContent green " ---> WARP全局出站设置完毕"
-        else
-            echoContent green " ---> 放弃设置"
-            exit 0
-        fi
-
-    elif [[ "${warpStatus}" == "4" ]]; then
-
-        #        ${removeType} cloudflare-warp >/dev/null 2>&1
-
-        unInstallRouting warp-socks-out outboundTag
-
-        unInstallOutbounds warp-socks-out
-
-        if ! grep -q "IPv4_out" <"${configPath}10_ipv4_outbounds.json"; then
-            outbounds=$(jq -r '.outbounds += [{"protocol":"freedom","settings": {"domainStrategy": "UseIPv4"},"tag":"IPv4_out"}]' ${configPath}10_ipv4_outbounds.json)
-
-            echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
-        fi
-
-        echoContent green " ---> WARP分流卸载成功"
-    else
-        echoContent red " ---> 选择错误"
-        exit 0
-    fi
-    reloadCore
 }
 
 # 读取第三方warp配置
@@ -6234,11 +6228,7 @@ addWireGuardRoute() {
     if [[ "${coreInstallType}" == "1" ]]; then
 
         addInstallRouting wireguard_out_"${type}" "${tag}" "${domainList}"
-        unInstallOutbounds wireguard_out_"${type}"
-        local outbounds
-        outbounds=$(jq -r '.outbounds += [{"protocol":"wireguard","settings":{"secretKey":"'"${secretKeyWarpReg}"'","address":["'"${address}"'"],"peers":[{"publicKey":"'"${publicKeyWarpReg}"'","allowedIPs":["0.0.0.0/0","::/0"],"endpoint":"162.159.192.1:2408"}],"reserved":'"${reservedWarpReg}"',"mtu":1280},"tag":"wireguard_out_'"${type}"'"}]' ${configPath}10_ipv4_outbounds.json)
-
-        echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
+        addXrayOutbound "wireguard_out_${type}"
     fi
     # sing-box
     if [[ -n "${singBoxConfigPath}" ]]; then
@@ -6258,11 +6248,11 @@ unInstallWireGuard() {
     if [[ "${coreInstallType}" == "1" ]]; then
 
         if [[ "${type}" == "IPv4" ]]; then
-            if ! grep -q "wireguard_out_IPv6" <${configPath}10_ipv4_outbounds.json; then
+            if [[ ! -f "${configPath}wireguard_out_IPv6.json" ]]; then
                 rm -rf /etc/v2ray-agent/warp/config >/dev/null 2>&1
             fi
         elif [[ "${type}" == "IPv6" ]]; then
-            if ! grep -q "wireguard_out_IPv4" <${configPath}10_ipv4_outbounds.json; then
+            if [[ ! -f "${configPath}wireguard_out_IPv4.json" ]]; then
                 rm -rf /etc/v2ray-agent/warp/config >/dev/null 2>&1
             fi
         fi
@@ -6282,34 +6272,9 @@ removeWireGuardRoute() {
 
         unInstallRouting wireguard_out_"${type}" outboundTag
 
-        unInstallOutbounds wireguard_out_"${type}"
-
-        if ! grep -q "IPv4_out" <"${configPath}10_ipv4_outbounds.json"; then
-
-            cat <<EOF >${configPath}10_ipv4_outbounds.json
-{
-    "outbounds":[
-        {
-            "protocol":"freedom",
-            "settings":{
-                "domainStrategy":"UseIPv4"
-            },
-            "tag":"IPv4_out"
-        },
-        {
-            "protocol":"freedom",
-            "settings":{
-                "domainStrategy":"UseIPv6"
-            },
-            "tag":"IPv6_out"
-        },
-        {
-            "protocol":"blackhole",
-            "tag":"blackhole_out"
-        }
-    ]
-}
-EOF
+        removeXrayOutbound "wireguard_out_${type}"
+        if [[ ! -f "${configPath}IPv4_out.json" ]]; then
+            addXrayOutbound IPv4_out
         fi
     fi
 
@@ -6366,36 +6331,19 @@ warpRoutingReg() {
         if [[ "${warpOutStatus}" == "y" ]]; then
             readConfigWarpReg
             if [[ "${coreInstallType}" == "1" ]]; then
-                cat <<EOF >${configPath}10_ipv4_outbounds.json
-{
-   "outbounds":[
-       {
-           "protocol": "wireguard",
-           "settings": {
-               "secretKey": "${secretKeyWarpReg}",
-               "address": [
-                   "${address}"
-               ],
-               "peers": [
-                   {
-                       "publicKey": "${publicKeyWarpReg}",
-                       "allowedIPs": [
-                           "0.0.0.0/0",
-                            "::/0"
-                       ],
-                       "endpoint": "162.159.192.1:2408"
-                   }
-               ],
-               "reserved": ${reservedWarpReg},
-               "mtu": 1280
-           },
-           "tag": "wireguard_out_${type}"
-       }
-   ]
-}
-EOF
-                rm ${configPath}09_routing.json >/dev/null 2>&1
+                addXrayOutbound "wireguard_out_${type}"
+                if [[ "${type}" == "IPv4" ]]; then
+                    removeXrayOutbound "wireguard_out_IPv6"
+                elif [[ "${type}" == "IPv6" ]]; then
+                    removeXrayOutbound "wireguard_out_IPv4"
+                fi
 
+                removeXrayOutbound IPv4_out
+                removeXrayOutbound IPv6_out
+                removeXrayOutbound direct
+                removeXrayOutbound blackhole_out
+
+                rm ${configPath}09_routing.json >/dev/null 2>&1
             fi
 
             if [[ -n "${singBoxConfigPath}" ]]; then
@@ -6433,7 +6381,8 @@ EOF
         removeSingBoxConfig "wireguard_out_${type}_route"
 
         removeSingBoxConfig "wireguard_out_${type}"
-        echoContent green " ---> 卸载WARP ${type}分流成功"
+        removeXrayOutbound "wireguard_out_${type}"
+        echoContent green " ---> 卸载WARP ${type}分流完毕"
     else
         echoContent red " ---> 选择错误"
         exit 0
@@ -6450,8 +6399,8 @@ routingToolsMenu() {
     echoContent yellow "3.IPv6分流"
     echoContent yellow "4.Socks5分流"
     echoContent yellow "5.DNS分流"
-    echoContent yellow "6.VMess+WS+TLS分流"
-    echoContent yellow "7.SNI反向代理分流"
+    #    echoContent yellow "6.VMess+WS+TLS分流"
+    #    echoContent yellow "7.SNI反向代理分流"
 
     read -r -p "请选择:" selectType
 
@@ -6474,67 +6423,20 @@ routingToolsMenu() {
         fi
         dnsRouting 1
         ;;
-    6)
-        if [[ -n "${singBoxConfigPath}" ]]; then
-            echoContent red "\n ---> 此功能不支持Hysteria2、Tuic"
-        fi
-        vmessWSRouting 1
-        ;;
-    7)
-        if [[ -n "${singBoxConfigPath}" ]]; then
-            echoContent red "\n ---> 此功能不支持Hysteria2、Tuic"
-        fi
-        sniRouting 1
-        ;;
+        #    6)
+        #        if [[ -n "${singBoxConfigPath}" ]]; then
+        #            echoContent red "\n ---> 此功能不支持Hysteria2、Tuic"
+        #        fi
+        #        vmessWSRouting 1
+        #        ;;
+        #    7)
+        #        if [[ -n "${singBoxConfigPath}" ]]; then
+        #            echoContent red "\n ---> 此功能不支持Hysteria2、Tuic"
+        #        fi
+        #        sniRouting 1
+        #        ;;
     esac
 
-}
-# 流媒体工具箱
-streamingToolbox() {
-    echoContent skyBlue "\n功能 1/${totalProgress} : 流媒体工具箱"
-    echoContent red "\n=============================================================="
-    echoContent yellow "1.任意门落地机解锁流媒体"
-    echoContent yellow "2.DNS解锁流媒体"
-    echoContent yellow "3.VMess+WS+TLS解锁流媒体"
-    read -r -p "请选择:" selectType
-
-    case ${selectType} in
-    1)
-        dokodemoDoorRouting
-        ;;
-    2)
-        dnsRouting
-        ;;
-    3)
-        vmessWSRouting
-        ;;
-    esac
-
-}
-
-# 任意门解锁流媒体
-dokodemoDoorRouting() {
-    echoContent skyBlue "\n功能 1/${totalProgress} : 任意门分流"
-    echoContent red "\n=============================================================="
-    echoContent yellow "# 注意事项"
-    echoContent yellow "# 使用教程：https://www.v2ray-agent.com/archives/1683226921000 \n"
-
-    echoContent yellow "1.添加出站"
-    echoContent yellow "2.添加入站"
-    echoContent yellow "3.卸载"
-    read -r -p "请选择:" selectType
-
-    case ${selectType} in
-    1)
-        setDokodemoDoorRoutingOutbounds
-        ;;
-    2)
-        setDokodemoDoorRoutingInbounds
-        ;;
-    3)
-        removeDokodemoDoorRouting
-        ;;
-    esac
 }
 
 # VMess+WS+TLS 分流
@@ -6680,6 +6582,11 @@ setSocks5OutboundRoutingAll() {
 
     if [[ "${socksOutStatus}" == "y" ]]; then
         if [[ "${coreInstallType}" == "1" ]]; then
+            removeXrayOutbound IPv4_out
+            removeXrayOutbound IPv6_out
+            removeXrayOutbound direct
+            removeXrayOutbound blackhole_out
+
             rm ${configPath}09_routing.json >/dev/null 2>&1
         fi
         if [[ -n "${singBoxConfigPath}" ]]; then
@@ -6728,7 +6635,7 @@ removeSocks5Routing() {
     echoContent yellow "3.卸载全部"
     read -r -p "请选择:" unInstallSocks5RoutingStatus
     if [[ "${unInstallSocks5RoutingStatus}" == "1" ]]; then
-        unInstallOutbounds socks5_outbound
+        removeXrayOutbound socks5_outbound
         unInstallRouting socks5_outbound outboundTag
 
         removeSingBoxConfig socks5_outbound_route
@@ -6743,7 +6650,7 @@ removeSocks5Routing() {
         removeSingBoxConfig 20_socks5_inbounds
         removeSingBoxConfig socks5_inbound_route
 
-        unInstallOutbounds socks5_outbound
+        removeXrayOutbound socks5_outbound
         unInstallRouting socks5_outbound outboundTag
         handleSingBox stop
     else
@@ -6915,10 +6822,7 @@ setSocks5Outbound() {
 EOF
     fi
     if [[ "${coreInstallType}" == "1" ]]; then
-        unInstallOutbounds socks5_outbound
-
-        outbounds=$(jq -r ".outbounds += [{\"protocol\": \"socks\",\"tag\": \"socks5_outbound\",\"settings\": {\"servers\": [{\"address\": \"${socks5RoutingOutboundIP}\",\"port\": ${socks5RoutingOutboundPort},\"users\": [{\"user\": \"${socks5RoutingOutboundUserName}\",\"pass\": \"${socks5RoutingOutboundPassword}\"}]}]}}]" ${configPath}10_ipv4_outbounds.json)
-        echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
+        addXrayOutbound socks5_outbound
     fi
 }
 
@@ -6990,8 +6894,7 @@ setVMessWSRoutingOutbounds() {
     fi
 
     if [[ -n "${setVMessWSTLSAddress}" ]]; then
-
-        unInstallOutbounds VMess-out
+        removeXrayOutbound VMess-out
 
         echo
         read -r -p "请输入VMess+WS+TLS的端口:" setVMessWSTLSPort
@@ -7013,11 +6916,7 @@ setVMessWSRoutingOutbounds() {
         elif ! echo "${setVMessWSTLSPath}" | grep -q "/"; then
             setVMessWSTLSPath="/${setVMessWSTLSPath}"
         fi
-
-        outbounds=$(jq -r ".outbounds += [{\"tag\":\"VMess-out\",\"protocol\":\"vmess\",\"streamSettings\":{\"network\":\"ws\",\"security\":\"tls\",\"tlsSettings\":{\"allowInsecure\":false},\"wsSettings\":{\"path\":\"${setVMessWSTLSPath}\"}},\"mux\":{\"enabled\":true,\"concurrency\":8},\"settings\":{\"vnext\":[{\"address\":\"${setVMessWSTLSAddress}\",\"port\":${setVMessWSTLSPort},\"users\":[{\"id\":\"${setVMessWSTLSUUID}\",\"security\":\"auto\",\"alterId\":0}]}]}}]" ${configPath}10_ipv4_outbounds.json)
-
-        echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
-
+        addXrayOutbound "VMess-out"
         addInstallRouting VMess-out outboundTag "${domainList}"
         reloadCore
         echoContent green " ---> 添加分流成功"
@@ -7027,176 +6926,10 @@ setVMessWSRoutingOutbounds() {
     setVMessWSRoutingOutbounds
 }
 
-# 设置任意门分流【出站】
-setDokodemoDoorRoutingOutbounds() {
-    read -r -p "请输入目标vps的IP:" setIP
-    echoContent red "=============================================================="
-    echoContent yellow "录入示例:netflix,openai\n"
-    read -r -p "请按照上面示例录入域名:" domainList
-
-    if [[ -z ${domainList} ]]; then
-        echoContent red " ---> 域名不可为空"
-        setDokodemoDoorRoutingOutbounds
-    fi
-
-    if [[ -n "${setIP}" ]]; then
-
-        unInstallOutbounds dokodemoDoor-80
-        unInstallOutbounds dokodemoDoor-443
-
-        addInstallRouting dokodemoDoor-80 outboundTag "${domainList}"
-        addInstallRouting dokodemoDoor-443 outboundTag "${domainList}"
-
-        outbounds=$(jq -r ".outbounds += [{\"tag\":\"dokodemoDoor-80\",\"protocol\":\"freedom\",\"settings\":{\"domainStrategy\":\"AsIs\",\"redirect\":\"${setIP}:22387\"}},{\"tag\":\"dokodemoDoor-443\",\"protocol\":\"freedom\",\"settings\":{\"domainStrategy\":\"AsIs\",\"redirect\":\"${setIP}:22388\"}}]" ${configPath}10_ipv4_outbounds.json)
-
-        echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
-
-        reloadCore
-        echoContent green " ---> 添加任意门分流成功"
-        exit 0
-    fi
-    echoContent red " ---> ip不可为空"
-}
-
-# 设置任意门分流【入站】
-setDokodemoDoorRoutingInbounds() {
-
-    echoContent skyBlue "\n功能 1/${totalProgress} : 任意门添加入站"
-    echoContent red "\n=============================================================="
-    echoContent yellow "ip录入示例:1.1.1.1,1.1.1.2"
-    echoContent yellow "下面的域名一定要和出站的vps一致"
-    echoContent yellow "域名录入示例:netflix,openai\n"
-    read -r -p "请输入允许访问该vps的IP:" setIPs
-    if [[ -n "${setIPs}" ]]; then
-        read -r -p "请按照上面示例录入域名:" domainList
-        allowPort 22387
-        allowPort 22388
-
-        cat <<EOF >${configPath}01_dokodemoDoor_inbounds.json
-{
-  "inbounds": [
-    {
-      "listen": "0.0.0.0",
-      "port": 22387,
-      "protocol": "dokodemo-door",
-      "settings": {
-        "address": "0.0.0.0",
-        "port": 80,
-        "network": "tcp",
-        "followRedirect": false
-      },
-      "sniffing": {
-        "enabled": true,
-        "destOverride": [
-          "http"
-        ]
-      },
-      "tag": "dokodemoDoor-80"
-    },
-    {
-      "listen": "0.0.0.0",
-      "port": 22388,
-      "protocol": "dokodemo-door",
-      "settings": {
-        "address": "0.0.0.0",
-        "port": 443,
-        "network": "tcp",
-        "followRedirect": false
-      },
-      "sniffing": {
-        "enabled": true,
-        "destOverride": [
-          "tls"
-        ]
-      },
-      "tag": "dokodemoDoor-443"
-    }
-  ]
-}
-EOF
-        local domains=
-        domains=[]
-        while read -r line; do
-            local geositeStatus
-            geositeStatus=$(curl -s "https://api.github.com/repos/v2fly/domain-list-community/contents/data/${line}" | jq .message)
-
-            if [[ "${geositeStatus}" == "null" ]]; then
-                domains=$(echo "${domains}" | jq -r '. += ["geosite:'"${line}"'"]')
-            else
-                domains=$(echo "${domains}" | jq -r '. += ["domain:'"${line}"'"]')
-            fi
-        done < <(echo "${domainList}" | tr ',' '\n')
-
-        if [[ -f "${configPath}09_routing.json" ]]; then
-            unInstallRouting dokodemoDoor-80 inboundTag
-            unInstallRouting dokodemoDoor-443 inboundTag
-
-            local routing
-            routing=$(jq -r ".routing.rules += [{\"source\":[\"${setIPs//,/\",\"}\"],\"domains\":${domains},\"type\":\"field\",\"inboundTag\":[\"dokodemoDoor-80\",\"dokodemoDoor-443\"],\"outboundTag\":\"direct\"},{\"type\":\"field\",\"inboundTag\":[\"dokodemoDoor-80\",\"dokodemoDoor-443\"],\"outboundTag\":\"blackhole_out\"}]" ${configPath}09_routing.json)
-            echo "${routing}" | jq . >${configPath}09_routing.json
-        else
-
-            cat <<EOF >${configPath}09_routing.json
-{
-  "routing": {
-    "rules": [
-      {
-        "source": [
-            "${setIPs//,/\",\"}"
-        ],
-        "domains":${domains},
-        "type": "field",
-        "inboundTag": [
-          "dokodemoDoor-80",
-          "dokodemoDoor-443"
-        ],
-        "outboundTag": "direct"
-      },
-      {
-        "type": "field",
-        "inboundTag": [
-          "dokodemoDoor-80",
-          "dokodemoDoor-443"
-        ],
-        "outboundTag": "blackhole_out"
-      }
-    ]
-  }
-}
-EOF
-
-        fi
-
-        reloadCore
-        echoContent green " ---> 添加落地机入站分流成功"
-        exit 0
-    fi
-    echoContent red " ---> ip不可为空"
-}
-
-# 移除任意门分流
-removeDokodemoDoorRouting() {
-
-    unInstallOutbounds dokodemoDoor-80
-    unInstallOutbounds dokodemoDoor-443
-
-    unInstallRouting dokodemoDoor-80 inboundTag
-    unInstallRouting dokodemoDoor-443 inboundTag
-
-    unInstallRouting dokodemoDoor-80 outboundTag
-    unInstallRouting dokodemoDoor-443 outboundTag
-
-    rm -rf ${configPath}01_dokodemoDoor_inbounds.json
-
-    reloadCore
-    echoContent green " ---> 卸载成功"
-}
-
 # 移除VMess+WS+TLS分流
 removeVMessWSRouting() {
 
-    unInstallOutbounds VMess-out
-
+    removeXrayOutbound VMess-out
     unInstallRouting VMess-out outboundTag
 
     reloadCore
@@ -8924,7 +8657,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.1.39"
+    echoContent green "当前版本：v3.2.1"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
@@ -9024,9 +8757,6 @@ menu() {
     18)
         bbrInstall
         ;;
-        #    19)
-        #        checkLog 1
-        #        ;;
     20)
         unInstall 1
         ;;
