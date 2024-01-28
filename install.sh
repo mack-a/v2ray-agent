@@ -2436,7 +2436,7 @@ ExecStart=${execStart}
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=10
-LimitNPROC=512
+LimitNPROC=10000
 LimitNOFILE=infinity
 
 [Install]
