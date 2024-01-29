@@ -7579,6 +7579,7 @@ installSubscribe() {
     local nginxSubscribeSSL=
     local serverName=
     local SSLType=
+    local listenIPv6=
 
     if [[ "${coreInstallType}" == "2" || "${selectCoreType}" == "2" ]] && [[ -z "${subscribePort}" ]]; then
 
@@ -7605,7 +7606,6 @@ installSubscribe() {
                 echoContent yellow " ---> 退出安装"
                 exit
             fi
-            #           ipv6 listen [::]:${result[-1]};
         else
             local subscribeServerName=
             if [[ -n "${currentHost}" ]]; then
@@ -7618,11 +7618,13 @@ installSubscribe() {
             serverName="server_name ${subscribeServerName};"
             nginxSubscribeSSL="ssl_certificate /etc/v2ray-agent/tls/${subscribeServerName}.crt;ssl_certificate_key /etc/v2ray-agent/tls/${subscribeServerName}.key;"
         fi
-
+        if [[ -n "$(curl -s -6 http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | cut -d "=" -f 2)" ]]; then
+            listenIPv6="listen [::]:${result[-1]};"
+        fi
         if echo "${nginxVersion}" | grep -q "1.25" && [[ $(echo "${nginxVersion}" | awk -F "[.]" '{print $3}') -gt 0 ]]; then
-            nginxSubscribeListen="listen ${result[-1]} ${SSLType} so_keepalive=on;http2 on;"
+            nginxSubscribeListen="listen ${result[-1]} ${SSLType} so_keepalive=on;http2 on;${listenIPv6}"
         else
-            nginxSubscribeListen="listen ${result[-1]} ${SSLType} http2 so_keepalive=on;"
+            nginxSubscribeListen="listen ${result[-1]} ${SSLType} http2 so_keepalive=on;${listenIPv6}"
         fi
 
         cat <<EOF >${nginxConfigPath}subscribe.conf
@@ -8698,7 +8700,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.2.2"
+    echoContent green "当前版本：v3.2.3"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
