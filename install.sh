@@ -6773,7 +6773,7 @@ setSocks5InboundRouting() {
             echoContent red " ---> 域名不可为空"
             exit 0
         fi
-        addSingBoxRouteRule "direct" "${socks5InboundRoutingDomain}" "socks5_inbound_route"
+        addSingBoxRouteRule "01_direct_outbound" "${socks5InboundRoutingDomain}" "socks5_inbound_route"
         local route=
         route=$(jq ".route.rules[0].inbound = [\"socks5_inbound\"]" "${singBoxConfigPath}socks5_inbound_route.json")
         route=$(echo "${route}" | jq ".route.rules[0].source_ip_cidr=${socks5InboundRoutingIPs}")
