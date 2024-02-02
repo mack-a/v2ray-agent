@@ -3332,7 +3332,7 @@ EOF
         {
             "protocol":"freedom",
             "settings": {
-                domainStrategy":"UseIP"
+                "domainStrategy":"UseIP"
             },
             "tag":"${tag}"
         }
