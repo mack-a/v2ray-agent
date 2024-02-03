@@ -8,6 +8,7 @@
 - [TG频道](https://t.me/v2rayAgentChannel)、[TG群组](https://t.me/technologyshare)、[官方网站](https://www.v2ray-agent.com/)
 - [RackNerd特价优质VPS深度评测](https://www.v2ray-agent.com/archives/1688973668640)
 - [传家宝级别搬瓦工（GIA、软银），强烈推荐](https://bandwagonhost.com/aff.php?aff=64917&pid=94)
+- 终极套餐搬瓦工（GIA、软银、CMI），强烈推荐。[THE PLAN v1](https://bandwagonhost.com/aff.php?aff=64917&pid=144)、[THE PLAN v2](https://bandwagonhost.com/aff.php?aff=64917&pid=131)
 
 - **请给个⭐支持一下**
 
