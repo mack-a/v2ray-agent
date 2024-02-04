@@ -50,6 +50,7 @@
 - [垃圾VPS大救星，hysteria2最新协议一键搭建](https://www.v2ray-agent.com/archives/1697162969693)
 - [Tuic V5性能提升及使用方法](https://www.v2ray-agent.com/archives/1687167522196)
 - [Cloudflare优选IP、自动选择最快节点教程](https://www.v2ray-agent.com/archives/1684858575649)
+- [脚本使用注意事项](https://www.v2ray-agent.com/archives/1679931532764)
 - [脚本异常处理](https://www.v2ray-agent.com/archives/1684115970026)
 
 # 三、线路推荐
@@ -86,8 +87,6 @@ wget -P /root -N --no-check-certificate "https://www.v2ray-agent.com/v2ray-agent
 ```
 
 ## 2.使用
-
-- [2.脚本快速搭建教程](https://www.v2ray-agent.com/archives/1682491479771)
 
 # 四、反馈和建议
 
