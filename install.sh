@@ -1433,8 +1433,12 @@ EOF
 
     cat <<EOF >>${nginxConfigPath}alone.conf
 server {
-	listen 127.0.0.1:31300;
+	listen 127.0.0.1:31300 proxy_protocol;
 	server_name ${domain};
+
+	set_real_ip_from 0.0.0.0/0;
+	real_ip_header proxy_protocol;
+
 	root ${nginxStaticPath};
 	location ~ ^/s/(clashMeta|default|clashMetaProfiles)/(.*) {
         proxy_set_header X-Real-IP \$proxy_protocol_addr;
@@ -3974,6 +3978,7 @@ EOF
     elif [[ -z "$3" ]]; then
         rm /etc/v2ray-agent/xray/conf/06_VLESS_gRPC_inbounds.json >/dev/null 2>&1
     fi
+
     # VLESS Vision
     if echo "${selectCustomInstallType}" | grep -q ",0," || [[ "$1" == "all" ]]; then
 
@@ -6193,12 +6198,12 @@ unInstallSniffing() {
 installSniffing() {
     readInstallType
     if [[ "${coreInstallType}" == "1" ]]; then
-        find ${configPath} -name "*inbounds.json*" | awk -F "[c][o][n][f][/]" '{print $2}' | while read -r inbound; do
-            if ! grep -q "destOverride" <"${configPath}${inbound}"; then
-                sniffing=$(jq -r '.inbounds[0].sniffing = {"enabled":true,"destOverride":["http","tls","quic"]}' "${configPath}${inbound}")
-                echo "${sniffing}" | jq . >"${configPath}${inbound}"
+        if [[ -f "${configPath}02_VLESS_TCP_inbounds.json" ]]; then
+            if ! grep -q "destOverride" <"${configPath}02_VLESS_TCP_inbounds.json"; then
+                sniffing=$(jq -r '.inbounds[0].sniffing = {"enabled":true,"destOverride":["http","tls","quic"]}' "${configPath}02_VLESS_TCP_inbounds.json")
+                echo "${sniffing}" | jq . >"${configPath}02_VLESS_TCP_inbounds.json"
             fi
-        done
+        fi
     fi
 }
 
@@ -8736,7 +8741,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.2.7"
+    echoContent green "当前版本：v3.2.8"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
