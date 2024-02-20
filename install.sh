@@ -1536,7 +1536,7 @@ initDNSAPIConfig() {
             initDNSAPIConfig "$1"
         else
             echo
-            if ! echo "${dnsTLSDomain}" | grep -q "." || [[ -z $(echo "${dnsTLSDomain}" | awk -F "[.]" '{print $1}') ]]; then
+            if ! echo "${dnsTLSDomain}" | grep -q "\." || [[ -z $(echo "${dnsTLSDomain}" | awk -F "[.]" '{print $1}') ]]; then
                 echoContent green " ---> 不支持此域名申请通配符证书，建议使用此格式[xx.xx.xx]"
                 exit 0
             fi
@@ -1808,7 +1808,7 @@ nginxBlog() {
     else
         randomNum=$((RANDOM % 6 + 1))
         rm -rf "${nginxStaticPath}"
-        wget -q -P "${nginxStaticPath}" https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${randomNum}.zip >/dev/null
+        wget -q -P "${nginxStaticPath}" https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${randomNum}.zip
         unzip -o "${nginxStaticPath}html${randomNum}.zip" -d "${nginxStaticPath}" >/dev/null
         rm -f "${nginxStaticPath}html${randomNum}.zip*"
         echoContent green " ---> 添加伪装站点成功"
@@ -3240,7 +3240,7 @@ addSingBoxRouteRule() {
     "rules": [
       {
         "rule_set":${ruleSetTag},
-        "domain":${domainRules},
+        "domain_regex":${domainRules},
         "outbound": "${outboundTag}"
       }
     ],
@@ -3521,7 +3521,6 @@ removeSingBoxConfig() {
     if [[ -f "${singBoxConfigPath}${tag}.json" ]]; then
         rm "${singBoxConfigPath}${tag}.json"
     fi
-
 }
 
 # 初始化wireguard出站信息
@@ -4439,6 +4438,7 @@ EOF
     removeSingBoxConfig wireguard_out_IPv6
     removeSingBoxConfig IPv4_out
     removeSingBoxConfig IPv6_out
+    removeSingBoxConfig IPv6_route
     removeSingBoxConfig block
     removeSingBoxConfig cn_block_outbound
     removeSingBoxConfig cn_block_route
@@ -5867,7 +5867,7 @@ ipv6Routing() {
 
         if [[ -n "${singBoxConfigPath}" ]]; then
             addSingBoxRouteRule "IPv6_out" "${domainList}" "IPv6_route"
-            addSingBoxOutbound 01_direct_out
+            addSingBoxOutbound 01_direct_outbound
             addSingBoxOutbound IPv6_out
             addSingBoxOutbound IPv4_out
         fi
@@ -5922,7 +5922,6 @@ ipv6Routing() {
 
             removeXrayOutbound IPv6_out
             addXrayOutbound "z_direct_outbound"
-
         fi
 
         if [[ -n "${singBoxConfigPath}" ]]; then
@@ -5954,20 +5953,20 @@ btTools() {
     echoContent red "\n=============================================================="
 
     if [[ -f ${configPath}09_routing.json ]] && grep -q bittorrent <${configPath}09_routing.json; then
-        echoContent yellow "当前状态:已禁用"
+        echoContent yellow "当前状态:已禁止下载BT"
     else
-        echoContent yellow "当前状态:未禁用"
+        echoContent yellow "当前状态:允许下载BT"
     fi
 
-    echoContent yellow "1.禁用"
-    echoContent yellow "2.打开"
+    echoContent yellow "1.禁止下载BT"
+    echoContent yellow "2.允许下载BT"
     echoContent red "=============================================================="
     read -r -p "请选择:" btStatus
     if [[ "${btStatus}" == "1" ]]; then
 
         if [[ -f "${configPath}09_routing.json" ]]; then
 
-            unInstallRouting blackhole_out outboundTag
+            unInstallRouting blackhole_out outboundTag bittorrent
 
             routing=$(jq -r '.routing.rules += [{"type":"field","outboundTag":"blackhole_out","protocol":["bittorrent"]}]' ${configPath}09_routing.json)
 
@@ -5994,7 +5993,7 @@ EOF
         removeXrayOutbound blackhole_out
         addXrayOutbound blackhole_out
 
-        echoContent green " ---> BT下载配置完成"
+        echoContent green " ---> 禁止BT下载"
 
     elif [[ "${btStatus}" == "2" ]]; then
 
@@ -6002,7 +6001,7 @@ EOF
 
         unInstallRouting blackhole_out outboundTag bittorrent
 
-        echoContent green " ---> BT下载打开成功"
+        echoContent green " ---> 允许BT下载"
     else
         echoContent red " ---> 选择错误"
         exit 0
@@ -6023,7 +6022,7 @@ blacklist() {
     echoContent red "\n=============================================================="
     echoContent yellow "1.查看已屏蔽域名"
     echoContent yellow "2.添加域名"
-    echoContent yellow "3.屏蔽国内域名"
+    echoContent yellow "3.屏蔽大陆域名"
     echoContent yellow "4.卸载黑名单"
     echoContent red "=============================================================="
 
@@ -6055,6 +6054,8 @@ blacklist() {
     elif [[ "${blacklistStatus}" == "3" ]]; then
 
         if [[ "${coreInstallType}" == "1" ]]; then
+            unInstallRouting blackhole_out outboundTag
+
             addInstallRouting blackhole_out outboundTag "cn"
 
             addXrayOutbound blackhole_out
@@ -6066,7 +6067,7 @@ blacklist() {
             addSingBoxOutbound "01_direct_outbound"
         fi
 
-        echoContent green " ---> 屏蔽国内域名完毕"
+        echoContent green " ---> 屏蔽大陆域名完毕"
 
     elif [[ "${blacklistStatus}" == "4" ]]; then
         if [[ "${coreInstallType}" == "1" ]]; then
@@ -6118,7 +6119,8 @@ addInstallRouting() {
 EOF
     fi
     local routingRule=
-    routingRule=$(jq -r '.routing.rules[]|select(.outboundTag=="'"${tag}"'")' ${configPath}09_routing.json)
+    routingRule=$(jq -r ".routing.rules[]|select(.outboundTag==\"${tag}\" and (.protocol == null))" ${configPath}09_routing.json)
+
     if [[ -z "${routingRule}" ]]; then
         routingRule="{\"type\": \"field\",\"domain\": [],\"outboundTag\": \"${tag}\"}"
     fi
@@ -6155,29 +6157,13 @@ unInstallRouting() {
     local protocol=$3
 
     if [[ -f "${configPath}09_routing.json" ]]; then
-        local routing
-        if grep -q "${tag}" ${configPath}09_routing.json && grep -q "${type}" ${configPath}09_routing.json; then
-
-            jq -c .routing.rules[] ${configPath}09_routing.json | while read -r line; do
-                local index=$((index + 1))
-                local delStatus=0
-                if [[ "${type}" == "outboundTag" ]] && echo "${line}" | jq .outboundTag | grep -q "${tag}"; then
-                    delStatus=1
-                elif [[ "${type}" == "inboundTag" ]] && echo "${line}" | jq .inboundTag | grep -q "${tag}"; then
-                    delStatus=1
-                fi
-
-                if [[ -n ${protocol} ]] && echo "${line}" | jq .protocol | grep -q "${protocol}"; then
-                    delStatus=1
-                elif [[ -z ${protocol} ]] && [[ $(echo "${line}" | jq .protocol) != "null" ]]; then
-                    delStatus=0
-                fi
-
-                if [[ ${delStatus} == 1 ]]; then
-                    routing=$(jq -r 'del(.routing.rules['$((index - 1))'])' ${configPath}09_routing.json)
-                    echo "${routing}" | jq . >${configPath}09_routing.json
-                fi
-            done
+        local routing=
+        if [[ -n "${protocol}" ]]; then
+            routing=$(jq -r "del(.routing.rules[] | select(.${type} == \"${tag}\" and (.protocol | index(\"${protocol}\"))))" ${configPath}09_routing.json)
+            echo "${routing}" | jq . >${configPath}09_routing.json
+        else
+            routing=$(jq -r "del(.routing.rules[] | select(.${type} == \"${tag}\" and (.protocol == null )))" ${configPath}09_routing.json)
+            echo "${routing}" | jq . >${configPath}09_routing.json
         fi
     fi
 }
@@ -6753,7 +6739,7 @@ initSingBoxRules() {
         if [[ "${geositeStatus}" == "null" ]]; then
             ruleSet=$(echo "${ruleSet}" | jq -r ". += [{\"tag\":\"${line}_$2\",\"type\":\"remote\",\"format\":\"binary\",\"url\":\"https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-${line}.srs\",\"download_detour\":\"01_direct_outbound\"}]")
         else
-            domainRules=$(echo "${domainRules}" | jq -r ". += [\"${line}\"]")
+            domainRules=$(echo "${domainRules}" | jq -r ". += [\"^([a-zA-Z0-9_-]+\\\.)*${line//./\\\\.}\"]")
         fi
     done < <(echo "$1" | tr ',' '\n')
     echo "{ \"domainRules\":${domainRules},\"ruleSet\":${ruleSet}}"
@@ -7150,7 +7136,7 @@ addSingBoxDNSConfig() {
     "rules": [
       {
         "rule_set": ${ruleSetTag},
-        "domain": ${domainRules},
+        "domain_regex": ${domainRules},
         "server":"dnsRouting"
       }
     ]
@@ -7175,6 +7161,7 @@ setUnlockDNS() {
         fi
 
         if [[ -n "${singBoxConfigPath}" ]]; then
+            addSingBoxOutbound 01_direct_outbound
             addSingBoxDNSConfig "${setDNS}" "${domainList}"
         fi
 
@@ -8741,7 +8728,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.2.9"
+    echoContent green "当前版本：v3.2.10"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
