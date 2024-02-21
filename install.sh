@@ -3248,6 +3248,7 @@ addSingBoxRouteRule() {
   }
 }
 EOF
+        jq 'if .route.rule_set == [] then del(.route.rule_set) else . end' "${singBoxConfigPath}${routingName}.json" >"${singBoxConfigPath}${routingName}_tmp.json" && mv "${singBoxConfigPath}${routingName}_tmp.json" "${singBoxConfigPath}${routingName}.json"
     fi
 
 }
@@ -5886,7 +5887,7 @@ ipv6Routing() {
             if [[ "${coreInstallType}" == "1" ]]; then
                 addXrayOutbound IPv6_out
                 removeXrayOutbound IPv4_out
-                removeXrayOutbound direct
+                removeXrayOutbound z_direct_outbound
                 removeXrayOutbound blackhole_out
                 removeXrayOutbound wireguard_out_IPv4
                 removeXrayOutbound wireguard_out_IPv6
@@ -6062,7 +6063,11 @@ blacklist() {
         fi
 
         if [[ -n "${singBoxConfigPath}" ]]; then
+
             addSingBoxRouteRule "cn_block_outbound" "cn" "cn_block_route"
+
+            addSingBoxRouteRule "01_direct_outbound" "googleapis.com,googleapis.cn,xn--ngstr-lra8j.com,gstatic.com" "cn_01_google_play_route"
+
             addSingBoxOutbound "cn_block_outbound"
             addSingBoxOutbound "01_direct_outbound"
         fi
@@ -6077,6 +6082,8 @@ blacklist() {
         if [[ -n "${singBoxConfigPath}" ]]; then
             removeSingBoxConfig "cn_block_route"
             removeSingBoxConfig "cn_block_outbound"
+
+            removeSingBoxConfig "cn_01_google_play_route"
 
             removeSingBoxConfig "block_domain_route"
             removeSingBoxConfig "block_domain_outbound"
@@ -6367,7 +6374,7 @@ warpRoutingReg() {
 
                 removeXrayOutbound IPv4_out
                 removeXrayOutbound IPv6_out
-                removeXrayOutbound direct
+                removeXrayOutbound z_direct_outbound
                 removeXrayOutbound blackhole_out
 
                 rm ${configPath}09_routing.json >/dev/null 2>&1
@@ -6608,7 +6615,7 @@ setSocks5OutboundRoutingAll() {
         if [[ "${coreInstallType}" == "1" ]]; then
             removeXrayOutbound IPv4_out
             removeXrayOutbound IPv6_out
-            removeXrayOutbound direct
+            removeXrayOutbound z_direct_outbound
             removeXrayOutbound blackhole_out
 
             rm ${configPath}09_routing.json >/dev/null 2>&1
@@ -8728,7 +8735,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.2.10"
+    echoContent green "当前版本：v3.2.11"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
