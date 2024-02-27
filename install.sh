@@ -2028,20 +2028,26 @@ installSingBox() {
     readInstallType
     echoContent skyBlue "\n进度  $1/${totalProgress} : 安装sing-box"
 
-    if [[ -z "${singBoxConfigPath}" ]]; then
+    if [[ ! -f "/etc/v2ray-agent/sing-box/sing-box" ]]; then
 
         version=$(curl -s "https://api.github.com/repos/SagerNet/sing-box/releases?per_page=20" | jq -r ".[]|select (.prerelease==${prereleaseStatus})|.tag_name" | head -1)
 
         echoContent green " ---> sing-box版本:${version}"
 
         wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/sing-box/ "https://github.com/SagerNet/sing-box/releases/download/${version}/sing-box-${version/v/}${singBoxCoreCPUVendor}.tar.gz"
+        if [[ ! -f "/etc/v2ray-agent/sing-box/sing-box-${version/v/}${singBoxCoreCPUVendor}.tar.gz" ]]; then
+            read -r -p "核心下载失败，请重新尝试安装，是否重新尝试？[y/n]" downloadStatus
+            if [[ "${downloadStatus}" == "y" ]]; then
+                installSingBox "$1"
+            fi
+        else
 
-        tar zxvf "/etc/v2ray-agent/sing-box/sing-box-${version/v/}${singBoxCoreCPUVendor}.tar.gz" -C "/etc/v2ray-agent/sing-box/" >/dev/null 2>&1
+            tar zxvf "/etc/v2ray-agent/sing-box/sing-box-${version/v/}${singBoxCoreCPUVendor}.tar.gz" -C "/etc/v2ray-agent/sing-box/" >/dev/null 2>&1
 
-        mv "/etc/v2ray-agent/sing-box/sing-box-${version/v/}${singBoxCoreCPUVendor}/sing-box" /etc/v2ray-agent/sing-box/sing-box
-        rm -rf /etc/v2ray-agent/sing-box/sing-box-*
-        chmod 655 /etc/v2ray-agent/sing-box/sing-box
-
+            mv "/etc/v2ray-agent/sing-box/sing-box-${version/v/}${singBoxCoreCPUVendor}/sing-box" /etc/v2ray-agent/sing-box/sing-box
+            rm -rf /etc/v2ray-agent/sing-box/sing-box-*
+            chmod 655 /etc/v2ray-agent/sing-box/sing-box
+        fi
     else
         echoContent green " ---> sing-box版本:v$(/etc/v2ray-agent/sing-box/sing-box version | grep "sing-box version" | awk '{print $3}')"
         read -r -p "是否更新、升级？[y/n]:" reInstallSingBoxStatus
@@ -2069,7 +2075,7 @@ installXray() {
 
     echoContent skyBlue "\n进度  $1/${totalProgress} : 安装Xray"
 
-    if [[ "${coreInstallType}" != "1" ]]; then
+    if [[ ! -f "/etc/v2ray-agent/xray/xray" ]]; then
 
         version=$(curl -s "https://api.github.com/repos/XTLS/Xray-core/releases?per_page=5" | jq -r ".[]|select (.prerelease==${prereleaseStatus})|.tag_name" | head -1)
 
@@ -2077,22 +2083,24 @@ installXray() {
 
         wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/xray/ "https://github.com/XTLS/Xray-core/releases/download/${version}/${xrayCoreCPUVendor}.zip"
         if [[ ! -f "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip" ]]; then
-            echoContent red " ---> 核心下载失败，请重新尝试安装"
-            exit 0
+            read -r -p "核心下载失败，请重新尝试安装，是否重新尝试？[y/n]" downloadStatus
+            if [[ "${downloadStatus}" == "y" ]]; then
+                installXray "$1"
+            fi
+        else
+            unzip -o "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip" -d /etc/v2ray-agent/xray >/dev/null
+            rm -rf "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip"
+
+            version=$(curl -s https://api.github.com/repos/Loyalsoldier/v2ray-rules-dat/releases?per_page=1 | jq -r '.[]|.tag_name')
+            echoContent skyBlue "------------------------Version-------------------------------"
+            echo "version:${version}"
+            rm /etc/v2ray-agent/xray/geo* >/dev/null 2>&1
+
+            wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/xray/ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geosite.dat"
+            wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/xray/ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geoip.dat"
+
+            chmod 655 /etc/v2ray-agent/xray/xray
         fi
-
-        unzip -o "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip" -d /etc/v2ray-agent/xray >/dev/null
-        rm -rf "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip"
-
-        version=$(curl -s https://api.github.com/repos/Loyalsoldier/v2ray-rules-dat/releases?per_page=1 | jq -r '.[]|.tag_name')
-        echoContent skyBlue "------------------------Version-------------------------------"
-        echo "version:${version}"
-        rm /etc/v2ray-agent/xray/geo* >/dev/null 2>&1
-
-        wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/xray/ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geosite.dat"
-        wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/xray/ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geoip.dat"
-
-        chmod 655 /etc/v2ray-agent/xray/xray
     else
         echoContent green " ---> Xray-core版本:$(/etc/v2ray-agent/xray/xray --version | awk '{print $2}' | head -1)"
         read -r -p "是否更新、升级？[y/n]:" reInstallXrayStatus
@@ -7546,7 +7554,7 @@ unInstallXrayCoreReality() {
 coreVersionManageMenu() {
 
     if [[ -z "${coreInstallType}" ]]; then
-        echoContent red "\n ---> >没有检测到安装目录，请执行脚本安装内容"
+        echoContent red "\n ---> 没有检测到安装目录，请执行脚本安装内容"
         menu
         exit 0
     fi
@@ -8735,7 +8743,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.2.11"
+    echoContent green "当前版本：v3.2.12"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
