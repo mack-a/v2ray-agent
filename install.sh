@@ -135,10 +135,6 @@ initVar() {
 
     # 域名
     domain=
-
-    # CDN节点的address
-    add=
-
     # 安装总进度
     totalProgress=1
 
@@ -697,7 +693,7 @@ readConfigHostPathUUID() {
     currentClients=
     currentHost=
     currentPort=
-    currentAdd=
+    currentCDNAddress=
     singBoxVMessWSPath=
 
     if [[ "${coreInstallType}" == "1" ]]; then
@@ -705,11 +701,7 @@ readConfigHostPathUUID() {
         # 安装
         if [[ -n "${frontingType}" ]]; then
             currentHost=$(jq -r .inbounds[0].streamSettings.tlsSettings.certificates[0].certificateFile ${configPath}${frontingType}.json | awk -F '[t][l][s][/]' '{print $2}' | awk -F '[.][c][r][t]' '{print $1}')
-            currentAdd=$(jq -r .inbounds[0].add ${configPath}${frontingType}.json)
 
-            if [[ "${currentAdd}" == "null" ]]; then
-                currentAdd=${currentHost}
-            fi
             currentPort=$(jq .inbounds[0].port ${configPath}${frontingType}.json)
 
             local defaultPortFile=
@@ -726,8 +718,7 @@ readConfigHostPathUUID() {
 
         # reality
         if echo ${currentInstallProtocolType} | grep -q ",7,"; then
-            #            currentUUID=$(jq -r .inbounds[0].settings.clients[0].id ${configPath}07_VLESS_vision_reality_inbounds.json)
-            #            currentClients=$(jq -r .inbounds[0].settings.clients ${configPath}07_VLESS_vision_reality_inbounds.json)
+
             xrayVLESSRealityVisionPort=$(jq -r .inbounds[0].port ${configPath}07_VLESS_vision_reality_inbounds.json)
             if [[ "${currentPort}" == "${xrayVLESSRealityVisionPort}" ]]; then
                 xrayVLESSRealityVisionPort="${currentDefaultPort}"
@@ -742,13 +733,6 @@ readConfigHostPathUUID() {
             currentUUID=$(jq -r .inbounds[0].users[0].uuid ${configPath}${frontingTypeReality}.json)
             currentClients=$(jq -r .inbounds[0].users ${configPath}${frontingTypeReality}.json)
         fi
-
-        # currentAdd=$(jq -r .inbounds[0].settings.clients[0].add ${configPath}${frontingType}.json)
-
-        if [[ -z "${currentAdd}" ]]; then
-            currentAdd=${currentHost}
-        fi
-
     fi
 
     # 读取path
@@ -782,7 +766,11 @@ readConfigHostPathUUID() {
             singBoxVMessWSPath=$(jq -r .inbounds[0].transport.path "${singBoxConfigPath}05_VMess_WS_inbounds.json")
             currentPath=$(jq -r .inbounds[0].transport.path "${singBoxConfigPath}05_VMess_WS_inbounds.json" | awk -F "[/]" '{print $2}')
         fi
-
+    fi
+    if [[ -f "/etc/v2ray-agent/cdn" ]] && grep -q "address" "/etc/v2ray-agent/cdn"; then
+        currentCDNAddress=$(grep "address" "/etc/v2ray-agent/cdn" | awk -F "[:]" '{print $2}')
+    else
+        currentCDNAddress=currentHost
     fi
 }
 
@@ -4454,37 +4442,7 @@ EOF
     removeSingBoxConfig 01_direct_outbound
     removeSingBoxConfig block_domain_outbound
 }
-# 初始化Xray Reality配置
-# 自定义CDN IP
-customCDNIP() {
-    echoContent skyBlue "\n进度 $1/${totalProgress} : 添加cloudflare自选CNAME"
-    echoContent red "\n=============================================================="
-    echoContent yellow "# 注意事项"
-    echoContent yellow "\n教程地址:"
-    echoContent skyBlue "https://www.v2ray-agent.com/archives/cloudflarezi-xuan-ip"
-    echoContent red "\n如对Cloudflare优化不了解，请不要使用"
-    echoContent yellow "\n 1.CNAME www.digitalocean.com"
-    echoContent yellow " 2.CNAME who.int"
-    echoContent yellow " 3.CNAME blog.hostmonit.com"
 
-    echoContent skyBlue "----------------------------"
-    read -r -p "请选择[回车不使用]:" selectCloudflareType
-    case ${selectCloudflareType} in
-    1)
-        add="www.digitalocean.com"
-        ;;
-    2)
-        add="who.int"
-        ;;
-    3)
-        add="blog.hostmonit.com"
-        ;;
-    *)
-        add="${domain}"
-        echoContent yellow "\n ---> 不使用"
-        ;;
-    esac
-}
 # 通用
 defaultBase64Code() {
     local type=$1
@@ -4835,17 +4793,17 @@ showAccounts() {
             local email=
             email=$(echo "${user}" | jq -r .email)
 
-            echoContent skyBlue "\n ---> 账号:${email}"
             echo
             local path="${currentPath}ws"
             local count=
             while read -r line; do
+                echoContent skyBlue "\n ---> 账号:${email}${count}"
                 if [[ -n "${line}" ]]; then
                     defaultBase64Code vlessws "${currentDefaultPort}" "${email}${count}" "$(echo "${user}" | jq -r .id)" "${line}"
                     count=$((count + 1))
+                    echo
                 fi
-            done < <(echo "${currentAdd}" | tr ',' '\n')
-
+            done < <(echo "${currentCDNAddress}" | tr ',' '\n')
         done
     fi
 
@@ -4857,15 +4815,15 @@ showAccounts() {
             local email=
             email=$(echo "${user}" | jq -r .email)
 
-            echoContent skyBlue "\n ---> 账号:${email}"
-            echo
             local count=
             while read -r line; do
+                echoContent skyBlue "\n ---> 账号:${email}${count}"
+                echo
                 if [[ -n "${line}" ]]; then
                     defaultBase64Code vlessgrpc "${currentDefaultPort}" "${email}${count}" "$(echo "${user}" | jq -r .id)" "${line}"
                     count=$((count + 1))
                 fi
-            done < <(echo "${currentAdd}" | tr ',' '\n')
+            done < <(echo "${currentCDNAddress}" | tr ',' '\n')
 
         done
     fi
@@ -4883,8 +4841,6 @@ showAccounts() {
             local email=
             email=$(echo "${user}" | jq -r .email//.name)
 
-            echoContent skyBlue "\n ---> 账号:${email}"
-            echo
             local vmessPort=${currentDefaultPort}
             if [[ "${coreInstallType}" == "2" ]]; then
                 vmessPort="${singBoxVMessWSPort}"
@@ -4892,11 +4848,13 @@ showAccounts() {
 
             local count=
             while read -r line; do
+                echoContent skyBlue "\n ---> 账号:${email}${count}"
+                echo
                 if [[ -n "${line}" ]]; then
                     defaultBase64Code vmessws "${vmessPort}" "${email}${count}" "$(echo "${user}" | jq -r .id//.uuid)" "${line}" "${path}"
                     count=$((count + 1))
                 fi
-            done < <(echo "${currentAdd}" | tr ',' '\n')
+            done < <(echo "${currentCDNAddress}" | tr ',' '\n')
         done
     fi
 
@@ -4918,16 +4876,15 @@ showAccounts() {
         jq .inbounds[0].settings.clients ${configPath}04_trojan_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
             local email=
             email=$(echo "${user}" | jq -r .email)
-
-            echoContent skyBlue "\n ---> 账号:${email}"
-            echo
             local count=
             while read -r line; do
+                echoContent skyBlue "\n ---> 账号:${email}${count}"
+                echo
                 if [[ -n "${line}" ]]; then
                     defaultBase64Code trojangrpc "${currentDefaultPort}" "${email}${count}" "$(echo "${user}" | jq -r .password)" "${line}"
                     count=$((count + 1))
                 fi
-            done < <(echo "${currentAdd}" | tr ',' '\n')
+            done < <(echo "${currentCDNAddress}" | tr ',' '\n')
 
         done
     fi
@@ -5303,50 +5260,64 @@ unInstall() {
     echoContent green " ---> 卸载v2ray-agent脚本完成"
 }
 
-# 修改V2Ray CDN节点
-updateV2RayCDN() {
-    if [[ "${coreInstallType}" == "2" ]]; then
-        echoContent red "\n ---> 此功能仅支持Xray-core内核"
-        exit 0
+# CDN节点管理
+manageCDN() {
+    echoContent skyBlue "\n进度 $1/1 : CDN节点管理"
+    local setCDNDomain=
+    if [[ ! -f "/etc/v2ray-agent/cdn" ]]; then
+        touch "/etc/v2ray-agent/cdn"
     fi
-    echoContent skyBlue "\n进度 $1/${totalProgress} : 修改CDN节点"
 
-    if [[ -n "${currentAdd}" ]]; then
+    if echo "${currentInstallProtocolType}" | grep -qE ",1,|,2,|,3,|,5,"; then
         echoContent red "=============================================================="
+        echoContent yellow "# 注意事项"
+        echoContent yellow "\n教程地址:"
+        echoContent skyBlue "https://www.v2ray-agent.com/archives/cloudflarezi-xuan-ip"
+        echoContent red "\n如对Cloudflare优化不了解，请不要使用"
+
         echoContent yellow "1.CNAME www.digitalocean.com"
         echoContent yellow "2.CNAME who.int"
         echoContent yellow "3.CNAME blog.hostmonit.com"
-        echoContent yellow "4.手动输入[可输入多个，比如: 1.1.1.1,1.1.2.2,cloudflare.com 逗号分隔]"
-        echoContent yellow "5.移除CDN节点"
+        echoContent yellow "4.CNAME www.visa.com.hk"
+        echoContent yellow "5.手动输入[可输入多个，比如: 1.1.1.1,1.1.2.2,cloudflare.com 逗号分隔]"
+        echoContent yellow "6.移除CDN节点"
         echoContent red "=============================================================="
         read -r -p "请选择:" selectCDNType
         case ${selectCDNType} in
         1)
-            setDomain="www.digitalocean.com"
+            setCDNDomain="www.digitalocean.com"
             ;;
         2)
-            setDomain="who.int"
+            setCDNDomain="who.int"
             ;;
         3)
-            setDomain="blog.hostmonit.com"
+            setCDNDomain="blog.hostmonit.com"
             ;;
         4)
-            read -r -p "请输入想要自定义CDN IP或者域名:" setDomain
+            setCDNDomain="www.visa.com.hk"
             ;;
         5)
-            setDomain=${currentHost}
+            read -r -p "请输入想要自定义CDN IP或者域名:" setCDNDomain
+            ;;
+        6)
+            sed -i "1d" "/etc/v2ray-agent/cdn"
+            echoContent green " ---> 移除成功"
+            exit 0
             ;;
         esac
 
-        if [[ -n "${setDomain}" ]]; then
-            local cdnAddressResult=
-            cdnAddressResult=$(jq -r ".inbounds[0].add = \"${setDomain}\" " ${configPath}${frontingType}.json)
-            echo "${cdnAddressResult}" | jq . >${configPath}${frontingType}.json
-
-            echoContent green " ---> 修改CDN成功"
+        if [[ -n "${setCDNDomain}" ]]; then
+            sed -i "1d" "/etc/v2ray-agent/cdn"
+            test -s "/etc/v2ray-agent/cdn" && sed -i "1i address:${setCDNDomain}" "/etc/v2ray-agent/cdn" || echo "address:${setCDNDomain}" >"/etc/v2ray-agent/cdn"
+            echoContent green " ---> 修改CDN成功，重新查看用户管理或者订阅后生成新的节点内容"
+        else
+            echoContent red " ---> 不可以为空，请重新输入"
+            manageCDN 1
         fi
     else
-        echoContent red " ---> 未安装可用类型"
+        echoContent yellow "\n教程地址:"
+        echoContent skyBlue "https://www.v2ray-agent.com/archives/cloudflarezi-xuan-ip\n"
+        echoContent red " ---> 未检测到可以使用的协议，仅支持ws或者grpc相关的协议"
     fi
 }
 # 自定义uuid
@@ -7338,17 +7309,9 @@ customXrayInstall() {
         # 随机path
         if echo "${selectCustomInstallType}" | grep -q ",1," || echo "${selectCustomInstallType}" | grep -q ",2," || echo "${selectCustomInstallType}" | grep -q ",3," || echo "${selectCustomInstallType}" | grep -q ",5,"; then
             randomPathFunction 4
-            customCDNIP 5
         fi
         if [[ -n "${btDomain}" ]]; then
             echoContent skyBlue "\n进度  6/${totalProgress} : 检测到宝塔面板，跳过伪装网站"
-            #            echoContent red "=============================================================="
-            #            echoContent yellow "# 注意事项"
-            #            echoContent yellow "会清空当前安装网站下面的静态目录，如已自定义安装过请选择 [n]\n"
-            #            read -r -p "请选择[y/n]:" nginxBlogBTStatus
-            #            if [[ "${nginxBlogBTStatus}" == "y" ]]; then
-            #                nginxBlog 6
-            #            fi
         else
             nginxBlog 6
         fi
@@ -7408,7 +7371,7 @@ xrayCoreInstall() {
     unInstallSubscribe
     checkBTPanel
     selectCustomInstallType=
-    totalProgress=13
+    totalProgress=12
     installTools 2
     if [[ -n "${btDomain}" ]]; then
         echoContent skyBlue "\n进度  3/${totalProgress} : 检测到宝塔面板，跳过申请TLS步骤"
@@ -7418,31 +7381,22 @@ xrayCoreInstall() {
         # 申请tls
         initTLSNginxConfig 3
         handleXray stop
-        #        handleNginx start
-
         installTLS 4
     fi
 
     handleNginx stop
     randomPathFunction 5
+
     # 安装Xray
     installXray 6 false
     installXrayService 7
-    customCDNIP 8
-    initXrayConfig all 9
+    initXrayConfig all 8
     cleanUp singBoxDel
-    installCronTLS 10
+    installCronTLS 9
     if [[ -n "${btDomain}" ]]; then
         echoContent skyBlue "\n进度  11/${totalProgress} : 检测到宝塔面板，跳过伪装网站"
-        #        echoContent red "=============================================================="
-        #        echoContent yellow "# 注意事项"
-        #        echoContent yellow "会清空当前安装网站下面的静态目录，如已自定义安装过请选择 [n]\n"
-        #        read -r -p "请选择[y/n]:" nginxBlogBTStatus
-        #        if [[ "${nginxBlogBTStatus}" == "y" ]]; then
-        #            nginxBlog 11
-        #        fi
     else
-        nginxBlog 11
+        nginxBlog 10
     fi
     updateRedirectNginxConf
     handleXray stop
@@ -7451,8 +7405,8 @@ xrayCoreInstall() {
 
     handleNginx start
     # 生成账号
-    checkGFWStatue 12
-    showAccounts 13
+    checkGFWStatue 11
+    showAccounts 12
 }
 
 # sing-box 全部安装
@@ -7474,13 +7428,9 @@ singBoxInstall() {
     #    fi
 
     handleNginx stop
-    #    randomPathFunction 5
-    # 安装sing-box
+
     installSingBox 5
     installSingBoxService 6
-    #    installXray 6 false
-    #    installXrayService 7
-    #    customCDNIP 8
     initSingBoxConfig all 7
     cleanUp xrayDel
     installCronTLS 8
@@ -8743,7 +8693,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.2.12"
+    echoContent green "当前版本：v3.2.13"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
@@ -8769,10 +8719,10 @@ menu() {
     fi
 
     echoContent skyBlue "-------------------------工具管理-----------------------------"
-    echoContent yellow "7.账号管理"
-    echoContent yellow "8.更换伪装站"
-    echoContent yellow "9.更新证书"
-    echoContent yellow "10.更换CDN节点"
+    echoContent yellow "7.用户管理"
+    echoContent yellow "8.伪装站管理"
+    echoContent yellow "9.证书管理"
+    echoContent yellow "10.CDN节点管理"
     echoContent yellow "11.分流工具"
     echoContent yellow "12.添加新端口"
     echoContent yellow "13.BT下载管理"
@@ -8817,7 +8767,7 @@ menu() {
         renewalTLS 1
         ;;
     10)
-        updateV2RayCDN 1
+        manageCDN 1
         ;;
     11)
         routingToolsMenu 1
