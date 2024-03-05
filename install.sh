@@ -770,7 +770,7 @@ readConfigHostPathUUID() {
     if [[ -f "/etc/v2ray-agent/cdn" ]] && grep -q "address" "/etc/v2ray-agent/cdn"; then
         currentCDNAddress=$(grep "address" "/etc/v2ray-agent/cdn" | awk -F "[:]" '{print $2}')
     else
-        currentCDNAddress=currentHost
+        currentCDNAddress="${currentHost}"
     fi
 }
 
@@ -8693,7 +8693,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.2.13"
+    echoContent green "当前版本：v3.2.14"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
