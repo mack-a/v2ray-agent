@@ -3808,7 +3808,8 @@ EOF
         "type": "field",
         "domain": [
           "domain:gstatic.com",
-          "domain:googleapis.com"
+          "domain:googleapis.com",
+	  "domain:googleapis.cn"
         ],
         "outboundTag": "z_direct_outbound"
       }
