@@ -4587,7 +4587,7 @@ EOF
 
     elif [[ "${type}" == "vlessReality" ]]; then
         local realityServerName=${xrayVLESSRealityServerName}
-        local publicKey=${xrayVLESSRealityPublicKey}
+        local publicKey=${currentRealityPublicKey}
         if [[ "${coreInstallType}" == "2" ]]; then
             realityServerName=${singBoxVLESSRealityVisionServerName}
             publicKey=${singBoxVLESSRealityPublicKey}
@@ -4621,7 +4621,7 @@ EOF
 
     elif [[ "${type}" == "vlessRealityGRPC" ]]; then
         local realityServerName=${xrayVLESSRealityServerName}
-        local publicKey=${xrayVLESSRealityPublicKey}
+        local publicKey=${currentRealityPublicKey}
         if [[ "${coreInstallType}" == "2" ]]; then
             realityServerName=${singBoxVLESSRealityGRPCServerName}
             publicKey=${singBoxVLESSRealityPublicKey}
@@ -8635,7 +8635,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.2.15"
+    echoContent green "当前版本：v3.2.16"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
