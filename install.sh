@@ -193,6 +193,11 @@ initVar() {
     singBoxVLESSRealityVisionServerName=
     singBoxVLESSRealityPublicKey=
 
+    # xray-core reality serverName publicKey
+    xrayVLESSRealityServerName=
+    xrayVLESSRealityPort=
+    xrayVLESSRealityPublicKey=
+
     #    interfaceName=
     # 端口跳跃
     portHoppingStart=
@@ -385,6 +390,15 @@ readInstallType() {
 readInstallProtocolType() {
     currentInstallProtocolType=
     frontingType=
+
+    xrayVLESSRealityPort=
+    xrayVLESSRealityServerName=
+    #    xrayVLESSRealityPrivateKey=
+    xrayVLESSRealityPublicKey=
+
+    currentRealityPrivateKey=
+    currentRealityPublicKey=
+
     singBoxVLESSVisionPort=
     singBoxHysteria2Port=
     frontingTypeReality=
@@ -433,12 +447,23 @@ readInstallProtocolType() {
         fi
         if echo "${row}" | grep -q VLESS_vision_reality_inbounds; then
             currentInstallProtocolType="${currentInstallProtocolType},7,"
-            if [[ "${coreInstallType}" == "2" ]]; then
+            if [[ "${coreInstallType}" == "1" ]]; then
+                xrayVLESSRealityServerName=$(jq -r .inbounds[0].streamSettings.realitySettings.serverNames[0] "${row}.json")
+                xrayVLESSRealityPort=$(jq -r .inbounds[0].port "${row}.json")
+                #                xrayVLESSRealityPrivateKey=$(jq -r .inbounds[0].streamSettings.realitySettings.privateKey "${row}.json")
+                #                xrayVLESSRealityPublicKey=$(jq -r .inbounds[0].streamSettings.realitySettings.publicKey "${row}.json")
+                currentRealityPublicKey=$(jq -r .inbounds[0].streamSettings.realitySettings.publicKey "${row}.json")
+                currentRealityPrivateKey=$(jq -r .inbounds[0].streamSettings.realitySettings.privateKey "${row}.json")
+
+            elif [[ "${coreInstallType}" == "2" ]]; then
                 frontingTypeReality=07_VLESS_vision_reality_inbounds
                 singBoxVLESSRealityVisionPort=$(jq -r .inbounds[0].listen_port "${row}.json")
                 singBoxVLESSRealityVisionServerName=$(jq -r .inbounds[0].tls.server_name "${row}.json")
                 if [[ -f "${configPath}reality_key" ]]; then
                     singBoxVLESSRealityPublicKey=$(grep "publicKey" <"${configPath}reality_key" | awk -F "[:]" '{print $2}')
+
+                    currentRealityPrivateKey=$(jq -r .inbounds[0].tls.reality.private_key "${row}.json")
+                    currentRealityPublicKey=$(grep "publicKey" <"${configPath}reality_key" | awk -F "[:]" '{print $2}')
                 fi
             fi
         fi
@@ -589,7 +614,7 @@ getPublicIP() {
     if [[ -n "$1" ]]; then
         type=$1
     fi
-    if [[ -n "${currentHost}" && -n "${currentrealityServerName}" && "${currentrealityServerName}" == "${currentHost}" && -z "$1" ]]; then
+    if [[ -n "${currentHost}" && -z "$1" ]] && [[ "${singBoxVLESSRealityVisionServerName}" == "${currentHost}" || "${singBoxVLESSRealityGRPCServerName}" == "${currentHost}" || "${xrayVLESSRealityServerName}" == "${currentHost}" ]]; then
         echo "${currentHost}"
     else
         local currentIP=
@@ -667,21 +692,6 @@ unInstallSingBox() {
         rm /etc/systemd/system/sing-box.service
         rm -rf /etc/v2ray-agent/sing-box/*
         echoContent green " ---> sing-box 卸载完成"
-    fi
-}
-
-# 读取xray reality配置
-readXrayCoreRealityConfig() {
-    currentrealityServerName=
-    currentRealityPublicKey=
-    currentRealityPrivateKey=
-    currentRealityPort=
-
-    if [[ -n "${realityStatus}" ]]; then
-        currentrealityServerName=$(jq -r .inbounds[0].streamSettings.realitySettings.serverNames[0] "${configPath}07_VLESS_vision_reality_inbounds.json")
-        currentRealityPublicKey=$(jq -r .inbounds[0].streamSettings.realitySettings.publicKey "${configPath}07_VLESS_vision_reality_inbounds.json")
-        currentRealityPrivateKey=$(jq -r .inbounds[0].streamSettings.realitySettings.privateKey "${configPath}07_VLESS_vision_reality_inbounds.json")
-        currentRealityPort=$(jq -r .inbounds[0].port "${configPath}07_VLESS_vision_reality_inbounds.json")
     fi
 }
 
@@ -854,7 +864,6 @@ readInstallProtocolType
 readConfigHostPathUUID
 #readInstallAlpn
 readCustomPort
-readXrayCoreRealityConfig
 readSingBoxConfig
 # -------------------------------------------------------------
 
@@ -1621,7 +1630,7 @@ customPortFunction() {
             if [[ -z "${port}" ]]; then
                 port=443
             fi
-            if [[ "${port}" == "${currentRealityPort}" ]]; then
+            if [[ "${port}" == "${xrayVLESSRealityPort}" ]]; then
                 handleXray stop
             fi
         fi
@@ -2371,40 +2380,6 @@ checkGFWStatue() {
     fi
 }
 
-# V2Ray开机自启
-#installV2RayService() {
-#    echoContent skyBlue "\n进度  $1/${totalProgress} : 配置V2Ray开机自启"
-#    if [[ -n $(find /bin /usr/bin -name "systemctl") ]]; then
-#        rm -rf /etc/systemd/system/v2ray.service
-#        touch /etc/systemd/system/v2ray.service
-#        execStart='/etc/v2ray-agent/v2ray/v2ray -confdir /etc/v2ray-agent/v2ray/conf'
-#        cat <<EOF >/etc/systemd/system/v2ray.service
-#[Unit]
-#Description=V2Ray - A unified platform for anti-censorship
-#Documentation=https://v2ray.com https://guide.v2fly.org
-#After=network.target nss-lookup.target
-#Wants=network-online.target
-#
-#[Service]
-#Type=simple
-#User=root
-#CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_RAW
-#NoNewPrivileges=yes
-#ExecStart=${execStart}
-#Restart=on-failure
-#RestartPreventExitStatus=23
-#LimitNPROC=10000
-#LimitNOFILE=1000000
-#
-#[Install]
-#WantedBy=multi-user.target
-#EOF
-#        systemctl daemon-reload
-#        systemctl enable v2ray.service
-#        echoContent green " ---> 配置V2Ray开机自启成功"
-#    fi
-#}
-
 # 安装hysteria开机自启
 installHysteriaService() {
     echoContent skyBlue "\n进度  $1/${totalProgress} : 配置Hysteria开机自启"
@@ -2424,7 +2399,7 @@ AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
 ExecStart=/etc/v2ray-agent/hysteria/hysteria server -c /etc/v2ray-agent/hysteria/conf/config.json --log-level debug
 Restart=on-failure
 RestartSec=10
-LimitNPROC=512
+LimitNPROC=10000
 LimitNOFILE=infinity
 
 [Install]
@@ -2486,7 +2461,7 @@ ExecStart=${execStart}
 Restart=on-failure
 RestartPreventExitStatus=23
 LimitNPROC=10000
-LimitNOFILE=1000000
+LimitNOFILE=infinity
 [Install]
 WantedBy=multi-user.target
 EOF
@@ -2495,37 +2470,6 @@ EOF
         echoContent green " ---> 配置Xray开机自启成功"
     fi
 }
-
-# 操作V2Ray
-#handleV2Ray() {
-#    # shellcheck disable=SC2010
-#    if find /bin /usr/bin | grep -q systemctl && ls /etc/systemd/system/ | grep -q v2ray.service; then
-#        if [[ -z $(pgrep -f "v2ray/v2ray") ]] && [[ "$1" == "start" ]]; then
-#            systemctl start v2ray.service
-#        elif [[ -n $(pgrep -f "v2ray/v2ray") ]] && [[ "$1" == "stop" ]]; then
-#            systemctl stop v2ray.service
-#        fi
-#    fi
-#    sleep 0.8
-#
-#    if [[ "$1" == "start" ]]; then
-#        if [[ -n $(pgrep -f "v2ray/v2ray") ]]; then
-#            echoContent green " ---> V2Ray启动成功"
-#        else
-#            echoContent red "V2Ray启动失败"
-#            echoContent red "请手动执行【/etc/v2ray-agent/v2ray/v2ray -confdir /etc/v2ray-agent/v2ray/conf】，查看错误日志"
-#            exit 0
-#        fi
-#    elif [[ "$1" == "stop" ]]; then
-#        if [[ -z $(pgrep -f "v2ray/v2ray") ]]; then
-#            echoContent green " ---> V2Ray关闭成功"
-#        else
-#            echoContent red "V2Ray关闭失败"
-#            echoContent red "请手动执行【ps -ef|grep -v grep|grep v2ray|awk '{print \$2}'|xargs kill -9】"
-#            exit 0
-#        fi
-#    fi
-#}
 
 # 操作Hysteria
 handleHysteria() {
@@ -4020,8 +3964,7 @@ EOF
     # VLESS_TCP/reality
     if echo "${selectCustomInstallType}" | grep -q ",7," || [[ "$1" == "all" ]]; then
         echoContent skyBlue "\n===================== 配置VLESS+Reality =====================\n"
-        initRealityPort
-        #        initRealityDest
+        initXrayRealityPort
         initRealityClientServersName
         initRealityKey
 
@@ -4643,8 +4586,8 @@ EOF
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=hysteria2%3A%2F%2F${id}%40${currentHost}%3A${port}%3Fpeer%3D${currentHost}%26insecure%3D0%26sni%3D${currentHost}%26alpn%3Dh3%23${email}\n"
 
     elif [[ "${type}" == "vlessReality" ]]; then
-        local realityServerName=${currentrealityServerName}
-        local publicKey=${currentRealityPublicKey}
+        local realityServerName=${xrayVLESSRealityServerName}
+        local publicKey=${xrayVLESSRealityPublicKey}
         if [[ "${coreInstallType}" == "2" ]]; then
             realityServerName=${singBoxVLESSRealityVisionServerName}
             publicKey=${singBoxVLESSRealityPublicKey}
@@ -4677,8 +4620,8 @@ EOF
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40$(getPublicIP)%3A${port}%3Fencryption%3Dnone%26security%3Dreality%26type%3Dtcp%26sni%3D${realityServerName}%26fp%3Dchrome%26pbk%3D${publicKey}%26sid%3D6ba85179e30d4fc2%26flow%3Dxtls-rprx-vision%23${email}\n"
 
     elif [[ "${type}" == "vlessRealityGRPC" ]]; then
-        local realityServerName=${currentrealityServerName}
-        local publicKey=${currentRealityPublicKey}
+        local realityServerName=${xrayVLESSRealityServerName}
+        local publicKey=${xrayVLESSRealityPublicKey}
         if [[ "${coreInstallType}" == "2" ]]; then
             realityServerName=${singBoxVLESSRealityGRPCServerName}
             publicKey=${singBoxVLESSRealityPublicKey}
@@ -4766,7 +4709,6 @@ showAccounts() {
     readInstallType
     readInstallProtocolType
     readConfigHostPathUUID
-    readXrayCoreRealityConfig
     readSingBoxConfig
 
     echo
@@ -8338,14 +8280,14 @@ initRealityDest() {
         realityDestDomain=${domain}:${port}
     else
         local realityDestDomainList=
-        realityDestDomainList="gateway.icloud.com,itunes.apple.com,swdist.apple.com,swcdn.apple.com,updates.cdn-apple.com,mensura.cdn-apple.com,osxapps.itunes.apple.com,aod.itunes.apple.com,download-installer.cdn.mozilla.net,addons.mozilla.org,s0.awsstatic.com,d1.awsstatic.com,images-na.ssl-images-amazon.com,m.media-amazon.com,player.live-video.net,one-piece.com,lol.secure.dyn.riotcdn.net,www.lovelive-anime.jp,www.swift.com,academy.nvidia.com,www.cisco.com,www.samsung.com,www.amd.com,cdn-dynmedia-1.microsoft.com,update.microsoft,software.download.prss.microsoft.com,dl.google.com,www.google-analytics.com"
+        realityDestDomainList="gateway.icloud.com,itunes.apple.com,swdist.apple.com,swcdn.apple.com,updates.cdn-apple.com,mensura.cdn-apple.com,osxapps.itunes.apple.com,aod.itunes.apple.com,download-installer.cdn.mozilla.net,addons.mozilla.org,s0.awsstatic.com,d1.awsstatic.com,images-na.ssl-images-amazon.com,m.media-amazon.com,player.live-video.net,one-piece.com,lol.secure.dyn.riotcdn.net,www.lovelive-anime.jp,www.swift.com,academy.nvidia.com,www.cisco.com,www.samsung.com,www.amd.com,cdn-dynmedia-1.microsoft.com,software.download.prss.microsoft.com,dl.google.com,www.google-analytics.com"
 
         echoContent skyBlue "\n===== 生成配置回落的域名 例如:[addons.mozilla.org:443] ======\n"
         echoContent green "回落域名列表：https://www.v2ray-agent.com/archives/1680104902581#heading-8\n"
         read -r -p "请输入[回车]使用随机:" realityDestDomain
         if [[ -z "${realityDestDomain}" ]]; then
             local randomNum=
-            randomNum=$((RANDOM % 30 + 1))
+            randomNum=$((RANDOM % 27 + 1))
             realityDestDomain=$(echo "${realityDestDomainList}" | awk -F ',' -v randomNum="$randomNum" '{print $randomNum":443"}')
         fi
         if ! echo "${realityDestDomain}" | grep -q ":"; then
@@ -8378,7 +8320,7 @@ initRealityClientServersName() {
         fi
     fi
     if [[ -z "${realityServerName}" ]]; then
-        local realityDestDomainList="gateway.icloud.com,itunes.apple.com,swdist.apple.com,swcdn.apple.com,updates.cdn-apple.com,mensura.cdn-apple.com,osxapps.itunes.apple.com,aod.itunes.apple.com,download-installer.cdn.mozilla.net,addons.mozilla.org,s0.awsstatic.com,d1.awsstatic.com,images-na.ssl-images-amazon.com,m.media-amazon.com,player.live-video.net,one-piece.com,lol.secure.dyn.riotcdn.net,www.lovelive-anime.jp,www.swift.com,academy.nvidia.com,www.cisco.com,www.asus.com,www.samsung.com,www.amd.com,cdn-dynmedia-1.microsoft.com,update.microsoft,software.download.prss.microsoft.com,dl.google.com,www.google-analytics.com"
+        local realityDestDomainList="gateway.icloud.com,itunes.apple.com,swdist.apple.com,swcdn.apple.com,updates.cdn-apple.com,mensura.cdn-apple.com,osxapps.itunes.apple.com,aod.itunes.apple.com,download-installer.cdn.mozilla.net,addons.mozilla.org,s0.awsstatic.com,d1.awsstatic.com,images-na.ssl-images-amazon.com,m.media-amazon.com,player.live-video.net,one-piece.com,lol.secure.dyn.riotcdn.net,www.lovelive-anime.jp,www.swift.com,academy.nvidia.com,www.cisco.com,www.asus.com,www.samsung.com,www.amd.com,cdn-dynmedia-1.microsoft.com,software.download.prss.microsoft.com,dl.google.com,www.google-analytics.com"
         realityDomainPort=443
         echoContent skyBlue "\n================ 配置客户端可用的serverNames ===============\n"
         echoContent yellow "#注意事项"
@@ -8386,7 +8328,7 @@ initRealityClientServersName() {
         echoContent yellow "录入示例:addons.mozilla.org:443\n"
         read -r -p "请输入目标域名，[回车]随机域名，默认端口443:" realityServerName
         if [[ -z "${realityServerName}" ]]; then
-            randomNum=$((RANDOM % 30 + 1))
+            randomNum=$((RANDOM % 27 + 1))
             realityServerName=$(echo "${realityDestDomainList}" | awk -F ',' -v randomNum="$randomNum" '{print $randomNum}')
         fi
         if echo "${realityServerName}" | grep -q ":"; then
@@ -8398,11 +8340,11 @@ initRealityClientServersName() {
     echoContent yellow "\n ---> 客户端可用域名: ${realityServerName}:${realityDomainPort}\n"
 }
 # 初始化reality端口
-initRealityPort() {
-    if [[ -n "${currentRealityPort}" ]]; then
+initXrayRealityPort() {
+    if [[ -n "${xrayVLESSRealityPort}" ]]; then
         read -r -p "读取到上次安装记录，是否使用上次安装时的端口 ？[y/n]:" historyRealityPortStatus
         if [[ "${historyRealityPortStatus}" == "y" ]]; then
-            realityPort=${currentRealityPort}
+            realityPort=${xrayVLESSRealityPort}
         fi
     fi
 
@@ -8420,14 +8362,14 @@ initRealityPort() {
                 realityPort=$((RANDOM % 20001 + 10000))
             fi
         fi
-        if [[ -n "${realityPort}" && "${currentRealityPort}" == "${realityPort}" ]]; then
+        if [[ -n "${realityPort}" && "${xrayVLESSRealityPort}" == "${realityPort}" ]]; then
             handleXray stop
         else
             checkPort "${realityPort}"
         fi
     fi
     if [[ -z "${realityPort}" ]]; then
-        initRealityPort
+        initXrayRealityPort
     else
         allowPort "${realityPort}"
         echoContent yellow "\n ---> 端口: ${realityPort}"
@@ -8437,9 +8379,8 @@ initRealityPort() {
 # 初始化 reality 配置
 initXrayRealityConfig() {
     echoContent skyBlue "\n进度  $1/${totalProgress} : 初始化 Xray-core reality配置"
-    initRealityPort
+    initXrayRealityPort
     initRealityKey
-    #    initRealityDest
     initRealityClientServersName
 }
 # 修改reality域名端口等信息
@@ -8694,7 +8635,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.2.14"
+    echoContent green "当前版本：v3.2.15"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
