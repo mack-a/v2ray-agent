@@ -179,6 +179,7 @@ initVar() {
     singBoxVLESSRealityVisionPort=
     singBoxVLESSRealityGRPCPort=
     singBoxHysteria2Port=
+    singBoxTrojanPort=
     singBoxTuicPort=
     singBoxNaivePort=
     singBoxVMessWSPort=
@@ -196,7 +197,7 @@ initVar() {
     # xray-core reality serverName publicKey
     xrayVLESSRealityServerName=
     xrayVLESSRealityPort=
-    xrayVLESSRealityPublicKey=
+    #    xrayVLESSRealityPublicKey=
 
     #    interfaceName=
     # 端口跳跃
@@ -394,13 +395,15 @@ readInstallProtocolType() {
     xrayVLESSRealityPort=
     xrayVLESSRealityServerName=
     #    xrayVLESSRealityPrivateKey=
-    xrayVLESSRealityPublicKey=
+    #    xrayVLESSRealityPublicKey=
 
     currentRealityPrivateKey=
     currentRealityPublicKey=
 
     singBoxVLESSVisionPort=
     singBoxHysteria2Port=
+    singBoxTrojanPort=
+
     frontingTypeReality=
     singBoxVLESSRealityVisionPort=
     singBoxVLESSRealityVisionServerName=
@@ -434,6 +437,10 @@ readInstallProtocolType() {
         fi
         if echo "${row}" | grep -q trojan_TCP_inbounds; then
             currentInstallProtocolType="${currentInstallProtocolType},4,"
+            if [[ "${coreInstallType}" == "2" ]]; then
+                frontingType=04_trojan_TCP_inbounds
+                singBoxTrojanPort=$(jq .inbounds[0].listen_port "${row}.json")
+            fi
         fi
         if echo "${row}" | grep -q VLESS_gRPC_inbounds; then
             currentInstallProtocolType="${currentInstallProtocolType},5,"
@@ -2700,8 +2707,15 @@ initSingBoxClients() {
             currentUser="{\"uuid\":\"${uuid}\",\"flow\":\"xtls-rprx-vision\",\"name\":\"${name}-VLESS_TCP/TLS_Vision\"}"
             users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
         fi
+        # VMess ws
         if echo "${type}" | grep -q ",3,"; then
             currentUser="{\"uuid\":\"${uuid}\",\"name\":\"${name}-VMess_WS\",\"alterId\": 0}"
+            users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
+        fi
+
+        # trojan
+        if echo "${type}" | grep -q ",4,"; then
+            currentUser="{\"password\":\"${uuid}\",\"name\":\"${name}-Trojan_TCP\"}"
             users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
         fi
 
@@ -2719,7 +2733,6 @@ initSingBoxClients() {
         # hysteria2
         if echo "${type}" | grep -q ",6,"; then
             currentUser="{\"password\":\"${uuid}\",\"name\":\"${name}-singbox_hysteria2\"}"
-
             users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
         fi
 
@@ -4313,6 +4326,34 @@ EOF
         rm /etc/v2ray-agent/sing-box/conf/config/06_hysteria2_inbounds.json >/dev/null 2>&1
     fi
 
+    if echo "${selectCustomInstallType}" | grep -q ",4," || [[ "$1" == "all" ]]; then
+        echoContent yellow "\n================== 配置 Trojan ==================\n"
+        echoContent skyBlue "\n开始配置Trojan协议端口"
+        echo
+        mapfile -t result < <(initSingBoxPort "${singBoxTrojanPort}")
+        echoContent green "\n ---> Trojan端口：${result[-1]}"
+        cat <<EOF >/etc/v2ray-agent/sing-box/conf/config/04_trojan_TCP_inbounds.json
+{
+    "inbounds": [
+        {
+            "type": "trojan",
+            "listen": "::",
+            "listen_port": ${result[-1]},
+            "users": $(initSingBoxClients 4),
+            "tls": {
+                "enabled": true,
+                "server_name":"${sslDomain}",
+                "certificate_path": "/etc/v2ray-agent/tls/${sslDomain}.crt",
+                "key_path": "/etc/v2ray-agent/tls/${sslDomain}.key"
+            }
+        }
+    ]
+}
+EOF
+    elif [[ -z "$3" ]]; then
+        rm /etc/v2ray-agent/sing-box/conf/config/04_trojan_TCP_inbounds.json >/dev/null 2>&1
+    fi
+
     if echo "${selectCustomInstallType}" | grep -q ",9," || [[ "$1" == "all" ]]; then
         echoContent yellow "\n==================== 配置 Tuic =====================\n"
         echoContent skyBlue "\n开始配置Tuic协议端口"
@@ -4804,12 +4845,12 @@ showAccounts() {
     # trojan tcp
     if echo ${currentInstallProtocolType} | grep -q ",4,"; then
         echoContent skyBlue "\n==================================  Trojan TLS [不推荐] ==================================\n"
-        jq .inbounds[0].settings.clients ${configPath}04_trojan_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
+        jq .inbounds[0].settings.clients//.inbounds[0].users ${configPath}04_trojan_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
             local email=
-            email=$(echo "${user}" | jq -r .email)
+            email=$(echo "${user}" | jq -r .email//.name)
             echoContent skyBlue "\n ---> 账号:${email}"
 
-            defaultBase64Code trojan "${currentDefaultPort}" "${email}" "$(echo "${user}" | jq -r .password)"
+            defaultBase64Code trojan "${currentDefaultPort}${singBoxTrojanPort}" "${email}" "$(echo "${user}" | jq -r .password)"
         done
     fi
 
@@ -7146,6 +7187,7 @@ customSingBoxInstall() {
     echoContent skyBlue "\n========================个性化安装============================"
     echoContent yellow "0.VLESS+Vision+TCP"
     echoContent yellow "3.VMess+TLS+WS[仅CDN推荐]"
+    echoContent yellow "4.Trojan+TLS[不推荐]"
     echoContent yellow "6.Hysteria2"
     echoContent yellow "7.VLESS+Reality+Vision"
     echoContent yellow "8.VLESS+Reality+gRPC"
@@ -7174,7 +7216,7 @@ customSingBoxInstall() {
         totalProgress=9
         installTools 1
         # 申请tls
-        if echo "${selectCustomInstallType}" | grep -q -E ",0,|,3,|,6,|,9,|,10,"; then
+        if echo "${selectCustomInstallType}" | grep -q -E ",0,|,3,|,4,|,6,|,9,|,10,"; then
             initTLSNginxConfig 2
             installTLS 3
             handleNginx stop
@@ -8635,7 +8677,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.2.16"
+    echoContent green "当前版本：v3.2.17"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
@@ -8674,7 +8716,6 @@ menu() {
     echoContent yellow "17.更新脚本"
     echoContent yellow "18.安装BBR、DD脚本"
     echoContent skyBlue "-------------------------脚本管理-----------------------------"
-    #    echoContent yellow "19.查看日志"
     echoContent yellow "20.卸载脚本"
     echoContent red "=============================================================="
     mkdirTools
