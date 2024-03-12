@@ -887,6 +887,9 @@ mkdirTools() {
     mkdir -p /etc/v2ray-agent/subscribe/clashMetaProfiles
     mkdir -p /etc/v2ray-agent/subscribe/clashMeta
 
+    mkdir -p /etc/v2ray-agent/subscribe/sing-box
+    mkdir -p /etc/v2ray-agent/subscribe_local/sing-box
+
     mkdir -p /etc/v2ray-agent/v2ray/conf
     mkdir -p /etc/v2ray-agent/v2ray/tmp
     mkdir -p /etc/v2ray-agent/xray/conf
@@ -1325,7 +1328,7 @@ server {
 	client_header_timeout 1071906480m;
     keepalive_timeout 1071906480m;
 
-	location ~ ^/s/(clashMeta|default|clashMetaProfiles)/(.*) {
+	location ~ ^/s/(clashMeta|default|clashMetaProfiles|sing-box)/(.*) {
 	    proxy_set_header X-Real-IP \$proxy_protocol_addr;
         default_type 'text/plain; charset=utf-8';
         alias /etc/v2ray-agent/subscribe/\$1/\$2;
@@ -1366,7 +1369,7 @@ server {
 
 	server_name ${domain};
 	root ${nginxStaticPath};
-	location ~ ^/s/(clashMeta|default|clashMetaProfiles)/(.*) {
+	location ~ ^/s/(clashMeta|default|clashMetaProfiles|sing-box)/(.*) {
 	    proxy_set_header X-Real-IP \$proxy_protocol_addr;
         default_type 'text/plain; charset=utf-8';
         alias /etc/v2ray-agent/subscribe/\$1/\$2;
@@ -1394,7 +1397,7 @@ server {
 
     server_name ${domain};
 	root ${nginxStaticPath};
-	location ~ ^/s/(clashMeta|default|clashMetaProfiles)/(.*) {
+	location ~ ^/s/(clashMeta|default|clashMetaProfiles|sing-box)/(.*) {
 	    proxy_set_header X-Real-IP \$proxy_protocol_addr;
         default_type 'text/plain; charset=utf-8';
         alias /etc/v2ray-agent/subscribe/\$1/\$2;
@@ -1424,7 +1427,7 @@ server {
 	server_name ${domain};
 	root ${nginxStaticPath};
 
-    location ~ ^/s/(clashMeta|default|clashMetaProfiles)/(.*) {
+    location ~ ^/s/(clashMeta|default|clashMetaProfiles|sing-box)/(.*) {
         proxy_set_header X-Real-IP \$proxy_protocol_addr;
         default_type 'text/plain; charset=utf-8';
         alias /etc/v2ray-agent/subscribe/\$1/\$2;
@@ -1444,7 +1447,7 @@ server {
 	real_ip_header proxy_protocol;
 
 	root ${nginxStaticPath};
-	location ~ ^/s/(clashMeta|default|clashMetaProfiles)/(.*) {
+	location ~ ^/s/(clashMeta|default|clashMetaProfiles|sing-box)/(.*) {
         proxy_set_header X-Real-IP \$proxy_protocol_addr;
         default_type 'text/plain; charset=utf-8';
         alias /etc/v2ray-agent/subscribe/\$1/\$2;
@@ -1804,7 +1807,7 @@ nginxBlog() {
         if [[ "${nginxBlogInstallStatus}" == "y" ]]; then
             rm -rf "${nginxStaticPath}"
             randomNum=$((RANDOM % 6 + 1))
-            wget -q -P "${nginxStaticPath}" https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${randomNum}.zip >/dev/null
+            wget -q "${wgetShowProgressStatus}" -P "${nginxStaticPath}" https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${randomNum}.zip >/dev/null
             unzip -o "${nginxStaticPath}html${randomNum}.zip" -d "${nginxStaticPath}" >/dev/null
             rm -f "${nginxStaticPath}html${randomNum}.zip*"
             echoContent green " ---> 添加伪装站点成功"
@@ -1812,7 +1815,7 @@ nginxBlog() {
     else
         randomNum=$((RANDOM % 6 + 1))
         rm -rf "${nginxStaticPath}"
-        wget -q -P "${nginxStaticPath}" https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${randomNum}.zip
+        wget -q "${wgetShowProgressStatus}" -P "${nginxStaticPath}" https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${randomNum}.zip
         unzip -o "${nginxStaticPath}html${randomNum}.zip" -d "${nginxStaticPath}" >/dev/null
         rm -f "${nginxStaticPath}html${randomNum}.zip*"
         echoContent green " ---> 添加伪装站点成功"
@@ -3158,7 +3161,7 @@ EOF
 # 下载sing-box geosite db
 downloadSingBoxGeositeDB() {
     if [[ ! -f "${singBoxConfigPath}geosite.db" ]]; then
-        wget -q -P "${singBoxConfigPath}" https://github.com/Johnshall/sing-geosite/releases/latest/download/geosite.db
+        wget -q "${wgetShowProgressStatus}" -P "${singBoxConfigPath}" https://github.com/Johnshall/sing-geosite/releases/latest/download/geosite.db
     fi
 }
 
@@ -4430,7 +4433,10 @@ EOF
     removeSingBoxConfig 01_direct_outbound
     removeSingBoxConfig block_domain_outbound
 }
-
+# 初始化 sing-box订阅配置
+initSubscribeLocalConfig() {
+    rm -rf /etc/v2ray-agent/subscribe_local/sing-box/*
+}
 # 通用
 defaultBase64Code() {
     local type=$1
@@ -4441,7 +4447,10 @@ defaultBase64Code() {
     local path=$6
     local user=
     user=$(echo "${email}" | awk -F "[-]" '{print $1}')
-
+    if [[ ! -f "/etc/v2ray-agent/subscribe_local/sing-box/${user}" ]]; then
+        echo [] >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
+    fi
+    local singBoxSubscribeLocalConfig=
     if [[ "${type}" == "vlesstcp" ]]; then
 
         echoContent yellow " ---> 通用格式(VLESS+TCP+TLS_Vision)"
@@ -4464,6 +4473,9 @@ EOF
     flow: xtls-rprx-vision
     client-fingerprint: chrome
 EOF
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vless\",\"server\":\"${currentHost}\",\"server_port\":${port},\"uuid\":\"${id}\",\"flow\":\"xtls-rprx-vision\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"packet_encoding\":\"xudp\"}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
+
         echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS_Vision)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${currentHost}%3A${port}%3Fencryption%3Dnone%26fp%3Dchrome%26security%3Dtls%26type%3Dtcp%26${currentHost}%3D${currentHost}%26headerType%3Dnone%26sni%3D${currentHost}%26flow%3Dxtls-rprx-vision%23${email}\n"
 
@@ -4498,6 +4510,10 @@ EOF
       headers:
         Host: ${currentHost}
 EOF
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vmess\",\"server\":\"${add}\",\"server_port\":${port},\"uuid\":\"${id}\",\"alter_id\":0,\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"packet_encoding\":\"packetaddr\",\"transport\":{\"type\":\"ws\",\"path\":\"${path}\",\"max_early_data\":2048,\"early_data_header_name\":\"Sec-WebSocket-Protocol\"}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
+
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
+
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vmess://${qrCodeBase64Default}\n"
 
     elif [[ "${type}" == "vlessws" ]]; then
@@ -4528,6 +4544,9 @@ EOF
         Host: ${currentHost}
 EOF
 
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vless\",\"server\":\"${add}\",\"server_port\":${port},\"uuid\":\"${id}\",\"flow\":\"\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"multiplex\":{\"enabled\":false,\"protocol\":\"smux\",\"max_streams\":32},\"packet_encoding\":\"xudp\",\"transport\":{\"type\":\"ws\",\"path\":\"/${currentPath}ws\",\"headers\":{\"Host\":\"${port}\"}}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
+
         echoContent yellow " ---> 二维码 VLESS(VLESS+WS+TLS)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dws%26host%3D${currentHost}%26fp%3Dchrome%26sni%3D${currentHost}%26path%3D%252f${currentPath}ws%23${email}"
 
@@ -4556,6 +4575,10 @@ EOF
     grpc-opts:
       grpc-service-name: ${currentPath}grpc
 EOF
+
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\": \"vless\",\"server\": \"${add}\",\"server_port\": ${port},\"uuid\": \"${id}\",\"tls\": {  \"enabled\": true,  \"server_name\": \"${currentHost}\",  \"utls\": {    \"enabled\": true,    \"fingerprint\": \"chrome\"  }},\"packet_encoding\": \"xudp\",\"transport\": {  \"type\": \"grpc\",  \"service_name\": \"${currentPath}grpc\"}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
+
         echoContent yellow " ---> 二维码 VLESS(VLESS+gRPC+TLS)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dgrpc%26host%3D${currentHost}%26serviceName%3D${currentPath}grpc%26fp%3Dchrome%26path%3D${currentPath}grpc%26sni%3D${currentHost}%26alpn%3Dh2%23${email}"
 
@@ -4578,6 +4601,9 @@ EOF
     udp: true
     sni: ${currentHost}
 EOF
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"trojan\",\"server\":\"${currentHost}\",\"server_port\":${port},\"password\":\"${id}\",\"tls\":{\"alpn\":[\"http/1.1\"],\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
+
         echoContent yellow " ---> 二维码 Trojan(TLS)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${currentHost}%3a${port}%3fpeer%3d${currentHost}%26fp%3Dchrome%26sni%3d${currentHost}%26alpn%3Dhttp/1.1%23${email}\n"
 
@@ -4601,6 +4627,10 @@ EOF
     grpc-opts:
       grpc-service-name: ${currentPath}trojangrpc
 EOF
+
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"trojan\",\"server\":\"${add}\",\"server_port\":${port},\"password\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"insecure\":true,\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"transport\":{\"type\":\"grpc\",\"service_name\":\"${currentPath}trojangrpc\",\"idle_timeout\":\"15s\",\"ping_timeout\":\"15s\",\"permit_without_stream\":false},\"multiplex\":{\"enabled\":false,\"protocol\":\"smux\",\"max_streams\":32}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
+
         echoContent yellow " ---> 二维码 Trojan gRPC(TLS)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${add}%3a${port}%3Fencryption%3Dnone%26fp%3Dchrome%26security%3Dtls%26peer%3d${currentHost}%26type%3Dgrpc%26sni%3d${currentHost}%26path%3D${currentPath}trojangrpc%26alpn%3Dh2%26serviceName%3D${currentPath}trojangrpc%23${email}\n"
 
@@ -4626,6 +4656,10 @@ EOF
     up: "${hysteria2ClientUploadSpeed} Mbps"
     down: "${hysteria2ClientDownloadSpeed} Mbps"
 EOF
+
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"hysteria2\",\"server\":\"${currentHost}\",\"server_port\":${port},\"up_mbps\":\"${hysteria2ClientUploadSpeed}\",\"down_mbps\":\"${hysteria2ClientDownloadSpeed}Mbps\",\"password\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"alpn\":[\"h3\"]}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
+
         echoContent yellow " ---> 二维码 Hysteria2(TLS)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=hysteria2%3A%2F%2F${id}%40${currentHost}%3A${port}%3Fpeer%3D${currentHost}%26insecure%3D0%26sni%3D${currentHost}%26alpn%3Dh3%23${email}\n"
 
@@ -4660,6 +4694,10 @@ EOF
       short-id: 6ba85179e30d4fc2
     client-fingerprint: chrome
 EOF
+
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vless\",\"server\":\"$(getPublicIP)\",\"server_port\":${port},\"uuid\":\"${id}\",\"flow\":\"xtls-rprx-vision\",\"tls\":{\"enabled\":true,\"server_name\":\"${realityServerName}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"},\"reality\":{\"enabled\":true,\"public_key\":\"${publicKey}\",\"short_id\":\"6ba85179e30d4fc2\"}},\"packet_encoding\":\"xudp\"}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
+
         echoContent yellow " ---> 二维码 VLESS(VLESS+reality+uTLS+Vision)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40$(getPublicIP)%3A${port}%3Fencryption%3Dnone%26security%3Dreality%26type%3Dtcp%26sni%3D${realityServerName}%26fp%3Dchrome%26pbk%3D${publicKey}%26sid%3D6ba85179e30d4fc2%26flow%3Dxtls-rprx-vision%23${email}\n"
 
@@ -4696,6 +4734,10 @@ EOF
       grpc-service-name: "grpc"
     client-fingerprint: chrome
 EOF
+
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vless\",\"server\":\"$(getPublicIP)\",\"server_port\":${port},\"uuid\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${realityServerName}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"},\"reality\":{\"enabled\":true,\"public_key\":\"${publicKey}\",\"short_id\":\"6ba85179e30d4fc2\"}},\"packet_encoding\":\"xudp\",\"transport\":{\"type\":\"grpc\",\"service_name\":\"grpc\"}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
+
         echoContent yellow " ---> 二维码 VLESS(VLESS+reality+uTLS+gRPC)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40$(getPublicIP)%3A${port}%3Fencryption%3Dnone%26security%3Dreality%26type%3Dgrpc%26sni%3D${realityServerName}%26fp%3Dchrome%26pbk%3D${publicKey}%26sid%3D6ba85179e30d4fc2%26path%3Dgrpc%26serviceName%3Dgrpc%23${email}\n"
     elif [[ "${type}" == "tuic" ]]; then
@@ -4733,6 +4775,10 @@ EOF
     reduce-rtt: true
     sni: ${email}
 EOF
+
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\": \"tuic\",\"server\": \"${currentHost}\",\"server_port\": ${port},\"uuid\": \"${id}\",\"password\": \"${id}\",\"congestion_control\": \"${tuicAlgorithm}\",\"tls\": {\"enabled\": true,\"server_name\": \"${currentHost}\",\"alpn\": [\"h3\"]}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
+
         echoContent yellow "\n ---> 二维码 Tuic"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=tuic%3A%2F%2F${tuicUUID}%3A${tuicPassword}%40${currentHost}%3A${tuicPort}%3Fcongestion_control%3D${tuicAlgorithm}%26alpn%3Dh3%26sni%3D${currentHost}%26udp_relay_mode%3Dquic%26allow_insecure%3D0%23${email}\n"
     elif [[ "${type}" == "naive" ]]; then
@@ -4758,6 +4804,7 @@ showAccounts() {
     echo
     echoContent skyBlue "\n进度 $1/${totalProgress} : 账号"
 
+    initSubscribeLocalConfig
     # VLESS TCP
     if echo ${currentInstallProtocolType} | grep -q ",0,"; then
 
@@ -5069,7 +5116,7 @@ updateNginxBlog() {
     if [[ "${selectInstallNginxBlogType}" =~ ^[1-9]$ ]]; then
         rm -rf "${nginxStaticPath}"
 
-        wget -q -P "${nginxStaticPath}" "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${selectInstallNginxBlogType}.zip" >/dev/null
+        wget -q "${wgetShowProgressStatus}" -P "${nginxStaticPath}" "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${selectInstallNginxBlogType}.zip" >/dev/null
 
         unzip -o "${nginxStaticPath}html${selectInstallNginxBlogType}.zip" -d "${nginxStaticPath}" >/dev/null
         rm -f "${nginxStaticPath}html${selectInstallNginxBlogType}.zip*"
@@ -7615,7 +7662,7 @@ server {
     ${nginxSubscribeSSL}
     client_max_body_size 100m;
     root ${nginxStaticPath};
-    location ~ ^/s/(clashMeta|default|clashMetaProfiles)/(.*) {
+    location ~ ^/s/(clashMeta|default|clashMetaProfiles|sing-box)/(.*) {
         default_type 'text/plain; charset=utf-8';
         alias /etc/v2ray-agent/subscribe/\$1/\$2;
     }
@@ -7681,44 +7728,6 @@ addOtherSubscribe() {
 
         echo "${remoteSubscribeUrl}" >>/etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl
         subscribe
-        #        local remoteUrl=
-        #        remoteUrl=$(echo "${remoteSubscribeUrl}" | awk -F "[:]" '{print $1":"$2}')
-        #
-        #        local serverAlias=
-        #        serverAlias=$(echo "${remoteSubscribeUrl}" | awk -F "[:]" '{print $3}')
-        #
-        #        if [[ -n $(ls /etc/v2ray-agent/subscribe/clashMeta/) || -n $(ls /etc/v2ray-agent/subscribe/default/) ]]; then
-        #            find /etc/v2ray-agent/subscribe_local/default/* | while read -r email; do
-        #                email=$(echo "${email}" | awk -F "[d][e][f][a][u][l][t][/]" '{print $2}')
-        #
-        #                local emailMd5=
-        #                emailMd5=$(echo -n "${email}$(cat "/etc/v2ray-agent/subscribe_local/subscribeSalt")"$'\n' | md5sum | awk '{print $1}')
-        #
-        #                local default=
-        #                default=$(curl -s -4 "https://${remoteUrl}/s/default/${emailMd5}")
-        #
-        #                if ! echo "${default}" | grep -q "nginx" && [[ -n "${default}" ]]; then
-        #                    default=$(echo "${default}" | base64 -d | sed "s/${email}/${email}_${serverAlias}/g" 2>&1)
-        #
-        #                    echo "${default}" >>"/etc/v2ray-agent/subscribe_remote/default/${email}_${remoteUrl}"
-        #                    echoContent green " ---> 通用订阅 ${email} 添加成功"
-        #                else
-        #                    echoContent red " ---> 通用订阅 ${email} 不存在"
-        #                fi
-        #
-        #                local clashMetaProxies=
-        #                clashMetaProxies=$(curl -s -4 "https://${remoteUrl}/s/clashMeta/${emailMd5}" | sed '/proxies:/d' | sed "s/${email}/${email}_${serverAlias}/g")
-        #                if ! echo "${default}" | grep -q "nginx" && [[ -n "${clashMetaProxies}" ]]; then
-        #                    echo "${clashMetaProxies}" >>"/etc/v2ray-agent/subscribe_remote/clashMeta/${email}_${remoteUrl}"
-        #
-        #                    echoContent green " ---> clashMeta订阅 ${email} 添加成功"
-        #                else
-        #                    echoContent red " ---> clashMeta订阅 ${email}不存在"
-        #                fi
-        #            done
-        #        else
-        #            echoContent red " ---> 请先查看订阅，再进行添加订阅"
-        #        fi
     fi
 }
 # clashMeta配置文件
@@ -8132,6 +8141,7 @@ subscribe() {
         rm -rf /etc/v2ray-agent/subscribe/clashMeta/*
         rm -rf /etc/v2ray-agent/subscribe_local/default/*
         rm -rf /etc/v2ray-agent/subscribe_local/clashMeta/*
+        rm -rf /etc/v2ray-agent/subscribe_local/sing-box/*
 
         showAccounts >/dev/null
 
@@ -8188,6 +8198,19 @@ subscribe() {
                     echoContent yellow "url:${subscribeType}://${currentDomain}/s/clashMetaProfiles/${emailMd5}\n"
                     echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://${currentDomain}/s/clashMetaProfiles/${emailMd5}\n"
                     echo "${subscribeType}://${currentDomain}/s/clashMetaProfiles/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
+                fi
+                # sing-box
+                if [[ -f "/etc/v2ray-agent/subscribe_local/sing-box/${email}" ]]; then
+                    echoContent skyBlue " ---> 下载 sing-box 通用配置文件"
+                    wget -O "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}" -q "${wgetShowProgressStatus}" "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/documents/sing-box.json"
+
+                    jq ".outbounds=$(jq ".outbounds|map(if has(\"outbounds\") then .outbounds += $(jq ".|map(.tag)" "/etc/v2ray-agent/subscribe_local/sing-box/${email}") else . end)" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}")" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}" >"/etc/v2ray-agent/subscribe/sing-box/${emailMd5}_tmp" && mv "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}_tmp" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}"
+                    jq ".outbounds += $(jq '.' "/etc/v2ray-agent/subscribe_local/sing-box/${email}")" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}" >"/etc/v2ray-agent/subscribe/sing-box/${emailMd5}_tmp" && mv "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}_tmp" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}"
+
+                    echoContent skyBlue "\n----------sing-box订阅----------\n"
+                    echoContent yellow "url:${subscribeType}://${currentDomain}/s/sing-box/${emailMd5}\n"
+                    echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://${currentDomain}/s/sing-box/${emailMd5}\n"
+                    echo "${subscribeType}://${currentDomain}/s/sing-box/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
                 fi
 
                 echoContent skyBlue "--------------------------------------------------------------"
@@ -8680,7 +8703,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.2.18"
+    echoContent green "当前版本：v3.2.19"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
