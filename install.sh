@@ -1314,7 +1314,7 @@ updateRedirectNginxConf() {
     }
 EOF
 
-    if echo "${selectCustomInstallType}" | grep -q ",2," && echo "${selectCustomInstallType}" | grep -q ",5," || [[ -z "${selectCustomInstallType}" ]]; then
+    if echo "${selectCustomInstallType}" | grep -qE ",2,|,5," || [[ -z "${selectCustomInstallType}" ]]; then
 
         cat <<EOF >>${nginxConfigPath}alone.conf
 server {
@@ -3817,7 +3817,7 @@ EOF
     fi
 
     # VLESS_WS_TLS
-    if echo "${selectCustomInstallType}" | grep -q 1 || [[ "$1" == "all" ]]; then
+    if echo "${selectCustomInstallType}" | grep -q ",1," || [[ "$1" == "all" ]]; then
         fallbacksList=${fallbacksList}',{"path":"/'${customPath}'ws","dest":31297,"xver":1}'
         cat <<EOF >/etc/v2ray-agent/xray/conf/03_VLESS_WS_inbounds.json
 {
@@ -7292,7 +7292,7 @@ customSingBoxInstall() {
 # Xray-core个性化安装
 customXrayInstall() {
     echoContent skyBlue "\n========================个性化安装============================"
-    echoContent yellow "VLESS前置，默认安装0，如果只需要安装0，则只选择0即可"
+    echoContent yellow "VLESS前置，默认安装0，无域名安装Reality只选择7即可"
     echoContent yellow "0.VLESS+TLS_Vision+TCP[推荐]"
     echoContent yellow "1.VLESS+TLS+WS[仅CDN推荐]"
     echoContent yellow "2.Trojan+TLS+gRPC[仅CDN推荐]"
@@ -7311,19 +7311,26 @@ customXrayInstall() {
         echoContent red " ---> 多选请使用英文逗号分隔"
         exit 0
     fi
-    if [[ "${selectCustomInstallType: -1}" != "," ]]; then
-        selectCustomInstallType="${selectCustomInstallType},"
+    if [[ "${selectCustomInstallType//,/}" =~ ^[0-5]+$ ]]; then
+        if ! echo "${selectCustomInstallType}" | grep -q "0,"; then
+            selectCustomInstallType=",0,${selectCustomInstallType},"
+        else
+            selectCustomInstallType=",${selectCustomInstallType},"
+        fi
     fi
-
-    if [[ "${selectCustomInstallType:0:1}" != "," ]]; then
+    if [[ "${selectCustomInstallType}" == "7" ]]; then
         selectCustomInstallType=",${selectCustomInstallType},"
     fi
 
-    if [[ "${selectCustomInstallType//,/}" =~ ^[0-7]+$ ]]; then
+    #    if [[ "${selectCustomInstallType: -1}" != "," ]]; then
+    #        selectCustomInstallType="${selectCustomInstallType},"
+    #    fi
+    #
+    #    if [[ "${selectCustomInstallType:0:1}" != "," ]]; then
+    #        selectCustomInstallType=",${selectCustomInstallType},"
+    #    fi
 
-        if ! echo "${selectCustomInstallType}" | grep -q ",0,"; then
-            selectCustomInstallType=",0,${selectCustomInstallType},"
-        fi
+    if [[ "${selectCustomInstallType//,/}" =~ ^[0-7]+$ ]]; then
         unInstallSubscribe
         checkBTPanel
         totalProgress=12
@@ -7334,15 +7341,18 @@ customXrayInstall() {
             customPortFunction
         else
             # 申请tls
-            initTLSNginxConfig 2
-            handleXray stop
-            #            handleNginx start
-            installTLS 3
+            if [[ "${selectCustomInstallType}" != ",7," ]]; then
+                initTLSNginxConfig 2
+                handleXray stop
+                installTLS 3
+            else
+                echoContent skyBlue "\n进度  2/${totalProgress} : 检测到仅安装Reality，跳过TLS证书步骤"
+            fi
         fi
 
         handleNginx stop
         # 随机path
-        if echo "${selectCustomInstallType}" | grep -q ",1," || echo "${selectCustomInstallType}" | grep -q ",2," || echo "${selectCustomInstallType}" | grep -q ",3," || echo "${selectCustomInstallType}" | grep -q ",5,"; then
+        if echo "${selectCustomInstallType}" | grep -qE ",1,|,2,|,3,|,5,"; then
             randomPathFunction 4
         fi
         if [[ -n "${btDomain}" ]]; then
@@ -7350,16 +7360,20 @@ customXrayInstall() {
         else
             nginxBlog 6
         fi
-        updateRedirectNginxConf
-        handleNginx start
+        if [[ "${selectCustomInstallType}" != ",7," ]]; then
+            updateRedirectNginxConf
+            handleNginx start
+        fi
 
         # 安装Xray
         installXray 7 false
         installXrayService 8
         initXrayConfig custom 9
         cleanUp singBoxDel
+        if [[ "${selectCustomInstallType}" != ",7," ]]; then
+            installCronTLS 10
+        fi
 
-        installCronTLS 10
         handleXray stop
         handleXray start
         # 生成账号
@@ -7609,17 +7623,18 @@ installSubscribe() {
     local SSLType=
     local listenIPv6=
 
-    if [[ "${coreInstallType}" == "2" || "${selectCoreType}" == "2" ]] && [[ -z "${subscribePort}" ]]; then
+    if [[ "${coreInstallType}" == "2" || "${coreInstallType}" == "1" || "${selectCoreType}" == "2" || "${selectCoreType}" == "1" ]] && [[ -z "${subscribePort}" ]]; then
 
         nginxVersion=$(nginx -v 2>&1)
         echoContent yellow "开始配置订阅，请输入订阅的端口\n"
 
         mapfile -t result < <(initSingBoxPort "${subscribePort}")
+        echo
         echoContent yellow " ---> 开始配置订阅的伪装站点\n"
         nginxBlog
         local httpSubscribeStatus=
 
-        if [[ "${selectInstallType}" == "2" || "${coreInstallType}" == "2" ]]; then
+        if [[ "${selectInstallType}" == "2" || "${coreInstallType}" == "2" && "${selectInstallType}" == "1" || "${coreInstallType}" == "1" ]]; then
             if [[ -n "${selectCustomInstallType}" ]] && ! echo "${selectCustomInstallType}" | grep -q -E ",0,|,1,|,2,|,3,|,4,|,5,|,6,|,9,|,10,"; then
                 httpSubscribeStatus=true
             elif [[ -n "${currentInstallProtocolType}" ]] && ! echo "${currentInstallProtocolType}" | grep -q -E ",0,|,1,|,2,|,3,|,4,|,5,|,6,|,9,|,10,"; then
@@ -8107,8 +8122,9 @@ initRandomSalt() {
 # 订阅
 subscribe() {
     readInstallProtocolType
-
-    installSubscribe
+    if [[ "${coreInstallType}" == "1" && "${selectCustomInstallType}" == ",7," ]] || [[ "${coreInstallType}" == "2" ]]; then
+        installSubscribe
+    fi
 
     readNginxSubscribe
     if [[ "${coreInstallType}" == "1" || "${coreInstallType}" == "2" ]]; then
@@ -8703,7 +8719,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.2.19"
+    echoContent green "当前版本：v3.2.20"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
