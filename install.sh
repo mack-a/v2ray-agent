@@ -348,9 +348,11 @@ readCustomPort() {
 readNginxSubscribe() {
     subscribeType="https"
     if [[ -f "${nginxConfigPath}subscribe.conf" ]]; then
-        subscribePort=$(grep "listen" "${nginxConfigPath}subscribe.conf" | awk '{print $2}')
-        if ! grep -q "ssl" "${nginxConfigPath}subscribe.conf"; then
-            subscribeType="http"
+        if grep -q "sing-box" "${nginxConfigPath}subscribe.conf"; then
+            subscribePort=$(grep "listen" "${nginxConfigPath}subscribe.conf" | awk '{print $2}')
+            if ! grep -q "ssl" "${nginxConfigPath}subscribe.conf"; then
+                subscribeType="http"
+            fi
         fi
     fi
 }
@@ -4657,7 +4659,7 @@ EOF
     down: "${hysteria2ClientDownloadSpeed} Mbps"
 EOF
 
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"hysteria2\",\"server\":\"${currentHost}\",\"server_port\":${port},\"up_mbps\":\"${hysteria2ClientUploadSpeed}\",\"down_mbps\":\"${hysteria2ClientDownloadSpeed}Mbps\",\"password\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"alpn\":[\"h3\"]}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"hysteria2\",\"server\":\"${currentHost}\",\"server_port\":${port},\"up_mbps\":${hysteria2ClientUploadSpeed},\"down_mbps\":${hysteria2ClientDownloadSpeed},\"password\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"alpn\":[\"h3\"]}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
         echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
 
         echoContent yellow " ---> 二维码 Hysteria2(TLS)"
@@ -4776,7 +4778,7 @@ EOF
     sni: ${email}
 EOF
 
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\": \"tuic\",\"server\": \"${currentHost}\",\"server_port\": ${port},\"uuid\": \"${id}\",\"password\": \"${id}\",\"congestion_control\": \"${tuicAlgorithm}\",\"tls\": {\"enabled\": true,\"server_name\": \"${currentHost}\",\"alpn\": [\"h3\"]}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\": \"tuic\",\"server\": \"${currentHost}\",\"server_port\": ${port},\"uuid\": \"${tuicUUID}\",\"password\": \"${tuicPassword}\",\"congestion_control\": \"${tuicAlgorithm}\",\"tls\": {\"enabled\": true,\"server_name\": \"${currentHost}\",\"alpn\": [\"h3\"]}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
         echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
 
         echoContent yellow "\n ---> 二维码 Tuic"
@@ -7622,8 +7624,7 @@ installSubscribe() {
     local serverName=
     local SSLType=
     local listenIPv6=
-
-    if [[ "${coreInstallType}" == "2" || "${coreInstallType}" == "1" || "${selectCoreType}" == "2" || "${selectCoreType}" == "1" ]] && [[ -z "${subscribePort}" ]]; then
+    if [[ -z "${subscribePort}" ]]; then
 
         nginxVersion=$(nginx -v 2>&1)
         echoContent yellow "开始配置订阅，请输入订阅的端口\n"
@@ -7634,12 +7635,8 @@ installSubscribe() {
         nginxBlog
         local httpSubscribeStatus=
 
-        if [[ "${selectInstallType}" == "2" || "${coreInstallType}" == "2" && "${selectInstallType}" == "1" || "${coreInstallType}" == "1" ]]; then
-            if [[ -n "${selectCustomInstallType}" ]] && ! echo "${selectCustomInstallType}" | grep -q -E ",0,|,1,|,2,|,3,|,4,|,5,|,6,|,9,|,10,"; then
-                httpSubscribeStatus=true
-            elif [[ -n "${currentInstallProtocolType}" ]] && ! echo "${currentInstallProtocolType}" | grep -q -E ",0,|,1,|,2,|,3,|,4,|,5,|,6,|,9,|,10,"; then
-                httpSubscribeStatus=true
-            fi
+        if ! echo "${selectCustomInstallType}" | grep -qE ",0,|,1,|,2,|,3,|,4,|,5,|,6,|,9,|,10," && ! echo "${currentInstallProtocolType}" | grep -qE ",0,|,1,|,2,|,3,|,4,|,5,|,6,|,9,|,10,"; then
+            httpSubscribeStatus=true
         fi
 
         if [[ "${httpSubscribeStatus}" == "true" ]]; then
@@ -8158,14 +8155,11 @@ subscribe() {
         rm -rf /etc/v2ray-agent/subscribe_local/default/*
         rm -rf /etc/v2ray-agent/subscribe_local/clashMeta/*
         rm -rf /etc/v2ray-agent/subscribe_local/sing-box/*
-
         showAccounts >/dev/null
-
         if [[ -n $(ls /etc/v2ray-agent/subscribe_local/default/) ]]; then
             if [[ -f "/etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl" && -n $(cat "/etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl") ]]; then
                 read -r -p "读取到其他订阅，是否更新？[y/n]" updateOtherSubscribeStatus
             fi
-
             local subscribePortLocal="${subscribePort}"
             find /etc/v2ray-agent/subscribe_local/default/* | while read -r email; do
                 email=$(echo "${email}" | awk -F "[d][e][f][a][u][l][t][/]" '{print $2}')
@@ -8180,7 +8174,6 @@ subscribe() {
                 local base64Result
                 base64Result=$(base64 -w 0 "/etc/v2ray-agent/subscribe/default/${emailMd5}")
                 echo "${base64Result}" >"/etc/v2ray-agent/subscribe/default/${emailMd5}"
-
                 echoContent yellow "--------------------------------------------------------------"
                 local currentDomain=${currentHost}
 
@@ -8194,7 +8187,6 @@ subscribe() {
                         currentDomain="${currentHost}:${subscribePort}"
                     fi
                 fi
-
                 echoContent skyBlue "\n----------默认订阅----------\n"
                 echoContent green "email:${email}\n"
                 echoContent yellow "url:${subscribeType}://${currentDomain}/s/default/${emailMd5}\n"
@@ -8719,7 +8711,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.2.20"
+    echoContent green "当前版本：v3.2.21"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
