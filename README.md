@@ -34,7 +34,7 @@
 
 - 支持不同核心之间的配置读取
 - 支持个性化安装单个协议
-- [支持无域名版本的VLESS Reality搭建](https://www.v2ray-agent.com/archives/1680104902581)
+- [支持无域名版本的VLESS Reality搭建](https://www.v2ray-agent.com/archives/1708584312877)
 - [支持多种分流用于解锁（wireguard、IPv6、Socks5、DNS、VMess(ws)、SNI反向代理）](https://www.v2ray-agent.com/archives/ba-he-yi-jiao-ben-yu-ming-fen-liu-jiao-cheng)
 - [支持批量添加CDN节点并配合ClashMeta自动优选](https://www.v2ray-agent.com/archives/1684858575649)
 - 支持普通证书和通配符证书自动申请及更新
@@ -46,6 +46,7 @@
 
 # 二、使用指南
 
+- [八合一脚本从入门到精通](https://www.v2ray-agent.com/archives/1710141233)
 - [脚本快速搭建教程](https://www.v2ray-agent.com/archives/1682491479771)
 - [垃圾VPS大救星，hysteria2最新协议一键搭建](https://www.v2ray-agent.com/archives/1697162969693)
 - [Tuic V5性能提升及使用方法](https://www.v2ray-agent.com/archives/1687167522196)

@@ -19,43 +19,62 @@
   "dns": {
     "servers": [
       {
+        "tag": "dns_proxy",
+        "address": "https://1.1.1.1/dns-query",
+        "address_resolver": "dns_resolver",
+        "strategy": "ipv4_only",
+        "detour": "select"
+      },
+      {
+        "tag": "dns_direct",
+        "address": "h3://dns.alidns.com/dns-query",
+        "address_resolver": "dns_resolver",
+        "strategy": "ipv4_only",
+        "detour": "direct"
+      },
+      {
         "tag": "google",
         "address": "tls://8.8.4.4"
       },
       {
-        "tag": "local",
-        "address": "https://223.5.5.5/dns-query",
-        "detour": "direct"
+        "tag": "dns_block",
+        "address": "rcode://success"
       },
       {
-        "tag": "dns-block",
-        "address": "rcode://success"
+        "tag": "dns_resolver",
+        "address": "114.114.114.114",
+        "strategy": "ipv4_only",
+        "detour": "direct"
       }
     ],
     "rules": [
       {
         "outbound": "any",
-        "server": "local"
+        "server": "dns_direct"
       },
       {
-        "clash_mode": "Direct",
-        "server": "local"
+        "clash_mode": "direct",
+        "server": "dns_direct"
       },
       {
-        "clash_mode": "Global",
-        "server": "google"
+        "clash_mode": "global",
+        "server": "dns_proxy"
       },
       {
         "rule_set": "geosite-cn",
-        "server": "local"
+        "server": "dns_direct"
       },
       {
         "rule_set": "geoip-cn",
-        "server": "local"
+        "server": "dns_direct"
+      },
+      {
+        "rule_set": "geosite-geolocation-!cn",
+        "server": "dns_proxy"
       }
     ],
     "independent_cache": true,
-    "final": "google"
+    "final": "dns_direct"
   },
   "inbounds": [
     {
@@ -66,6 +85,12 @@
       "auto_route": true,
       "strict_route": true,
       "sniff": true
+    },
+    {
+      "type": "socks",
+      "tag": "socks-in",
+      "listen": "127.0.0.1",
+      "listen_port": 7888
     }
   ],
   "outbounds": [
@@ -121,6 +146,14 @@
     {
       "type": "selector",
       "tag": "Microsoft",
+      "outbounds": [
+        "全局代理",
+        "direct"
+      ]
+    },
+    {
+      "type": "selector",
+      "tag": "Github",
       "outbounds": [
         "全局代理",
         "direct"
@@ -251,6 +284,13 @@
         "update_interval": "1d"
       },
       {
+        "tag": "geosite-github",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://mirror.ghproxy.com/https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/github.srs",
+        "update_interval": "1d"
+      },
+      {
         "tag": "geosite-private",
         "type": "remote",
         "format": "binary",
@@ -354,6 +394,10 @@
       {
         "rule_set": "geosite-microsoft",
         "outbound": "Microsoft"
+      },
+      {
+        "rule_set": "geosite-github",
+        "outbound": "Github"
       },
       {
         "rule_set": "geosite-geolocation-!cn",
