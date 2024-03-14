@@ -9,7 +9,7 @@
       "external_controller": "127.0.0.1:9090",
       "external_ui": "metacubexd",
       "external_ui_download_url": "https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip",
-      "external_ui_download_detour": "全局代理",
+      "external_ui_download_detour": "手动切换",
       "default_mode": "rule"
     },
     "cache_file": {
@@ -23,7 +23,7 @@
         "address": "https://1.1.1.1/dns-query",
         "address_resolver": "dns_resolver",
         "strategy": "ipv4_only",
-        "detour": "select"
+        "detour": "手动切换"
       },
       {
         "tag": "dns_direct",
@@ -95,8 +95,18 @@
   ],
   "outbounds": [
     {
+      "type": "urltest",
+      "tag": "自动选择",
+      "outbounds": [
+      ],
+      "url": "https://www.gstatic.com/generate_204",
+      "interval": "3m",
+      "tolerance": 50,
+      "interrupt_exist_connections": false
+    },
+    {
       "type": "selector",
-      "tag": "全局代理",
+      "tag": "手动切换",
       "outbounds": [
       ]
     },
@@ -104,35 +114,40 @@
       "type": "selector",
       "tag": "Telegram",
       "outbounds": [
-        "全局代理"
+        "手动切换",
+        "自动选择"
       ]
     },
     {
       "type": "selector",
       "tag": "YouTube",
       "outbounds": [
-        "全局代理"
+        "手动切换",
+        "自动选择"
       ]
     },
     {
       "type": "selector",
       "tag": "netflix",
       "outbounds": [
-        "全局代理"
+        "手动切换",
+        "自动选择"
       ]
     },
     {
       "type": "selector",
       "tag": "OpenAI",
       "outbounds": [
-        "全局代理"
+        "手动切换",
+        "自动选择"
       ]
     },
     {
       "type": "selector",
       "tag": "Apple",
       "outbounds": [
-        "全局代理",
+        "手动切换",
+        "自动选择",
         "direct"
       ]
     },
@@ -140,14 +155,16 @@
       "type": "selector",
       "tag": "Google",
       "outbounds": [
-        "全局代理"
+        "手动切换",
+        "自动选择"
       ]
     },
     {
       "type": "selector",
       "tag": "Microsoft",
       "outbounds": [
-        "全局代理",
+        "手动切换",
+        "自动选择",
         "direct"
       ]
     },
@@ -155,7 +172,8 @@
       "type": "selector",
       "tag": "Github",
       "outbounds": [
-        "全局代理",
+        "手动切换",
+        "自动选择",
         "direct"
       ]
     },
@@ -164,7 +182,8 @@
       "tag": "本地直连",
       "outbounds": [
         "direct",
-        "全局代理"
+        "手动切换",
+        "自动选择"
       ],
       "default": "direct"
     },
@@ -322,7 +341,7 @@
     "rules": [
       {
         "clash_mode": "global",
-        "outbound": "全局代理"
+        "outbound": "手动切换"
       },
       {
         "clash_mode": "direct",
@@ -401,7 +420,7 @@
       },
       {
         "rule_set": "geosite-geolocation-!cn",
-        "outbound": "全局代理"
+        "outbound": "手动切换"
       },
       {
         "rule_set": [
