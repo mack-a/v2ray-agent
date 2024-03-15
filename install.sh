@@ -418,44 +418,44 @@ readInstallProtocolType() {
 
     while read -r row; do
         if echo "${row}" | grep -q VLESS_TCP_inbounds; then
-            currentInstallProtocolType="${currentInstallProtocolType},0,"
+            currentInstallProtocolType="${currentInstallProtocolType}0,"
             frontingType=02_VLESS_TCP_inbounds
             if [[ "${coreInstallType}" == "2" ]]; then
                 singBoxVLESSVisionPort=$(jq .inbounds[0].listen_port "${row}.json")
             fi
         fi
         if echo "${row}" | grep -q VLESS_WS_inbounds; then
-            currentInstallProtocolType="${currentInstallProtocolType},1,"
+            currentInstallProtocolType="${currentInstallProtocolType}1,"
         fi
         if echo "${row}" | grep -q trojan_gRPC_inbounds; then
-            currentInstallProtocolType="${currentInstallProtocolType},2,"
+            currentInstallProtocolType="${currentInstallProtocolType}2,"
         fi
         if echo "${row}" | grep -q VMess_WS_inbounds; then
-            currentInstallProtocolType="${currentInstallProtocolType},3,"
+            currentInstallProtocolType="${currentInstallProtocolType}3,"
             if [[ "${coreInstallType}" == "2" ]]; then
                 frontingType=05_VMess_WS_inbounds
                 singBoxVMessWSPort=$(jq .inbounds[0].listen_port "${row}.json")
             fi
         fi
         if echo "${row}" | grep -q trojan_TCP_inbounds; then
-            currentInstallProtocolType="${currentInstallProtocolType},4,"
+            currentInstallProtocolType="${currentInstallProtocolType}4,"
             if [[ "${coreInstallType}" == "2" ]]; then
                 frontingType=04_trojan_TCP_inbounds
                 singBoxTrojanPort=$(jq .inbounds[0].listen_port "${row}.json")
             fi
         fi
         if echo "${row}" | grep -q VLESS_gRPC_inbounds; then
-            currentInstallProtocolType="${currentInstallProtocolType},5,"
+            currentInstallProtocolType="${currentInstallProtocolType}5,"
         fi
         if echo "${row}" | grep -q hysteria2_inbounds; then
-            currentInstallProtocolType="${currentInstallProtocolType},6,"
+            currentInstallProtocolType="${currentInstallProtocolType}6,"
             if [[ "${coreInstallType}" == "2" ]]; then
                 frontingType=06_hysteria2_inbounds
                 singBoxHysteria2Port=$(jq .inbounds[0].listen_port "${row}.json")
             fi
         fi
         if echo "${row}" | grep -q VLESS_vision_reality_inbounds; then
-            currentInstallProtocolType="${currentInstallProtocolType},7,"
+            currentInstallProtocolType="${currentInstallProtocolType}7,"
             if [[ "${coreInstallType}" == "1" ]]; then
                 xrayVLESSRealityServerName=$(jq -r .inbounds[0].streamSettings.realitySettings.serverNames[0] "${row}.json")
                 xrayVLESSRealityPort=$(jq -r .inbounds[0].port "${row}.json")
@@ -477,7 +477,7 @@ readInstallProtocolType() {
             fi
         fi
         if echo "${row}" | grep -q VLESS_vision_gRPC_inbounds; then
-            currentInstallProtocolType="${currentInstallProtocolType},8,"
+            currentInstallProtocolType="${currentInstallProtocolType}8,"
             if [[ "${coreInstallType}" == "2" ]]; then
                 frontingTypeReality=08_VLESS_vision_gRPC_inbounds
                 singBoxVLESSRealityGRPCPort=$(jq -r .inbounds[0].listen_port "${row}.json")
@@ -488,14 +488,14 @@ readInstallProtocolType() {
             fi
         fi
         if echo "${row}" | grep -q tuic_inbounds; then
-            currentInstallProtocolType="${currentInstallProtocolType},9,"
+            currentInstallProtocolType="${currentInstallProtocolType}9,"
             if [[ "${coreInstallType}" == "2" ]]; then
                 frontingType=09_tuic_inbounds
                 singBoxTuicPort=$(jq .inbounds[0].listen_port "${row}.json")
             fi
         fi
         if echo "${row}" | grep -q naive_inbounds; then
-            currentInstallProtocolType="${currentInstallProtocolType},10,"
+            currentInstallProtocolType="${currentInstallProtocolType}10,"
             if [[ "${coreInstallType}" == "2" ]]; then
                 frontingType=10_naive_inbounds
                 singBoxNaivePort=$(jq .inbounds[0].listen_port "${row}.json")
@@ -503,7 +503,7 @@ readInstallProtocolType() {
 
         fi
         if echo "${row}" | grep -q socks5_inbounds; then
-            currentInstallProtocolType="${currentInstallProtocolType},20,"
+            currentInstallProtocolType="${currentInstallProtocolType}20,"
             singBoxSocks5Port=$(jq .inbounds[0].listen_port "${row}.json")
         fi
 
@@ -511,13 +511,16 @@ readInstallProtocolType() {
 
     if [[ "${coreInstallType}" == "1" && -n "${singBoxConfigPath}" ]]; then
         if [[ -f "${singBoxConfigPath}06_hysteria2_inbounds.json" ]]; then
-            currentInstallProtocolType="${currentInstallProtocolType},6,"
+            currentInstallProtocolType="${currentInstallProtocolType}6,"
             singBoxHysteria2Port=$(jq .inbounds[0].listen_port "${singBoxConfigPath}06_hysteria2_inbounds.json")
         fi
         if [[ -f "${singBoxConfigPath}09_tuic_inbounds.json" ]]; then
-            currentInstallProtocolType="${currentInstallProtocolType},9,"
+            currentInstallProtocolType="${currentInstallProtocolType}9,"
             singBoxTuicPort=$(jq .inbounds[0].listen_port "${singBoxConfigPath}09_tuic_inbounds.json")
         fi
+    fi
+    if [[ "${currentInstallProtocolType:0:1}" != "," ]]; then
+        currentInstallProtocolType=",${currentInstallProtocolType}"
     fi
 }
 
@@ -7632,6 +7635,7 @@ installSubscribe() {
         echo
         echoContent yellow " ---> 开始配置订阅的伪装站点\n"
         nginxBlog
+        echo
         local httpSubscribeStatus=
 
         if ! echo "${selectCustomInstallType}" | grep -qE ",0,|,1,|,2,|,3,|,4,|,5,|,6,|,9,|,10," && ! echo "${currentInstallProtocolType}" | grep -qE ",0,|,1,|,2,|,3,|,4,|,5,|,6,|,9,|,10,"; then
@@ -7639,8 +7643,11 @@ installSubscribe() {
         fi
 
         if [[ "${httpSubscribeStatus}" == "true" ]]; then
-            echoContent green "未发现tls证书，使用无加密订阅，可能被运营商拦截。请注意风险"
-            read -r -p "是否使用[y/n]？" addNginxSubscribeStatus
+
+            echoContent yellow "未发现tls证书，使用无加密订阅，可能被运营商拦截，请注意风险。"
+            echo
+            read -r -p "是否使用http订阅[y/n]？" addNginxSubscribeStatus
+            echo
             if [[ "${addNginxSubscribeStatus}" != "y" ]]; then
                 echoContent yellow " ---> 退出安装"
                 exit
@@ -8118,7 +8125,7 @@ initRandomSalt() {
 # 订阅
 subscribe() {
     readInstallProtocolType
-    if [[ "${coreInstallType}" == "1" && "${selectCustomInstallType}" == ",7," ]] || [[ "${coreInstallType}" == "2" ]]; then
+    if [[ "${coreInstallType}" == "1" ]] && [[ "${selectCustomInstallType}" == ",7," || "${currentInstallProtocolType}" == ",7,8," ]] || [[ "${coreInstallType}" == "2" ]]; then
         installSubscribe
     fi
 
@@ -8710,7 +8717,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.2.23"
+    echoContent green "当前版本：v3.2.24"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
