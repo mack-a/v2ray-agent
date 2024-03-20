@@ -5863,8 +5863,15 @@ ipv6Routing() {
     read -r -p "请选择:" ipv6Status
     if [[ "${ipv6Status}" == "1" ]]; then
         if [[ "${coreInstallType}" == "1" ]]; then
-            echoContent yellow "Xray-core："
-            jq -r -c '.routing.rules[]|select (.outboundTag=="IPv6_out")|.domain' ${configPath}09_routing.json | jq -r
+            if [[ -f "${configPath}09_routing.json" ]]; then
+                echoContent yellow "Xray-core："
+                jq -r -c '.routing.rules[]|select (.outboundTag=="IPv6_out")|.domain' ${configPath}09_routing.json | jq -r
+            elif [[ ! -f "${configPath}09_routing.json" && -f "${configPath}IPv6_out.json" ]]; then
+                echoContent green " ---> 已设置IPv6全局分流"
+            else
+                echoContent yellow " ---> 未安装IPv6分流"
+            fi
+
         fi
 
         if [[ -n "${singBoxConfigPath}" ]]; then
@@ -5946,6 +5953,7 @@ ipv6Routing() {
 
         if [[ -n "${singBoxConfigPath}" ]]; then
             removeSingBoxConfig IPv6_out
+            addSingBoxOutbound "01_direct_outbound"
         fi
 
         echoContent green " ---> IPv6分流卸载成功"
@@ -6263,6 +6271,10 @@ showWireGuardDomain() {
     if [[ -f "${configPath}09_routing.json" ]]; then
         echoContent yellow "Xray-core"
         jq -r -c '.routing.rules[]|select (.outboundTag=="wireguard_out_'"${type}"'")|.domain' ${configPath}09_routing.json | jq -r
+    elif [[ ! -f "${configPath}09_routing.json" && -f "${configPath}wireguard_out_${type}.json" ]]; then
+        echoContent green " ---> 已设置warp ${type}全局分流"
+    else
+        echoContent yellow " ---> 未安装warp分流"
     fi
 
     # sing-box
@@ -6435,6 +6447,10 @@ warpRoutingReg() {
 
         removeSingBoxConfig "wireguard_out_${type}"
         removeXrayOutbound "wireguard_out_${type}"
+
+        addSingBoxOutbound "01_direct_outbound"
+        addXrayOutbound "z_direct_outbound"
+
         echoContent green " ---> 卸载WARP ${type}分流完毕"
     else
         echoContent red " ---> 选择错误"
@@ -8718,7 +8734,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.2.29"
+    echoContent green "当前版本：v3.2.30"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
