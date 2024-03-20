@@ -5867,6 +5867,7 @@ ipv6Routing() {
                 echoContent yellow "Xray-core："
                 jq -r -c '.routing.rules[]|select (.outboundTag=="IPv6_out")|.domain' ${configPath}09_routing.json | jq -r
             elif [[ ! -f "${configPath}09_routing.json" && -f "${configPath}IPv6_out.json" ]]; then
+                echoContent yellow "Xray-core"
                 echoContent green " ---> 已设置IPv6全局分流"
             else
                 echoContent yellow " ---> 未安装IPv6分流"
@@ -5874,9 +5875,14 @@ ipv6Routing() {
 
         fi
 
-        if [[ -n "${singBoxConfigPath}" ]]; then
-            echoContent yellow "sing-box："
+        if [[ -f "${singBoxConfigPath}IPv6_out_route.json" ]]; then
+            echoContent yellow "sing-box"
             jq -r -c '.route.rules[]|select (.outbound=="IPv6_out")' "${singBoxConfigPath}IPv6_out_route.json" | jq -r
+        elif [[ ! -f "${singBoxConfigPath}IPv6_out_route.json" && -f "${singBoxConfigPath}IPv6_out.json" ]]; then
+            echoContent yellow "sing-box"
+            echoContent green " ---> 已设置IPv6全局分流"
+        else
+            echoContent yellow " ---> 未安装IPv6分流"
         fi
 
         exit 0
@@ -6268,19 +6274,27 @@ installWarpReg() {
 showWireGuardDomain() {
     local type=$1
     # xray
-    if [[ -f "${configPath}09_routing.json" ]]; then
-        echoContent yellow "Xray-core"
-        jq -r -c '.routing.rules[]|select (.outboundTag=="wireguard_out_'"${type}"'")|.domain' ${configPath}09_routing.json | jq -r
-    elif [[ ! -f "${configPath}09_routing.json" && -f "${configPath}wireguard_out_${type}.json" ]]; then
-        echoContent green " ---> 已设置warp ${type}全局分流"
-    else
-        echoContent yellow " ---> 未安装warp分流"
+    if [[ "${coreInstallType}" == "1" ]]; then
+        if [[ -f "${configPath}09_routing.json" ]]; then
+            echoContent yellow "Xray-core"
+            jq -r -c '.routing.rules[]|select (.outboundTag=="wireguard_out_'"${type}"'")|.domain' ${configPath}09_routing.json | jq -r
+        elif [[ ! -f "${configPath}09_routing.json" && -f "${configPath}wireguard_out_${type}.json" ]]; then
+            echoContent yellow "Xray-core"
+            echoContent green " ---> 已设置warp ${type}全局分流"
+        else
+            echoContent yellow " ---> 未安装warp ${type}分流"
+        fi
     fi
 
     # sing-box
     if [[ -f "${singBoxConfigPath}wireguard_out_${type}_route.json" ]]; then
         echoContent yellow "sing-box"
         jq -r -c '.route.rules[]' "${singBoxConfigPath}wireguard_out_${type}_route.json" | jq -r
+    elif [[ ! -f "${singBoxConfigPath}wireguard_out_${type}_route.json" && -f "${singBoxConfigPath}wireguard_out_${type}.json" ]]; then
+        echoContent yellow "sing-box"
+        echoContent green " ---> 已设置warp ${type}全局分流"
+    else
+        echoContent yellow " ---> 未安装warp ${type}分流"
     fi
 }
 
@@ -6443,16 +6457,24 @@ warpRoutingReg() {
         fi
 
     elif [[ "${warpStatus}" == "4" ]]; then
-        removeSingBoxConfig "wireguard_out_${type}_route"
+        if [[ "${coreInstallType}" == "1" ]]; then
+            unInstallRouting "wireguard_out_${type}" outboundTag
 
-        removeSingBoxConfig "wireguard_out_${type}"
-        removeXrayOutbound "wireguard_out_${type}"
+            removeXrayOutbound "wireguard_out_${type}"
+            addXrayOutbound "z_direct_outbound"
+        fi
 
-        addSingBoxOutbound "01_direct_outbound"
-        addXrayOutbound "z_direct_outbound"
+        if [[ -n "${singBoxConfigPath}" ]]; then
+            removeSingBoxConfig "wireguard_out_${type}_route"
+
+            removeSingBoxConfig "wireguard_out_${type}"
+            addSingBoxOutbound "01_direct_outbound"
+
+        fi
 
         echoContent green " ---> 卸载WARP ${type}分流完毕"
     else
+
         echoContent red " ---> 选择错误"
         exit 0
     fi
@@ -6535,6 +6557,7 @@ socks5Routing() {
     echoContent red "\n=============================================================="
     echoContent red "# 注意事项"
     echoContent yellow "# 流量明文访问"
+
     echoContent yellow "# 只能用于不会被阻断访问的网络环境下的不同机器之间的流量转发，请不要用于代理访问"
     echoContent yellow "# 使用教程：https://www.v2ray-agent.com/archives/1683226921000#heading-5 \n"
 
@@ -6749,6 +6772,21 @@ setSocks5Inbound() {
     echoContent green "用户名称：${socks5RoutingUUID}"
     echoContent green "用户密码：${socks5RoutingUUID}"
 
+    echoContent yellow "\n请选择分流域名DNS解析类型"
+    echoContent yellow "# 注意事项：需要保证vps支持相应的DNS解析"
+    echoContent yellow "1.IPv4[回车默认]"
+    echoContent yellow "2.IPv6"
+
+    read -r -p 'IP类型:' socks5InboundDomainStrategyStatus
+    local domainStrategy=
+    if [[ -z "${socks5InboundDomainStrategyStatus}" || "${socks5InboundDomainStrategyStatus}" == "1" ]]; then
+        domainStrategy="ipv4_only"
+    elif [[ "${socks5InboundDomainStrategyStatus}" == "2" ]]; then
+        domainStrategy="ipv6_only"
+    else
+        echoContent red " ---> 选择类型错误"
+        exit 0
+    fi
     cat <<EOF >/etc/v2ray-agent/sing-box/conf/config/20_socks5_inbounds.json
 {
     "inbounds":[
@@ -6762,7 +6800,8 @@ setSocks5Inbound() {
                   "username": "${socks5RoutingUUID}",
                   "password": "${socks5RoutingUUID}"
             }
-          ]
+          ],
+          "domain_strategy":"${domainStrategy}"
         }
     ]
 }
@@ -8734,7 +8773,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.2.30"
+    echoContent green "当前版本：v3.2.31"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
