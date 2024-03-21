@@ -8563,6 +8563,10 @@ xrayCoreRealityInstall() {
 # reality管理
 manageReality() {
     readInstallProtocolType
+    readConfigHostPathUUID
+    readCustomPort
+    readSingBoxConfig
+
     if ! echo "${currentInstallProtocolType}" | grep -q -E "7,|8," || [[ -z "${coreInstallType}" ]]; then
         echoContent red "\n ---> 请先安装Reality协议，参考教程 https://www.v2ray-agent.com/archives/1680104902581#heading-11"
         exit 0
@@ -8777,7 +8781,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.2.32"
+    echoContent green "当前版本：v3.2.33"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
