@@ -895,10 +895,9 @@ mkdirTools() {
     mkdir -p /etc/v2ray-agent/subscribe/clashMeta
 
     mkdir -p /etc/v2ray-agent/subscribe/sing-box
+    mkdir -p /etc/v2ray-agent/subscribe/sing-box_profiles
     mkdir -p /etc/v2ray-agent/subscribe_local/sing-box
 
-    mkdir -p /etc/v2ray-agent/v2ray/conf
-    mkdir -p /etc/v2ray-agent/v2ray/tmp
     mkdir -p /etc/v2ray-agent/xray/conf
     mkdir -p /etc/v2ray-agent/xray/reality_scan
     mkdir -p /etc/v2ray-agent/xray/tmp
@@ -1335,7 +1334,7 @@ server {
 	client_header_timeout 1071906480m;
     keepalive_timeout 1071906480m;
 
-	location ~ ^/s/(clashMeta|default|clashMetaProfiles|sing-box)/(.*) {
+	location ~ ^/s/(clashMeta|default|clashMetaProfiles|sing-box|sing-box_profiles)/(.*) {
 	    proxy_set_header X-Real-IP \$proxy_protocol_addr;
         default_type 'text/plain; charset=utf-8';
         alias /etc/v2ray-agent/subscribe/\$1/\$2;
@@ -1376,7 +1375,7 @@ server {
 
 	server_name ${domain};
 	root ${nginxStaticPath};
-	location ~ ^/s/(clashMeta|default|clashMetaProfiles|sing-box)/(.*) {
+	location ~ ^/s/(clashMeta|default|clashMetaProfiles|sing-box|sing-box_profiles)/(.*) {
 	    proxy_set_header X-Real-IP \$proxy_protocol_addr;
         default_type 'text/plain; charset=utf-8';
         alias /etc/v2ray-agent/subscribe/\$1/\$2;
@@ -1404,7 +1403,7 @@ server {
 
     server_name ${domain};
 	root ${nginxStaticPath};
-	location ~ ^/s/(clashMeta|default|clashMetaProfiles|sing-box)/(.*) {
+	location ~ ^/s/(clashMeta|default|clashMetaProfiles|sing-box|sing-box_profiles)/(.*) {
 	    proxy_set_header X-Real-IP \$proxy_protocol_addr;
         default_type 'text/plain; charset=utf-8';
         alias /etc/v2ray-agent/subscribe/\$1/\$2;
@@ -1434,7 +1433,7 @@ server {
 	server_name ${domain};
 	root ${nginxStaticPath};
 
-    location ~ ^/s/(clashMeta|default|clashMetaProfiles|sing-box)/(.*) {
+    location ~ ^/s/(clashMeta|default|clashMetaProfiles|sing-box|sing-box_profiles)/(.*) {
         proxy_set_header X-Real-IP \$proxy_protocol_addr;
         default_type 'text/plain; charset=utf-8';
         alias /etc/v2ray-agent/subscribe/\$1/\$2;
@@ -1454,7 +1453,7 @@ server {
 	real_ip_header proxy_protocol;
 
 	root ${nginxStaticPath};
-	location ~ ^/s/(clashMeta|default|clashMetaProfiles|sing-box)/(.*) {
+	location ~ ^/s/(clashMeta|default|clashMetaProfiles|sing-box|sing-box_profiles)/(.*) {
         proxy_set_header X-Real-IP \$proxy_protocol_addr;
         default_type 'text/plain; charset=utf-8';
         alias /etc/v2ray-agent/subscribe/\$1/\$2;
@@ -7740,7 +7739,7 @@ server {
     ${nginxSubscribeSSL}
     client_max_body_size 100m;
     root ${nginxStaticPath};
-    location ~ ^/s/(clashMeta|default|clashMetaProfiles|sing-box)/(.*) {
+    location ~ ^/s/(clashMeta|default|clashMetaProfiles|sing-box|sing-box_profiles)/(.*) {
         default_type 'text/plain; charset=utf-8';
         alias /etc/v2ray-agent/subscribe/\$1/\$2;
     }
@@ -8275,6 +8274,8 @@ subscribe() {
                 fi
                 # sing-box
                 if [[ -f "/etc/v2ray-agent/subscribe_local/sing-box/${email}" ]]; then
+                    cp "/etc/v2ray-agent/subscribe_local/sing-box/${email}" "/etc/v2ray-agent/subscribe/sing-box_profiles/${emailMd5}"
+
                     echoContent skyBlue " ---> 下载 sing-box 通用配置文件"
                     wget -O "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}" -q "${wgetShowProgressStatus}" "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/documents/sing-box.json"
 
@@ -8308,10 +8309,9 @@ updateRemoteSubscribe() {
         remoteUrl=$(echo "${line}" | awk -F "[:]" '{print $1":"$2}')
 
         local clashMetaProxies=
-        clashMetaProxies=$(curl -s -4 "https://${remoteUrl}/s/clashMeta/${emailMD5}" | sed '/proxies:/d' | sed "s/${email}/${email}_${serverAlias}/g")
+        clashMetaProxies=$(curl -s -4 "https://${remoteUrl}/s/clashMeta/${emailMD5}" | sed '/proxies:/d' | sed "s/\"${email}/\"${email}_${serverAlias}/g")
 
         if ! echo "${clashMetaProxies}" | grep -q "nginx" && [[ -n "${clashMetaProxies}" ]]; then
-            #            echo "${clashMetaProxies}" >"/etc/v2ray-agent/subscribe_remote/clashMeta/${email}_${remoteUrl}"
             echo "${clashMetaProxies}" >>"/etc/v2ray-agent/subscribe/clashMeta/${emailMD5}"
             echoContent green " ---> clashMeta订阅 ${remoteUrl}:${email} 更新成功"
         else
@@ -8322,9 +8322,21 @@ updateRemoteSubscribe() {
         default=$(curl -s -4 "https://${remoteUrl}/s/default/${emailMD5}")
 
         if ! echo "${default}" | grep -q "nginx" && [[ -n "${default}" ]]; then
-            default=$(echo "${default}" | base64 -d | sed "s/${email}/${email}_${serverAlias}/g")
-            #            echo "${default}" >"/etc/v2ray-agent/subscribe_remote/default/${email}_${remoteUrl}"
+            default=$(echo "${default}" | base64 -d | sed "s/#${email}/#${email}_${serverAlias}/g")
             echo "${default}" >>"/etc/v2ray-agent/subscribe/default/${emailMD5}"
+
+            echoContent green " ---> 通用订阅 ${remoteUrl}:${email} 更新成功"
+        else
+            echoContent red " ---> 通用订阅 ${remoteUrl}:${email} 不存在"
+        fi
+
+        local singBoxSubscribe=
+        singBoxSubscribe=$(curl -s -4 "https://${remoteUrl}/s/sing-box_profiles/${emailMD5}")
+
+        if ! echo "${singBoxSubscribe}" | grep -q "nginx" && [[ -n "${singBoxSubscribe}" ]]; then
+            singBoxSubscribe=${singBoxSubscribe//tag\": \"${email}/tag\": \"${email}_${serverAlias}}
+            singBoxSubscribe=$(jq ". +=${singBoxSubscribe}" "/etc/v2ray-agent/subscribe_local/sing-box/${email}")
+            echo "${singBoxSubscribe}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${email}"
 
             echoContent green " ---> 通用订阅 ${remoteUrl}:${email} 更新成功"
         else
@@ -8781,7 +8793,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.2.34"
+    echoContent green "当前版本：v3.2.35"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
