@@ -84,7 +84,14 @@
       "inet4_address": "172.19.0.1/30",
       "auto_route": true,
       "strict_route": true,
-      "sniff": true
+      "sniff": true,
+      "platform": {
+        "http_proxy": {
+          "enabled": true,
+          "server": "127.0.0.1",
+          "server_port": 1082
+        }
+      }
     },
     {
       "type": "socks",
