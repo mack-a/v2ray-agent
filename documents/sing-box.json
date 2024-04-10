@@ -94,6 +94,13 @@
       }
     },
     {
+      "type": "mixed",
+      "listen": "127.0.0.1",
+      "listen_port": 1082,
+      "sniff": true,
+      "users": []
+    },
+    {
       "type": "socks",
       "tag": "socks-in",
       "listen": "127.0.0.1",
