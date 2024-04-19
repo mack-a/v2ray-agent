@@ -65,7 +65,7 @@ checkSystem() {
         updateReleaseInfoChange='apt-get --allow-releaseinfo-change update'
         removeType='apt -y autoremove'
 
-    elif [[ -f "/etc/issue" ]] && grep </etc/issue -q -i "ubuntu" || [[ -f "/proc/version" ]] && grep </etc/issue -q -i "ubuntu"; then
+    elif [[ -f "/etc/issue" ]] && grep </etc/issue -q -i "ubuntu" || [[ -f "/proc/version" ]] && grep </proc/version -q -i "ubuntu"; then
         release="ubuntu"
         installType='apt -y install'
         upgrade="apt update"
@@ -74,6 +74,12 @@ checkSystem() {
         if grep </etc/issue -q -i "16."; then
             release=
         fi
+    elif [[ -f "/etc/issue" ]] && grep </etc/issue -q -i "Alpine" || [[ -f "/proc/version" ]] && grep </proc/version -q -i "Alpine"; then
+        release="alpine"
+        installType='apk add'
+        upgrade="apk update"
+        removeType='apt del'
+        nginxConfigPath=/etc/nginx/http.d/
     fi
 
     if [[ -z ${release} ]]; then
@@ -92,8 +98,6 @@ checkCPUVendor() {
             'amd64' | 'x86_64')
                 xrayCoreCPUVendor="Xray-linux-64"
                 v2rayCoreCPUVendor="v2ray-linux-64"
-                #                hysteriaCoreCPUVendor="hysteria-linux-amd64"
-                #                tuicCoreCPUVendor="-x86_64-unknown-linux-musl"
                 warpRegCoreCPUVendor="main-linux-amd64"
                 singBoxCoreCPUVendor="-linux-amd64"
                 ;;
@@ -101,8 +105,6 @@ checkCPUVendor() {
                 cpuVendor="arm"
                 xrayCoreCPUVendor="Xray-linux-arm64-v8a"
                 v2rayCoreCPUVendor="v2ray-linux-arm64-v8a"
-                #                hysteriaCoreCPUVendor="hysteria-linux-arm64"
-                #                tuicCoreCPUVendor="-aarch64-unknown-linux-musl"
                 warpRegCoreCPUVendor="main-linux-arm64"
                 singBoxCoreCPUVendor="-linux-arm64"
                 ;;
@@ -603,6 +605,13 @@ allowPort() {
                 checkUFWAllowPort "$1"
             fi
         fi
+    elif rc-update show | grep ufw 2>/dev/null | grep -q "ufw"; then
+        if ufw status | grep -q "Status: active"; then
+            if ! ufw status | grep -q "$1/${type}"; then
+                sudo ufw allow "$1/${type}"
+                checkUFWAllowPort "$1"
+            fi
+        fi
 
     elif systemctl status firewalld 2>/dev/null | grep -q "active (running)"; then
         local updateFirewalldStatus=
@@ -916,6 +925,8 @@ mkdirTools() {
     mkdir -p /etc/v2ray-agent/warp
 
     mkdir -p /etc/v2ray-agent/sing-box/conf/config
+
+    mkdir -p /usr/share/nginx/html/
 }
 
 # 安装工具包
@@ -1016,13 +1027,13 @@ installTools() {
         echoContent green " ---> 安装dig"
         if echo "${installType}" | grep -q -w "apt"; then
             ${installType} dnsutils >/dev/null 2>&1
-        elif echo "${installType}" | grep -q -w "yum"; then
+        elif echo "${installType}" | grep -qwE "yum|apk"; then
             ${installType} bind-utils >/dev/null 2>&1
         fi
     fi
 
     # 检测nginx版本，并提供是否卸载的选项
-    if [[ "${selectCustomInstallType}" == "7" ]]; then
+    if echo "${selectCustomInstallType}" | grep -qwE ",7,|,8,|,7,8,"; then
         echoContent green " ---> 检测到无需依赖Nginx的服务，跳过安装"
     else
         if ! find /usr/bin /usr/sbin | grep -q -w nginx; then
@@ -1085,7 +1096,16 @@ installTools() {
     fi
 
 }
-
+# 开机启动
+bootStartup() {
+    local serviceName=$1
+    if [[ "${release}" == "alpine" ]]; then
+        rc-update add "${serviceName}" default
+    else
+        systemctl daemon-reload
+        systemctl enable "${serviceName}"
+    fi
+}
 # 安装Nginx
 installNginxTools() {
 
@@ -1127,10 +1147,11 @@ gpgkey=https://nginx.org/keys/nginx_signing.key
 module_hotfixes=true
 EOF
         sudo yum-config-manager --enable nginx-mainline >/dev/null 2>&1
+    elif [[ "${release}" == "alpine" ]]; then
+        rm "${nginxConfigPath}default.conf"
     fi
     ${installType} nginx >/dev/null 2>&1
-    systemctl daemon-reload
-    systemctl enable nginx
+    bootStartup nginx
 }
 
 # 安装warp
@@ -1304,7 +1325,7 @@ removeNginxDefaultConf() {
     if [[ -f ${nginxConfigPath}default.conf ]]; then
         if [[ "$(grep -c "server_name" <${nginxConfigPath}default.conf)" == "1" ]] && [[ "$(grep -c "server_name  localhost;" <${nginxConfigPath}default.conf)" == "1" ]]; then
             echoContent green " ---> 删除Nginx默认配置"
-            rm -rf ${nginxConfigPath}default.conf
+            rm -rf ${nginxConfigPath}default.conf >/dev/null 2>&1
         fi
     fi
 }
@@ -1808,6 +1829,16 @@ randomPathFunction() {
     echoContent yellow "\n path:${currentPath}"
     echoContent skyBlue "\n----------------------------"
 }
+# 随机数
+randomNum() {
+    if [[ "${release}" == "alpine" ]]; then
+        local ranNum=
+        ranNum="$(shuf -i "$1"-"$2" -n 1)"
+        echo "${ranNum}"
+    else
+        echo $((RANDOM % $2 + $1))
+    fi
+}
 # Nginx伪装博客
 nginxBlog() {
     if [[ -n "$1" ]]; then
@@ -1820,17 +1851,30 @@ nginxBlog() {
         echo
         read -r -p "检测到安装伪装站点，是否需要重新安装[y/n]:" nginxBlogInstallStatus
         if [[ "${nginxBlogInstallStatus}" == "y" ]]; then
-            rm -rf "${nginxStaticPath}"
-            randomNum=$((RANDOM % 6 + 1))
-            wget -q "${wgetShowProgressStatus}" -P "${nginxStaticPath}" https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${randomNum}.zip
+            rm -rf "${nginxStaticPath}*"
+            #  randomNum=$((RANDOM % 6 + 1))
+            randomNum=$(randomNum 1 9)
+            if [[ "${release}" == "alpine" ]]; then
+                wget -q -P "${nginxStaticPath}" "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${randomNum}.zip"
+            else
+                wget -q "${wgetShowProgressStatus}" -P "${nginxStaticPath}" "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${randomNum}.zip"
+            fi
+
             unzip -o "${nginxStaticPath}html${randomNum}.zip" -d "${nginxStaticPath}" >/dev/null
             rm -f "${nginxStaticPath}html${randomNum}.zip*"
             echoContent green " ---> 添加伪装站点成功"
         fi
     else
-        randomNum=$((RANDOM % 6 + 1))
-        rm -rf "${nginxStaticPath}"
-        wget -q "${wgetShowProgressStatus}" -P "${nginxStaticPath}" https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${randomNum}.zip
+        randomNum=$(randomNum 1 9)
+        #        randomNum=$((RANDOM % 6 + 1))
+        rm -rf "${nginxStaticPath}*"
+
+        if [[ "${release}" == "alpine" ]]; then
+            wget -q -P "${nginxStaticPath}" "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${randomNum}.zip"
+        else
+            wget -q "${wgetShowProgressStatus}" -P "${nginxStaticPath}" "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${randomNum}.zip"
+        fi
+
         unzip -o "${nginxStaticPath}html${randomNum}.zip" -d "${nginxStaticPath}" >/dev/null
         rm -f "${nginxStaticPath}html${randomNum}.zip*"
         echoContent green " ---> 添加伪装站点成功"
@@ -1865,7 +1909,11 @@ updateSELinuxHTTPPortT() {
 handleNginx() {
 
     if [[ -z $(pgrep -f "nginx") ]] && [[ "$1" == "start" ]]; then
-        systemctl start nginx 2>/etc/v2ray-agent/nginx_error.log
+        if [[ "${release}" == "alpine" ]]; then
+            rc-service nginx start 2>/etc/v2ray-agent/nginx_error.log
+        else
+            systemctl start nginx 2>/etc/v2ray-agent/nginx_error.log
+        fi
 
         sleep 0.5
 
@@ -1881,7 +1929,12 @@ handleNginx() {
         fi
 
     elif [[ -n $(pgrep -f "nginx") ]] && [[ "$1" == "stop" ]]; then
-        systemctl stop nginx
+
+        if [[ "${release}" == "alpine" ]]; then
+            rc-service nginx stop
+        else
+            systemctl stop nginx
+        fi
         sleep 0.5
         if [[ -n $(pgrep -f "nginx") ]]; then
             pgrep -f "nginx" | xargs kill -9
@@ -2019,11 +2072,11 @@ installV2Ray() {
         fi
 
         echoContent green " ---> v2ray-core版本:${version}"
-        #        if wget --help | grep -q show-progress; then
-        wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/v2ray/ "https://github.com/v2fly/v2ray-core/releases/download/${version}/${v2rayCoreCPUVendor}.zip"
-        #        else
-        #            wget -c -P /etc/v2ray-agent/v2ray/ "https://github.com/v2fly/v2ray-core/releases/download/${version}/${v2rayCoreCPUVendor}.zip" >/dev/null 2>&1
-        #        fi
+        if [[ "${release}" == "alpine" ]]; then
+            wget -c -q -P /etc/v2ray-agent/v2ray/ "https://github.com/v2fly/v2ray-core/releases/download/${version}/${v2rayCoreCPUVendor}.zip"
+        else
+            wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/v2ray/ "https://github.com/v2fly/v2ray-core/releases/download/${version}/${v2rayCoreCPUVendor}.zip"
+        fi
 
         unzip -o "/etc/v2ray-agent/v2ray/${v2rayCoreCPUVendor}.zip" -d /etc/v2ray-agent/v2ray >/dev/null
         rm -rf "/etc/v2ray-agent/v2ray/${v2rayCoreCPUVendor}.zip"
@@ -2056,7 +2109,12 @@ installSingBox() {
 
         echoContent green " ---> sing-box版本:${version}"
 
-        wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/sing-box/ "https://github.com/SagerNet/sing-box/releases/download/${version}/sing-box-${version/v/}${singBoxCoreCPUVendor}.tar.gz"
+        if [[ "${release}" == "alpine" ]]; then
+            wget -c -q -P /etc/v2ray-agent/sing-box/ "https://github.com/SagerNet/sing-box/releases/download/${version}/sing-box-${version/v/}${singBoxCoreCPUVendor}.tar.gz"
+        else
+            wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/sing-box/ "https://github.com/SagerNet/sing-box/releases/download/${version}/sing-box-${version/v/}${singBoxCoreCPUVendor}.tar.gz"
+        fi
+
         if [[ ! -f "/etc/v2ray-agent/sing-box/sing-box-${version/v/}${singBoxCoreCPUVendor}.tar.gz" ]]; then
             read -r -p "核心下载失败，请重新尝试安装，是否重新尝试？[y/n]" downloadStatus
             if [[ "${downloadStatus}" == "y" ]]; then
@@ -2083,8 +2141,10 @@ installSingBox() {
 
 # 检查wget showProgress
 checkWgetShowProgress() {
-    if find /usr/bin /usr/sbin | grep -q -w wget && wget --help | grep -q show-progress; then
-        wgetShowProgressStatus="--show-progress"
+    if [[ "${release}" != "alpine" ]]; then
+        if find /usr/bin /usr/sbin | grep -q "/wget" && wget --help | grep -q show-progress; then
+            wgetShowProgressStatus="--show-progress"
+        fi
     fi
 }
 # 安装xray
@@ -2102,8 +2162,12 @@ installXray() {
         version=$(curl -s "https://api.github.com/repos/XTLS/Xray-core/releases?per_page=5" | jq -r ".[]|select (.prerelease==${prereleaseStatus})|.tag_name" | head -1)
 
         echoContent green " ---> Xray-core版本:${version}"
+        if [[ "${release}" == "alpine" ]]; then
+            wget -c -q -P /etc/v2ray-agent/xray/ "https://github.com/XTLS/Xray-core/releases/download/${version}/${xrayCoreCPUVendor}.zip"
+        else
+            wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/xray/ "https://github.com/XTLS/Xray-core/releases/download/${version}/${xrayCoreCPUVendor}.zip"
+        fi
 
-        wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/xray/ "https://github.com/XTLS/Xray-core/releases/download/${version}/${xrayCoreCPUVendor}.zip"
         if [[ ! -f "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip" ]]; then
             read -r -p "核心下载失败，请重新尝试安装，是否重新尝试？[y/n]" downloadStatus
             if [[ "${downloadStatus}" == "y" ]]; then
@@ -2118,8 +2182,13 @@ installXray() {
             echo "version:${version}"
             rm /etc/v2ray-agent/xray/geo* >/dev/null 2>&1
 
-            wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/xray/ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geosite.dat"
-            wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/xray/ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geoip.dat"
+            if [[ "${release}" == "alpine" ]]; then
+                wget -c -q -P /etc/v2ray-agent/xray/ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geosite.dat"
+                wget -c -q -P /etc/v2ray-agent/xray/ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geoip.dat"
+            else
+                wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/xray/ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geosite.dat"
+                wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/xray/ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geoip.dat"
+            fi
 
             chmod 655 /etc/v2ray-agent/xray/xray
         fi
@@ -2245,8 +2314,15 @@ updateGeoSite() {
     echoContent skyBlue "------------------------Version-------------------------------"
     echo "version:${version}"
     rm ${configPath}../geo* >/dev/null
-    wget -c -q "${wgetShowProgressStatus}" -P ${configPath}../ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geosite.dat"
-    wget -c -q "${wgetShowProgressStatus}" -P ${configPath}../ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geoip.dat"
+
+    if [[ "${release}" == "alpine" ]]; then
+        wget -c -q -P ${configPath}../ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geosite.dat"
+        wget -c -q -P ${configPath}../ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geoip.dat"
+    else
+        wget -c -q "${wgetShowProgressStatus}" -P ${configPath}../ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geosite.dat"
+        wget -c -q "${wgetShowProgressStatus}" -P ${configPath}../ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geoip.dat"
+    fi
+
     reloadCore
     echoContent green " ---> 更新完毕"
 
@@ -2266,11 +2342,11 @@ updateV2Ray() {
             version=${v2rayCoreVersion}
         fi
         echoContent green " ---> v2ray-core版本:${version}"
-        #        if wget --help | grep -q show-progress; then
-        wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/v2ray/ "https://github.com/v2fly/v2ray-core/releases/download/${version}/${v2rayCoreCPUVendor}.zip"
-        #        else
-        #            wget -c -P "/etc/v2ray-agent/v2ray/ https://github.com/v2fly/v2ray-core/releases/download/${version}/${v2rayCoreCPUVendor}.zip" >/dev/null 2>&1
-        #        fi
+        if [[ "${release}" == "alpine" ]]; then
+            wget -c -q -P /etc/v2ray-agent/v2ray/ "https://github.com/v2fly/v2ray-core/releases/download/${version}/${v2rayCoreCPUVendor}.zip"
+        else
+            wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/v2ray/ "https://github.com/v2fly/v2ray-core/releases/download/${version}/${v2rayCoreCPUVendor}.zip"
+        fi
 
         unzip -o "/etc/v2ray-agent/v2ray/${v2rayCoreCPUVendor}.zip" -d /etc/v2ray-agent/v2ray >/dev/null
         rm -rf "/etc/v2ray-agent/v2ray/${v2rayCoreCPUVendor}.zip"
@@ -2341,7 +2417,11 @@ updateXray() {
 
         echoContent green " ---> Xray-core版本:${version}"
 
-        wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/xray/ "https://github.com/XTLS/Xray-core/releases/download/${version}/${xrayCoreCPUVendor}.zip"
+        if [[ "${release}" == "alpine" ]]; then
+            wget -c -q -P /etc/v2ray-agent/xray/ "https://github.com/XTLS/Xray-core/releases/download/${version}/${xrayCoreCPUVendor}.zip"
+        else
+            wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/xray/ "https://github.com/XTLS/Xray-core/releases/download/${version}/${xrayCoreCPUVendor}.zip"
+        fi
 
         unzip -o "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip" -d /etc/v2ray-agent/xray >/dev/null
         rm -rf "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip"
@@ -2435,13 +2515,46 @@ EOF
     fi
 }
 
+# 安装alpine开机启动
+installAlpineStartup() {
+    local serviceName=$1
+    local startCommand=$2
+
+    cat <<EOF >"/etc/init.d/${serviceName}"
+#!/bin/sh
+
+case "\$1" in
+  start)
+    echo "Starting ${serviceName}"
+    ${startCommand} >/dev/null 2>&1 &
+    ;;
+  stop)
+    echo "Stopping ${serviceName}"
+    pgrep -f ${serviceName}|xargs kill -9 >/dev/null 2>&1
+    ;;
+  restart)
+    rc-service ${serviceName} stop
+    rc-service ${serviceName} start
+    ;;
+  *)
+    echo "Usage: rc-service ${serviceName} {start|stop|restart}"
+    exit 1
+    ;;
+esac
+
+exit 0
+EOF
+    chmod +x "/etc/init.d/${serviceName}"
+}
+
 # sing-box开机自启
 installSingBoxService() {
     echoContent skyBlue "\n进度  $1/${totalProgress} : 配置sing-box开机自启"
-    if [[ -n $(find /bin /usr/bin -name "systemctl") ]]; then
+    execStart='/etc/v2ray-agent/sing-box/sing-box run -c /etc/v2ray-agent/sing-box/conf/config.json'
+
+    if [[ -n $(find /bin /usr/bin -name "systemctl") && "${release}" != "alpine" ]]; then
         rm -rf /etc/systemd/system/sing-box.service
         touch /etc/systemd/system/sing-box.service
-        execStart='/etc/v2ray-agent/sing-box/sing-box run -c /etc/v2ray-agent/sing-box/conf/config.json'
         cat <<EOF >/etc/systemd/system/sing-box.service
 [Unit]
 After=network.target nss-lookup.target
@@ -2461,19 +2574,22 @@ LimitNOFILE=infinity
 [Install]
 WantedBy=multi-user.target
 EOF
-        systemctl daemon-reload
-        systemctl enable sing-box.service
-        echoContent green " ---> 配置sing-box开机自启成功"
+        bootStartup "sing-box.service"
+    elif [[ "${release}" == "alpine" ]]; then
+        installAlpineStartup "sing-box" "${execStart}"
+        bootStartup "sing-box"
     fi
+
+    echoContent green " ---> 配置sing-box开机启动完毕"
 }
 
 # Xray开机自启
 installXrayService() {
     echoContent skyBlue "\n进度  $1/${totalProgress} : 配置Xray开机自启"
+    execStart='/etc/v2ray-agent/xray/xray run -confdir /etc/v2ray-agent/xray/conf'
     if [[ -n $(find /bin /usr/bin -name "systemctl") ]]; then
         rm -rf /etc/systemd/system/xray.service
         touch /etc/systemd/system/xray.service
-        execStart='/etc/v2ray-agent/xray/xray run -confdir /etc/v2ray-agent/xray/conf'
         cat <<EOF >/etc/systemd/system/xray.service
 [Unit]
 Description=Xray Service
@@ -2489,9 +2605,11 @@ LimitNOFILE=infinity
 [Install]
 WantedBy=multi-user.target
 EOF
-        systemctl daemon-reload
-        systemctl enable xray.service
+        bootStartup "xray.service"
         echoContent green " ---> 配置Xray开机自启成功"
+    elif [[ "${release}" == "alpine" ]]; then
+        installAlpineStartup "xray" "${execStart}"
+        bootStartup "xray"
     fi
 }
 
@@ -2536,6 +2654,13 @@ handleTuic() {
         elif [[ -n $(pgrep -f "tuic/tuic") ]] && [[ "$1" == "stop" ]]; then
             systemctl stop tuic.service
         fi
+    elif [[ -f "/etc/init.d/tuic" ]]; then
+        if [[ -z $(pgrep -f "tuic/tuic") ]] && [[ "$1" == "start" ]]; then
+            singBoxMergeConfig
+            rc-service tuic start
+        elif [[ -n $(pgrep -f "tuic/tuic") ]] && [[ "$1" == "stop" ]]; then
+            rc-service tuic stop
+        fi
     fi
     sleep 0.8
 
@@ -2567,6 +2692,13 @@ handleSingBox() {
         elif [[ -n $(pgrep -f "sing-box") ]] && [[ "$1" == "stop" ]]; then
             systemctl stop sing-box.service
         fi
+    elif [[ -f "/etc/init.d/sing-box" ]]; then
+        if [[ -z $(pgrep -f "sing-box") ]] && [[ "$1" == "start" ]]; then
+            singBoxMergeConfig
+            rc-service sing-box start
+        elif [[ -n $(pgrep -f "sing-box") ]] && [[ "$1" == "stop" ]]; then
+            rc-service sing-box stop
+        fi
     fi
     sleep 1
 
@@ -2596,6 +2728,12 @@ handleXray() {
             systemctl start xray.service
         elif [[ -n $(pgrep -f "xray/xray") ]] && [[ "$1" == "stop" ]]; then
             systemctl stop xray.service
+        fi
+    elif [[ -f "/etc/init.d/xray" ]]; then
+        if [[ -z $(pgrep -f "xray/xray") ]] && [[ "$1" == "start" ]]; then
+            rc-service xray start
+        elif [[ -n $(pgrep -f "xray/xray") ]] && [[ "$1" == "stop" ]]; then
+            rc-service xray stop
         fi
     fi
 
@@ -3175,7 +3313,12 @@ EOF
 # 下载sing-box geosite db
 downloadSingBoxGeositeDB() {
     if [[ ! -f "${singBoxConfigPath}geosite.db" ]]; then
-        wget -q "${wgetShowProgressStatus}" -P "${singBoxConfigPath}" https://github.com/Johnshall/sing-geosite/releases/latest/download/geosite.db
+        if [[ "${release}" == "alpine" ]]; then
+            wget -q -P "${singBoxConfigPath}" https://github.com/Johnshall/sing-geosite/releases/latest/download/geosite.db
+        else
+            wget -q "${wgetShowProgressStatus}" -P "${singBoxConfigPath}" https://github.com/Johnshall/sing-geosite/releases/latest/download/geosite.db
+        fi
+
     fi
 }
 
@@ -5189,9 +5332,13 @@ updateNginxBlog() {
         fi
     fi
     if [[ "${selectInstallNginxBlogType}" =~ ^[1-9]$ ]]; then
-        rm -rf "${nginxStaticPath}"
+        rm -rf "${nginxStaticPath}*"
 
-        wget -q "${wgetShowProgressStatus}" -P "${nginxStaticPath}" "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${selectInstallNginxBlogType}.zip"
+        if [[ "${release}" == "alpine" ]]; then
+            wget -q -P "${nginxStaticPath}" "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${selectInstallNginxBlogType}.zip"
+        else
+            wget -q "${wgetShowProgressStatus}" -P "${nginxStaticPath}" "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/fodder/blog/unable/html${selectInstallNginxBlogType}.zip"
+        fi
 
         unzip -o "${nginxStaticPath}html${selectInstallNginxBlogType}.zip" -d "${nginxStaticPath}" >/dev/null
         rm -f "${nginxStaticPath}html${selectInstallNginxBlogType}.zip*"
@@ -5342,15 +5489,30 @@ unInstall() {
     if [[ -z $(pgrep -f "nginx") ]]; then
         echoContent green " ---> 停止Nginx成功"
     fi
-    if [[ "${coreInstallType}" == "1" ]]; then
-        handleXray stop
-        rm -rf /etc/systemd/system/xray.service
-        echoContent green " ---> 删除Xray开机自启完成"
-    fi
-    if [[ "${coreInstallType}" == "2" || -n "${singBoxConfigPath}" ]]; then
-        handleSingBox stop
-        rm -rf /etc/systemd/system/sing-box.service
-        echoContent green " ---> 删除sing-box开机自启完成"
+    if [[ "${release}" == "alpine" ]]; then
+        if [[ "${coreInstallType}" == "1" ]]; then
+            handleXray stop
+            rc-update del xray default
+            rm -rf /etc/init.d/xray
+            echoContent green " ---> 删除Xray开机自启完成"
+        fi
+        if [[ "${coreInstallType}" == "2" || -n "${singBoxConfigPath}" ]]; then
+            handleSingBox stop
+            rc-update del sing-box default
+            rm -rf /etc/init.d/sing-box
+            echoContent green " ---> 删除sing-box开机自启完成"
+        fi
+    else
+        if [[ "${coreInstallType}" == "1" ]]; then
+            handleXray stop
+            rm -rf /etc/systemd/system/xray.service
+            echoContent green " ---> 删除Xray开机自启完成"
+        fi
+        if [[ "${coreInstallType}" == "2" || -n "${singBoxConfigPath}" ]]; then
+            handleSingBox stop
+            rm -rf /etc/systemd/system/sing-box.service
+            echoContent green " ---> 删除sing-box开机自启完成"
+        fi
     fi
 
     rm -rf /etc/v2ray-agent
@@ -5359,7 +5521,7 @@ unInstall() {
     rm -rf ${nginxConfigPath}subscribe.conf >/dev/null 2>&1
 
     if [[ -d "${nginxStaticPath}" && -f "${nginxStaticPath}/check" ]]; then
-        rm -rf "${nginxStaticPath}"
+        rm -rf "${nginxStaticPath}*"
         echoContent green " ---> 删除伪装网站完成"
     fi
 
@@ -5739,11 +5901,11 @@ removeUser() {
 updateV2RayAgent() {
     echoContent skyBlue "\n进度  $1/${totalProgress} : 更新v2ray-agent脚本"
     rm -rf /etc/v2ray-agent/install.sh
-    #    if wget --help | grep -q show-progress; then
-    wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/ -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh"
-    #    else
-    #        wget -c -q -P /etc/v2ray-agent/ -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh"
-    #    fi
+    if [[ "${release}" == "alpine" ]]; then
+        wget -c -q -P /etc/v2ray-agent/ -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh"
+    else
+        wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/ -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh"
+    fi
 
     sudo chmod 700 /etc/v2ray-agent/install.sh
     local version
@@ -7781,6 +7943,17 @@ installSubscribe() {
     if [[ -z "${subscribePort}" ]]; then
 
         nginxVersion=$(nginx -v 2>&1)
+
+        if echo "${nginxVersion}" | grep -q "not found" || [[ -z "${nginxVersion}" ]]; then
+            echoContent yellow "未检测到nginx，无法使用订阅服务\n"
+            read -r -p "是否安装[y/n]？" installNginxStatus
+            if [[ "${installNginxStatus}" == "y" ]]; then
+                installNginxTools
+            else
+                echoContent red " ---> 放弃安装nginx\n"
+                exit 0
+            fi
+        fi
         echoContent yellow "开始配置订阅，请输入订阅的端口\n"
 
         mapfile -t result < <(initSingBoxPort "${subscribePort}")
@@ -7822,7 +7995,7 @@ installSubscribe() {
         if echo "${nginxVersion}" | grep -q "1.25" && [[ $(echo "${nginxVersion}" | awk -F "[.]" '{print $3}') -gt 0 ]]; then
             nginxSubscribeListen="listen ${result[-1]} ${SSLType} so_keepalive=on;http2 on;${listenIPv6}"
         else
-            nginxSubscribeListen="listen ${result[-1]} ${SSLType} http2 so_keepalive=on;${listenIPv6}"
+            nginxSubscribeListen="listen ${result[-1]} ${SSLType} so_keepalive=on;${listenIPv6}"
         fi
 
         cat <<EOF >${nginxConfigPath}subscribe.conf
@@ -7838,9 +8011,9 @@ server {
     }
 }
 EOF
+        bootStartup nginx
         handleNginx stop
         handleNginx start
-        systemctl enable nginx
     fi
     if [[ -z $(pgrep -f "nginx") ]]; then
         handleNginx start
@@ -8349,7 +8522,9 @@ subscribe() {
                 echoContent green "email:${email}\n"
                 echoContent yellow "url:${subscribeType}://${currentDomain}/s/default/${emailMd5}\n"
                 echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://${currentDomain}/s/default/${emailMd5}\n"
-                echo "${subscribeType}://${currentDomain}/s/default/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
+                if [[ "${release}" != "alpine" ]]; then
+                    echo "${subscribeType}://${currentDomain}/s/default/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
+                fi
 
                 # clashMeta
                 if [[ -f "/etc/v2ray-agent/subscribe_local/clashMeta/${email}" ]]; then
@@ -8363,14 +8538,21 @@ subscribe() {
                     echoContent skyBlue "\n----------clashMeta订阅----------\n"
                     echoContent yellow "url:${subscribeType}://${currentDomain}/s/clashMetaProfiles/${emailMd5}\n"
                     echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://${currentDomain}/s/clashMetaProfiles/${emailMd5}\n"
-                    echo "${subscribeType}://${currentDomain}/s/clashMetaProfiles/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
+                    if [[ "${release}" != "alpine" ]]; then
+                        echo "${subscribeType}://${currentDomain}/s/clashMetaProfiles/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
+                    fi
+
                 fi
                 # sing-box
                 if [[ -f "/etc/v2ray-agent/subscribe_local/sing-box/${email}" ]]; then
                     cp "/etc/v2ray-agent/subscribe_local/sing-box/${email}" "/etc/v2ray-agent/subscribe/sing-box_profiles/${emailMd5}"
 
                     echoContent skyBlue " ---> 下载 sing-box 通用配置文件"
-                    wget -O "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}" -q "${wgetShowProgressStatus}" "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/documents/sing-box.json"
+                    if [[ "${release}" == "alpine" ]]; then
+                        wget -O "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}" -q "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/documents/sing-box.json"
+                    else
+                        wget -O "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}" -q "${wgetShowProgressStatus}" "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/documents/sing-box.json"
+                    fi
 
                     jq ".outbounds=$(jq ".outbounds|map(if has(\"outbounds\") then .outbounds += $(jq ".|map(.tag)" "/etc/v2ray-agent/subscribe_local/sing-box/${email}") else . end)" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}")" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}" >"/etc/v2ray-agent/subscribe/sing-box/${emailMd5}_tmp" && mv "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}_tmp" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}"
                     jq ".outbounds += $(jq '.' "/etc/v2ray-agent/subscribe_local/sing-box/${email}")" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}" >"/etc/v2ray-agent/subscribe/sing-box/${emailMd5}_tmp" && mv "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}_tmp" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}"
@@ -8378,7 +8560,10 @@ subscribe() {
                     echoContent skyBlue "\n----------sing-box订阅----------\n"
                     echoContent yellow "url:${subscribeType}://${currentDomain}/s/sing-box/${emailMd5}\n"
                     echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://${currentDomain}/s/sing-box/${emailMd5}\n"
-                    echo "${subscribeType}://${currentDomain}/s/sing-box/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
+                    if [[ "${release}" != "alpine" ]]; then
+                        echo "${subscribeType}://${currentDomain}/s/sing-box/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
+                    fi
+
                 fi
 
                 echoContent skyBlue "--------------------------------------------------------------"
@@ -8534,7 +8719,8 @@ initRealityDest() {
         read -r -p "请输入[回车]使用随机:" realityDestDomain
         if [[ -z "${realityDestDomain}" ]]; then
             local randomNum=
-            randomNum=$((RANDOM % 27 + 1))
+            randomNum=$(randomNum 1 27)
+            #            randomNum=$((RANDOM % 27 + 1))
             realityDestDomain=$(echo "${realityDestDomainList}" | awk -F ',' -v randomNum="$randomNum" '{print $randomNum":443"}')
         fi
         if ! echo "${realityDestDomain}" | grep -q ":"; then
@@ -8575,7 +8761,8 @@ initRealityClientServersName() {
         echoContent yellow "录入示例:addons.mozilla.org:443\n"
         read -r -p "请输入目标域名，[回车]随机域名，默认端口443:" realityServerName
         if [[ -z "${realityServerName}" ]]; then
-            randomNum=$((RANDOM % 27 + 1))
+            #            randomNum=$((RANDOM % 27 + 1))
+            randomNum=$(randomNum 1 27)
             realityServerName=$(echo "${realityDestDomainList}" | awk -F ',' -v randomNum="$randomNum" '{print $randomNum}')
         fi
         if echo "${realityServerName}" | grep -q ":"; then
@@ -8891,7 +9078,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.2.41"
+    echoContent green "当前版本：v3.2.42"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
