@@ -65,7 +65,7 @@ checkSystem() {
         updateReleaseInfoChange='apt-get --allow-releaseinfo-change update'
         removeType='apt -y autoremove'
 
-    elif [[ -f "/etc/issue" ]] && grep </etc/issue -q -i "ubuntu" || [[ -f "/proc/version" ]] && grep </proc/version -q -i "ubuntu"; then
+    elif [[ -f "/etc/issue" ]] && grep </etc/issue -q -i "ubuntu" || [[ -f "/proc/version" ]] && grep </etc/issue -q -i "ubuntu"; then
         release="ubuntu"
         installType='apt -y install'
         upgrade="apt update"
@@ -6196,6 +6196,7 @@ ipv6Routing() {
 
         if [[ -n "${singBoxConfigPath}" ]]; then
             removeSingBoxConfig IPv6_out
+            removeSingBoxConfig "IPv6_route"
             addSingBoxOutbound "01_direct_outbound"
         fi
 
@@ -9078,7 +9079,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.2.42"
+    echoContent green "当前版本：v3.2.43"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
