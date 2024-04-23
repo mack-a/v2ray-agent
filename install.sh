@@ -6758,12 +6758,12 @@ routingToolsMenu() {
         #        fi
         #        vmessWSRouting 1
         #        ;;
-        #    7)
-        #        if [[ -n "${singBoxConfigPath}" ]]; then
-        #            echoContent red "\n ---> 此功能不支持Hysteria2、Tuic"
-        #        fi
-        #        sniRouting 1
-        #        ;;
+    7)
+        if [[ -n "${singBoxConfigPath}" ]]; then
+            echoContent red "\n ---> 此功能不支持Hysteria2、Tuic"
+        fi
+        sniRouting 1
+        ;;
     esac
 
 }
@@ -9079,7 +9079,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.2.43"
+    echoContent green "当前版本：v3.2.44"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
