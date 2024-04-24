@@ -605,14 +605,13 @@ allowPort() {
                 checkUFWAllowPort "$1"
             fi
         fi
-    elif rc-update show | grep ufw 2>/dev/null | grep -q "ufw"; then
+    elif rc-update show 2>/dev/null | grep -q ufw; then
         if ufw status | grep -q "Status: active"; then
             if ! ufw status | grep -q "$1/${type}"; then
                 sudo ufw allow "$1/${type}"
                 checkUFWAllowPort "$1"
             fi
         fi
-
     elif systemctl status firewalld 2>/dev/null | grep -q "active (running)"; then
         local updateFirewalldStatus=
         if ! firewall-cmd --list-ports --permanent | grep -qw "$1/${type}"; then
@@ -9079,7 +9078,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.2.44"
+    echoContent green "当前版本：v3.2.45"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
