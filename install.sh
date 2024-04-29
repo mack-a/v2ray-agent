@@ -1754,11 +1754,13 @@ installTLS() {
             fi
 
         else
-            echoContent yellow " ---> 如未过期或者自定义证书请选择[n]\n"
-            read -r -p "是否重新安装？[y/n]:" reInstallStatus
-            if [[ "${reInstallStatus}" == "y" ]]; then
-                rm -rf /etc/v2ray-agent/tls/*
-                installTLS "$1"
+            if [[ -d "$HOME/.acme.sh/${tlsDomain}_ecc" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]] || [[ "${installedDNSAPIStatus}" == "true" ]]; then
+                echoContent yellow " ---> 如未过期或者自定义证书请选择[n]\n"
+                read -r -p "是否重新安装？[y/n]:" reInstallStatus
+                if [[ "${reInstallStatus}" == "y" ]]; then
+                    rm -rf /etc/v2ray-agent/tls/*
+                    installTLS "$1"
+                fi
             fi
         fi
 
@@ -2056,6 +2058,8 @@ renewalTLS() {
         else
             echoContent green " ---> 证书有效"
         fi
+    elif [[ -f "/etc/v2ray-agent/tls/${tlsDomain}.crt" && -f "/etc/v2ray-agent/tls/${tlsDomain}.key" && -n $(cat "/etc/v2ray-agent/tls/${tlsDomain}.crt") ]]; then
+        echoContent yellow " ---> 检测到使用自定义证书，无法执行renew操作。"
     else
         echoContent red " ---> 未安装"
     fi
