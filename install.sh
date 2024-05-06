@@ -4436,7 +4436,6 @@ EOF
         initRealityKey
         echoContent skyBlue "\n开始配置VLESS+Reality+Vision协议端口"
         echo
-
         mapfile -t result < <(initSingBoxPort "${singBoxVLESSRealityVisionPort}")
         echoContent green "\n ---> VLESS_Reality_Vision端口：${result[-1]}"
         cat <<EOF >/etc/v2ray-agent/sing-box/conf/config/07_VLESS_vision_reality_inbounds.json
@@ -7624,7 +7623,6 @@ customSingBoxInstall() {
         installSingBox 4
         installSingBoxService 5
         initSingBoxConfig custom 6
-        unInstallSubscribe
         cleanUp xrayDel
         installCronTLS 7
         handleSingBox stop
@@ -8767,7 +8765,7 @@ initRealityClientServersName() {
     realityServerName=
     if [[ -n "${domain}" ]]; then
         echo
-        read -r -p "是否使用${domain}此域名作为Reality目标域名 ？[y/n]:" realityServerNameCurrentDomainStatus
+        read -r -p "是否使用 ${domain} 此域名作为Reality目标域名 ？[y/n]:" realityServerNameCurrentDomainStatus
         if [[ "${realityServerNameCurrentDomainStatus}" == "y" ]]; then
             realityServerName="${domain}"
             if [[ "${selectCoreType}" == "1" ]]; then
@@ -9108,7 +9106,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.2.46"
+    echoContent green "当前版本：v3.2.47"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
