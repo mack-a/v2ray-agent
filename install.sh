@@ -570,6 +570,42 @@ checkBTPanel() {
         fi
     fi
 }
+check1Panel() {
+    if [[ -n $(pgrep -f "1panel") ]]; then
+        # 读取域名
+        if [[ -d '/opt/1panel/apps/openresty/openresty/www/sites/' && -n $(find /opt/1panel/apps/openresty/openresty/www/sites/*/ssl/fullchain.pem) ]]; then
+            if [[ -z "${currentHost}" ]]; then
+                echoContent skyBlue "\n读取1Panel配置\n"
+
+                find /opt/1panel/apps/openresty/openresty/www/sites/*/ssl/fullchain.pem | awk -F "[/]" '{print $9}' | awk '{print NR""":"$0}'
+
+                read -r -p "请输入编号选择:" selectBTDomain
+            else
+                selectBTDomain=$(find /opt/1panel/apps/openresty/openresty/www/sites/*/ssl/fullchain.pem | awk -F "[/]" '{print $9}' | awk '{print NR""":"$0}' | grep "${currentHost}" | cut -d ":" -f 1)
+            fi
+
+            if [[ -n "${selectBTDomain}" ]]; then
+                btDomain=$(find /opt/1panel/apps/openresty/openresty/www/sites/*/ssl/fullchain.pem | awk -F "[/]" '{print $9}' | awk '{print NR""":"$0}' | grep "${selectBTDomain}:" | cut -d ":" -f 2)
+
+                if [[ -z "${btDomain}" ]]; then
+                    echoContent red " ---> 选择错误，请重新选择"
+                    check1Panel
+                else
+                    domain=${btDomain}
+                    if [[ ! -f "/etc/v2ray-agent/tls/${btDomain}.crt" && ! -f "/etc/v2ray-agent/tls/${btDomain}.key" ]]; then
+                        ln -s "/opt/1panel/apps/openresty/openresty/www/sites/${btDomain}/ssl/fullchain.pem" "/etc/v2ray-agent/tls/${btDomain}.crt"
+                        ln -s "/opt/1panel/apps/openresty/openresty/www/sites/${btDomain}/ssl/privkey.pem" "/etc/v2ray-agent/tls/${btDomain}.key"
+                    fi
+
+                    nginxStaticPath="/opt/1panel/apps/openresty/openresty/www/sites/${btDomain}/index/"
+                fi
+            else
+                echoContent red " ---> 选择错误，请重新选择"
+                check1Panel
+            fi
+        fi
+    fi
+}
 # 读取当前alpn的顺序
 readInstallAlpn() {
     if [[ -n "${currentInstallProtocolType}" && -z "${realityStatus}" ]]; then
@@ -791,6 +827,7 @@ readConfigHostPathUUID() {
                 dest=$(jq -r -c '.inbounds[0].settings.fallbacks[]|select(.alpn)|.dest' ${configPath}${frontingType}.json | head -1)
                 if [[ "${dest}" == "31302" || "${dest}" == "31304" ]]; then
                     checkBTPanel
+                    check1Panel
                     if grep -q "trojangrpc {" <${nginxConfigPath}alone.conf; then
                         currentPath=$(grep "trojangrpc {" <${nginxConfigPath}alone.conf | awk -F "[/]" '{print $2}' | awk -F "[t][r][o][j][a][n]" '{print $1}')
                     elif grep -q "grpc {" <${nginxConfigPath}alone.conf; then
@@ -1239,10 +1276,11 @@ checkPortOpen() {
     local domain=$2
     local checkPortOpenResult=
     allowPort "${port}"
+    if [[ -z "${btDomain}" ]]; then
 
-    # 初始化nginx配置
-    touch ${nginxConfigPath}checkPortOpen.conf
-    cat <<EOF >${nginxConfigPath}checkPortOpen.conf
+        # 初始化nginx配置
+        touch ${nginxConfigPath}checkPortOpen.conf
+        cat <<EOF >${nginxConfigPath}checkPortOpen.conf
 server {
     listen ${port};
     listen [::]:${port};
@@ -1260,29 +1298,30 @@ server {
     }
 }
 EOF
-    handleNginx start
-    # 检查域名+端口的开放
-    checkPortOpenResult=$(curl -s -m 10 "http://${domain}:${port}/checkPort")
-    localIP=$(curl -s -m 10 "http://${domain}:${port}/ip")
-    rm "${nginxConfigPath}checkPortOpen.conf"
-    handleNginx stop
-    if [[ "${checkPortOpenResult}" == "fjkvymb6len" ]]; then
-        echoContent green " ---> 检测到${port}端口已开放"
-    else
-        echoContent green " ---> 未检测到${port}端口开放，退出安装"
-        if echo "${checkPortOpenResult}" | grep -q "cloudflare"; then
-            echoContent yellow " ---> 请关闭云朵后等待三分钟重新尝试"
+        handleNginx start
+        # 检查域名+端口的开放
+        checkPortOpenResult=$(curl -s -m 10 "http://${domain}:${port}/checkPort")
+        localIP=$(curl -s -m 10 "http://${domain}:${port}/ip")
+        rm "${nginxConfigPath}checkPortOpen.conf"
+        handleNginx stop
+        if [[ "${checkPortOpenResult}" == "fjkvymb6len" ]]; then
+            echoContent green " ---> 检测到${port}端口已开放"
         else
-            if [[ -z "${checkPortOpenResult}" ]]; then
-                echoContent red " ---> 请检查是否有网页防火墙，比如Oracle等云服务商"
-                echoContent red " ---> 检查是否自己安装过nginx并且有配置冲突，可以尝试DD纯净系统后重新尝试"
+            echoContent green " ---> 未检测到${port}端口开放，退出安装"
+            if echo "${checkPortOpenResult}" | grep -q "cloudflare"; then
+                echoContent yellow " ---> 请关闭云朵后等待三分钟重新尝试"
             else
-                echoContent red " ---> 错误日志：${checkPortOpenResult}，请将此错误日志通过issues提交反馈"
+                if [[ -z "${checkPortOpenResult}" ]]; then
+                    echoContent red " ---> 请检查是否有网页防火墙，比如Oracle等云服务商"
+                    echoContent red " ---> 检查是否自己安装过nginx并且有配置冲突，可以尝试DD纯净系统后重新尝试"
+                else
+                    echoContent red " ---> 错误日志：${checkPortOpenResult}，请将此错误日志通过issues提交反馈"
+                fi
             fi
+            exit 0
         fi
-        exit 0
+        checkIP "${localIP}"
     fi
-    checkIP "${localIP}"
 }
 
 # 初始化Nginx申请证书配置
@@ -1689,7 +1728,7 @@ customPortFunction() {
         echo
 
         if [[ -n "${btDomain}" ]]; then
-            echoContent yellow "请输入端口[不可与BT Panel端口相同，回车随机]"
+            echoContent yellow "请输入端口[不可与BT Panel/1Panel端口相同，回车随机]"
             read -r -p "端口:" port
             if [[ -z "${port}" ]]; then
                 port=$((RANDOM % 20001 + 10000))
@@ -7610,7 +7649,6 @@ customSingBoxInstall() {
     fi
 
     if [[ "${selectCustomInstallType//,/}" =~ ^[0-9]+$ ]]; then
-        #        checkBTPanel
         totalProgress=9
         installTools 1
         # 申请tls
@@ -7679,10 +7717,11 @@ customXrayInstall() {
     if [[ "${selectCustomInstallType//,/}" =~ ^[0-7]+$ ]]; then
         unInstallSubscribe
         checkBTPanel
+        check1Panel
         totalProgress=12
         installTools 1
         if [[ -n "${btDomain}" ]]; then
-            echoContent skyBlue "\n进度  3/${totalProgress} : 检测到宝塔面板，跳过申请TLS步骤"
+            echoContent skyBlue "\n进度  3/${totalProgress} : 检测到宝塔面板/1Panel，跳过申请TLS步骤"
             handleXray stop
             customPortFunction
         else
@@ -7702,7 +7741,7 @@ customXrayInstall() {
             randomPathFunction 4
         fi
         if [[ -n "${btDomain}" ]]; then
-            echoContent skyBlue "\n进度  6/${totalProgress} : 检测到宝塔面板，跳过伪装网站"
+            echoContent skyBlue "\n进度  6/${totalProgress} : 检测到宝塔面板/1Panel，跳过伪装网站"
         else
             nginxBlog 6
         fi
@@ -7765,11 +7804,12 @@ selectCoreInstall() {
 xrayCoreInstall() {
     unInstallSubscribe
     checkBTPanel
+    check1Panel
     selectCustomInstallType=
     totalProgress=12
     installTools 2
     if [[ -n "${btDomain}" ]]; then
-        echoContent skyBlue "\n进度  3/${totalProgress} : 检测到宝塔面板，跳过申请TLS步骤"
+        echoContent skyBlue "\n进度  3/${totalProgress} : 检测到宝塔面板/1Panel，跳过申请TLS步骤"
         handleXray stop
         customPortFunction
     else
@@ -7789,7 +7829,7 @@ xrayCoreInstall() {
     cleanUp singBoxDel
     installCronTLS 9
     if [[ -n "${btDomain}" ]]; then
-        echoContent skyBlue "\n进度  11/${totalProgress} : 检测到宝塔面板，跳过伪装网站"
+        echoContent skyBlue "\n进度  11/${totalProgress} : 检测到宝塔面板/1Panel，跳过伪装网站"
     else
         nginxBlog 10
     fi
@@ -7806,7 +7846,8 @@ xrayCoreInstall() {
 
 # sing-box 全部安装
 singBoxInstall() {
-    #    checkBTPanel
+    checkBTPanel
+    check1Panel
     selectCustomInstallType=
     totalProgress=8
     installTools 2
@@ -7816,11 +7857,17 @@ singBoxInstall() {
     #        customPortFunction
     #    else
     # 申请tls
-    initTLSNginxConfig 3
-    handleXray stop
-    #        handleNginx start
-    installTLS 4
-    #    fi
+
+    if [[ -n "${btDomain}" ]]; then
+        echoContent skyBlue "\n进度  3/${totalProgress} : 检测到宝塔面板/1Panel，跳过申请TLS步骤"
+        handleXray stop
+        customPortFunction
+    else
+        # 申请tls
+        initTLSNginxConfig 3
+        handleXray stop
+        installTLS 4
+    fi
 
     handleNginx stop
 
@@ -9106,7 +9153,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.2.47"
+    echoContent green "当前版本：v3.2.48"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
