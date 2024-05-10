@@ -557,7 +557,10 @@ checkBTPanel() {
                         ln -s "/www/server/panel/vhost/cert/${btDomain}/privkey.pem" "/etc/v2ray-agent/tls/${btDomain}.key"
                     fi
 
-                    nginxStaticPath="/www/wwwroot/${btDomain}/"
+                    nginxStaticPath="/www/wwwroot/${btDomain}/html/"
+
+                    mkdir -p "/www/wwwroot/${btDomain}/html/"
+
                     if [[ -f "/www/wwwroot/${btDomain}/.user.ini" ]]; then
                         chattr -i "/www/wwwroot/${btDomain}/.user.ini"
                     fi
@@ -5551,6 +5554,7 @@ unInstall() {
         menu
         exit 0
     fi
+    checkBTPanel
     echoContent yellow " ---> 脚本不会删除acme相关配置，删除请手动执行 [rm -rf /root/.acme.sh]"
     handleNginx stop
     if [[ -z $(pgrep -f "nginx") ]]; then
@@ -7723,7 +7727,9 @@ customXrayInstall() {
         if [[ -n "${btDomain}" ]]; then
             echoContent skyBlue "\n进度  3/${totalProgress} : 检测到宝塔面板/1Panel，跳过申请TLS步骤"
             handleXray stop
-            customPortFunction
+            if [[ "${selectCustomInstallType}" != ",7," ]]; then
+                customPortFunction
+            fi
         else
             # 申请tls
             if [[ "${selectCustomInstallType}" != ",7," ]]; then
@@ -8816,7 +8822,14 @@ initRealityClientServersName() {
         if [[ "${realityServerNameCurrentDomainStatus}" == "y" ]]; then
             realityServerName="${domain}"
             if [[ "${selectCoreType}" == "1" ]]; then
-                realityDomainPort="${port}"
+                if [[ -n "${port}" ]]; then
+                    realityDomainPort="${port}"
+                elif [[ -z "${subscribePort}" ]]; then
+                    echo
+                    installSubscribe
+                    readNginxSubscribe
+                    realityDomainPort="${subscribePort}"
+                fi
             fi
 
             if [[ "${selectCoreType}" == "2" && -z "${subscribePort}" ]]; then
@@ -9153,7 +9166,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.2.48"
+    echoContent green "当前版本：v3.2.49"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
