@@ -849,7 +849,7 @@ readConfigHostPathUUID() {
         fi
     fi
     if [[ -f "/etc/v2ray-agent/cdn" ]] && grep -q "address" "/etc/v2ray-agent/cdn"; then
-        currentCDNAddress=$(grep "address" "/etc/v2ray-agent/cdn" | awk -F "[:]" '{print $2}')
+        currentCDNAddress=$(grep "address" "/etc/v2ray-agent/cdn" | awk -F "[:]" '{print substr($0, index($0, $2))}')
     else
         currentCDNAddress="${currentHost}"
     fi
