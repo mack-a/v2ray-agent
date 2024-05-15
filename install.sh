@@ -1399,7 +1399,7 @@ server {
 	server_name ${domain};
 	root ${nginxStaticPath};
 
-    set_real_ip_from 0.0.0.0/0;
+    set_real_ip_from 127.0.0.1;
     real_ip_header proxy_protocol;
 
 	client_header_timeout 1071906480m;
@@ -1441,7 +1441,7 @@ EOF
 server {
 	${nginxH2Conf}
 
-	set_real_ip_from 0.0.0.0/0;
+	set_real_ip_from 127.0.0.1;
     real_ip_header proxy_protocol;
 
 	server_name ${domain};
@@ -1469,7 +1469,7 @@ EOF
 server {
 	${nginxH2Conf}
 
-	set_real_ip_from 0.0.0.0/0;
+	set_real_ip_from 127.0.0.1;
     real_ip_header proxy_protocol;
 
     server_name ${domain};
@@ -1498,7 +1498,7 @@ EOF
 server {
 	${nginxH2Conf}
 
-	set_real_ip_from 0.0.0.0/0;
+	set_real_ip_from 127.0.0.1;
     real_ip_header proxy_protocol;
 
 	server_name ${domain};
@@ -1520,7 +1520,7 @@ server {
 	listen 127.0.0.1:31300 proxy_protocol;
 	server_name ${domain};
 
-	set_real_ip_from 0.0.0.0/0;
+	set_real_ip_from 127.0.0.1;
 	real_ip_header proxy_protocol;
 
 	root ${nginxStaticPath};
@@ -8084,6 +8084,14 @@ server {
     ${nginxSubscribeListen}
     ${serverName}
     ${nginxSubscribeSSL}
+    ssl_protocols              TLSv1.2 TLSv1.3;
+    ssl_ciphers                TLS13_AES_128_GCM_SHA256:TLS13_AES_256_GCM_SHA384:TLS13_CHACHA20_POLY1305_SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305;
+    ssl_prefer_server_ciphers  on;
+
+    ssl_stapling               on;
+    ssl_stapling_verify        on;
+    resolver                   1.1.1.1 valid=60s;
+    resolver_timeout           2s;
     client_max_body_size 100m;
     root ${nginxStaticPath};
     location ~ ^/s/(clashMeta|default|clashMetaProfiles|sing-box|sing-box_profiles)/(.*) {
@@ -9166,7 +9174,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.2.49"
+    echoContent green "当前版本：v3.2.50"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
