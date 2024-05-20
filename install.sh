@@ -353,7 +353,7 @@ readNginxSubscribe() {
     if [[ -f "${nginxConfigPath}subscribe.conf" ]]; then
         if grep -q "sing-box" "${nginxConfigPath}subscribe.conf"; then
             subscribePort=$(grep "listen" "${nginxConfigPath}subscribe.conf" | awk '{print $2}')
-            if ! grep -q "ssl" "${nginxConfigPath}subscribe.conf"; then
+            if ! grep "listen" "${nginxConfigPath}subscribe.conf" | grep -q "ssl"; then
                 subscribeType="http"
             fi
         fi
@@ -6146,30 +6146,7 @@ ipv6Routing() {
     echoContent red "=============================================================="
     read -r -p "请选择:" ipv6Status
     if [[ "${ipv6Status}" == "1" ]]; then
-        if [[ "${coreInstallType}" == "1" ]]; then
-            if [[ -f "${configPath}09_routing.json" ]]; then
-                echoContent yellow "Xray-core："
-                jq -r -c '.routing.rules[]|select (.outboundTag=="IPv6_out")|.domain' ${configPath}09_routing.json | jq -r
-            elif [[ ! -f "${configPath}09_routing.json" && -f "${configPath}IPv6_out.json" ]]; then
-                echoContent yellow "Xray-core"
-                echoContent green " ---> 已设置IPv6全局分流"
-            else
-                echoContent yellow " ---> 未安装IPv6分流"
-            fi
-
-        fi
-        if [[ -n "${singBoxConfigPath}" ]]; then
-            if [[ -f "${singBoxConfigPath}IPv6_out_route.json" ]]; then
-                echoContent yellow "sing-box"
-                jq -r -c '.route.rules[]|select (.outbound=="IPv6_out")' "${singBoxConfigPath}IPv6_out_route.json" | jq -r
-            elif [[ ! -f "${singBoxConfigPath}IPv6_out_route.json" && -f "${singBoxConfigPath}IPv6_out.json" ]]; then
-                echoContent yellow "sing-box"
-                echoContent green " ---> 已设置IPv6全局分流"
-            else
-                echoContent yellow " ---> 未安装IPv6分流"
-            fi
-        fi
-
+        showIPv6Routing
         exit 0
     elif [[ "${ipv6Status}" == "2" ]]; then
         echoContent red "=============================================================="
@@ -6257,6 +6234,32 @@ ipv6Routing() {
     reloadCore
 }
 
+# ipv6分流规则展示
+showIPv6Routing() {
+    if [[ "${coreInstallType}" == "1" ]]; then
+        if [[ -f "${configPath}09_routing.json" ]]; then
+            echoContent yellow "Xray-core："
+            jq -r -c '.routing.rules[]|select (.outboundTag=="IPv6_out")|.domain' ${configPath}09_routing.json | jq -r
+        elif [[ ! -f "${configPath}09_routing.json" && -f "${configPath}IPv6_out.json" ]]; then
+            echoContent yellow "Xray-core"
+            echoContent green " ---> 已设置IPv6全局分流"
+        else
+            echoContent yellow " ---> 未安装IPv6分流"
+        fi
+
+    fi
+    if [[ -n "${singBoxConfigPath}" ]]; then
+        if [[ -f "${singBoxConfigPath}IPv6_out_route.json" ]]; then
+            echoContent yellow "sing-box"
+            jq -r -c '.route.rules[]|select (.outbound=="IPv6_out")' "${singBoxConfigPath}IPv6_out_route.json" | jq -r
+        elif [[ ! -f "${singBoxConfigPath}IPv6_out_route.json" && -f "${singBoxConfigPath}IPv6_out.json" ]]; then
+            echoContent yellow "sing-box"
+            echoContent green " ---> 已设置IPv6全局分流"
+        else
+            echoContent yellow " ---> 未安装IPv6分流"
+        fi
+    fi
+}
 # bt下载管理
 btTools() {
     if [[ "${coreInstallType}" == "2" ]]; then
@@ -6774,10 +6777,13 @@ warpRoutingReg() {
 routingToolsMenu() {
     echoContent skyBlue "\n功能 1/${totalProgress} : 分流工具"
     echoContent red "\n=============================================================="
+    echoContent yellow "# 注意事项"
+    echoContent yellow "# 用于服务端的流量分流，可用于解锁ChatGPT、流媒体等相关内容\n"
+
     echoContent yellow "1.WARP分流【第三方 IPv4】"
     echoContent yellow "2.WARP分流【第三方 IPv6】"
     echoContent yellow "3.IPv6分流"
-    echoContent yellow "4.Socks5分流"
+    echoContent yellow "4.Socks5分流【替换任意门分流】"
     echoContent yellow "5.DNS分流"
     #    echoContent yellow "6.VMess+WS+TLS分流"
     echoContent yellow "7.SNI反向代理分流"
@@ -6979,7 +6985,7 @@ setSocks5OutboundRoutingAll() {
 
             removeSingBoxConfig wireguard_outbound
 
-            removeSingBoxConfig socks5_inbound_route
+            removeSingBoxConfig socks5_outbound_route
         fi
 
         echoContent green " ---> Socks5全局出站设置完毕"
@@ -6990,6 +6996,10 @@ showSingBoxRoutingRules() {
     if [[ -n "${singBoxConfigPath}" ]]; then
         if [[ -f "${singBoxConfigPath}$1.json" ]]; then
             jq .route.rules "${singBoxConfigPath}$1.json"
+        elif [[ "$1" == "socks5_outbound_route" && -f "${singBoxConfigPath}socks5_outbound.json" ]]; then
+            echoContent yellow "已安装 sing-box socks5全局出站分流"
+        elif [[ "$1" == "socks5_inbound_route" && -f "${singBoxConfigPath}20_socks5_inbounds.json" ]]; then
+            echoContent yellow "已安装 sing-box socks5全局入站分流"
         fi
     fi
 }
@@ -9158,7 +9168,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.2.52"
+    echoContent green "当前版本：v3.2.53"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
