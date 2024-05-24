@@ -8388,6 +8388,12 @@ rule-providers:
     url: https://mirror.ghproxy.com/https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/reject.txt
     path: ./ruleset/reject.yaml
     interval: 86400
+  ionet:
+    type: http
+    behavior: domain
+    url: https://mirror.ghproxy.com/https://raw.githubusercontent.com/ajsky/Cloudi/main/ionet.txt
+    path: ./ruleset/ionet.yaml
+    interval: 86400
   proxy:
     type: http
     behavior: domain
@@ -8503,11 +8509,7 @@ rule-providers:
     url: https://mirror.ghproxy.com/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/ChinaMax/ChinaMax_IP_No_IPv6.yaml
     path: ./Rules/ChinaMaxIPNoIPv6.yaml
 rules:
-  - RULE-SET,auth0.io.solutions,全球代理
-  - RULE-SET,api.io.solutions,全球代理
-  - RULE-SET,cloud.io.net,全球代理
-  - RULE-SET,id.io.net,全球代理
-  - RULE-SET,ionet.betteruptime.com,全球代理
+  - RULE-SET,ionet,全球代理
   - RULE-SET,YouTube,YouTube,no-resolve
   - RULE-SET,Google,Google,no-resolve
   - RULE-SET,GitHub,GitHub
