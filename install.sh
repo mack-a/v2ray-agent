@@ -275,6 +275,7 @@ initVar() {
 
     # dns tls domain
     dnsTLSDomain=
+    ipType=
 
     # 该域名是否通过dns安装通配符证书
     #    installDNSACMEStatus=
@@ -317,6 +318,7 @@ initVar() {
     publicKeyWarpReg=
     addressWarpReg=
     secretKeyWarpReg=
+
 }
 
 # 读取tls证书详情
@@ -1241,7 +1243,7 @@ installWarp() {
 checkDNSIP() {
     local domain=$1
     local dnsIP=
-    local type=4
+    ipType=4
     dnsIP=$(dig @1.1.1.1 +time=2 +short "${domain}" | grep -E "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$")
     if [[ -z "${dnsIP}" ]]; then
         dnsIP=$(dig @8.8.8.8 +time=2 +short "${domain}" | grep -E "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$")
@@ -1251,7 +1253,7 @@ checkDNSIP() {
         echoContent red " ---> 无法通过DNS获取域名 IPv4 地址"
         echoContent green " ---> 尝试检查域名 IPv6 地址"
         dnsIP=$(dig @2606:4700:4700::1111 +time=2 aaaa +short "${domain}")
-        type=6
+        ipType=6
         if echo "${dnsIP}" | grep -q "network unreachable" || [[ -z "${dnsIP}" ]]; then
             echoContent red " ---> 无法通过DNS获取域名IPv6地址，退出安装"
             exit 0
@@ -1259,7 +1261,7 @@ checkDNSIP() {
     fi
     local publicIP=
 
-    publicIP=$(getPublicIP "${type}")
+    publicIP=$(getPublicIP "${ipType}")
     if [[ "${publicIP}" != "${dnsIP}" ]]; then
         echoContent red " ---> 域名解析IP与当前服务器IP不一致\n"
         echoContent yellow " ---> 请检查域名解析是否生效以及正确"
@@ -1666,16 +1668,19 @@ switchSSLType() {
 
 # 选择acme安装证书方式
 selectAcmeInstallSSL() {
-    local sslIPv6=
-    local currentIPType=
-    currentIPType=$(curl -s -4 http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | cut -d "=" -f 2)
-
-    if [[ -z "${currentIPType}" ]]; then
-        currentIPType=$(curl -s -6 http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | cut -d "=" -f 2)
-        if [[ -n "${currentIPType}" ]]; then
-            sslIPv6="--listen-v6"
-        fi
+    #    local sslIPv6=
+    #    local currentIPType=
+    if [[ "${ipType}" == "6" ]]; then
+        sslIPv6="--listen-v6"
     fi
+    #    currentIPType=$(curl -s "-${ipType}" http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | cut -d "=" -f 2)
+
+    #    if [[ -z "${currentIPType}" ]]; then
+    #                currentIPType=$(curl -s -6 http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | cut -d "=" -f 2)
+    #        if [[ -n "${currentIPType}" ]]; then
+    #            sslIPv6="--listen-v6"
+    #        fi
+    #    fi
 
     acmeInstallSSL
 
@@ -8634,7 +8639,7 @@ subscribe() {
                 echoContent skyBlue "\n----------默认订阅----------\n"
                 echoContent green "email:${email}\n"
                 echoContent yellow "url:${subscribeType}://${currentDomain}/s/default/${emailMd5}\n"
-                echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://${currentDomain}/s/default/${emailMd5}\n"
+                echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${subscribeType}://${currentDomain}/s/default/${emailMd5}\n"
                 if [[ "${release}" != "alpine" ]]; then
                     echo "${subscribeType}://${currentDomain}/s/default/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
                 fi
@@ -8650,7 +8655,7 @@ subscribe() {
                     clashMetaConfig "${clashProxyUrl}" "${emailMd5}"
                     echoContent skyBlue "\n----------clashMeta订阅----------\n"
                     echoContent yellow "url:${subscribeType}://${currentDomain}/s/clashMetaProfiles/${emailMd5}\n"
-                    echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://${currentDomain}/s/clashMetaProfiles/${emailMd5}\n"
+                    echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${subscribeType}://${currentDomain}/s/clashMetaProfiles/${emailMd5}\n"
                     if [[ "${release}" != "alpine" ]]; then
                         echo "${subscribeType}://${currentDomain}/s/clashMetaProfiles/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
                     fi
@@ -8672,7 +8677,7 @@ subscribe() {
 
                     echoContent skyBlue "\n----------sing-box订阅----------\n"
                     echoContent yellow "url:${subscribeType}://${currentDomain}/s/sing-box/${emailMd5}\n"
-                    echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://${currentDomain}/s/sing-box/${emailMd5}\n"
+                    echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${subscribeType}://${currentDomain}/s/sing-box/${emailMd5}\n"
                     if [[ "${release}" != "alpine" ]]; then
                         echo "${subscribeType}://${currentDomain}/s/sing-box/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
                     fi
@@ -9198,7 +9203,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.3.1"
+    echoContent green "当前版本：v3.3.2"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
