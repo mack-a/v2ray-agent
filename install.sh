@@ -6207,6 +6207,8 @@ ipv6Routing() {
 
                 removeSingBoxConfig socks5_inbound_route
 
+                removeSingBoxConfig IPv6_route
+
                 addSingBoxOutbound IPv6_out
             fi
 
@@ -6255,10 +6257,10 @@ showIPv6Routing() {
 
     fi
     if [[ -n "${singBoxConfigPath}" ]]; then
-        if [[ -f "${singBoxConfigPath}IPv6_out_route.json" ]]; then
+        if [[ -f "${singBoxConfigPath}IPv6_route.json" ]]; then
             echoContent yellow "sing-box"
-            jq -r -c '.route.rules[]|select (.outbound=="IPv6_out")' "${singBoxConfigPath}IPv6_out_route.json" | jq -r
-        elif [[ ! -f "${singBoxConfigPath}IPv6_out_route.json" && -f "${singBoxConfigPath}IPv6_out.json" ]]; then
+            jq -r -c '.route.rules[]|select (.outbound=="IPv6_out")' "${singBoxConfigPath}IPv6_route.json" | jq -r
+        elif [[ ! -f "${singBoxConfigPath}IPv6_route.json" && -f "${singBoxConfigPath}IPv6_out.json" ]]; then
             echoContent yellow "sing-box"
             echoContent green " ---> 已设置IPv6全局分流"
         else
@@ -6734,7 +6736,7 @@ warpRoutingReg() {
                 removeSingBoxConfig wireguard_out_IPv4_route
                 removeSingBoxConfig wireguard_out_IPv6_route
 
-                removeSingBoxConfig IPv6_out_route
+                removeSingBoxConfig IPv6_route
                 removeSingBoxConfig socks5_inbound_route
 
                 if [[ "${type}" == "IPv4" ]]; then
@@ -9203,7 +9205,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.3.2"
+    echoContent green "当前版本：v3.3.3"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
