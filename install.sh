@@ -275,6 +275,7 @@ initVar() {
 
     # dns tls domain
     dnsTLSDomain=
+    ipType=
 
     # 该域名是否通过dns安装通配符证书
     #    installDNSACMEStatus=
@@ -317,6 +318,7 @@ initVar() {
     publicKeyWarpReg=
     addressWarpReg=
     secretKeyWarpReg=
+
 }
 
 # 读取tls证书详情
@@ -1241,7 +1243,7 @@ installWarp() {
 checkDNSIP() {
     local domain=$1
     local dnsIP=
-    local type=4
+    ipType=4
     dnsIP=$(dig @1.1.1.1 +time=2 +short "${domain}" | grep -E "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$")
     if [[ -z "${dnsIP}" ]]; then
         dnsIP=$(dig @8.8.8.8 +time=2 +short "${domain}" | grep -E "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$")
@@ -1251,7 +1253,7 @@ checkDNSIP() {
         echoContent red " ---> 无法通过DNS获取域名 IPv4 地址"
         echoContent green " ---> 尝试检查域名 IPv6 地址"
         dnsIP=$(dig @2606:4700:4700::1111 +time=2 aaaa +short "${domain}")
-        type=6
+        ipType=6
         if echo "${dnsIP}" | grep -q "network unreachable" || [[ -z "${dnsIP}" ]]; then
             echoContent red " ---> 无法通过DNS获取域名IPv6地址，退出安装"
             exit 0
@@ -1259,7 +1261,7 @@ checkDNSIP() {
     fi
     local publicIP=
 
-    publicIP=$(getPublicIP "${type}")
+    publicIP=$(getPublicIP "${ipType}")
     if [[ "${publicIP}" != "${dnsIP}" ]]; then
         echoContent red " ---> 域名解析IP与当前服务器IP不一致\n"
         echoContent yellow " ---> 请检查域名解析是否生效以及正确"
@@ -1666,16 +1668,19 @@ switchSSLType() {
 
 # 选择acme安装证书方式
 selectAcmeInstallSSL() {
-    local sslIPv6=
-    local currentIPType=
-    currentIPType=$(curl -s -4 http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | cut -d "=" -f 2)
-
-    if [[ -z "${currentIPType}" ]]; then
-        currentIPType=$(curl -s -6 http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | cut -d "=" -f 2)
-        if [[ -n "${currentIPType}" ]]; then
-            sslIPv6="--listen-v6"
-        fi
+    #    local sslIPv6=
+    #    local currentIPType=
+    if [[ "${ipType}" == "6" ]]; then
+        sslIPv6="--listen-v6"
     fi
+    #    currentIPType=$(curl -s "-${ipType}" http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | cut -d "=" -f 2)
+
+    #    if [[ -z "${currentIPType}" ]]; then
+    #                currentIPType=$(curl -s -6 http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | cut -d "=" -f 2)
+    #        if [[ -n "${currentIPType}" ]]; then
+    #            sslIPv6="--listen-v6"
+    #        fi
+    #    fi
 
     acmeInstallSSL
 
@@ -4262,6 +4267,7 @@ EOF
     installSniffing
     removeXrayOutbound IPv4_out
     removeXrayOutbound IPv6_out
+    removeXrayOutbound socks5_outbound
     removeXrayOutbound blackhole_out
     removeXrayOutbound wireguard_out_IPv6
     removeXrayOutbound wireguard_out_IPv4
@@ -5723,8 +5729,8 @@ addUser() {
             elif [[ "${coreInstallType}" == "2" ]]; then
                 clients=$(initSingBoxClients 0 "${uuid}" "${email}")
             fi
-            clients=$(jq -r "${userConfig} = ${clients}" ${configPath}${frontingType}.json)
-            echo "${clients}" | jq . >${configPath}${frontingType}.json
+            clients=$(jq -r "${userConfig} = ${clients}" ${configPath}02_VLESS_TCP_inbounds.json)
+            echo "${clients}" | jq . >${configPath}02_VLESS_TCP_inbounds.json
         fi
 
         # VLESS WS
@@ -6201,6 +6207,8 @@ ipv6Routing() {
 
                 removeSingBoxConfig socks5_inbound_route
 
+                removeSingBoxConfig IPv6_route
+
                 addSingBoxOutbound IPv6_out
             fi
 
@@ -6249,10 +6257,10 @@ showIPv6Routing() {
 
     fi
     if [[ -n "${singBoxConfigPath}" ]]; then
-        if [[ -f "${singBoxConfigPath}IPv6_out_route.json" ]]; then
+        if [[ -f "${singBoxConfigPath}IPv6_route.json" ]]; then
             echoContent yellow "sing-box"
-            jq -r -c '.route.rules[]|select (.outbound=="IPv6_out")' "${singBoxConfigPath}IPv6_out_route.json" | jq -r
-        elif [[ ! -f "${singBoxConfigPath}IPv6_out_route.json" && -f "${singBoxConfigPath}IPv6_out.json" ]]; then
+            jq -r -c '.route.rules[]|select (.outbound=="IPv6_out")' "${singBoxConfigPath}IPv6_route.json" | jq -r
+        elif [[ ! -f "${singBoxConfigPath}IPv6_route.json" && -f "${singBoxConfigPath}IPv6_out.json" ]]; then
             echoContent yellow "sing-box"
             echoContent green " ---> 已设置IPv6全局分流"
         else
@@ -6728,7 +6736,7 @@ warpRoutingReg() {
                 removeSingBoxConfig wireguard_out_IPv4_route
                 removeSingBoxConfig wireguard_out_IPv6_route
 
-                removeSingBoxConfig IPv6_out_route
+                removeSingBoxConfig IPv6_route
                 removeSingBoxConfig socks5_inbound_route
 
                 if [[ "${type}" == "IPv4" ]]; then
@@ -6998,8 +7006,12 @@ showSingBoxRoutingRules() {
             jq .route.rules "${singBoxConfigPath}$1.json"
         elif [[ "$1" == "socks5_outbound_route" && -f "${singBoxConfigPath}socks5_outbound.json" ]]; then
             echoContent yellow "已安装 sing-box socks5全局出站分流"
+            echoContent yellow "\n出站分流配置："
+            echoContent skyBlue "$(jq .outbounds[0] ${singBoxConfigPath}socks5_outbound.json)"
         elif [[ "$1" == "socks5_inbound_route" && -f "${singBoxConfigPath}20_socks5_inbounds.json" ]]; then
             echoContent yellow "已安装 sing-box socks5全局入站分流"
+            echoContent yellow "\n出站分流配置："
+            echoContent skyBlue "$(jq .outbounds[0] ${singBoxConfigPath}socks5_outbound.json)"
         fi
     fi
 }
@@ -7009,8 +7021,15 @@ showXrayRoutingRules() {
     if [[ "${coreInstallType}" == "1" ]]; then
         if [[ -f "${configPath}09_routing.json" ]]; then
             jq ".routing.rules[]|select(.outboundTag==\"$1\")" "${configPath}09_routing.json"
+
+            echoContent yellow "\n已安装 xray-core socks5全局出站分流"
+            echoContent yellow "\n出站分流配置："
+            echoContent skyBlue "$(jq .outbounds[0].settings.servers[0] ${configPath}socks5_outbound.json)"
+
         elif [[ "$1" == "socks5_outbound" && -f "${configPath}socks5_outbound.json" ]]; then
-            echoContent yellow "\n已安装 sing-box socks5全局出站分流"
+            echoContent yellow "\n已安装 xray-core socks5全局出站分流"
+            echoContent yellow "\n出站分流配置："
+            echoContent skyBlue "$(jq .outbounds[0].settings.servers[0] ${configPath}socks5_outbound.json)"
         fi
     fi
 }
@@ -7025,11 +7044,18 @@ removeSocks5Routing() {
     echoContent yellow "3.卸载全部"
     read -r -p "请选择:" unInstallSocks5RoutingStatus
     if [[ "${unInstallSocks5RoutingStatus}" == "1" ]]; then
-        removeXrayOutbound socks5_outbound
-        unInstallRouting socks5_outbound outboundTag
+        if [[ "${coreInstallType}" == "1" ]]; then
+            removeXrayOutbound socks5_outbound
+            unInstallRouting socks5_outbound outboundTag
+            addXrayOutbound z_direct_outbound
+        fi
 
-        removeSingBoxConfig socks5_outbound_route
-        removeSingBoxConfig socks5_inbound_route
+        if [[ -n "${singBoxConfigPath}" ]]; then
+            removeSingBoxConfig socks5_outbound
+            removeSingBoxConfig socks5_outbound_route
+            addSingBoxOutbound 01_direct_outbound
+        fi
+
     elif [[ "${unInstallSocks5RoutingStatus}" == "2" ]]; then
 
         removeSingBoxConfig 20_socks5_inbounds
@@ -7037,11 +7063,20 @@ removeSocks5Routing() {
 
         handleSingBox stop
     elif [[ "${unInstallSocks5RoutingStatus}" == "3" ]]; then
-        removeSingBoxConfig 20_socks5_inbounds
-        removeSingBoxConfig socks5_inbound_route
+        if [[ "${coreInstallType}" == "1" ]]; then
+            removeXrayOutbound socks5_outbound
+            unInstallRouting socks5_outbound outboundTag
+            addXrayOutbound z_direct_outbound
+        fi
 
-        removeXrayOutbound socks5_outbound
-        unInstallRouting socks5_outbound outboundTag
+        if [[ -n "${singBoxConfigPath}" ]]; then
+            removeSingBoxConfig socks5_outbound
+            removeSingBoxConfig socks5_outbound_route
+            removeSingBoxConfig 20_socks5_inbounds
+            removeSingBoxConfig socks5_inbound_route
+            addSingBoxOutbound 01_direct_outbound
+        fi
+
         handleSingBox stop
     else
         echoContent red " ---> 选择错误"
@@ -7696,15 +7731,15 @@ customXrayInstall() {
         echoContent red " ---> 多选请使用英文逗号分隔"
         exit 0
     fi
-    if [[ "${selectCustomInstallType//,/}" =~ ^[0-5]+$ ]]; then
+
+    if [[ "${selectCustomInstallType}" == "7" ]]; then
+        selectCustomInstallType=",${selectCustomInstallType},"
+    else
         if ! echo "${selectCustomInstallType}" | grep -q "0,"; then
             selectCustomInstallType=",0,${selectCustomInstallType},"
         else
             selectCustomInstallType=",${selectCustomInstallType},"
         fi
-    fi
-    if [[ "${selectCustomInstallType}" == "7" ]]; then
-        selectCustomInstallType=",${selectCustomInstallType},"
     fi
 
     #    if [[ "${selectCustomInstallType: -1}" != "," ]]; then
@@ -8613,7 +8648,7 @@ subscribe() {
                 echoContent skyBlue "\n----------默认订阅----------\n"
                 echoContent green "email:${email}\n"
                 echoContent yellow "url:${subscribeType}://${currentDomain}/s/default/${emailMd5}\n"
-                echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://${currentDomain}/s/default/${emailMd5}\n"
+                echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${subscribeType}://${currentDomain}/s/default/${emailMd5}\n"
                 if [[ "${release}" != "alpine" ]]; then
                     echo "${subscribeType}://${currentDomain}/s/default/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
                 fi
@@ -8629,7 +8664,7 @@ subscribe() {
                     clashMetaConfig "${clashProxyUrl}" "${emailMd5}"
                     echoContent skyBlue "\n----------clashMeta订阅----------\n"
                     echoContent yellow "url:${subscribeType}://${currentDomain}/s/clashMetaProfiles/${emailMd5}\n"
-                    echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://${currentDomain}/s/clashMetaProfiles/${emailMd5}\n"
+                    echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${subscribeType}://${currentDomain}/s/clashMetaProfiles/${emailMd5}\n"
                     if [[ "${release}" != "alpine" ]]; then
                         echo "${subscribeType}://${currentDomain}/s/clashMetaProfiles/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
                     fi
@@ -8651,7 +8686,7 @@ subscribe() {
 
                     echoContent skyBlue "\n----------sing-box订阅----------\n"
                     echoContent yellow "url:${subscribeType}://${currentDomain}/s/sing-box/${emailMd5}\n"
-                    echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://${currentDomain}/s/sing-box/${emailMd5}\n"
+                    echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${subscribeType}://${currentDomain}/s/sing-box/${emailMd5}\n"
                     if [[ "${release}" != "alpine" ]]; then
                         echo "${subscribeType}://${currentDomain}/s/sing-box/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
                     fi
@@ -9177,7 +9212,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.2.54"
+    echoContent green "当前版本：v3.3.3"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
