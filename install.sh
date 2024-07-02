@@ -358,7 +358,7 @@ readNginxSubscribe() {
             subscribePort=$(grep "listen" "${nginxConfigPath}subscribe.conf" | awk '{print $2}')
             subscribeDomain=$(grep "server_name" "${nginxConfigPath}subscribe.conf" | awk '{print $2}')
             subscribeDomain=${subscribeDomain//;/}
-            if [[ "${subscribeDomain}" != "${currentHost}" ]]; then
+            if [[ -n "${currentHost}" && "${subscribeDomain}" != "${currentHost}" ]]; then
                 subscribePort=
                 subscribeType=
             else
@@ -1306,8 +1306,10 @@ checkPortOpen() {
     local domain=$2
     local checkPortOpenResult=
     allowPort "${port}"
+
     if [[ -z "${btDomain}" ]]; then
 
+        handleNginx stop
         # 初始化nginx配置
         touch ${nginxConfigPath}checkPortOpen.conf
         cat <<EOF >${nginxConfigPath}checkPortOpen.conf
@@ -9400,7 +9402,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.3.6"
+    echoContent green "当前版本：v3.3.7"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
