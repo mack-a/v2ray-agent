@@ -6048,6 +6048,18 @@ addUser() {
 
             echo "${clients}" | jq . >"${singBoxConfigPath}10_naive_inbounds.json"
         fi
+        # VMess WS
+        if echo "${currentInstallProtocolType}" | grep -q ",11,"; then
+            local clients=
+            if [[ "${coreInstallType}" == "1" ]]; then
+                clients=$(initXrayClients 11 "${uuid}" "${email}")
+            elif [[ "${coreInstallType}" == "2" ]]; then
+                clients=$(initSingBoxClients 11 "${uuid}" "${email}")
+            fi
+
+            clients=$(jq -r "${userConfig} = ${clients}" ${configPath}11_VMess_HTTPUpgrade_inbounds.json)
+            echo "${clients}" | jq . >${configPath}11_VMess_HTTPUpgrade_inbounds.json
+        fi
     done
     reloadCore
     echoContent green " ---> 添加完成"
@@ -6140,6 +6152,13 @@ removeUser() {
             local naiveResult
             naiveResult=$(jq -r 'del(.inbounds[0].users['${delUserIndex}']//.inbounds[0].users['${delUserIndex}'])' "${singBoxConfigPath}10_naive_inbounds.json")
             echo "${naiveResult}" | jq . >"${singBoxConfigPath}10_naive_inbounds.json"
+        fi
+        # VMess HTTPUpgrade
+        if echo ${currentInstallProtocolType} | grep -q ",11,"; then
+            local vmessHTTPUpgradeResult
+            vmessHTTPUpgradeResult=$(jq -r 'del(.inbounds[0].users['${delUserIndex}']//.inbounds[0].users['${delUserIndex}'])' "${singBoxConfigPath}11_VMess_HTTPUpgrade_inbounds.json")
+            echo "${vmessHTTPUpgradeResult}" | jq . >"${singBoxConfigPath}11_VMess_HTTPUpgrade_inbounds.json"
+            echo "${vmessHTTPUpgradeResult}" | jq . >${configPath}11_VMess_HTTPUpgrade_inbounds.json
         fi
         reloadCore
     fi
@@ -9406,7 +9425,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.3.8"
+    echoContent green "当前版本：v3.3.9"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
