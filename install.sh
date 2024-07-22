@@ -1312,10 +1312,15 @@ checkPortOpen() {
         handleNginx stop
         # 初始化nginx配置
         touch ${nginxConfigPath}checkPortOpen.conf
+        local listenIPv6PortConfig=
+
+        if [[ -n $(curl -s -6 http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | cut -d "=" -f 2) ]]; then
+            listenIPv6PortConfig="listen [::]:${port};"
+        fi
         cat <<EOF >${nginxConfigPath}checkPortOpen.conf
 server {
     listen ${port};
-    listen [::]:${port};
+    ${listenIPv6PortConfig}
     server_name ${domain};
     location /checkPort {
         return 200 'fjkvymb6len';
@@ -9443,7 +9448,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.3.11"
+    echoContent green "当前版本：v3.3.12"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
