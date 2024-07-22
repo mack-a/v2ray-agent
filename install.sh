@@ -3198,9 +3198,10 @@ hysteriaPortHopping() {
             hysteriaPortHopping
         else
             echoContent green "\n端口范围: ${hysteriaPortHoppingRange}\n"
-            iptables -t nat -A PREROUTING -p udp --dport "${portStart}:${portEnd}" -m comment --comment "mack-a_hysteria2_portHopping" -j DNAT --to-destination :${hysteriaPort}
+            iptables -t nat -A PREROUTING -p udp --dport "${portStart}:${portEnd}" -m comment --comment "mack-a_hysteria2_portHopping_ipv4" -j DNAT --to-destination :${hysteriaPort}
+            ip6tables -t nat -A PREROUTING -p udp --dport "${portStart}:${portEnd}" -m comment --comment "mack-a_hysteria2_portHopping_ipv6" -j DNAT --to-destination :${hysteriaPort}
 
-            if iptables-save | grep -q "mack-a_hysteria2_portHopping"; then
+            if iptables-save | grep -q "mack-a_hysteria2_portHopping_ipv4" && ip6tables-save | grep -q "mack-a_hysteria2_portHopping_ipv6"; then
                 allowPort "${portStart}:${portEnd}" udp
                 echoContent green " ---> 端口跳跃添加成功"
             else
@@ -3213,19 +3214,30 @@ hysteriaPortHopping() {
 # 读取端口跳跃的配置
 readHysteriaPortHopping() {
     if [[ -n "${hysteriaPort}" ]]; then
-        if iptables-save | grep -q "mack-a_hysteria2_portHopping"; then
+        if iptables-save | grep -q "mack-a_hysteria2_portHopping_ipv4"; then
             portHopping=
-            portHopping=$(iptables-save | grep "mack-a_hysteria2_portHopping" | cut -d " " -f 8)
+            portHopping=$(iptables-save | grep "mack-a_hysteria2_portHopping_ipv4" | cut -d " " -f 8)
             portHoppingStart=$(echo "${portHopping}" | cut -d ":" -f 1)
             portHoppingEnd=$(echo "${portHopping}" | cut -d ":" -f 2)
+        fi
+
+        if ip6tables-save | grep -q "mack-a_hysteria2_portHopping_ipv6"; then
+            portHoppingIPv6=
+            portHoppingIPv6=$(ip6tables-save | grep "mack-a_hysteria2_portHopping_ipv6" | cut -d " " -f 8)
+            portHoppingStartIPv6=$(echo "${portHoppingIPv6}" | cut -d ":" -f 1)
+            portHoppingEndIPv6=$(echo "${portHoppingIPv6}" | cut -d ":" -f 2)
         fi
     fi
 }
 
-# 删除hysteria2 端口跳跃iptables规则
+# 删除hysteria2 端口跳跃iptables&ip6tables规则
 deleteHysteriaPortHoppingRules() {
     iptables -t nat -L PREROUTING --line-numbers | grep "mack-a_hysteria2_portHopping" | awk '{print $1}' | while read -r line; do
         iptables -t nat -D PREROUTING 1
+    done
+
+    ip6tables -t nat -L PREROUTING --line-numbers | grep "mack-a_hysteria2_portHopping" | awk '{print $1}' | while read -r line; do
+        ip6tables -t nat -D PREROUTING "$line"
     done
 }
 
