@@ -2852,7 +2852,8 @@ handleSingBox() {
             echoContent green " ---> sing-box启动成功"
         else
             echoContent red "sing-box启动失败"
-            echoContent red "请手动执行【/etc/v2ray-agent/sing-box/sing-box run -c /etc/v2ray-agent/sing-box/conf/config.json】，查看错误日志"
+            echoContent red "请手动执行【/etc/v2ray-agent/sing-box/sing-box merge config.json -C /etc/v2ray-agent/sing-box/conf/config/ -D /etc/v2ray-agent/sing-box/conf/】，查看错误日志"
+            echoContent red "如上面命令没有错误，请手动执行【/etc/v2ray-agent/sing-box/sing-box run -c /etc/v2ray-agent/sing-box/conf/config.json】，查看错误日志"
             exit 0
         fi
     elif [[ "$1" == "stop" ]]; then
@@ -5886,8 +5887,15 @@ customUserEmail() {
     else
         local checkEmail=
         if [[ "${coreInstallType}" == "1" ]]; then
-            checkEmail=$(jq -r --arg currentEmail "$currentCustomEmail" ".inbounds[0].settings.clients[] | select(.name | index(\$currentEmail) != null) | .name" ${configPath}${frontingType}.json)
-        elif [[ "${coreInstallType}" == "2" ]]; then
+            local frontingTypeConfig="${frontingType}"
+            if [[ "${currentInstallProtocolType}" == ",7,8," ]]; then
+                frontingTypeConfig="07_VLESS_vision_reality_inbounds"
+            fi
+
+            checkEmail=$(jq -r --arg currentEmail "$currentCustomEmail" ".inbounds[0].settings.clients[] | select(.name | index(\$currentEmail) != null) | .name" ${configPath}${frontingTypeConfig}.json)
+        elif
+            [[ "${coreInstallType}" == "2" ]]
+        then
             checkEmail=$(jq -r --arg currentEmail "$currentCustomEmail" ".inbounds[0].users[] | select(.name | index(\$currentEmail) != null) | .name" ${configPath}${frontingType}.json)
         fi
 
@@ -5973,7 +5981,6 @@ addUser() {
             clients=$(jq -r "${userConfig} = ${clients}" ${configPath}05_VMess_WS_inbounds.json)
             echo "${clients}" | jq . >${configPath}05_VMess_WS_inbounds.json
         fi
-
         # trojan tcp
         if echo "${currentInstallProtocolType}" | grep -q ",4,"; then
             local clients=
@@ -8419,7 +8426,11 @@ addOtherSubscribe() {
             echoContent red " ---> 此订阅已添加"
             exit 0
         fi
-
+        echo
+        read -r -p "是否是HTTP订阅？[y/n]" httpSubscribeStatus
+        if [[ "${httpSubscribeStatus}" == "y" ]]; then
+            remoteSubscribeUrl="${remoteSubscribeUrl}:http"
+        fi
         echo "${remoteSubscribeUrl}" >>/etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl
         subscribe
     fi
@@ -8943,14 +8954,24 @@ updateRemoteSubscribe() {
     local emailMD5=$1
     local email=$2
     while read -r line; do
+        local subscribeType=
+        subscribeType="https"
+
         local serverAlias=
         serverAlias=$(echo "${line}" | awk -F "[:]" '{print $3}')
 
         local remoteUrl=
         remoteUrl=$(echo "${line}" | awk -F "[:]" '{print $1":"$2}')
 
+        local subscribeTypeRemote=
+        subscribeTypeRemote=$(echo "${line}" | awk -F "[:]" '{print $4}')
+
+        if [[ -n "${subscribeTypeRemote}" ]]; then
+            subscribeType="${subscribeTypeRemote}"
+        fi
         local clashMetaProxies=
-        clashMetaProxies=$(curl -s -4 "https://${remoteUrl}/s/clashMeta/${emailMD5}" | sed '/proxies:/d' | sed "s/\"${email}/\"${email}_${serverAlias}/g")
+
+        clashMetaProxies=$(curl -s -4 "${subscribeType}://${remoteUrl}/s/clashMeta/${emailMD5}" | sed '/proxies:/d' | sed "s/\"${email}/\"${email}_${serverAlias}/g")
 
         if ! echo "${clashMetaProxies}" | grep -q "nginx" && [[ -n "${clashMetaProxies}" ]]; then
             echo "${clashMetaProxies}" >>"/etc/v2ray-agent/subscribe/clashMeta/${emailMD5}"
@@ -8960,7 +8981,7 @@ updateRemoteSubscribe() {
         fi
 
         local default=
-        default=$(curl -s -4 "https://${remoteUrl}/s/default/${emailMD5}")
+        default=$(curl -s -4 "${subscribeType}://${remoteUrl}/s/default/${emailMD5}")
 
         if ! echo "${default}" | grep -q "nginx" && [[ -n "${default}" ]]; then
             default=$(echo "${default}" | base64 -d | sed "s/#${email}/#${email}_${serverAlias}/g")
@@ -8972,7 +8993,7 @@ updateRemoteSubscribe() {
         fi
 
         local singBoxSubscribe=
-        singBoxSubscribe=$(curl -s -4 "https://${remoteUrl}/s/sing-box_profiles/${emailMD5}")
+        singBoxSubscribe=$(curl -s -4 "${subscribeType}://${remoteUrl}/s/sing-box_profiles/${emailMD5}")
 
         if ! echo "${singBoxSubscribe}" | grep -q "nginx" && [[ -n "${singBoxSubscribe}" ]]; then
             singBoxSubscribe=${singBoxSubscribe//tag\": \"${email}/tag\": \"${email}_${serverAlias}}
@@ -9448,7 +9469,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.3.12"
+    echoContent green "当前版本：v3.3.13"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
