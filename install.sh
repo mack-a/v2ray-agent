@@ -2062,8 +2062,8 @@ handleNginx() {
 
         if [[ -z $(pgrep -f "nginx") ]]; then
             echoContent red " ---> Nginx启动失败"
-            echoContent red " ---> 请手动尝试安装nginx后，再次执行脚本"
-
+            echoContent red " ---> 请将下方日志反馈给开发者"
+            nginx
             if grep -q "journalctl -xe" </etc/v2ray-agent/nginx_error.log; then
                 updateSELinuxHTTPPortT
             fi
@@ -9469,7 +9469,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.3.13"
+    echoContent green "当前版本：v3.3.14"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
