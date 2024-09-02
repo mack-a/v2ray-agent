@@ -201,6 +201,7 @@ initVar() {
     # xray-core reality serverName publicKey
     xrayVLESSRealityServerName=
     xrayVLESSRealityPort=
+    xrayVLESSSplitHTTPort=
     #    xrayVLESSRealityPublicKey=
 
     #    interfaceName=
@@ -443,6 +444,15 @@ readInstallProtocolType() {
                 singBoxVLESSWSPort=$(jq .inbounds[0].listen_port "${row}.json")
             fi
         fi
+        if echo "${row}" | grep -q VLESS_SplitHTTP_inbounds; then
+            currentInstallProtocolType="${currentInstallProtocolType}12,"
+            xrayVLESSSplitHTTPort=$(jq -r .inbounds[0].port "${row}.json")
+            #            if [[ "${coreInstallType}" == "2" ]]; then
+            #                frontingType=03_VLESS_WS_inbounds
+            #                singBoxVLESSWSPort=$(jq .inbounds[0].listen_port "${row}.json")
+            #            fi
+        fi
+
         if echo "${row}" | grep -q trojan_gRPC_inbounds; then
             currentInstallProtocolType="${currentInstallProtocolType}2,"
         fi
@@ -859,6 +869,9 @@ readConfigHostPathUUID() {
                         currentPath=$(grep "grpc {" <${nginxConfigPath}alone.conf | head -1 | awk -F "[/]" '{print $2}' | awk -F "[g][r][p][c]" '{print $1}')
                     fi
                 fi
+            fi
+            if [[ -z "${currentPath}" && -f "${configPath}12_VLESS_SplitHTTP_inbounds.json" ]]; then
+                currentPath=$(jq -r .inbounds[0].streamSettings.splithttpSettings.path "${configPath}12_VLESS_SplitHTTP_inbounds.json" | awk -F "[s][p][l][i][t]" '{print $1}' | awk -F "[/]" '{print $2}')
             fi
         elif [[ "${coreInstallType}" == "2" && -f "${singBoxConfigPath}05_VMess_WS_inbounds.json" ]]; then
             singBoxVMessWSPath=$(jq -r .inbounds[0].transport.path "${singBoxConfigPath}05_VMess_WS_inbounds.json")
@@ -2906,7 +2919,7 @@ handleXray() {
 
 # 读取Xray用户数据并初始化
 initXrayClients() {
-    local type=$1
+    local type=",$1,"
     local newUUID=$2
     local newEmail=$3
     if [[ -n "${newUUID}" ]]; then
@@ -2926,58 +2939,63 @@ initXrayClients() {
         fi
 
         # VLESS WS
-        if echo "${type}" | grep -q "1"; then
+        if echo "${type}" | grep -q ",1,"; then
             currentUser="{\"id\":\"${uuid}\",\"email\":\"${email}-VLESS_WS\"}"
             users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
         fi
+        # VLESS SplitHTTP
+        if echo "${type}" | grep -q ",12,"; then
+            currentUser="{\"id\":\"${uuid}\",\"email\":\"${email}-VLESS_SplitHTTP\"}"
+            users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
+        fi
         # trojan grpc
-        if echo "${type}" | grep -q "2"; then
+        if echo "${type}" | grep -q ",2,"; then
             currentUser="{\"password\":\"${uuid}\",\"email\":\"${email}-Trojan_gRPC\"}"
             users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
         fi
         # VMess WS
-        if echo "${type}" | grep -q "3"; then
+        if echo "${type}" | grep -q ",3,"; then
             currentUser="{\"id\":\"${uuid}\",\"email\":\"${email}-VMess_WS\",\"alterId\": 0}"
 
             users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
         fi
 
         # trojan tcp
-        if echo "${type}" | grep -q "4"; then
+        if echo "${type}" | grep -q ",4,"; then
             currentUser="{\"password\":\"${uuid}\",\"email\":\"${email}-trojan_tcp\"}"
 
             users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
         fi
 
         # vless grpc
-        if echo "${type}" | grep -q "5"; then
+        if echo "${type}" | grep -q ",5,"; then
             currentUser="{\"id\":\"${uuid}\",\"email\":\"${email}-vless_grpc\"}"
 
             users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
         fi
 
         # hysteria
-        if echo "${type}" | grep -q "6"; then
+        if echo "${type}" | grep -q ",6,"; then
             currentUser="{\"password\":\"${uuid}\",\"name\":\"${email}-singbox_hysteria2\"}"
 
             users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
         fi
 
         # vless reality vision
-        if echo "${type}" | grep -q "7"; then
+        if echo "${type}" | grep -q ",7,"; then
             currentUser="{\"id\":\"${uuid}\",\"email\":\"${email}-vless_reality_vision\",\"flow\":\"xtls-rprx-vision\"}"
 
             users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
         fi
 
         # vless reality grpc
-        if echo "${type}" | grep -q "8"; then
+        if echo "${type}" | grep -q ",8,"; then
             currentUser="{\"id\":\"${uuid}\",\"email\":\"${email}-vless_reality_grpc\",\"flow\":\"\"}"
 
             users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
         fi
         # tuic
-        if echo "${type}" | grep -q "9"; then
+        if echo "${type}" | grep -q ",9,"; then
             currentUser="{\"uuid\":\"${uuid}\",\"password\":\"${uuid}\",\"name\":\"${email}-singbox_tuic\"}"
 
             users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
@@ -4153,7 +4171,50 @@ EOF
     elif [[ -z "$3" ]]; then
         rm /etc/v2ray-agent/xray/conf/03_VLESS_WS_inbounds.json >/dev/null 2>&1
     fi
-
+    # VLESS_SplitHTTP_TLS
+    if echo "${selectCustomInstallType}" | grep -q ",12," || [[ "$1" == "all" ]]; then
+        initXraySplitPort
+        cat <<EOF >/etc/v2ray-agent/xray/conf/12_VLESS_SplitHTTP_inbounds.json
+{
+"inbounds":[
+    {
+	  "port": ${splitHTTPort},
+	  "listen": "0.0.0.0",
+	  "protocol": "vless",
+	  "tag":"VLESSSplit",
+	  "settings": {
+		"clients": $(initXrayClients 12),
+		"decryption": "none"
+	  },
+	  "streamSettings": {
+		"network": "splithttp",
+		"security": "tls",
+		"splithttpSettings": {
+		  "path": "/${customPath}split",
+		  "host":"${domain}"
+		},
+        "tlsSettings": {
+          "rejectUnknownSni": true,
+          "alpn":[
+            "h2",
+            "http/1.1"
+          ],
+          "certificates": [
+            {
+              "certificateFile": "/etc/v2ray-agent/tls/${domain}.crt",
+              "keyFile": "/etc/v2ray-agent/tls/${domain}.key",
+              "ocspStapling": 3600
+            }
+          ]
+        }
+	  }
+	}
+]
+}
+EOF
+    elif [[ -z "$3" ]]; then
+        rm /etc/v2ray-agent/xray/conf/03_VLESS_WS_inbounds.json >/dev/null 2>&1
+    fi
     # trojan_grpc
     if echo "${selectCustomInstallType}" | grep -q ",2," || [[ "$1" == "all" ]]; then
         if ! echo "${selectCustomInstallType}" | grep -q ",5," && [[ -n ${selectCustomInstallType} ]]; then
@@ -4934,6 +4995,16 @@ EOF
         echoContent yellow " ---> 二维码 VLESS(VLESS+WS+TLS)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dws%26host%3D${currentHost}%26fp%3Dchrome%26sni%3D${currentHost}%26path%3D${path}%23${email}"
 
+    elif [[ "${type}" == "vlessSplitHTTP" ]]; then
+
+        echoContent yellow " ---> 通用格式(VLESS+SplitHTTP+TLS)"
+        echoContent green "    vless://${id}@${add}:${port}?encryption=none&security=tls&type=splithttp&host=${currentHost}&alpn=h3&sni=${currentHost}&fp=chrome&path=${path}#${email}\n"
+
+        echoContent yellow " ---> 格式化明文(VLESS+WS+TLS)"
+        echoContent green "    协议类型:VLESS，地址:${add}，伪装域名/SNI:${currentHost}，端口:${port}，client-fingerprint: chrome,用户ID:${id}，安全:tls，传输方式:splithttp，alpn:h3,路径:${path}，账户名:${email}\n"
+
+        echoContent yellow " ---> 二维码 VLESS(VLESS+SplitHTTP+TLS)"
+        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dsplithttp%26host%3D${currentHost}%26fp%3Dchrome%26sni%3D${currentHost}%26alpn%3Dh3%26path%3D${path}%23${email}"
     elif [[ "${type}" == "vlessgrpc" ]]; then
 
         echoContent yellow " ---> 通用格式(VLESS+gRPC+TLS)"
@@ -5276,6 +5347,38 @@ showAccounts() {
                 echoContent skyBlue "\n ---> 账号:${email}${count}"
                 if [[ -n "${line}" ]]; then
                     defaultBase64Code vlessws "${vlessWSPort}" "${email}${count}" "$(echo "${user}" | jq -r .id//.uuid)" "${line}" "${path}"
+                    count=$((count + 1))
+                    echo
+                fi
+            done < <(echo "${currentCDNAddress}" | tr ',' '\n')
+        done
+    fi
+    # VLESS SplitHTTP
+    if echo ${currentInstallProtocolType} | grep -q ",12,"; then
+        echoContent skyBlue "\n================================ VLESS SplitHTTP TLS [仅CDN推荐] ================================\n"
+
+        jq .inbounds[0].settings.clients//.inbounds[0].users ${configPath}12_VLESS_SplitHTTP_inbounds.json | jq -c '.[]' | while read -r user; do
+            local email=
+            email=$(echo "${user}" | jq -r .email//.name)
+
+            #            local vlessSplitHTTPPort=${xrayVLESSSplitHTTPort}
+            #            if [[ "${coreInstallType}" == "2" ]]; then
+            #                vlessSplitHTTPPort="${singBoxVLESSWSPort}"
+            #            fi
+            echo
+            local path="${currentPath}split"
+
+            #            if [[ ${coreInstallType} == "1" ]]; then
+            #                path="/${currentPath}ws"
+            #            elif [[ "${coreInstallType}" == "2" ]]; then
+            #                path="${singBoxVLESSWSPath}"
+            #            fi
+
+            local count=
+            while read -r line; do
+                echoContent skyBlue "\n ---> 账号:${email}${count}"
+                if [[ -n "${line}" ]]; then
+                    defaultBase64Code vlessSplitHTTP "${xrayVLESSSplitHTTPort}" "${email}${count}" "$(echo "${user}" | jq -r .id//.uuid)" "${line}" "${path}"
                     count=$((count + 1))
                     echo
                 fi
@@ -7957,13 +8060,14 @@ customXrayInstall() {
     echoContent yellow "5.VLESS+TLS+gRPC[仅CDN推荐]"
     echoContent yellow "7.VLESS+Reality+uTLS+Vision[推荐]"
     # echoContent yellow "8.VLESS+Reality+gRPC"
+    echoContent yellow "12.VLESS+SplitHTTP+TLS[仅CDN推荐]"
     read -r -p "请选择[多选]，[例如:1,2,3]:" selectCustomInstallType
     echoContent skyBlue "--------------------------------------------------------------"
     if echo "${selectCustomInstallType}" | grep -q "，"; then
         echoContent red " ---> 请使用英文逗号分隔"
         exit 0
     fi
-    if ((${#selectCustomInstallType} >= 2)) && ! echo "${selectCustomInstallType}" | grep -q ","; then
+    if [[ "${selectCustomInstallType}" != "12" ]] && ((${#selectCustomInstallType} >= 2)) && ! echo "${selectCustomInstallType}" | grep -q ","; then
         echoContent red " ---> 多选请使用英文逗号分隔"
         exit 0
     fi
@@ -8010,7 +8114,7 @@ customXrayInstall() {
 
         handleNginx stop
         # 随机path
-        if echo "${selectCustomInstallType}" | grep -qE ",1,|,2,|,3,|,5,"; then
+        if echo "${selectCustomInstallType}" | grep -qE ",1,|,2,|,3,|,5,|,12,"; then
             randomPathFunction 4
         fi
         if [[ -n "${btDomain}" ]]; then
@@ -9201,6 +9305,36 @@ initXrayRealityPort() {
     fi
 
 }
+# 初始化SplitHTTP端口
+initXraySplitPort() {
+    if [[ -n "${xrayVLESSSplitHTTPort}" ]]; then
+        read -r -p "读取到上次安装记录，是否使用上次安装时的端口 ？[y/n]:" historySplitHTTPortStatus
+        if [[ "${historySplitHTTPortStatus}" == "y" ]]; then
+            splitHTTPort=${xrayVLESSSplitHTTPort}
+        fi
+    fi
+
+    if [[ -z "${splitHTTPort}" ]]; then
+
+        echoContent yellow "请输入端口[回车随机10000-30000]"
+        read -r -p "端口:" splitHTTPort
+        if [[ -z "${splitHTTPort}" ]]; then
+            splitHTTPort=$((RANDOM % 20001 + 10000))
+        fi
+        if [[ -n "${splitHTTPort}" && "${xrayVLESSSplitHTTPort}" == "${splitHTTPort}" ]]; then
+            handleXray stop
+        else
+            checkPort "${splitHTTPort}"
+        fi
+    fi
+    if [[ -z "${splitHTTPort}" ]]; then
+        initXraySplitPort
+    else
+        allowPort "${splitHTTPort}"
+        allowPort "${splitHTTPort}" "udp"
+        echoContent yellow "\n ---> 端口: ${splitHTTPort}"
+    fi
+}
 # 初始化 reality 配置
 initXrayRealityConfig() {
     echoContent skyBlue "\n进度  $1/${totalProgress} : 初始化 Xray-core reality配置"
@@ -9469,7 +9603,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.3.14"
+    echoContent green "当前版本：v3.3.15"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
