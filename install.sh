@@ -1327,7 +1327,7 @@ checkPortOpen() {
         touch ${nginxConfigPath}checkPortOpen.conf
         local listenIPv6PortConfig=
 
-        if [[ -n $(curl -s -6 http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | cut -d "=" -f 2) ]]; then
+        if [[ -n $(curl -s -6 -m 4 http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | cut -d "=" -f 2) ]]; then
             listenIPv6PortConfig="listen [::]:${port};"
         fi
         cat <<EOF >${nginxConfigPath}checkPortOpen.conf
@@ -6458,7 +6458,7 @@ aliasInstall() {
 
 # 检查ipv6、ipv4
 checkIPv6() {
-    currentIPv6IP=$(curl -s -6 http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | cut -d "=" -f 2)
+    currentIPv6IP=$(curl -s -6 -m 4 http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | cut -d "=" -f 2)
 
     if [[ -z "${currentIPv6IP}" ]]; then
         echoContent red " ---> 不支持ipv6"
@@ -9603,7 +9603,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.3.15"
+    echoContent green "当前版本：v3.3.16"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
