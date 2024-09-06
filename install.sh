@@ -4213,7 +4213,7 @@ EOF
 }
 EOF
     elif [[ -z "$3" ]]; then
-        rm /etc/v2ray-agent/xray/conf/03_VLESS_WS_inbounds.json >/dev/null 2>&1
+        rm /etc/v2ray-agent/xray/conf/12_VLESS_SplitHTTP_inbounds.json >/dev/null 2>&1
     fi
     # trojan_grpc
     if echo "${selectCustomInstallType}" | grep -q ",2," || [[ "$1" == "all" ]]; then
@@ -4998,13 +4998,16 @@ EOF
     elif [[ "${type}" == "vlessSplitHTTP" ]]; then
 
         echoContent yellow " ---> 通用格式(VLESS+SplitHTTP+TLS)"
-        echoContent green "    vless://${id}@${add}:${port}?encryption=none&security=tls&type=splithttp&host=${currentHost}&alpn=h3&sni=${currentHost}&fp=chrome&path=${path}#${email}\n"
+        echoContent green "    vless://${id}@${add}:${port}?encryption=none&security=tls&type=splithttp&host=${currentHost}&alpn=h3,h2,http/1.1&sni=${currentHost}&fp=chrome&path=${path}#${email}\n"
 
         echoContent yellow " ---> 格式化明文(VLESS+WS+TLS)"
-        echoContent green "    协议类型:VLESS，地址:${add}，伪装域名/SNI:${currentHost}，端口:${port}，client-fingerprint: chrome,用户ID:${id}，安全:tls，传输方式:splithttp，alpn:h3,路径:${path}，账户名:${email}\n"
+        echoContent green "    协议类型:VLESS，地址:${add}，伪装域名/SNI:${currentHost}，端口:${port}，client-fingerprint: chrome,用户ID:${id}，安全:tls，传输方式:splithttp，alpn:h3,h2,http/1.1,路径:${path}，账户名:${email}\n"
 
+        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
+vless://${id}@${add}:${port}?encryption=none&security=tls&type=splithttp&host=${currentHost}&sni=${currentHost}&alpn=h3,h2,http/1.1&fp=chrome&path=${path}#${email}
+EOF
         echoContent yellow " ---> 二维码 VLESS(VLESS+SplitHTTP+TLS)"
-        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dsplithttp%26host%3D${currentHost}%26fp%3Dchrome%26sni%3D${currentHost}%26alpn%3Dh3%26path%3D${path}%23${email}"
+        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dsplithttp%26host%3D${currentHost}%26fp%3Dchrome%26sni%3D${currentHost}%26alpn%3Dh3%2Ch2%2Chttp/1.1%26path%3D${path}%23${email}"
     elif [[ "${type}" == "vlessgrpc" ]]; then
 
         echoContent yellow " ---> 通用格式(VLESS+gRPC+TLS)"
@@ -5941,7 +5944,8 @@ manageCDN() {
         if [[ -n "${setCDNDomain}" ]]; then
             echo >/etc/v2ray-agent/cdn
             echo "${setCDNDomain}" >"/etc/v2ray-agent/cdn"
-            echoContent green " ---> 修改CDN成功，重新查看用户管理或者订阅后生成新的节点内容"
+            echoContent green " ---> 修改CDN成功"
+            subscribe false false
         else
             echoContent red " ---> 不可以为空，请重新输入"
             manageCDN 1
@@ -6182,6 +6186,7 @@ addUser() {
     done
     reloadCore
     echoContent green " ---> 添加完成"
+    subscribe false
     manageAccount 1
 }
 # 移除用户
@@ -6281,6 +6286,7 @@ removeUser() {
         fi
         reloadCore
     fi
+    subscribe false
     manageAccount 1
 }
 # 更新脚本
@@ -8933,23 +8939,30 @@ subscribe() {
     installSubscribe
 
     readNginxSubscribe
+    local renewSalt=$1
+    local showStatus=$2
     if [[ "${coreInstallType}" == "1" || "${coreInstallType}" == "2" ]]; then
 
         echoContent skyBlue "-------------------------备注---------------------------------"
         echoContent yellow "# 查看订阅会重新生成本地账号的订阅"
-        echoContent yellow "# 添加账号或者修改账号需要重新查看订阅才会重新生成对外访问的订阅内容"
+        #        echoContent yellow "# 添加账号或者修改账号需要重新查看订阅才会重新生成对外访问的订阅内容"
         echoContent red "# 需要手动输入md5加密的salt值，如果不了解使用随机即可"
         echoContent yellow "# 不影响已添加的远程订阅的内容\n"
 
         if [[ -f "/etc/v2ray-agent/subscribe_local/subscribeSalt" && -n $(cat "/etc/v2ray-agent/subscribe_local/subscribeSalt") ]]; then
-            read -r -p "读取到上次安装设置的Salt，是否使用上次生成的Salt ？[y/n]:" historySaltStatus
-            if [[ "${historySaltStatus}" == "y" ]]; then
-                subscribeSalt=$(cat /etc/v2ray-agent/subscribe_local/subscribeSalt)
+            if [[ -z "${renewSalt}" ]]; then
+                read -r -p "读取到上次安装设置的Salt，是否使用上次生成的Salt ？[y/n]:" historySaltStatus
+                if [[ "${historySaltStatus}" == "y" ]]; then
+                    subscribeSalt=$(cat /etc/v2ray-agent/subscribe_local/subscribeSalt)
+                else
+                    read -r -p "请输入salt值, [回车]使用随机:" subscribeSalt
+                fi
             else
-                read -r -p "请输入salt值, [回车]使用随机:" subscribeSalt
+                subscribeSalt=$(cat /etc/v2ray-agent/subscribe_local/subscribeSalt)
             fi
         else
             read -r -p "请输入salt值, [回车]使用随机:" subscribeSalt
+            showStatus=
         fi
 
         if [[ -z "${subscribeSalt}" ]]; then
@@ -8967,7 +8980,11 @@ subscribe() {
         showAccounts >/dev/null
         if [[ -n $(ls /etc/v2ray-agent/subscribe_local/default/) ]]; then
             if [[ -f "/etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl" && -n $(cat "/etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl") ]]; then
-                read -r -p "读取到其他订阅，是否更新？[y/n]" updateOtherSubscribeStatus
+                if [[ -z "${renewSalt}" ]]; then
+                    read -r -p "读取到其他订阅，是否更新？[y/n]" updateOtherSubscribeStatus
+                else
+                    updateOtherSubscribeStatus=y
+                fi
             fi
             local subscribePortLocal="${subscribePort}"
             find /etc/v2ray-agent/subscribe_local/default/* | while read -r email; do
@@ -8996,55 +9013,60 @@ subscribe() {
                         currentDomain="${currentHost}:${subscribePort}"
                     fi
                 fi
-                echoContent skyBlue "\n----------默认订阅----------\n"
-                echoContent green "email:${email}\n"
-                echoContent yellow "url:${subscribeType}://${currentDomain}/s/default/${emailMd5}\n"
-                echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${subscribeType}://${currentDomain}/s/default/${emailMd5}\n"
-                if [[ "${release}" != "alpine" ]]; then
-                    echo "${subscribeType}://${currentDomain}/s/default/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
-                fi
-
-                # clashMeta
-                if [[ -f "/etc/v2ray-agent/subscribe_local/clashMeta/${email}" ]]; then
-
-                    cat "/etc/v2ray-agent/subscribe_local/clashMeta/${email}" >>"/etc/v2ray-agent/subscribe/clashMeta/${emailMd5}"
-
-                    sed -i '1i\proxies:' "/etc/v2ray-agent/subscribe/clashMeta/${emailMd5}"
-
-                    local clashProxyUrl="${subscribeType}://${currentDomain}/s/clashMeta/${emailMd5}"
-                    clashMetaConfig "${clashProxyUrl}" "${emailMd5}"
-                    echoContent skyBlue "\n----------clashMeta订阅----------\n"
-                    echoContent yellow "url:${subscribeType}://${currentDomain}/s/clashMetaProfiles/${emailMd5}\n"
-                    echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${subscribeType}://${currentDomain}/s/clashMetaProfiles/${emailMd5}\n"
+                if [[ -z "${showStatus}" ]]; then
+                    echoContent skyBlue "\n----------默认订阅----------\n"
+                    echoContent green "email:${email}\n"
+                    echoContent yellow "url:${subscribeType}://${currentDomain}/s/default/${emailMd5}\n"
+                    echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${subscribeType}://${currentDomain}/s/default/${emailMd5}\n"
                     if [[ "${release}" != "alpine" ]]; then
-                        echo "${subscribeType}://${currentDomain}/s/clashMetaProfiles/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
+                        echo "${subscribeType}://${currentDomain}/s/default/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
                     fi
 
+                    # clashMeta
+                    if [[ -f "/etc/v2ray-agent/subscribe_local/clashMeta/${email}" ]]; then
+
+                        cat "/etc/v2ray-agent/subscribe_local/clashMeta/${email}" >>"/etc/v2ray-agent/subscribe/clashMeta/${emailMd5}"
+
+                        sed -i '1i\proxies:' "/etc/v2ray-agent/subscribe/clashMeta/${emailMd5}"
+
+                        local clashProxyUrl="${subscribeType}://${currentDomain}/s/clashMeta/${emailMd5}"
+                        clashMetaConfig "${clashProxyUrl}" "${emailMd5}"
+                        echoContent skyBlue "\n----------clashMeta订阅----------\n"
+                        echoContent yellow "url:${subscribeType}://${currentDomain}/s/clashMetaProfiles/${emailMd5}\n"
+                        echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${subscribeType}://${currentDomain}/s/clashMetaProfiles/${emailMd5}\n"
+                        if [[ "${release}" != "alpine" ]]; then
+                            echo "${subscribeType}://${currentDomain}/s/clashMetaProfiles/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
+                        fi
+
+                    fi
+                    # sing-box
+                    if [[ -f "/etc/v2ray-agent/subscribe_local/sing-box/${email}" ]]; then
+                        cp "/etc/v2ray-agent/subscribe_local/sing-box/${email}" "/etc/v2ray-agent/subscribe/sing-box_profiles/${emailMd5}"
+
+                        echoContent skyBlue " ---> 下载 sing-box 通用配置文件"
+                        if [[ "${release}" == "alpine" ]]; then
+                            wget -O "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}" -q "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/documents/sing-box.json"
+                        else
+                            wget -O "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}" -q "${wgetShowProgressStatus}" "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/documents/sing-box.json"
+                        fi
+
+                        jq ".outbounds=$(jq ".outbounds|map(if has(\"outbounds\") then .outbounds += $(jq ".|map(.tag)" "/etc/v2ray-agent/subscribe_local/sing-box/${email}") else . end)" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}")" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}" >"/etc/v2ray-agent/subscribe/sing-box/${emailMd5}_tmp" && mv "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}_tmp" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}"
+                        jq ".outbounds += $(jq '.' "/etc/v2ray-agent/subscribe_local/sing-box/${email}")" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}" >"/etc/v2ray-agent/subscribe/sing-box/${emailMd5}_tmp" && mv "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}_tmp" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}"
+
+                        echoContent skyBlue "\n----------sing-box订阅----------\n"
+                        echoContent yellow "url:${subscribeType}://${currentDomain}/s/sing-box/${emailMd5}\n"
+                        echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${subscribeType}://${currentDomain}/s/sing-box/${emailMd5}\n"
+                        if [[ "${release}" != "alpine" ]]; then
+                            echo "${subscribeType}://${currentDomain}/s/sing-box/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
+                        fi
+
+                    fi
+
+                    echoContent skyBlue "--------------------------------------------------------------"
+                else
+                    echoContent green " ---> email:${email}，订阅已更新，请使用客户端重新拉取"
                 fi
-                # sing-box
-                if [[ -f "/etc/v2ray-agent/subscribe_local/sing-box/${email}" ]]; then
-                    cp "/etc/v2ray-agent/subscribe_local/sing-box/${email}" "/etc/v2ray-agent/subscribe/sing-box_profiles/${emailMd5}"
 
-                    echoContent skyBlue " ---> 下载 sing-box 通用配置文件"
-                    if [[ "${release}" == "alpine" ]]; then
-                        wget -O "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}" -q "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/documents/sing-box.json"
-                    else
-                        wget -O "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}" -q "${wgetShowProgressStatus}" "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/documents/sing-box.json"
-                    fi
-
-                    jq ".outbounds=$(jq ".outbounds|map(if has(\"outbounds\") then .outbounds += $(jq ".|map(.tag)" "/etc/v2ray-agent/subscribe_local/sing-box/${email}") else . end)" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}")" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}" >"/etc/v2ray-agent/subscribe/sing-box/${emailMd5}_tmp" && mv "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}_tmp" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}"
-                    jq ".outbounds += $(jq '.' "/etc/v2ray-agent/subscribe_local/sing-box/${email}")" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}" >"/etc/v2ray-agent/subscribe/sing-box/${emailMd5}_tmp" && mv "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}_tmp" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}"
-
-                    echoContent skyBlue "\n----------sing-box订阅----------\n"
-                    echoContent yellow "url:${subscribeType}://${currentDomain}/s/sing-box/${emailMd5}\n"
-                    echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${subscribeType}://${currentDomain}/s/sing-box/${emailMd5}\n"
-                    if [[ "${release}" != "alpine" ]]; then
-                        echo "${subscribeType}://${currentDomain}/s/sing-box/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
-                    fi
-
-                fi
-
-                echoContent skyBlue "--------------------------------------------------------------"
             done
         fi
     else
@@ -9603,7 +9625,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.3.16"
+    echoContent green "当前版本：v3.3.17"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
