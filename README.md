@@ -23,7 +23,7 @@
 
 > 以下均使用TLS，支持多种协议组合
 
-- VLESS(Reality、Vision(TCP)、WS、gRPC)
+- VLESS(Reality、Vision(TCP)、WS、gRPC、SplitHTTP)
 - VMess(TCP、WS、HTTPUpgrade)
 - Trojan(TCP、gRPC)
 - Hysteria2(sing-box)
