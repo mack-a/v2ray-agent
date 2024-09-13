@@ -2064,7 +2064,7 @@ updateSELinuxHTTPPortT() {
 # 操作Nginx
 handleNginx() {
 
-    if [[ -z $(pgrep -f "nginx") ]] && [[ "$1" == "start" ]]; then
+    if ! echo "${selectCustomInstallType}" | grep -qwE ",7,|,8,|,7,8," && [[ -z $(pgrep -f "nginx") ]] && [[ "$1" == "start" ]]; then
         if [[ "${release}" == "alpine" ]]; then
             rc-service nginx start 2>/etc/v2ray-agent/nginx_error.log
         else
@@ -5885,7 +5885,8 @@ unInstall() {
     rm -rf /etc/v2ray-agent
     rm -rf ${nginxConfigPath}alone.conf
     rm -rf ${nginxConfigPath}checkPortOpen.conf >/dev/null 2>&1
-    rm -rf ${nginxConfigPath}subscribe.conf >/dev/null 2>&1
+    unInstallSubscribe
+    #    rm -rf ${nginxConfigPath}subscribe.conf >/dev/null 2>&1
 
     if [[ -d "${nginxStaticPath}" && -f "${nginxStaticPath}/check" ]]; then
         rm -rf "${nginxStaticPath}*"
@@ -8047,6 +8048,7 @@ customSingBoxInstall() {
         handleNginx start
         # 生成账号
         checkGFWStatue 8
+        unInstallSubscribe
         showAccounts 9
     else
         echoContent red " ---> 输入不合法"
@@ -8146,6 +8148,7 @@ customXrayInstall() {
         handleXray start
         # 生成账号
         checkGFWStatue 11
+        unInstallSubscribe
         showAccounts 12
     else
         echoContent red " ---> 输入不合法"
@@ -8224,6 +8227,7 @@ xrayCoreInstall() {
     handleNginx start
     # 生成账号
     checkGFWStatue 11
+    unInstallSubscribe
     showAccounts 12
 }
 
@@ -8263,9 +8267,8 @@ singBoxInstall() {
     handleSingBox stop
     sleep 2
     handleSingBox start
-
+    unInstallSubscribe
     # 生成账号
-    #    checkGFWStatue 12
     showAccounts 9
 }
 
@@ -9395,6 +9398,7 @@ xrayCoreRealityInstall() {
     sleep 2
     # 启动
     handleXray start
+    unInstallSubscribe
     # 生成账号
     showAccounts 8
 }
@@ -9625,7 +9629,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.3.17"
+    echoContent green "当前版本：v3.3.18"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
