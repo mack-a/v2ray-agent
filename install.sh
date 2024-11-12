@@ -489,8 +489,6 @@ readInstallProtocolType() {
                 xrayVLESSRealityServerName=$(jq -r .inbounds[0].streamSettings.realitySettings.serverNames[0] "${row}.json")
                 realityServerName=${xrayVLESSRealityServerName}
                 xrayVLESSRealityPort=$(jq -r .inbounds[0].port "${row}.json")
-                #                xrayVLESSRealityPrivateKey=$(jq -r .inbounds[0].streamSettings.realitySettings.privateKey "${row}.json")
-                #                xrayVLESSRealityPublicKey=$(jq -r .inbounds[0].streamSettings.realitySettings.publicKey "${row}.json")
                 currentRealityPublicKey=$(jq -r .inbounds[0].streamSettings.realitySettings.publicKey "${row}.json")
                 currentRealityPrivateKey=$(jq -r .inbounds[0].streamSettings.realitySettings.privateKey "${row}.json")
 
@@ -498,6 +496,8 @@ readInstallProtocolType() {
                 frontingTypeReality=07_VLESS_vision_reality_inbounds
                 singBoxVLESSRealityVisionPort=$(jq -r .inbounds[0].listen_port "${row}.json")
                 singBoxVLESSRealityVisionServerName=$(jq -r .inbounds[0].tls.server_name "${row}.json")
+                realityDomainPort=$(jq -r .inbounds[0].tls.reality.handshake.server_port "${row}.json")
+
                 realityServerName=${singBoxVLESSRealityVisionServerName}
                 if [[ -f "${configPath}reality_key" ]]; then
                     singBoxVLESSRealityPublicKey=$(grep "publicKey" <"${configPath}reality_key" | awk -F "[:]" '{print $2}')
@@ -2897,8 +2897,9 @@ handleSingBox() {
             echoContent green " ---> sing-box启动成功"
         else
             echoContent red "sing-box启动失败"
-            echoContent red "请手动执行【/etc/v2ray-agent/sing-box/sing-box merge config.json -C /etc/v2ray-agent/sing-box/conf/config/ -D /etc/v2ray-agent/sing-box/conf/】，查看错误日志"
-            echoContent red "如上面命令没有错误，请手动执行【/etc/v2ray-agent/sing-box/sing-box run -c /etc/v2ray-agent/sing-box/conf/config.json】，查看错误日志"
+            echoContent yellow "请手动执行【 /etc/v2ray-agent/sing-box/sing-box merge config.json -C /etc/v2ray-agent/sing-box/conf/config/ -D /etc/v2ray-agent/sing-box/conf/ 】，查看错误日志"
+            echo
+            echoContent yellow "如上面命令没有错误，请手动执行【 /etc/v2ray-agent/sing-box/sing-box run -c /etc/v2ray-agent/sing-box/conf/config.json 】，查看错误日志"
             exit 0
         fi
     elif [[ "$1" == "stop" ]]; then
@@ -3412,28 +3413,42 @@ initTuicPort() {
 
 # 初始化tuic的协议
 initTuicProtocol() {
-    echoContent skyBlue "\n请选择算法类型"
-    echoContent red "=============================================================="
-    echoContent yellow "1.bbr(默认)"
-    echoContent yellow "2.cubic"
-    echoContent yellow "3.new_reno"
-    echoContent red "=============================================================="
-    read -r -p "请选择:" selectTuicAlgorithm
-    case ${selectTuicAlgorithm} in
-    1)
-        tuicAlgorithm="bbr"
-        ;;
-    2)
-        tuicAlgorithm="cubic"
-        ;;
-    3)
-        tuicAlgorithm="new_reno"
-        ;;
-    *)
-        tuicAlgorithm="bbr"
-        ;;
-    esac
-    echoContent yellow "\n ---> 算法: ${tuicAlgorithm}\n"
+    if [[ -n "${tuicAlgorithm}" && -z "${lastInstallationConfig}" ]]; then
+        read -r -p "读取到上次使用的端口，是否使用 ？[y/n]:" historyTuicAlgorithm
+        if [[ "${historyTuicAlgorithm}" != "y" ]]; then
+            tuicAlgorithm=
+        else
+            echoContent yellow "\n ---> 算法: ${tuicAlgorithm}\n"
+        fi
+    elif [[ -n "${tuicAlgorithm}" && -n "${lastInstallationConfig}" ]]; then
+        echoContent yellow "\n ---> 算法: ${tuicAlgorithm}\n"
+    fi
+
+    if [[ -z "${tuicAlgorithm}" ]]; then
+
+        echoContent skyBlue "\n请选择算法类型"
+        echoContent red "=============================================================="
+        echoContent yellow "1.bbr(默认)"
+        echoContent yellow "2.cubic"
+        echoContent yellow "3.new_reno"
+        echoContent red "=============================================================="
+        read -r -p "请选择:" selectTuicAlgorithm
+        case ${selectTuicAlgorithm} in
+        1)
+            tuicAlgorithm="bbr"
+            ;;
+        2)
+            tuicAlgorithm="cubic"
+            ;;
+        3)
+            tuicAlgorithm="new_reno"
+            ;;
+        *)
+            tuicAlgorithm="bbr"
+            ;;
+        esac
+        echoContent yellow "\n ---> 算法: ${tuicAlgorithm}\n"
+    fi
 }
 
 # 初始化tuic配置
@@ -4465,13 +4480,18 @@ EOF
         rm /etc/v2ray-agent/xray/conf/08_VLESS_vision_gRPC_inbounds.json >/dev/null 2>&1
     fi
     installSniffing
-    removeXrayOutbound IPv4_out
-    removeXrayOutbound IPv6_out
-    removeXrayOutbound socks5_outbound
-    removeXrayOutbound blackhole_out
-    removeXrayOutbound wireguard_out_IPv6
-    removeXrayOutbound wireguard_out_IPv4
-    addXrayOutbound z_direct_outbound
+    if [[ -z "$3" ]]; then
+        removeXrayOutbound wireguard_out_IPv4_route
+        removeXrayOutbound wireguard_out_IPv6_route
+        removeXrayOutbound wireguard_outbound
+        removeXrayOutbound IPv4_out
+        removeXrayOutbound IPv6_out
+        removeXrayOutbound socks5_outbound
+        removeXrayOutbound blackhole_out
+        removeXrayOutbound wireguard_out_IPv6
+        removeXrayOutbound wireguard_out_IPv4
+        addXrayOutbound z_direct_outbound
+    fi
 }
 
 # 初始化TCP Brutal
@@ -4905,17 +4925,23 @@ EOF
     elif [[ -z "$3" ]]; then
         rm /etc/v2ray-agent/sing-box/conf/config/11_VMess_HTTPUpgrade_inbounds.json >/dev/null 2>&1
     fi
-    removeSingBoxConfig wireguard_out_IPv4
-    removeSingBoxConfig wireguard_out_IPv6
-    removeSingBoxConfig IPv4_out
-    removeSingBoxConfig IPv6_out
-    removeSingBoxConfig IPv6_route
-    removeSingBoxConfig block
-    removeSingBoxConfig cn_block_outbound
-    removeSingBoxConfig cn_block_route
-    removeSingBoxConfig 01_direct_outbound
-    removeSingBoxConfig block_domain_outbound
-    removeSingBoxConfig dns
+    if [[ -z "$3" ]]; then
+        removeSingBoxConfig wireguard_out_IPv4
+        removeSingBoxConfig wireguard_out_IPv6
+        removeSingBoxConfig wireguard_out_IPv4_route
+        removeSingBoxConfig wireguard_out_IPv6_route
+        removeSingBoxConfig wireguard_outbound
+
+        removeSingBoxConfig IPv4_out
+        removeSingBoxConfig IPv6_out
+        removeSingBoxConfig IPv6_route
+        removeSingBoxConfig block
+        removeSingBoxConfig cn_block_outbound
+        removeSingBoxConfig cn_block_route
+        removeSingBoxConfig 01_direct_outbound
+        removeSingBoxConfig block_domain_outbound
+        removeSingBoxConfig dns
+    fi
 }
 # 初始化 sing-box订阅配置
 initSubscribeLocalConfig() {
@@ -5945,7 +5971,7 @@ manageCDN() {
     echoContent skyBlue "\n进度 $1/1 : CDN节点管理"
     local setCDNDomain=
 
-    if echo "${currentInstallProtocolType}" | grep -qE ",1,|,2,|,3,|,5,"; then
+    if echo "${currentInstallProtocolType}" | grep -qE ",1,|,2,|,3,|,5,|,11,"; then
         echoContent red "=============================================================="
         echoContent yellow "# 注意事项"
         echoContent yellow "\n教程地址:"
@@ -5995,7 +6021,7 @@ manageCDN() {
     else
         echoContent yellow "\n教程地址:"
         echoContent skyBlue "https://www.v2ray-agent.com/archives/cloudflarezi-xuan-ip\n"
-        echoContent red " ---> 未检测到可以使用的协议，仅支持ws或者grpc相关的协议"
+        echoContent red " ---> 未检测到可以使用的协议，仅支持ws、grpc、HTTPUpgrade相关的协议"
     fi
 }
 # 自定义uuid
@@ -8069,6 +8095,7 @@ customSingBoxInstall() {
     fi
 
     if [[ "${selectCustomInstallType//,/}" =~ ^[0-9]+$ ]]; then
+        unInstallSubscribe
         readLastInstallationConfig
         totalProgress=9
         installTools 1
@@ -8090,7 +8117,6 @@ customSingBoxInstall() {
         handleNginx start
         # 生成账号
         checkGFWStatue 8
-        unInstallSubscribe
         showAccounts 9
     else
         echoContent red " ---> 输入不合法"
@@ -8191,7 +8217,6 @@ customXrayInstall() {
         handleXray start
         # 生成账号
         checkGFWStatue 11
-        unInstallSubscribe
         showAccounts 12
     else
         echoContent red " ---> 输入不合法"
@@ -8271,7 +8296,6 @@ xrayCoreInstall() {
     handleNginx start
     # 生成账号
     checkGFWStatue 11
-    unInstallSubscribe
     showAccounts 12
 }
 
@@ -9295,12 +9319,11 @@ initRealityClientServersName() {
         read -r -p "读取到上次安装设置的Reality域名，是否使用？[y/n]:" realityServerNameStatus
         if [[ "${realityServerNameStatus}" != "y" ]]; then
             realityServerName=
+            realityDomainPort=
         fi
-    elif [[ -z "${lastInstallationConfig}" ]]; then
+    elif [[ -n "${realityServerName}" && -z "${lastInstallationConfig}" ]]; then
         realityServerName=
-    fi
-    if [[ -n "${realityServerName}" ]] && [[ "${realityServerName}" != "${domain}" ]]; then
-        realityDomainPort=443
+        realityDomainPort=
     fi
 
     if [[ -z "${realityServerName}" ]]; then
@@ -9456,7 +9479,7 @@ xrayCoreRealityInstall() {
     sleep 2
     # 启动
     handleXray start
-    unInstallSubscribe
+    #    unInstallSubscribe
     # 生成账号
     showAccounts 8
 }
@@ -9687,7 +9710,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.3.19"
+    echoContent green "当前版本：v3.3.20"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
