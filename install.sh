@@ -2696,7 +2696,7 @@ AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
 ExecStart=/etc/v2ray-agent/hysteria/hysteria server -c /etc/v2ray-agent/hysteria/conf/config.json --log-level debug
 Restart=on-failure
 RestartSec=10
-LimitNPROC=10000
+LimitNPROC=infinity
 LimitNOFILE=infinity
 
 [Install]
@@ -2750,6 +2750,8 @@ installSingBoxService() {
         touch /etc/systemd/system/sing-box.service
         cat <<EOF >/etc/systemd/system/sing-box.service
 [Unit]
+Description=Sing-Box Service
+Documentation=https://sing-box.sagernet.org
 After=network.target nss-lookup.target
 
 [Service]
@@ -2761,7 +2763,7 @@ ExecStart=${execStart}
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=10
-LimitNPROC=512
+LimitNPROC=infinity
 LimitNOFILE=infinity
 
 [Install]
@@ -2793,7 +2795,7 @@ User=root
 ExecStart=${execStart}
 Restart=on-failure
 RestartPreventExitStatus=23
-LimitNPROC=10000
+LimitNPROC=infinity
 LimitNOFILE=infinity
 [Install]
 WantedBy=multi-user.target
@@ -9714,7 +9716,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.3.23"
+    echoContent green "当前版本：v3.3.24"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
