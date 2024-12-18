@@ -490,7 +490,7 @@ readInstallProtocolType() {
                 realityServerName=${xrayVLESSRealityServerName}
                 xrayVLESSRealityPort=$(jq -r .inbounds[0].port "${row}.json")
 
-                realityDomainPort=$(jq -r .inbounds[0].streamSettings.realitySettings.dest "${row}.json"|awk -F '[:]' '{print $2}')
+                realityDomainPort=$(jq -r .inbounds[0].streamSettings.realitySettings.dest "${row}.json" | awk -F '[:]' '{print $2}')
 
                 currentRealityPublicKey=$(jq -r .inbounds[0].streamSettings.realitySettings.publicKey "${row}.json")
                 currentRealityPrivateKey=$(jq -r .inbounds[0].streamSettings.realitySettings.privateKey "${row}.json")
@@ -6621,7 +6621,10 @@ ipv6Routing() {
 
                 removeSingBoxConfig IPv6_route
 
+                removeSingBoxConfig 01_direct_outbound
+
                 addSingBoxOutbound IPv6_out
+
             fi
 
             echoContent green " ---> IPv6全局出站设置完毕"
@@ -7140,10 +7143,9 @@ warpRoutingReg() {
 
             if [[ -n "${singBoxConfigPath}" ]]; then
 
-                removeSingBoxConfig direct
-
                 removeSingBoxConfig IPv4_out
                 removeSingBoxConfig IPv6_out
+                removeSingBoxConfig 01_direct_outbound
 
                 # 删除所有分流规则
                 removeSingBoxConfig wireguard_out_IPv4_route
@@ -7409,6 +7411,7 @@ setSocks5OutboundRoutingAll() {
             removeSingBoxConfig wireguard_outbound
 
             removeSingBoxConfig socks5_outbound_route
+            removeSingBoxConfig 01_direct_outbound
         fi
 
         echoContent green " ---> Socks5全局出站设置完毕"
@@ -9716,7 +9719,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.3.24"
+    echoContent green "当前版本：v3.3.25"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
