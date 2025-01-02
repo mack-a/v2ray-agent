@@ -81,7 +81,11 @@
       "type": "tun",
       "tag": "tun-in",
       "stack": "system",
-      "inet4_address": "172.19.0.1/30",
+      "address": [
+        "172.16.0.1/30",
+        "fd00::1/126"
+      ],
+      "mtu": 1492,
       "auto_route": true,
       "strict_route": true,
       "sniff": true,
