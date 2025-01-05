@@ -9191,7 +9191,7 @@ updateRemoteSubscribe() {
         fi
         local clashMetaProxies=
 
-        clashMetaProxies=$(curl -s -4 "${subscribeType}://${remoteUrl}/s/clashMeta/${emailMD5}" | sed '/proxies:/d' | sed "s/\"${email}/\"${email}_${serverAlias}/g")
+        clashMetaProxies=$(curl -s "${subscribeType}://${remoteUrl}/s/clashMeta/${emailMD5}" | sed '/proxies:/d' | sed "s/\"${email}/\"${email}_${serverAlias}/g")
 
         if ! echo "${clashMetaProxies}" | grep -q "nginx" && [[ -n "${clashMetaProxies}" ]]; then
             echo "${clashMetaProxies}" >>"/etc/v2ray-agent/subscribe/clashMeta/${emailMD5}"
@@ -9201,7 +9201,7 @@ updateRemoteSubscribe() {
         fi
 
         local default=
-        default=$(curl -s -4 "${subscribeType}://${remoteUrl}/s/default/${emailMD5}")
+        default=$(curl -s "${subscribeType}://${remoteUrl}/s/default/${emailMD5}")
 
         if ! echo "${default}" | grep -q "nginx" && [[ -n "${default}" ]]; then
             default=$(echo "${default}" | base64 -d | sed "s/#${email}/#${email}_${serverAlias}/g")
@@ -9213,7 +9213,7 @@ updateRemoteSubscribe() {
         fi
 
         local singBoxSubscribe=
-        singBoxSubscribe=$(curl -s -4 "${subscribeType}://${remoteUrl}/s/sing-box_profiles/${emailMD5}")
+        singBoxSubscribe=$(curl -s "${subscribeType}://${remoteUrl}/s/sing-box_profiles/${emailMD5}")
 
         if ! echo "${singBoxSubscribe}" | grep -q "nginx" && [[ -n "${singBoxSubscribe}" ]]; then
             singBoxSubscribe=${singBoxSubscribe//tag\": \"${email}/tag\": \"${email}_${serverAlias}}
@@ -9738,7 +9738,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.3.27"
+    echoContent green "当前版本：v3.3.28"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
