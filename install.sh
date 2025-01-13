@@ -419,7 +419,7 @@ readInstallProtocolType() {
     xrayVLESSRealityXHTTPort=
     xrayVLESSRealityXHTTPServerName=
 
-#    currentRealityXHTTPPrivateKey=
+    #    currentRealityXHTTPPrivateKey=
     currentRealityXHTTPPublicKey=
 
     currentRealityPrivateKey=
@@ -461,7 +461,7 @@ readInstallProtocolType() {
             xrayVLESSRealityXHTTPServerName=$(jq -r .inbounds[0].streamSettings.realitySettings.serverNames[0] "${row}.json")
 
             currentRealityXHTTPPublicKey=$(jq -r .inbounds[0].streamSettings.realitySettings.publicKey "${row}.json")
-#            currentRealityXHTTPPrivateKey=$(jq -r .inbounds[0].streamSettings.realitySettings.privateKey "${row}.json")
+            #            currentRealityXHTTPPrivateKey=$(jq -r .inbounds[0].streamSettings.realitySettings.privateKey "${row}.json")
 
             #            if [[ "${coreInstallType}" == "2" ]]; then
             #                frontingType=03_VLESS_WS_inbounds
@@ -2136,7 +2136,8 @@ handleNginx() {
             systemctl stop nginx
         fi
         sleep 0.5
-        if [[ -n $(pgrep -f "nginx") ]]; then
+
+        if [[ -z ${btDomain} && -n $(pgrep -f "nginx") ]]; then
             pgrep -f "nginx" | xargs kill -9
         fi
         echoContent green " ---> Nginx关闭成功"
@@ -9737,7 +9738,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.3.30"
+    echoContent green "当前版本：v3.3.31"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
