@@ -3432,7 +3432,7 @@ initTuicPort() {
 # 初始化tuic的协议
 initTuicProtocol() {
     if [[ -n "${tuicAlgorithm}" && -z "${lastInstallationConfig}" ]]; then
-        read -r -p "读取到上次使用的端口，是否使用 ？[y/n]:" historyTuicAlgorithm
+        read -r -p "读取到上次使用的算法，是否使用 ？[y/n]:" historyTuicAlgorithm
         if [[ "${historyTuicAlgorithm}" != "y" ]]; then
             tuicAlgorithm=
         else
