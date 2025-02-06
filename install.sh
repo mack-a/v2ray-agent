@@ -507,6 +507,7 @@ readInstallProtocolType() {
 
                 currentRealityPublicKey=$(jq -r .inbounds[0].streamSettings.realitySettings.publicKey "${row}.json")
                 currentRealityPrivateKey=$(jq -r .inbounds[0].streamSettings.realitySettings.privateKey "${row}.json")
+                frontingTypeReality=07_VLESS_vision_reality_inbounds
 
             elif [[ "${coreInstallType}" == "2" ]]; then
                 frontingTypeReality=07_VLESS_vision_reality_inbounds
@@ -3879,25 +3880,30 @@ removeSingBoxConfig() {
 }
 
 # 初始化wireguard出站信息
-addSingBoxWireGuardOut() {
-    readConfigWarpReg
-    cat <<EOF >"${singBoxConfigPath}wireguard_outbound.json"
-{
-     "outbounds": [
+addSingBoxWireGuardEndpoints() {
+    local type=$1
 
+    readConfigWarpReg
+
+    cat <<EOF >"${singBoxConfigPath}wireguard_endpoints_${type}.json"
+{
+     "endpoints": [
         {
             "type": "wireguard",
-            "tag": "wireguard_out",
-            "server": "162.159.192.1",
-            "server_port": 2408,
-            "local_address": [
-                "172.16.0.2/32",
-                "${addressWarpReg}/128"
+            "tag": "wireguard_endpoints_${type}",
+            "address": [
+                "${address}"
             ],
             "private_key": "${secretKeyWarpReg}",
-            "peer_public_key": "${publicKeyWarpReg}",
-            "reserved":${reservedWarpReg},
-            "mtu": 1280
+            "peers": [
+                {
+                  "address": "162.159.192.1",
+                  "port": 2408,
+                  "public_key": "${publicKeyWarpReg}",
+                  "reserved":${reservedWarpReg},
+                  "allowed_ips": ["0.0.0.0/0","::/0"]
+                }
+            ]
         }
     ]
 }
@@ -4948,8 +4954,8 @@ EOF
         rm /etc/v2ray-agent/sing-box/conf/config/11_VMess_HTTPUpgrade_inbounds.json >/dev/null 2>&1
     fi
     if [[ -z "$3" ]]; then
-        removeSingBoxConfig wireguard_out_IPv4
-        removeSingBoxConfig wireguard_out_IPv6
+        # removeSingBoxConfig wireguard_out_IPv4
+        # removeSingBoxConfig wireguard_out_IPv6
         removeSingBoxConfig wireguard_out_IPv4_route
         removeSingBoxConfig wireguard_out_IPv6_route
         removeSingBoxConfig wireguard_outbound
@@ -6377,8 +6383,8 @@ removeUser() {
             echo "${vmessHTTPUpgradeResult}" | jq . >${configPath}11_VMess_HTTPUpgrade_inbounds.json
         fi
         reloadCore
+        subscribe false
     fi
-    subscribe false
     manageAccount 1
 }
 # 更新脚本
@@ -6628,10 +6634,10 @@ ipv6Routing() {
             if [[ -n "${singBoxConfigPath}" ]]; then
 
                 removeSingBoxConfig IPv4_out
-                removeSingBoxConfig wireguard_out_IPv4
+                # removeSingBoxConfig wireguard_out_IPv4
                 removeSingBoxConfig wireguard_out_IPv4_route
 
-                removeSingBoxConfig wireguard_out_IPv6
+                # removeSingBoxConfig wireguard_out_IPv6
                 removeSingBoxConfig wireguard_out_IPv6_route
 
                 removeSingBoxConfig wireguard_outbound
@@ -7047,11 +7053,14 @@ addWireGuardRoute() {
     if [[ -n "${singBoxConfigPath}" ]]; then
 
         # rule
-        addSingBoxRouteRule "wireguard_out_${type}" "${domainList}" "wireguard_out_${type}_route"
-        addSingBoxOutbound "wireguard_out_${type}" "wireguard_out"
-        addSingBoxOutbound "01_direct_outbound"
+        addSingBoxRouteRule "wireguard_endpoints_${type}" "${domainList}" "wireguard_endpoints_${type}_route"
+        # addSingBoxOutbound "wireguard_out_${type}" "wireguard_out"
+        if [[ -n "${domainList}" ]]; then
+            addSingBoxOutbound "01_direct_outbound"
+        fi
+
         # outbound
-        addSingBoxWireGuardOut
+        addSingBoxWireGuardEndpoints "${type}"
     fi
 }
 
@@ -7167,21 +7176,23 @@ warpRoutingReg() {
                 removeSingBoxConfig 01_direct_outbound
 
                 # 删除所有分流规则
-                removeSingBoxConfig wireguard_out_IPv4_route
-                removeSingBoxConfig wireguard_out_IPv6_route
+                removeSingBoxConfig wireguard_endpoints_IPv4_route
+                removeSingBoxConfig wireguard_endpoints_IPv6_route
 
                 removeSingBoxConfig IPv6_route
                 removeSingBoxConfig socks5_inbound_route
 
+                addSingBoxWireGuardEndpoints "${type}"
+                addWireGuardRoute "${type}" outboundTag ""
                 if [[ "${type}" == "IPv4" ]]; then
-                    removeSingBoxConfig wireguard_out_IPv6
+                    removeSingBoxConfig wireguard_endpoints_IPv6
                 else
-                    removeSingBoxConfig wireguard_out_IPv4
+                    removeSingBoxConfig wireguard_endpoints_IPv4
                 fi
 
                 # outbound
-                addSingBoxOutbound "wireguard_out_${type}" "wireguard_out"
-                addSingBoxWireGuardOut
+                # addSingBoxOutbound "wireguard_out_${type}" "wireguard_out"
+
             fi
 
             echoContent green " ---> WARP全局出站设置完毕"
@@ -7199,11 +7210,10 @@ warpRoutingReg() {
         fi
 
         if [[ -n "${singBoxConfigPath}" ]]; then
-            removeSingBoxConfig "wireguard_out_${type}_route"
+            removeSingBoxConfig "wireguard_endpoints_${type}_route"
 
-            removeSingBoxConfig "wireguard_out_${type}"
+            removeSingBoxConfig "wireguard_endpoints_${type}"
             addSingBoxOutbound "01_direct_outbound"
-
         fi
 
         echoContent green " ---> 卸载WARP ${type}分流完毕"
@@ -7420,11 +7430,11 @@ setSocks5OutboundRoutingAll() {
         if [[ -n "${singBoxConfigPath}" ]]; then
 
             removeSingBoxConfig IPv4_out
-            removeSingBoxConfig wireguard_out_IPv4
+            # removeSingBoxConfig wireguard_out_IPv4
             removeSingBoxConfig wireguard_out_IPv4_route
 
             removeSingBoxConfig IPv6_out
-            removeSingBoxConfig wireguard_out_IPv6
+            # removeSingBoxConfig wireguard_out_IPv6
             removeSingBoxConfig wireguard_out_IPv6_route
 
             removeSingBoxConfig wireguard_outbound
@@ -9738,7 +9748,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.3.31"
+    echoContent green "当前版本：v3.4.1"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
