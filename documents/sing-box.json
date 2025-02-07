@@ -206,25 +206,8 @@
       "default": "direct"
     },
     {
-      "type": "selector",
-      "tag": "reject",
-      "outbounds": [
-        "block",
-        "direct"
-      ],
-      "default": "block"
-    },
-    {
       "tag": "direct",
       "type": "direct"
-    },
-    {
-      "tag": "block",
-      "type": "block"
-    },
-    {
-      "tag": "dns",
-      "type": "dns"
     }
   ],
   "route": {
@@ -358,16 +341,19 @@
     ],
     "rules": [
       {
+        "action": "sniff"
+      },
+      {
+        "protocol": "dns",
+        "action": "hijack-dns"
+      },
+      {
         "clash_mode": "global",
         "outbound": "手动切换"
       },
       {
         "clash_mode": "direct",
         "outbound": "本地直连"
-      },
-      {
-        "protocol": "dns",
-        "outbound": "dns"
       },
       {
         "type": "logical",
@@ -389,7 +375,9 @@
             "protocol": "stun"
           }
         ],
-        "outbound": "block"
+        "action": "reject",
+        "method": "default",
+        "no_drop": false
       },
       {
         "rule_set": [
@@ -411,7 +399,9 @@
       },
       {
         "rule_set": "geosite-openai@ads",
-        "outbound": "block"
+        "action": "reject",
+        "method": "default",
+        "no_drop": false
       },
       {
         "rule_set": "geosite-openai",
