@@ -8653,66 +8653,88 @@ clashMetaConfig() {
     local id=$2
     cat <<EOF >"/etc/v2ray-agent/subscribe/clashMetaProfiles/${id}"
 mixed-port: 7890
-unified-delay: false
-geodata-mode: true
-tcp-concurrent: false
-find-process-mode: strict
-global-client-fingerprint: chrome
-
 allow-lan: true
+bind-address: "*"
+lan-allowed-ips:
+  - 0.0.0.0/0
+  - ::/0
+find-process-mode: strict
 mode: rule
-log-level: info
-ipv6: true
-
-external-controller: 127.0.0.1:9090
 
 geox-url:
-  geoip: "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat"
-  geosite: "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat"
-  mmdb: "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/country.mmdb"
+  geoip: "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat"
+  geosite: "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat"
+  mmdb: "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.metadb"
+
+geo-auto-update: true
+geo-update-interval: 24
+
+log-level: debug
+
+ipv6: true
+
+external-controller: 0.0.0.0:9093
+external-controller-tls: 0.0.0.0:9443
+
+external-controller-cors:
+  allow-private-network: true
+
+global-client-fingerprint: chrome
 
 profile:
   store-selected: true
   store-fake-ip: true
 
 sniffer:
-  enable: false
+  enable: true
+  override-destination: false
   sniff:
+    QUIC:
+      ports: [ 443 ]
     TLS:
-      ports: [443]
+      ports: [ 443 ]
     HTTP:
       ports: [80]
-      override-destination: true
 
-tun:
-  enable: true
-  stack: system
-  dns-hijack:
-    - 'any:53'
-  auto-route: true
-  auto-detect-interface: true
 
 dns:
   enable: true
-  listen: 0.0.0.0:1053
+  prefer-h3: false
+  listen: 0.0.0.0:53
   ipv6: true
-  enhanced-mode: fake-ip
-  fake-ip-range: 28.0.0.1/8
-  fake-ip-filter:
-    - '*'
-    - '+.lan'
   default-nameserver:
-    - 223.5.5.5
+    - 114.114.114.114
+    - 119.29.29.29
+    - 8.8.8.8
+    - tls://1.12.12.12:853
+    - tls://223.5.5.5:853
+    - system
+  enhanced-mode: fake-ip
+
+  fake-ip-range: 198.18.0.1/16
+
+  fake-ip-filter:
+    - '*.lan'
+    - "+.local"
+    - "localhost.ptlogin2.qq.com"
+  use-hosts: true
   nameserver:
-    - 'tls://8.8.4.4#DNS_Proxy'
-    - 'tls://1.0.0.1#DNS_Proxy'
-  proxy-server-nameserver:
+    - 114.114.114.114
+    - 8.8.8.8
+    - tls://223.5.5.5:853
+    - https://doh.pub/dns-query
     - https://dns.alidns.com/dns-query#h3=true
+    - https://mozilla.cloudflare-dns.com/dns-query#DNS&h3=true
+
+  proxy-server-nameserver:
+    - 'tls://8.8.4.4'
+    - 'tls://1.0.0.1'
+
   nameserver-policy:
     "geosite:cn,private":
-      - 223.5.5.5
-      - 114.114.114.114
-      - https://dns.alidns.com/dns-query#h3=true
+      - https://doh.pub/dns-query
+      - https://dns.alidns.com/dns-query
+    "geosite:category-ads-all": rcode://success
 
 proxy-providers:
   ${subscribeSalt}_provider:
@@ -8720,9 +8742,10 @@ proxy-providers:
     path: ./${subscribeSalt}_provider.yaml
     url: ${url}
     interval: 3600
+    proxy: DIRECT
     health-check:
-      enable: false
-      url: http://www.gstatic.com/generate_204
+      enable: true
+      url: https://cp.cloudflare.com/generate_204
       interval: 300
 
 proxy-groups:
@@ -9746,7 +9769,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.4.3"
+    echoContent green "当前版本：v3.4.4"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
