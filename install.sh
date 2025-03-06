@@ -4357,32 +4357,32 @@ EOF
         rm /etc/v2ray-agent/xray/conf/05_VMess_WS_inbounds.json >/dev/null 2>&1
     fi
     # VLESS_gRPC
-    #    if echo "${selectCustomInstallType}" | grep -q ",5," || [[ "$1" == "all" ]]; then
-    #        cat <<EOF >/etc/v2ray-agent/xray/conf/06_VLESS_gRPC_inbounds.json
-    #{
-    #    "inbounds":[
-    #    {
-    #        "port": 31301,
-    #        "listen": "127.0.0.1",
-    #        "protocol": "vless",
-    #        "tag":"VLESSGRPC",
-    #        "settings": {
-    #            "clients": $(initXrayClients 5),
-    #            "decryption": "none"
-    #        },
-    #        "streamSettings": {
-    #            "network": "grpc",
-    #            "grpcSettings": {
-    #                "serviceName": "${customPath}grpc"
-    #            }
-    #        }
-    #    }
-    #]
-    #}
-    #EOF
-    #    elif [[ -z "$3" ]]; then
-    #        rm /etc/v2ray-agent/xray/conf/06_VLESS_gRPC_inbounds.json >/dev/null 2>&1
-    #    fi
+    if echo "${selectCustomInstallType}" | grep -q ",5," || [[ "$1" == "all" ]]; then
+        cat <<EOF >/etc/v2ray-agent/xray/conf/06_VLESS_gRPC_inbounds.json
+{
+    "inbounds":[
+        {
+            "port": 31301,
+            "listen": "127.0.0.1",
+            "protocol": "vless",
+            "tag":"VLESSGRPC",
+            "settings": {
+                "clients": $(initXrayClients 5),
+                "decryption": "none"
+            },
+            "streamSettings": {
+                "network": "grpc",
+                "grpcSettings": {
+                    "serviceName": "${customPath}grpc"
+                }
+            }
+        }
+    ]
+}
+EOF
+    elif [[ -z "$3" ]]; then
+        rm /etc/v2ray-agent/xray/conf/06_VLESS_gRPC_inbounds.json >/dev/null 2>&1
+    fi
 
     # VLESS Vision
     if echo "${selectCustomInstallType}" | grep -q ",0," || [[ "$1" == "all" ]]; then
@@ -8168,7 +8168,7 @@ customXrayInstall() {
     #    echoContent yellow "2.Trojan+TLS+gRPC[仅CDN推荐]"
     echoContent yellow "3.VMess+TLS+WS[仅CDN推荐]"
     echoContent yellow "4.Trojan+TLS[不推荐]"
-    #    echoContent yellow "5.VLESS+TLS+gRPC[仅CDN推荐]"
+    echoContent yellow "5.VLESS+TLS+gRPC[仅CDN推荐]"
     echoContent yellow "7.VLESS+Reality+uTLS+Vision[推荐]"
     # echoContent yellow "8.VLESS+Reality+gRPC"
     echoContent yellow "12.VLESS+XHTTP+TLS"
@@ -9770,7 +9770,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.4.5"
+    echoContent green "当前版本：v3.4.6"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
