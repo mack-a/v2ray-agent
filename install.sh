@@ -8697,7 +8697,7 @@ sniffer:
 dns:
   enable: true
   prefer-h3: false
-  listen: 0.0.0.0:53
+  listen: 0.0.0.0:1503
   ipv6: true
   default-nameserver:
     - 114.114.114.114
@@ -8724,8 +8724,8 @@ dns:
     - https://mozilla.cloudflare-dns.com/dns-query#DNS&h3=true
 
   proxy-server-nameserver:
-    - 'tls://8.8.4.4'
-    - 'tls://1.0.0.1'
+    - 8.8.4.4
+    - 1.0.0.1
 
   nameserver-policy:
     "geosite:cn,private":
