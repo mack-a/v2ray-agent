@@ -8697,41 +8697,28 @@ sniffer:
 dns:
   enable: true
   prefer-h3: false
-  listen: 0.0.0.0:1503
+  listen: 0.0.0.0:1053
   ipv6: true
-  default-nameserver:
-    - 114.114.114.114
-    - 119.29.29.29
-    - 8.8.8.8
-    - tls://1.12.12.12:853
-    - tls://223.5.5.5:853
-    - system
   enhanced-mode: fake-ip
-
   fake-ip-range: 198.18.0.1/16
-
   fake-ip-filter:
     - '*.lan'
-    - "+.local"
+    - '*.local'
+    - 'dns.google'
     - "localhost.ptlogin2.qq.com"
   use-hosts: true
   nameserver:
-    - 114.114.114.114
+    - https://1.1.1.1/dns-query
+    - https://8.8.8.8/dns-query
+    - 1.1.1.1
     - 8.8.8.8
-    - tls://223.5.5.5:853
-    - https://doh.pub/dns-query
-    - https://dns.alidns.com/dns-query#h3=true
-    - https://mozilla.cloudflare-dns.com/dns-query#DNS&h3=true
-
   proxy-server-nameserver:
-    - 8.8.4.4
-    - 1.0.0.1
-
+    - https://223.5.5.5/dns-query
+    - https://1.12.12.12/dns-query
   nameserver-policy:
-    "geosite:cn,private":
-      - https://doh.pub/dns-query
-      - https://dns.alidns.com/dns-query
-    "geosite:category-ads-all": rcode://success
+    geosite:cn:
+      - https://223.5.5.5/dns-query
+      - https://1.12.12.12/dns-query
 
 proxy-providers:
   ${subscribeSalt}_provider:
@@ -9770,7 +9757,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.4.6"
+    echoContent green "当前版本：v3.4.7"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
