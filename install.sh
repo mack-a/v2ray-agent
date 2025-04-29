@@ -8649,6 +8649,9 @@ clashMetaConfig() {
     local url=$1
     local id=$2
     cat <<EOF >"/etc/v2ray-agent/subscribe/clashMetaProfiles/${id}"
+log-level: debug
+mode: rule
+ipv6: true
 mixed-port: 7890
 allow-lan: true
 bind-address: "*"
@@ -8656,22 +8659,14 @@ lan-allowed-ips:
   - 0.0.0.0/0
   - ::/0
 find-process-mode: strict
-mode: rule
+external-controller: 0.0.0.0:9090
 
 geox-url:
   geoip: "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat"
   geosite: "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat"
   mmdb: "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.metadb"
-
 geo-auto-update: true
 geo-update-interval: 24
-
-log-level: debug
-
-ipv6: true
-
-external-controller: 0.0.0.0:9093
-external-controller-tls: 0.0.0.0:9443
 
 external-controller-cors:
   allow-private-network: true
@@ -8716,9 +8711,9 @@ dns:
     - https://223.5.5.5/dns-query
     - https://1.12.12.12/dns-query
   nameserver-policy:
-    geosite:cn:
-      - https://223.5.5.5/dns-query
-      - https://1.12.12.12/dns-query
+    "geosite:cn,private":
+      - https://doh.pub/dns-query
+      - https://dns.alidns.com/dns-query
 
 proxy-providers:
   ${subscribeSalt}_provider:
@@ -9757,7 +9752,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.4.7"
+    echoContent green "当前版本：v3.4.8"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
