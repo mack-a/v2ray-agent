@@ -58,7 +58,7 @@ checkSystem() {
         removeType='yum -y remove'
         upgrade="yum update -y --skip-broken"
         checkCentosSELinux
-    elif { [[ -f "/etc/issue" ]] && grep -qi "debian" /etc/issue; } || { [[ -f "/proc/version" ]] && grep -qi "debian" /proc/version;} || { [[ -f "/etc/os-release" ]] && grep -qi "ID=debian" /etc/issue; }; then
+    elif { [[ -f "/etc/issue" ]] && grep -qi "debian" /etc/issue; } || { [[ -f "/proc/version" ]] && grep -qi "debian" /proc/version; } || { [[ -f "/etc/os-release" ]] && grep -qi "ID=debian" /etc/issue; }; then
         release="debian"
         installType='apt -y install'
         upgrade="apt update"
@@ -1625,8 +1625,6 @@ server {
     ssl_ciphers                TLS13_AES_128_GCM_SHA256:TLS13_AES_256_GCM_SHA384:TLS13_CHACHA20_POLY1305_SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305;
     ssl_prefer_server_ciphers  on;
 
-    ssl_stapling               on;
-    ssl_stapling_verify        on;
     resolver                   1.1.1.1 valid=60s;
     resolver_timeout           2s;
     client_max_body_size 100m;
@@ -1821,10 +1819,10 @@ acmeInstallSSL() {
 
     if [[ "${dnsAPIType}" == "cloudflare" ]]; then
         echoContent green " ---> DNS API 生成证书中"
-        sudo CF_Token="${cfAPIToken}" "$HOME/.acme.sh/acme.sh" --issue -d "${dnsAPIDomain}" -d "${dnsTLSDomain}"  --dns dns_cf -k ec-256 --server "${sslType}" ${sslIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
+        sudo CF_Token="${cfAPIToken}" "$HOME/.acme.sh/acme.sh" --issue -d "${dnsAPIDomain}" -d "${dnsTLSDomain}" --dns dns_cf -k ec-256 --server "${sslType}" ${sslIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
     elif [[ "${dnsAPIType}" == "aliyun" ]]; then
         echoContent green " --->  DNS API 生成证书中"
-        sudo Ali_Key="${aliKey}" Ali_Secret="${aliSecret}" "$HOME/.acme.sh/acme.sh" --issue -d "${dnsAPIDomain}" -d "${dnsTLSDomain}"  --dns dns_ali -k ec-256 --server "${sslType}" ${sslIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
+        sudo Ali_Key="${aliKey}" Ali_Secret="${aliSecret}" "$HOME/.acme.sh/acme.sh" --issue -d "${dnsAPIDomain}" -d "${dnsTLSDomain}" --dns dns_ali -k ec-256 --server "${sslType}" ${sslIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
     else
         echoContent green " ---> 生成证书中"
         sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --server "${sslType}" ${sslIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
@@ -8536,8 +8534,6 @@ server {
     ssl_ciphers                TLS13_AES_128_GCM_SHA256:TLS13_AES_256_GCM_SHA384:TLS13_CHACHA20_POLY1305_SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305;
     ssl_prefer_server_ciphers  on;
 
-    ssl_stapling               on;
-    ssl_stapling_verify        on;
     resolver                   1.1.1.1 valid=60s;
     resolver_timeout           2s;
     client_max_body_size 100m;
@@ -9295,38 +9291,17 @@ checkRealityDest() {
     fi
 }
 
-# 初始化reality dest
-initRealityDest() {
-    if [[ -n "${domain}" ]]; then
-        realityDestDomain=${domain}:${port}
-    else
-        local realityDestDomainList=
-        realityDestDomainList="gateway.icloud.com,itunes.apple.com,swdist.apple.com,mensura.cdn-apple.com,aod.itunes.apple.com,download-installer.cdn.mozilla.net,addons.mozilla.org,s0.awsstatic.com,d1.awsstatic.com,cdn-dynmedia-1.microsoft.com,images-na.ssl-images-amazon.com,m.media-amazon.com,dl.google.com,www.google-analytics.com,one-piece.com,lol.secure.dyn.riotcdn.net,www.lovelive-anime.jp,www.swift.com,academy.nvidia.com,www.cisco.com,www.samsung.com,www.amd.com,www.python.org,vuejs-jp.org,vuejs.org,zh-hk.vuejs.org,react.dev,www.java.com,www.oracle.com,www.mysql.com,www.mongodb.com,redis.io,cname.vercel-dns.com,vercel-dns.com"
-
-        echoContent skyBlue "\n===== 生成配置回落的域名 例如:[addons.mozilla.org:443] ======\n"
-        echoContent green "回落域名列表：https://www.v2ray-agent.com/archives/1680104902581#heading-8\n"
-        read -r -p "请输入[回车]使用随机:" realityDestDomain
-        if [[ -z "${realityDestDomain}" ]]; then
-            local randomNum=
-            randomNum=$(randomNum 1 27)
-            #            randomNum=$((RANDOM % 27 + 1))
-            realityDestDomain=$(echo "${realityDestDomainList}" | awk -F ',' -v randomNum="$randomNum" '{print $randomNum":443"}')
-        fi
-        if ! echo "${realityDestDomain}" | grep -q ":"; then
-            echoContent red "\n ---> 域名不合规范，请重新输入"
-            initRealityDest
-        else
-            checkRealityDest
-            echoContent yellow "\n ---> 回落域名: ${realityDestDomain}"
-        fi
-    fi
-}
 # 初始化客户端可用的ServersName
 initRealityClientServersName() {
-
+    local realityDestDomainList="gateway.icloud.com,itunes.apple.com,swdist.apple.com,swcdn.apple.com,updates.cdn-apple.com,mensura.cdn-apple.com,osxapps.itunes.apple.com,aod.itunes.apple.com,download-installer.cdn.mozilla.net,addons.mozilla.org,s0.awsstatic.com,d1.awsstatic.com,images-na.ssl-images-amazon.com,m.media-amazon.com,player.live-video.net,one-piece.com,lol.secure.dyn.riotcdn.net,www.lovelive-anime.jp,www.swift.com,academy.nvidia.com,www.cisco.com,www.asus.com,www.samsung.com,www.amd.com,cdn-dynmedia-1.microsoft.com,software.download.prss.microsoft.com,dl.google.com,www.google-analytics.com"
     if [[ -n "${realityServerName}" && -z "${lastInstallationConfig}" ]]; then
-        read -r -p "读取到上次安装设置的Reality域名，是否使用？[y/n]:" realityServerNameStatus
-        if [[ "${realityServerNameStatus}" != "y" ]]; then
+        if echo ${realityDestDomainList} | grep -q "${realityServerName}"; then
+            read -r -p "读取到上次安装设置的Reality域名，是否使用？[y/n]:" realityServerNameStatus
+            if [[ "${realityServerNameStatus}" != "y" ]]; then
+                realityServerName=
+                realityDomainPort=
+            fi
+        else
             realityServerName=
             realityDomainPort=
         fi
@@ -9364,7 +9339,6 @@ initRealityClientServersName() {
             fi
         fi
         if [[ -z "${realityServerName}" ]]; then
-            local realityDestDomainList="gateway.icloud.com,itunes.apple.com,swdist.apple.com,swcdn.apple.com,updates.cdn-apple.com,mensura.cdn-apple.com,osxapps.itunes.apple.com,aod.itunes.apple.com,download-installer.cdn.mozilla.net,addons.mozilla.org,s0.awsstatic.com,d1.awsstatic.com,images-na.ssl-images-amazon.com,m.media-amazon.com,player.live-video.net,one-piece.com,lol.secure.dyn.riotcdn.net,www.lovelive-anime.jp,www.swift.com,academy.nvidia.com,www.cisco.com,www.asus.com,www.samsung.com,www.amd.com,cdn-dynmedia-1.microsoft.com,software.download.prss.microsoft.com,dl.google.com,www.google-analytics.com"
             realityDomainPort=443
             echoContent skyBlue "\n================ 配置客户端可用的serverNames ===============\n"
             echoContent yellow "#注意事项"
@@ -9396,19 +9370,20 @@ initXrayRealityPort() {
     fi
 
     if [[ -z "${realityPort}" ]]; then
-        if [[ -n "${port}" ]]; then
-            read -r -p "是否使用TLS+Vision端口 ？[y/n]:" realityPortTLSVisionStatus
-            if [[ "${realityPortTLSVisionStatus}" == "y" ]]; then
-                realityPort=${port}
-            fi
-        fi
+        #        if [[ -n "${port}" ]]; then
+        #            read -r -p "是否使用TLS+Vision端口 ？[y/n]:" realityPortTLSVisionStatus
+        #            if [[ "${realityPortTLSVisionStatus}" == "y" ]]; then
+        #                realityPort=${port}
+        #            fi
+        #        fi
+        #        if [[ -z "${realityPort}" ]]; then
+        echoContent yellow "请输入端口[回车随机10000-30000]"
+
+        read -r -p "端口:" realityPort
         if [[ -z "${realityPort}" ]]; then
-            echoContent yellow "请输入端口[回车随机10000-30000]"
-            read -r -p "端口:" realityPort
-            if [[ -z "${realityPort}" ]]; then
-                realityPort=$((RANDOM % 20001 + 10000))
-            fi
+            realityPort=$((RANDOM % 20001 + 10000))
         fi
+        #        fi
         if [[ -n "${realityPort}" && "${xrayVLESSRealityPort}" == "${realityPort}" ]]; then
             handleXray stop
         else
@@ -9724,7 +9699,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.4.12"
+    echoContent green "当前版本：v3.4.13"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
@@ -9771,9 +9746,9 @@ menu() {
     2)
         selectCoreInstall
         ;;
-#    3)
-#        initXrayFrontingConfig 1
-#        ;;
+        #    3)
+        #        initXrayFrontingConfig 1
+        #        ;;
     4)
         manageHysteria
         ;;
