@@ -1108,6 +1108,11 @@ installTools() {
         ${installType} binutils >/dev/null 2>&1
     fi
 
+    if ! find /usr/bin /usr/sbin | grep -q -w openssl; then
+        echoContent green " ---> 安装openssl"
+        ${installType} openssl >/dev/null 2>&1
+    fi
+
     if ! find /usr/bin /usr/sbin | grep -q -w ping6; then
         echoContent green " ---> 安装ping6"
         ${installType} inetutils-ping >/dev/null 2>&1
