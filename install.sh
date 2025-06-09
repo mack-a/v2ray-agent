@@ -594,7 +594,7 @@ checkBTPanel() {
             fi
 
             if [[ -n "${selectBTDomain}" ]]; then
-                btDomain=$(find /www/server/panel/vhost/cert/*/fullchain.pem | awk -F "[/]" '{print $7}' | awk '{print NR""":"$0}' | grep "${selectBTDomain}:" | cut -d ":" -f 2)
+                btDomain=$(find /www/server/panel/vhost/cert/*/fullchain.pem | awk -F "[/]" '{print $7}' | awk '{print NR""":"$0}' | grep -e "^${selectBTDomain}:" | cut -d ":" -f 2)
 
                 if [[ -z "${btDomain}" ]]; then
                     echoContent red " ---> 选择错误，请重新选择"
