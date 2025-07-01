@@ -37,7 +37,7 @@ checkCentosSELinux() {
     if [[ -f "/etc/selinux/config" ]] && ! grep -q "SELINUX=disabled" <"/etc/selinux/config"; then
         echoContent yellow "# 注意事项"
         echoContent yellow "检测到SELinux已开启，请手动关闭，教程如下"
-        echoContent yellow "https://www.v2ray-agent.com/archives/1679931532764#heading-8 "
+        echoContent yellow "https://www.v2ray-agent.com/archives/1684115970026#centos7-%E5%85%B3%E9%97%ADselinux"
         exit 0
     fi
 }
@@ -210,6 +210,14 @@ initVar() {
     portHoppingStart=
     portHoppingEnd=
     portHopping=
+
+    hysteria2PortHoppingStart=
+    hysteria2PortHoppingEnd=
+    hysteria2PortHopping=
+
+    #    tuicPortHoppingStart=
+    #    tuicPortHoppingEnd=
+    #    tuicPortHopping=
 
     # tuic配置文件路径
     tuicConfigPath=
@@ -705,11 +713,9 @@ allowPort() {
         if ! firewall-cmd --list-ports --permanent | grep -qw "$1/${type}"; then
             updateFirewalldStatus=true
             local firewallPort=$1
-
-            if echo "${firewallPort}" | grep ":"; then
-                firewallPort=$(echo "${firewallPort}" | awk -F ":" '{print $1-$2}')
+            if echo "${firewallPort}" | grep -q ":"; then
+                firewallPort=$(echo "${firewallPort}" | awk -F ":" '{print $1"-"$2}')
             fi
-
             firewall-cmd --zone=public --add-port="${firewallPort}/${type}" --permanent
             checkFirewalldAllowPort "${firewallPort}"
         fi
@@ -1063,11 +1069,16 @@ installTools() {
         ${installType} epel-release >/dev/null 2>&1
     fi
 
-    #	[[ -z `find /usr/bin /usr/sbin |grep -v grep|grep -w curl` ]]
-
     if ! find /usr/bin /usr/sbin | grep -q -w wget; then
         echoContent green " ---> 安装wget"
         ${installType} wget >/dev/null 2>&1
+    fi
+
+    if ! find /usr/bin /usr/sbin | grep -q -w netfilter-persistent; then
+        if [[ "${release}" != "centos" ]]; then
+            echoContent green " ---> 安装iptables"
+            ${installType} iptables-persistent >/dev/null 2>&1
+        fi
     fi
 
     if ! find /usr/bin /usr/sbin | grep -q -w curl; then
@@ -3226,95 +3237,171 @@ initHysteria2Network() {
     fi
 }
 
-# hy端口跳跃
-hysteriaPortHopping() {
+# firewalld设置端口跳跃
+addFirewalldPortHopping() {
+
+    local start=$1
+    local end=$2
+    local targetPort=$3
+    for port in $(seq "$start" "$end"); do
+        sudo firewall-cmd --permanent --add-forward-port=port="${port}":proto=udp:toport="${targetPort}"
+    done
+    sudo firewall-cmd --reload
+}
+
+# 端口跳跃
+addPortHopping() {
+    local type=$1
+    local targetPort=$2
     if [[ -n "${portHoppingStart}" || -n "${portHoppingEnd}" ]]; then
         echoContent red " ---> 已添加不可重复添加，可删除后重新添加"
         exit 0
+    fi
+    if [[ "${release}" == "centos" ]]; then
+        if ! systemctl status firewalld 2>/dev/null | grep -q "active (running)"; then
+            echoContent red " ---> 未启动firewalld防火墙，无法设置端口跳跃。"
+            exit 0
+        fi
     fi
 
     echoContent skyBlue "\n进度 1/1 : 端口跳跃"
     echoContent red "\n=============================================================="
     echoContent yellow "# 注意事项\n"
-    echoContent yellow "仅支持Hysteria2"
+    echoContent yellow "仅支持Hysteria2、Tuic"
     echoContent yellow "端口跳跃的起始位置为30000"
     echoContent yellow "端口跳跃的结束位置为40000"
     echoContent yellow "可以在30000-40000范围中选一段"
     echoContent yellow "建议1000个左右"
+    echoContent yellow "注意不要和其他的端口跳跃设置范围一样，设置相同会覆盖。"
 
     echoContent yellow "请输入端口跳跃的范围，例如[30000-31000]"
 
-    read -r -p "范围:" hysteriaPortHoppingRange
-    if [[ -z "${hysteriaPortHoppingRange}" ]]; then
+    read -r -p "范围:" portHoppingRange
+    if [[ -z "${portHoppingRange}" ]]; then
         echoContent red " ---> 范围不可为空"
-        hysteriaPortHopping
-    elif echo "${hysteriaPortHoppingRange}" | grep -q "-"; then
+        addPortHopping "${type}" "${targetPort}"
+    elif echo "${portHoppingRange}" | grep -q "-"; then
 
         local portStart=
         local portEnd=
-        portStart=$(echo "${hysteriaPortHoppingRange}" | awk -F '-' '{print $1}')
-        portEnd=$(echo "${hysteriaPortHoppingRange}" | awk -F '-' '{print $2}')
+        portStart=$(echo "${portHoppingRange}" | awk -F '-' '{print $1}')
+        portEnd=$(echo "${portHoppingRange}" | awk -F '-' '{print $2}')
 
         if [[ -z "${portStart}" || -z "${portEnd}" ]]; then
             echoContent red " ---> 范围不合法"
-            hysteriaPortHopping
+            addPortHopping "${type}" "${targetPort}"
         elif ((portStart < 30000 || portStart > 40000 || portEnd < 30000 || portEnd > 40000 || portEnd < portStart)); then
             echoContent red " ---> 范围不合法"
-            hysteriaPortHopping
+            addPortHopping "${type}" "${targetPort}"
         else
-            echoContent green "\n端口范围: ${hysteriaPortHoppingRange}\n"
-            iptables -t nat -A PREROUTING -p udp --dport "${portStart}:${portEnd}" -m comment --comment "mack-a_hysteria2_portHopping" -j DNAT --to-destination :${hysteriaPort}
-
-            if iptables-save | grep -q "mack-a_hysteria2_portHopping"; then
-                allowPort "${portStart}:${portEnd}" udp
-                echoContent green " ---> 端口跳跃添加成功"
+            echoContent green "\n端口范围: ${portHoppingRange}\n"
+            if [[ "${release}" == "centos" ]]; then
+                sudo firewall-cmd --permanent --add-masquerade
+                sudo firewall-cmd --reload
+                addFirewalldPortHopping "${portStart}" "${portEnd}" "${targetPort}"
+                if ! sudo firewall-cmd --list-forward-ports | grep -q "toport=${targetPort}"; then
+                    echoContent red " ---> 端口跳跃添加失败"
+                    exit 0
+                fi
             else
-                echoContent red " ---> 端口跳跃添加失败"
+                iptables -t nat -A PREROUTING -p udp --dport "${portStart}:${portEnd}" -m comment --comment "mack-a_${type}_portHopping" -j DNAT --to-destination ":${targetPort}"
+                sudo netfilter-persistent save
+                if ! iptables-save | grep -q "mack-a_${type}_portHopping"; then
+                    echoContent red " ---> 端口跳跃添加失败"
+                    exit 0
+                fi
             fi
+            allowPort "${portStart}:${portEnd}" udp
+            echoContent green " ---> 端口跳跃添加成功"
         fi
     fi
 }
 
 # 读取端口跳跃的配置
-readHysteriaPortHopping() {
-    if [[ -n "${hysteriaPort}" ]]; then
-        if iptables-save | grep -q "mack-a_hysteria2_portHopping"; then
-            portHopping=
-            portHopping=$(iptables-save | grep "mack-a_hysteria2_portHopping" | cut -d " " -f 8)
+readPortHopping() {
+    local type=$1
+    local targetPort=$2
+    local portHoppingStart=
+    local portHoppingEnd=
+
+    if [[ "${release}" == "centos" ]]; then
+        portHoppingStart=$(sudo firewall-cmd --list-forward-ports | grep "toport=${targetPort}" | head -1 | cut -d ":" -f 1 | cut -d "=" -f 2)
+        portHoppingEnd=$(sudo firewall-cmd --list-forward-ports | grep "toport=${targetPort}" | tail -n 1 | cut -d ":" -f 1 | cut -d "=" -f 2)
+    else
+        if iptables-save | grep -q "mack-a_${type}_portHopping"; then
+            local portHopping=
+            portHopping=$(iptables-save | grep "mack-a_${type}_portHopping" | cut -d " " -f 8)
+
             portHoppingStart=$(echo "${portHopping}" | cut -d ":" -f 1)
             portHoppingEnd=$(echo "${portHopping}" | cut -d ":" -f 2)
         fi
     fi
+    if [[ "${type}" == "hysteria2" ]]; then
+        hysteria2PortHoppingStart="${portHoppingStart}"
+        hysteria2PortHoppingEnd=${portHoppingEnd}
+        hysteria2PortHopping="${portHoppingStart}-${portHoppingEnd}"
+    elif [[ "${type}" == "tuic" ]]; then
+        tuicPortHoppingStart="${portHoppingStart}"
+        tuicPortHoppingEnd="${portHoppingEnd}"
+        tuicPortHopping="${portHoppingStart}-${portHoppingEnd}"
+    fi
+}
+# 删除端口跳跃iptables规则
+deletePortHoppingRules() {
+    local type=$1
+    local start=$2
+    local end=$3
+    local targetPort=$4
+
+    if [[ "${release}" == "centos" ]]; then
+        for port in $(seq "${start}" "${end}"); do
+            sudo firewall-cmd --permanent --remove-forward-port=port="${port}":proto=udp:toport="${targetPort}"
+        done
+        sudo firewall-cmd --reload
+    else
+        iptables -t nat -L PREROUTING --line-numbers | grep "mack-a_${type}_portHopping" | awk '{print $1}' | while read -r line; do
+            iptables -t nat -D PREROUTING 1
+            sudo netfilter-persistent save
+        done
+    fi
 }
 
-# 删除hysteria2 端口跳跃iptables规则
-deleteHysteriaPortHoppingRules() {
-    iptables -t nat -L PREROUTING --line-numbers | grep "mack-a_hysteria2_portHopping" | awk '{print $1}' | while read -r line; do
-        iptables -t nat -D PREROUTING 1
-    done
-}
-
-# hysteria2端口跳跃菜单
-hysteriaPortHoppingMenu() {
+# 端口跳跃菜单
+portHoppingMenu() {
+    local type=$1
     # 判断iptables是否存在
     if ! find /usr/bin /usr/sbin | grep -q -w iptables; then
         echoContent red " ---> 无法识别iptables工具，无法使用端口跳跃，退出安装"
         exit 0
     fi
-    readHysteriaPortHopping
+
+    local targetPort=
+    local portHoppingStart=
+    local portHoppingEnd=
+
+    if [[ "${type}" == "hysteria2" ]]; then
+        readPortHopping "${type}" "${singBoxHysteria2Port}"
+        targetPort=${singBoxHysteria2Port}
+        portHoppingStart=${hysteria2PortHoppingStart}
+        portHoppingEnd=${hysteria2PortHoppingEnd}
+    elif [[ "${type}" == "tuic" ]]; then
+        readPortHopping "${type}" "${singBoxTuicPort}"
+        targetPort=${singBoxTuicPort}
+        portHoppingStart=${tuicPortHoppingStart}
+        portHoppingEnd=${tuicPortHoppingEnd}
+    fi
+
     echoContent skyBlue "\n进度 1/1 : 端口跳跃"
     echoContent red "\n=============================================================="
     echoContent yellow "1.添加端口跳跃"
     echoContent yellow "2.删除端口跳跃"
     echoContent yellow "3.查看端口跳跃"
-    read -r -p "范围:" selectPortHoppingStatus
+    read -r -p "请选择:" selectPortHoppingStatus
     if [[ "${selectPortHoppingStatus}" == "1" ]]; then
-        hysteriaPortHopping
+        addPortHopping "${type}" "${targetPort}"
     elif [[ "${selectPortHoppingStatus}" == "2" ]]; then
-        if [[ -n "${portHopping}" ]]; then
-            deleteHysteriaPortHoppingRules
-            echoContent green " ---> 删除成功"
-        fi
+        deletePortHoppingRules "${type}" "${portHoppingStart}" "${portHoppingEnd}" "${targetPort}"
+        echoContent green " ---> 删除成功"
     elif [[ "${selectPortHoppingStatus}" == "3" ]]; then
         if [[ -n "${portHoppingStart}" && -n "${portHoppingEnd}" ]]; then
             echoContent green " ---> 当前端口跳跃范围为: ${portHoppingStart}-${portHoppingEnd}"
@@ -3322,7 +3409,7 @@ hysteriaPortHoppingMenu() {
             echoContent yellow " ---> 未设置端口跳跃"
         fi
     else
-        hysteriaPortHoppingMenu
+        portHoppingMenu
     fi
 }
 # 初始化Hysteria配置
@@ -5390,7 +5477,6 @@ showAccounts() {
     readInstallProtocolType
     readConfigHostPathUUID
     readSingBoxConfig
-    readHysteriaPortHopping
 
     echo
     echoContent skyBlue "\n进度 $1/${totalProgress} : 账号"
@@ -5523,14 +5609,15 @@ showAccounts() {
     fi
     # hysteria2
     if echo ${currentInstallProtocolType} | grep -q ",6," || [[ -n "${hysteriaPort}" ]]; then
+        readPortHopping "hysteria2" "${singBoxHysteria2Port}"
         echoContent skyBlue "\n================================  Hysteria2 TLS [推荐] ================================\n"
         local path="${configPath}"
         if [[ "${coreInstallType}" == "1" ]]; then
             path="${singBoxConfigPath}"
         fi
         local hysteria2DefaultPort=
-        if [[ -n "${portHoppingStart}" && -n "${portHoppingEnd}" ]]; then
-            hysteria2DefaultPort="${portHoppingStart}-${portHoppingEnd}"
+        if [[ -n "${hysteria2PortHoppingStart}" && -n "${hysteria2PortHoppingEnd}" ]]; then
+            hysteria2DefaultPort="${hysteria2PortHopping}"
         else
             hysteria2DefaultPort=${singBoxHysteria2Port}
         fi
@@ -9576,7 +9663,7 @@ manageHysteria() {
     elif [[ "${installHysteria2Status}" == "2" && "${hysteria2Status}" == "true" ]]; then
         unInstallSingBox hysteria2
     elif [[ "${installHysteria2Status}" == "3" && "${hysteria2Status}" == "true" ]]; then
-        hysteriaPortHoppingMenu
+        portHoppingMenu hysteria2
     fi
 }
 
@@ -9589,6 +9676,7 @@ manageTuic() {
         echoContent yellow "依赖sing-box内核\n"
         echoContent yellow "1.重新安装"
         echoContent yellow "2.卸载"
+        echoContent yellow "3.端口跳跃管理"
         tuicStatus=true
     else
         echoContent yellow "依赖sing-box内核\n"
@@ -9601,6 +9689,8 @@ manageTuic() {
         singBoxTuicInstall
     elif [[ "${installTuicStatus}" == "2" && "${tuicStatus}" == "true" ]]; then
         unInstallSingBox tuic
+    elif [[ "${installTuicStatus}" == "3" && "${tuicStatus}" == "true" ]]; then
+        portHoppingMenu tuic
     fi
 }
 # sing-box log日志
@@ -9704,7 +9794,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.4.14"
+    echoContent green "当前版本：v3.4.15"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
