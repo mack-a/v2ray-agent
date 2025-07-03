@@ -1077,6 +1077,8 @@ installTools() {
     if ! find /usr/bin /usr/sbin | grep -q -w netfilter-persistent; then
         if [[ "${release}" != "centos" ]]; then
             echoContent green " ---> 安装iptables"
+            echo "iptables-persistent iptables-persistent/autosave_v4 boolean true" | sudo debconf-set-selections
+            echo "iptables-persistent iptables-persistent/autosave_v6 boolean true" | sudo debconf-set-selections
             ${installType} iptables-persistent >/dev/null 2>&1
         fi
     fi
@@ -9794,7 +9796,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.4.15"
+    echoContent green "当前版本：v3.4.16"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
