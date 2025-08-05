@@ -20,38 +20,36 @@
     "servers": [
       {
         "tag": "dns_proxy",
-        "address": "https://1.1.1.1/dns-query",
-        "address_resolver": "dns_resolver",
-        "strategy": "ipv4_only",
-        "detour": "手动切换"
+        "type": "https",
+        "server": "1.1.1.1",
+        "server_port": 443,
+        "path": "/dns-query",
+        "domain_resolver": "dns_resolver",
+        "strategy": "prefer_ipv4"
       },
       {
         "tag": "dns_direct",
-        "address": "h3://dns.alidns.com/dns-query",
-        "address_resolver": "dns_resolver",
-        "strategy": "ipv4_only",
-        "detour": "direct"
+        "type": "h3",
+        "server": "dns.alidns.com",
+        "server_port": 443,
+        "path": "/dns-query",
+        "domain_resolver": "dns_resolver",
+        "strategy": "prefer_ipv4"
       },
       {
         "tag": "google",
-        "address": "tls://8.8.4.4"
-      },
-      {
-        "tag": "dns_block",
-        "address": "rcode://success"
+        "type": "tls",
+        "server": "8.8.4.4",
+        "domain_resolver": "dns_resolver",
+        "strategy": "prefer_ipv4"
       },
       {
         "tag": "dns_resolver",
         "address": "114.114.114.114",
-        "strategy": "ipv4_only",
-        "detour": "direct"
+        "strategy": "prefer_ipv4"
       }
     ],
     "rules": [
-      {
-        "outbound": "any",
-        "server": "dns_direct"
-      },
       {
         "clash_mode": "direct",
         "server": "dns_direct"
@@ -112,6 +110,12 @@
     }
   ],
   "outbounds": [
+    {
+      "domain_resolver": {
+        "server": "dns_direct",
+        "strategy": "prefer_ipv4"
+      }
+    },
     {
       "type": "urltest",
       "tag": "自动选择",

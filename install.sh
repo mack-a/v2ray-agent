@@ -445,6 +445,7 @@ readInstallProtocolType() {
     singBoxVLESSRealityVisionServerName=
     singBoxVLESSRealityGRPCPort=
     singBoxVLESSRealityGRPCServerName=
+    singBoxAnyTLSPort=
     singBoxTuicPort=
     singBoxNaivePort=
     singBoxVMessWSPort=
@@ -562,6 +563,13 @@ readInstallProtocolType() {
             if [[ "${coreInstallType}" == "2" ]]; then
                 frontingType=10_naive_inbounds
                 singBoxNaivePort=$(jq .inbounds[0].listen_port "${row}.json")
+            fi
+        fi
+        if echo "${row}" | grep -q anytls_inbounds; then
+            currentInstallProtocolType="${currentInstallProtocolType}13,"
+            if [[ "${coreInstallType}" == "2" ]]; then
+                frontingType=13_anytls_inbounds
+                singBoxAnyTLSPort=$(jq .inbounds[0].listen_port "${row}.json")
             fi
         fi
         if echo "${row}" | grep -q VMess_HTTPUpgrade_inbounds; then
@@ -996,6 +1004,18 @@ showInstallStatus() {
         fi
         if echo ${currentInstallProtocolType} | grep -q ",9,"; then
             echoContent yellow "Tuic \c"
+        fi
+        if echo ${currentInstallProtocolType} | grep -q ",10,"; then
+            echoContent yellow "Naive \c"
+        fi
+        if echo ${currentInstallProtocolType} | grep -q ",11,"; then
+            echoContent yellow "VMess+TLS+HTTPUpgrade \c"
+        fi
+        if echo ${currentInstallProtocolType} | grep -q ",12,"; then
+            echoContent yellow "VLESS+XHTTP \c"
+        fi
+        if echo ${currentInstallProtocolType} | grep -q ",13,"; then
+            echoContent yellow "AnyTLS \c"
         fi
     fi
 }
@@ -3144,6 +3164,11 @@ initSingBoxClients() {
             currentUser="{\"uuid\":\"${uuid}\",\"name\":\"${name}-VMess_HTTPUpgrade\",\"alterId\": 0}"
             users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
         fi
+        # anytls
+        if echo "${type}" | grep -q ",13,"; then
+            currentUser="{\"password\":\"${uuid}\",\"name\":\"${name}-anytls\"}"
+            users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
+        fi
 
         if echo "${type}" | grep -q ",20,"; then
             currentUser="{\"username\":\"${uuid}\",\"password\":\"${uuid}\"}"
@@ -3352,7 +3377,7 @@ readPortHopping() {
     elif [[ "${type}" == "tuic" ]]; then
         tuicPortHoppingStart="${portHoppingStart}"
         tuicPortHoppingEnd="${portHoppingEnd}"
-        tuicPortHopping="${portHoppingStart}-${portHoppingEnd}"
+        #        tuicPortHopping="${portHoppingStart}-${portHoppingEnd}"
     fi
 }
 # 删除端口跳跃iptables规则
@@ -5043,6 +5068,36 @@ EOF
     elif [[ -z "$3" ]]; then
         rm /etc/v2ray-agent/sing-box/conf/config/11_VMess_HTTPUpgrade_inbounds.json >/dev/null 2>&1
     fi
+
+    if echo "${selectCustomInstallType}" | grep -q ",13," || [[ "$1" == "all" ]]; then
+        echoContent yellow "\n================== 配置 AnyTLS ==================\n"
+        echoContent skyBlue "\n开始配置AnyTLS协议端口"
+        echo
+        mapfile -t result < <(initSingBoxPort "${singBoxAnyTLSPort}")
+        echoContent green "\n ---> AnyTLS端口：${result[-1]}"
+        cat <<EOF >/etc/v2ray-agent/sing-box/conf/config/13_anytls_inbounds.json
+{
+    "inbounds": [
+        {
+            "type": "anytls",
+            "listen": "::",
+            "tag":"anytls",
+            "listen_port": ${result[-1]},
+            "users": $(initSingBoxClients 13),
+            "tls": {
+                "enabled": true,
+                "server_name":"${sslDomain}",
+                "certificate_path": "/etc/v2ray-agent/tls/${sslDomain}.crt",
+                "key_path": "/etc/v2ray-agent/tls/${sslDomain}.key"
+            }
+        }
+    ]
+}
+EOF
+    elif [[ -z "$3" ]]; then
+        rm /etc/v2ray-agent/sing-box/conf/config/13_anytls_inbounds.json >/dev/null 2>&1
+    fi
+
     if [[ -z "$3" ]]; then
         removeSingBoxConfig wireguard_endpoints_IPv4_route
         removeSingBoxConfig wireguard_endpoints_IPv6_route
@@ -5482,6 +5537,32 @@ EOF
 
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vmess://${qrCodeBase64Default}\n"
 
+    elif [[ "${type}" == "anytls" ]]; then
+        echoContent yellow " ---> AnyTLS"
+
+        echoContent green "    anytls://${id}@${currentHost}:${singBoxAnyTLSPort}?peer=${currentHost}&insecure=0&sni=${currentHost}#${email}\n"
+        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
+anytls://${id}@${currentHost}:${singBoxAnyTLSPort}?peer=${currentHost}&insecure=0&sni=${currentHost}#${email}
+EOF
+        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
+  - name: "${email}"
+    type: anytls
+    port: ${singBoxAnyTLSPort}
+    server: ${currentHost}
+    password: ${id}
+    client-fingerprint: chrome
+    udp: true
+    sni: ${currentHost}
+    alpn:
+      - h2
+      - http/1.1
+EOF
+
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"anytls\",\"server\":\"${currentHost}\",\"server_port\":${singBoxAnyTLSPort},\"password\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\"}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
+
+        echoContent yellow " ---> 二维码 AnyTLS"
+        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=anytls%3A%2F%2F${id}%40${currentHost}%3A${singBoxAnyTLSPort}%3Fpeer%3D${currentHost}%26insecure%3D0%26sni%3D${currentHost}%23${email}\n"
     fi
 
 }
@@ -5743,6 +5824,17 @@ showAccounts() {
                 fi
             done < <(echo "${currentCDNAddress}" | tr ',' '\n')
         done
+    fi
+    # AnyTLS
+    if echo ${currentInstallProtocolType} | grep -q ",13," || [[ -n "${hysteriaPort}" ]]; then
+        echoContent skyBlue "\n================================  AnyTLS ================================\n"
+
+        jq -r -c '.inbounds[]|.users[]' "${configPath}13_anytls_inbounds.json" | while read -r user; do
+            echoContent skyBlue "\n ---> 账号:$(echo "${user}" | jq -r .name)"
+            echo
+            defaultBase64Code anytls "${singBoxAnyTLSPort}" "$(echo "${user}" | jq -r .name)" "$(echo "${user}" | jq -r .password)"
+        done
+
     fi
 }
 # 移除nginx302配置
@@ -8188,6 +8280,7 @@ customSingBoxInstall() {
     echoContent yellow "9.Tuic"
     echoContent yellow "10.Naive"
     echoContent yellow "11.VMess+TLS+HTTPUpgrade"
+    echoContent yellow "13.anytls"
 
     read -r -p "请选择[多选]，[例如:1,2,3]:" selectCustomInstallType
     echoContent skyBlue "--------------------------------------------------------------"
@@ -8195,7 +8288,7 @@ customSingBoxInstall() {
         echoContent red " ---> 请使用英文逗号分隔"
         exit 0
     fi
-    if [[ "${selectCustomInstallType}" != "10" ]] && [[ "${selectCustomInstallType}" != "11" ]] && ((${#selectCustomInstallType} >= 2)) && ! echo "${selectCustomInstallType}" | grep -q ","; then
+    if [[ "${selectCustomInstallType}" != "10" ]] && [[ "${selectCustomInstallType}" != "11" ]] && [[ "${selectCustomInstallType}" != "13" ]] && ((${#selectCustomInstallType} >= 2)) && ! echo "${selectCustomInstallType}" | grep -q ","; then
         echoContent red " ---> 多选请使用英文逗号分隔"
         exit 0
     fi
@@ -8212,7 +8305,7 @@ customSingBoxInstall() {
         totalProgress=9
         installTools 1
         # 申请tls
-        if echo "${selectCustomInstallType}" | grep -q -E ",0,|,1,|,3,|,4,|,6,|,9,|,10,|,11,"; then
+        if echo "${selectCustomInstallType}" | grep -q -E ",0,|,1,|,3,|,4,|,6,|,9,|,10,|,11,|,13,"; then
             initTLSNginxConfig 2
             installTLS 3
             handleNginx stop
@@ -8597,7 +8690,7 @@ installSubscribe() {
         echo
         local httpSubscribeStatus=
 
-        if ! echo "${selectCustomInstallType}" | grep -qE ",0,|,1,|,2,|,3,|,4,|,5,|,6,|,9,|,10,|,11," && ! echo "${currentInstallProtocolType}" | grep -qE ",0,|,1,|,2,|,3,|,4,|,5,|,6,|,9,|,10,|,11," && [[ -z "${domain}" ]]; then
+        if ! echo "${selectCustomInstallType}" | grep -qE ",0,|,1,|,2,|,3,|,4,|,5,|,6,|,9,|,10,|,11,|,13," && ! echo "${currentInstallProtocolType}" | grep -qE ",0,|,1,|,2,|,3,|,4,|,5,|,6,|,9,|,10,|,11,|,13," && [[ -z "${domain}" ]]; then
             httpSubscribeStatus=true
         fi
 
@@ -9838,7 +9931,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.4.17"
+    echoContent green "当前版本：v3.4.18"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
