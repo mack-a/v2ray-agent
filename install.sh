@@ -699,24 +699,7 @@ allowPort() {
         type=tcp
     fi
     # 如果防火墙启动状态则添加相应的开放端口
-    if systemctl status netfilter-persistent 2>/dev/null | grep -q "active (exited)"; then
-        local updateFirewalldStatus=
-        if ! iptables -L | grep -q "$1/${type}(mack-a)"; then
-            updateFirewalldStatus=true
-            iptables -I INPUT -p ${type} --dport "$1" -m comment --comment "allow $1/${type}(mack-a)" -j ACCEPT
-        fi
-
-        if echo "${updateFirewalldStatus}" | grep -q "true"; then
-            netfilter-persistent save
-        fi
-    elif systemctl status ufw 2>/dev/null | grep -q "active (exited)"; then
-        if ufw status | grep -q "Status: active"; then
-            if ! ufw status | grep -q "$1/${type}"; then
-                sudo ufw allow "$1/${type}"
-                checkUFWAllowPort "$1"
-            fi
-        fi
-    elif rc-update show 2>/dev/null | grep -q ufw; then
+    if systemctl status ufw 2>/dev/null | grep -q "active (exited)"; then
         if ufw status | grep -q "Status: active"; then
             if ! ufw status | grep -q "$1/${type}"; then
                 sudo ufw allow "$1/${type}"
@@ -737,6 +720,23 @@ allowPort() {
 
         if echo "${updateFirewalldStatus}" | grep -q "true"; then
             firewall-cmd --reload
+        fi
+    elif rc-update show 2>/dev/null | grep -q ufw; then
+        if ufw status | grep -q "Status: active"; then
+            if ! ufw status | grep -q "$1/${type}"; then
+                sudo ufw allow "$1/${type}"
+                checkUFWAllowPort "$1"
+            fi
+        fi
+    elif systemctl status netfilter-persistent 2>/dev/null | grep -q "active (exited)"; then
+        local updateFirewalldStatus=
+        if ! iptables -L | grep -q "$1/${type}(mack-a)"; then
+            updateFirewalldStatus=true
+            iptables -I INPUT -p ${type} --dport "$1" -m comment --comment "allow $1/${type}(mack-a)" -j ACCEPT
+        fi
+
+        if echo "${updateFirewalldStatus}" | grep -q "true"; then
+            netfilter-persistent save
         fi
     fi
 }
@@ -9931,7 +9931,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.4.19"
+    echoContent green "当前版本：v3.4.20"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
