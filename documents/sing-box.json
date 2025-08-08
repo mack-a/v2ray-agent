@@ -8,8 +8,8 @@
     "clash_api": {
       "external_controller": "127.0.0.1:9090",
       "external_ui": "metacubexd",
-      "external_ui_download_url": "https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip",
-      "external_ui_download_detour": "手动切换",
+      "external_ui_download_url": "https://gh-proxy.com/https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip",
+      "external_ui_download_detour": "direct",
       "default_mode": "rule"
     },
     "cache_file": {
@@ -24,8 +24,7 @@
         "server": "1.1.1.1",
         "server_port": 443,
         "path": "/dns-query",
-        "domain_resolver": "dns_resolver",
-        "strategy": "prefer_ipv4"
+        "domain_resolver": "dns_resolver"
       },
       {
         "tag": "dns_direct",
@@ -33,42 +32,50 @@
         "server": "dns.alidns.com",
         "server_port": 443,
         "path": "/dns-query",
-        "domain_resolver": "dns_resolver",
-        "strategy": "prefer_ipv4"
+        "domain_resolver": "dns_resolver"
       },
       {
         "tag": "google",
         "type": "tls",
         "server": "8.8.4.4",
-        "domain_resolver": "dns_resolver",
-        "strategy": "prefer_ipv4"
+        "domain_resolver": "dns_resolver"
       },
       {
         "tag": "dns_resolver",
-        "address": "114.114.114.114",
-        "strategy": "prefer_ipv4"
+        "type": "udp",
+        "server": "114.114.114.114"
       }
     ],
     "rules": [
       {
+        "action": "route",
         "clash_mode": "direct",
-        "server": "dns_direct"
+        "server": "dns_direct",
+        "strategy": "prefer_ipv4"
       },
       {
+        "action": "route",
         "clash_mode": "global",
-        "server": "dns_proxy"
+        "server": "dns_proxy",
+        "strategy": "prefer_ipv4"
       },
       {
+        "action": "route",
         "rule_set": "geosite-cn",
-        "server": "dns_direct"
+        "server": "dns_direct",
+        "strategy": "prefer_ipv4"
       },
       {
+        "action": "route",
         "rule_set": "geoip-cn",
-        "server": "dns_direct"
+        "server": "dns_direct",
+        "strategy": "prefer_ipv4"
       },
       {
+        "action": "route",
         "rule_set": "geosite-geolocation-!cn",
-        "server": "dns_proxy"
+        "server": "dns_proxy",
+        "strategy": "prefer_ipv4"
       }
     ],
     "independent_cache": true,
@@ -80,10 +87,10 @@
       "tag": "tun-in",
       "stack": "system",
       "address": [
-        "172.16.0.1/30",
-        "fd00::1/126"
+        "172.18.0.1/30",
+        "fdfe:dcba:9876::1/126"
       ],
-      "mtu": 1492,
+      "mtu": 9000,
       "auto_route": true,
       "strict_route": true,
       "sniff": true,
@@ -110,12 +117,6 @@
     }
   ],
   "outbounds": [
-    {
-      "domain_resolver": {
-        "server": "dns_direct",
-        "strategy": "prefer_ipv4"
-      }
-    },
     {
       "type": "urltest",
       "tag": "自动选择",
@@ -215,6 +216,10 @@
     }
   ],
   "route": {
+    "default_domain_resolver": {
+      "server": "dns_resolver",
+      "strategy": "prefer_ipv4"
+    },
     "rule_set": [
       {
         "tag": "geosite-category-ads-all",
@@ -448,3 +453,4 @@
     "auto_detect_interface": true
   }
 }
+
