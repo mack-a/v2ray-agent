@@ -699,7 +699,7 @@ allowPort() {
         type=tcp
     fi
     # 如果防火墙启动状态则添加相应的开放端口
-    if systemctl status ufw 2>/dev/null | grep -q "active (exited)"; then
+    if dpkg -l | grep -q "^[[:space:]]*ii[[:space:]]\+ufw"; then
         if ufw status | grep -q "Status: active"; then
             if ! ufw status | grep -q "$1/${type}"; then
                 sudo ufw allow "$1/${type}"
@@ -728,7 +728,7 @@ allowPort() {
                 checkUFWAllowPort "$1"
             fi
         fi
-    elif systemctl status netfilter-persistent 2>/dev/null | grep -q "active (exited)"; then
+    elif dpkg -l | grep -q "^[[:space:]]*ii[[:space:]]\+netfilter-persistent" && systemctl status netfilter-persistent 2>/dev/null | grep -q "active (exited)"; then
         local updateFirewalldStatus=
         if ! iptables -L | grep -q "$1/${type}(mack-a)"; then
             updateFirewalldStatus=true
@@ -4226,7 +4226,8 @@ initXrayConfig() {
 
     if [[ -n "${uuid}" ]]; then
         currentClients='[{"id":"'${uuid}'","add":"'${add}'","flow":"xtls-rprx-vision","email":"'${customEmail}'"}]'
-        echoContent yellow "\n ${customEmail}:${uuid}"
+        echoContent green "\n ${customEmail}:${uuid}"
+        echo
     fi
 
     # log
@@ -5380,12 +5381,10 @@ EOF
             publicKey=${singBoxVLESSRealityPublicKey}
         fi
         echoContent yellow " ---> 通用格式(VLESS+reality+uTLS+Vision)"
-        # &pqv=${realityMldsa65Verify}
-        echoContent green "    vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&type=tcp&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=6ba85179e30d4fc2&flow=xtls-rprx-vision#${email}\n"
+        echoContent green "    vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&pqv=${realityMldsa65Verify}&type=tcp&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=6ba85179e30d4fc2&flow=xtls-rprx-vision#${email}\n"
 
         echoContent yellow " ---> 格式化明文(VLESS+reality+uTLS+Vision)"
-        # ，pqv=${realityMldsa65Verify}
-        echoContent green "协议类型:VLESS reality，地址:$(getPublicIP)，publicKey:${publicKey}，shortId: 6ba85179e30d4fc2，serverNames：${realityServerName}，端口:${port}，用户ID:${id}，传输方式:tcp，账户名:${email}\n"
+        echoContent green "协议类型:VLESS reality，地址:$(getPublicIP)，publicKey:${publicKey}，shortId: 6ba85179e30d4fc2，pqv=${realityMldsa65Verify}，serverNames：${realityServerName}，端口:${port}，用户ID:${id}，传输方式:tcp，账户名:${email}\n"
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
 vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&pqv=${realityMldsa65Verify}&type=tcp&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=6ba85179e30d4fc2&flow=xtls-rprx-vision#${email}
 EOF
@@ -9223,7 +9222,6 @@ subscribe() {
 
         echoContent skyBlue "-------------------------备注---------------------------------"
         echoContent yellow "# 查看订阅会重新生成本地账号的订阅"
-        #        echoContent yellow "# 添加账号或者修改账号需要重新查看订阅才会重新生成对外访问的订阅内容"
         echoContent red "# 需要手动输入md5加密的salt值，如果不了解使用随机即可"
         echoContent yellow "# 不影响已添加的远程订阅的内容\n"
 
@@ -9486,30 +9484,37 @@ initRealityKey() {
 # 初始化 mldsa65Seed
 initRealityMldsa65() {
     echoContent skyBlue "\n生成Reality mldsa65\n"
-    if [[ -n "${currentRealityMldsa65}" && -z "${lastInstallationConfig}" ]]; then
-        read -r -p "读取到上次安装记录，是否使用上次安装时的Seed/Verify ？[y/n]:" historyMldsa65Status
-        if [[ "${historyMldsa65Status}" == "y" ]]; then
-            realityMldsa65Seed=${currentRealityMldsa65Seed}
-            realityMldsa65Verify=${currentRealityMldsa65Verify}
+    if /etc/v2ray-agent/xray/xray tls ping "${realityServerName}:${realityDomainPort}" 2>/dev/null | grep -q "X25519MLKEM768"; then
+        length=$(/etc/v2ray-agent/xray/xray tls ping "${realityServerName}:${realityDomainPort}" | grep "Certificate chain's total length:" | awk '{print $5}')
+        if [ "$length" -gt 3500 ]; then
+            if [[ -n "${currentRealityMldsa65}" && -z "${lastInstallationConfig}" ]]; then
+                read -r -p "读取到上次安装记录，是否使用上次安装时的Seed/Verify ？[y/n]:" historyMldsa65Status
+                if [[ "${historyMldsa65Status}" == "y" ]]; then
+                    realityMldsa65Seed=${currentRealityMldsa65Seed}
+                    realityMldsa65Verify=${currentRealityMldsa65Verify}
+                fi
+            elif [[ -n "${currentRealityMldsa65Seed}" && -n "${lastInstallationConfig}" ]]; then
+                realityMldsa65Seed=${currentRealityMldsa65Seed}
+                realityMldsa65Verify=${currentRealityMldsa65Verify}
+            fi
+            if [[ -z "${realityMldsa65Seed}" ]]; then
+                #        if [[ "${selectCoreType}" == "2" || "${coreInstallType}" == "2" ]]; then
+                #            realityX25519Key=$(/etc/v2ray-agent/sing-box/sing-box generate reality-keypair)
+                #            realityPrivateKey=$(echo "${realityX25519Key}" | head -1 | awk '{print $2}')
+                #            realityPublicKey=$(echo "${realityX25519Key}" | tail -n 1 | awk '{print $2}')
+                #            echo "publicKey:${realityPublicKey}" >/etc/v2ray-agent/sing-box/conf/config/reality_key
+                #        else
+                realityMldsa65=$(/etc/v2ray-agent/xray/xray mldsa65)
+                realityMldsa65Seed=$(echo "${realityMldsa65}" | head -1 | awk '{print $2}')
+                realityMldsa65Verify=$(echo "${realityMldsa65}" | tail -n 1 | awk '{print $2}')
+                #        fi
+            fi
+            #    echoContent green "\n Seed:${realityMldsa65Seed}"
+            #    echoContent green "\n Verify:${realityMldsa65Verify}"
         fi
-    elif [[ -n "${currentRealityMldsa65Seed}" && -n "${lastInstallationConfig}" ]]; then
-        realityMldsa65Seed=${currentRealityMldsa65Seed}
-        realityMldsa65Verify=${currentRealityMldsa65Verify}
+    else
+        echoContent green " 目标域名不支持X25519MLKEM768，忽略ML-DSA-65。"
     fi
-    if [[ -z "${realityMldsa65Seed}" ]]; then
-        #        if [[ "${selectCoreType}" == "2" || "${coreInstallType}" == "2" ]]; then
-        #            realityX25519Key=$(/etc/v2ray-agent/sing-box/sing-box generate reality-keypair)
-        #            realityPrivateKey=$(echo "${realityX25519Key}" | head -1 | awk '{print $2}')
-        #            realityPublicKey=$(echo "${realityX25519Key}" | tail -n 1 | awk '{print $2}')
-        #            echo "publicKey:${realityPublicKey}" >/etc/v2ray-agent/sing-box/conf/config/reality_key
-        #        else
-        realityMldsa65=$(/etc/v2ray-agent/xray/xray mldsa65)
-        realityMldsa65Seed=$(echo "${realityMldsa65}" | head -1 | awk '{print $2}')
-        realityMldsa65Verify=$(echo "${realityMldsa65}" | tail -n 1 | awk '{print $2}')
-        #        fi
-    fi
-#    echoContent green "\n Seed:${realityMldsa65Seed}"
-#    echoContent green "\n Verify:${realityMldsa65Verify}"
 }
 # 检查reality域名是否符合
 checkRealityDest() {
@@ -9669,8 +9674,8 @@ initXrayRealityConfig() {
     echoContent skyBlue "\n进度  $1/${totalProgress} : 初始化 Xray-core reality配置"
     initXrayRealityPort
     initRealityKey
-    initRealityMldsa65
     initRealityClientServersName
+    initRealityMldsa65
 }
 # 修改reality域名端口等信息
 updateXrayRealityConfig() {
@@ -9937,7 +9942,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.4.22"
+    echoContent green "当前版本：v3.4.23"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
