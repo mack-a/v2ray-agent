@@ -1096,6 +1096,11 @@ installTools() {
         ${installType} epel-release >/dev/null 2>&1
     fi
 
+    if ! find /usr/bin /usr/sbin | grep -q -w sudo; then
+        echoContent green " ---> 安装sudo"
+        ${installType} sudo >/dev/null 2>&1
+    fi
+
     if ! find /usr/bin /usr/sbin | grep -q -w wget; then
         echoContent green " ---> 安装wget"
         ${installType} wget >/dev/null 2>&1
@@ -1161,11 +1166,6 @@ installTools() {
     if ! find /usr/bin /usr/sbin | grep -q -w qrencode; then
         echoContent green " ---> 安装qrencode"
         ${installType} qrencode >/dev/null 2>&1
-    fi
-
-    if ! find /usr/bin /usr/sbin | grep -q -w sudo; then
-        echoContent green " ---> 安装sudo"
-        ${installType} sudo >/dev/null 2>&1
     fi
 
     if ! find /usr/bin /usr/sbin | grep -q -w lsb-release; then
@@ -9945,7 +9945,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.4.23"
+    echoContent green "当前版本：v3.4.24"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
