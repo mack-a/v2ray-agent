@@ -42,12 +42,19 @@ jobs:
         with:
           script: |
             const tag = "${{ steps.version.outputs.file_version }}";
-
+            
+            const commits = await github.rest.repos.listCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 1
+            });
+            const lastMessage = commits.data[0].commit.message;
+            
             const release = await github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
               tag_name: tag,
-              body: `Auto-generated release for version ${tag}`
+              body: lastMessage
             }).catch(err => console.log(`Skip release ${err.message}`));
             
             const { data: releases } = await github.rest.repos.listReleases({

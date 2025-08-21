@@ -23,6 +23,7 @@
         "type": "https",
         "server": "1.1.1.1",
         "server_port": 443,
+        "detour": "自动选择",
         "path": "/dns-query",
         "domain_resolver": "dns_resolver"
       },
@@ -50,35 +51,31 @@
       {
         "action": "route",
         "clash_mode": "direct",
-        "server": "dns_direct",
-        "strategy": "prefer_ipv4"
+        "server": "dns_direct"
       },
       {
         "action": "route",
         "clash_mode": "global",
-        "server": "dns_proxy",
-        "strategy": "prefer_ipv4"
+        "server": "dns_proxy"
       },
       {
         "action": "route",
         "rule_set": "geosite-cn",
-        "server": "dns_direct",
-        "strategy": "prefer_ipv4"
+        "server": "dns_direct"
       },
       {
         "action": "route",
         "rule_set": "geoip-cn",
-        "server": "dns_direct",
-        "strategy": "prefer_ipv4"
+        "server": "dns_direct"
       },
       {
         "action": "route",
         "rule_set": "geosite-geolocation-!cn",
-        "server": "dns_proxy",
-        "strategy": "prefer_ipv4"
+        "server": "dns_proxy"
       }
     ],
     "independent_cache": true,
+    "strategy": "prefer_ipv4",
     "final": "dns_direct"
   },
   "inbounds": [
@@ -355,6 +352,10 @@
       {
         "protocol": "dns",
         "action": "hijack-dns"
+      },
+      {
+        "ip_is_private": true,
+        "outbound": "direct"
       },
       {
         "clash_mode": "global",
