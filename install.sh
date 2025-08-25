@@ -97,14 +97,14 @@ checkCPUVendor() {
             case "$(uname -m)" in
             'amd64' | 'x86_64')
                 xrayCoreCPUVendor="Xray-linux-64"
-                v2rayCoreCPUVendor="v2ray-linux-64"
+                #                v2rayCoreCPUVendor="v2ray-linux-64"
                 warpRegCoreCPUVendor="main-linux-amd64"
                 singBoxCoreCPUVendor="-linux-amd64"
                 ;;
             'armv8' | 'aarch64')
                 cpuVendor="arm"
                 xrayCoreCPUVendor="Xray-linux-arm64-v8a"
-                v2rayCoreCPUVendor="v2ray-linux-arm64-v8a"
+                #                v2rayCoreCPUVendor="v2ray-linux-arm64-v8a"
                 warpRegCoreCPUVendor="main-linux-arm64"
                 singBoxCoreCPUVendor="-linux-arm64"
                 ;;
@@ -117,7 +117,7 @@ checkCPUVendor() {
     else
         echoContent red "  无法识别此CPU架构，默认amd64、x86_64--->"
         xrayCoreCPUVendor="Xray-linux-64"
-        v2rayCoreCPUVendor="v2ray-linux-64"
+        #        v2rayCoreCPUVendor="v2ray-linux-64"
     fi
 }
 
@@ -130,8 +130,6 @@ initVar() {
 
     # 核心支持的cpu版本
     xrayCoreCPUVendor=""
-    v2rayCoreCPUVendor=""
-    #    hysteriaCoreCPUVendor=""
     warpRegCoreCPUVendor=""
     cpuVendor=""
 
@@ -220,7 +218,7 @@ initVar() {
     #    tuicPortHopping=
 
     # tuic配置文件路径
-    tuicConfigPath=
+    #    tuicConfigPath=
     tuicAlgorithm=
     tuicPort=
 
@@ -234,7 +232,7 @@ initVar() {
     selectCoreType=
 
     # 默认core版本
-    v2rayCoreVersion=
+    #    v2rayCoreVersion=
 
     # 随机路径
     customPath=
@@ -249,7 +247,7 @@ initVar() {
     currentClients=
 
     # previousClients
-    previousClients=
+    #    previousClients=
 
     localIP=
 
@@ -298,7 +296,7 @@ initVar() {
     hysteriaPort=
 
     # hysteria协议
-    hysteriaProtocol=
+    #    hysteriaProtocol=
 
     # hysteria延迟
     #    hysteriaLag=
@@ -2277,68 +2275,6 @@ renewalTLS() {
         echoContent red " ---> 未安装"
     fi
 }
-# 查看TLS证书的状态
-checkTLStatus() {
-
-    if [[ -d "$HOME/.acme.sh/${currentHost}_ecc" ]] && [[ -f "$HOME/.acme.sh/${currentHost}_ecc/${currentHost}.key" ]] && [[ -f "$HOME/.acme.sh/${currentHost}_ecc/${currentHost}.cer" ]]; then
-        modifyTime=$(stat "$HOME/.acme.sh/${currentHost}_ecc/${currentHost}.cer" | sed -n '7,6p' | awk '{print $2" "$3" "$4" "$5}')
-
-        modifyTime=$(date +%s -d "${modifyTime}")
-        currentTime=$(date +%s)
-        ((stampDiff = currentTime - modifyTime))
-        ((days = stampDiff / 86400))
-        ((remainingDays = sslRenewalDays - days))
-
-        tlsStatus=${remainingDays}
-        if [[ ${remainingDays} -le 0 ]]; then
-            tlsStatus="已过期"
-        fi
-
-        echoContent skyBlue " ---> 证书生成日期:$(date -d "@${modifyTime}" +"%F %H:%M:%S")"
-        echoContent skyBlue " ---> 证书生成天数:${days}"
-        echoContent skyBlue " ---> 证书剩余天数:${tlsStatus}"
-    fi
-}
-
-# 安装V2Ray、指定版本
-installV2Ray() {
-    readInstallType
-    echoContent skyBlue "\n进度  $1/${totalProgress} : 安装V2Ray"
-
-    if [[ "${coreInstallType}" != "2" && "${coreInstallType}" != "3" ]]; then
-        if [[ "${selectCoreType}" == "2" ]]; then
-
-            version=$(curl -s https://api.github.com/repos/v2fly/v2ray-core/releases?per_page=10 | jq -r '.[]|select (.prerelease==false)|.tag_name' | grep -v 'v5' | head -1)
-        else
-            version=${v2rayCoreVersion}
-        fi
-
-        echoContent green " ---> v2ray-core版本:${version}"
-        if [[ "${release}" == "alpine" ]]; then
-            wget -c -q -P /etc/v2ray-agent/v2ray/ "https://github.com/v2fly/v2ray-core/releases/download/${version}/${v2rayCoreCPUVendor}.zip"
-        else
-            wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/v2ray/ "https://github.com/v2fly/v2ray-core/releases/download/${version}/${v2rayCoreCPUVendor}.zip"
-        fi
-
-        unzip -o "/etc/v2ray-agent/v2ray/${v2rayCoreCPUVendor}.zip" -d /etc/v2ray-agent/v2ray >/dev/null
-        rm -rf "/etc/v2ray-agent/v2ray/${v2rayCoreCPUVendor}.zip"
-    else
-        if [[ "${selectCoreType}" == "3" ]]; then
-            echoContent green " ---> 锁定v2ray-core版本为v4.32.1"
-            rm -f /etc/v2ray-agent/v2ray/v2ray
-            rm -f /etc/v2ray-agent/v2ray/v2ctl
-            installV2Ray "$1"
-        else
-            echoContent green " ---> v2ray-core版本:$(/etc/v2ray-agent/v2ray/v2ray --version | awk '{print $2}' | head -1)"
-            read -r -p "是否更新、升级？[y/n]:" reInstallV2RayStatus
-            if [[ "${reInstallV2RayStatus}" == "y" ]]; then
-                rm -f /etc/v2ray-agent/v2ray/v2ray
-                rm -f /etc/v2ray-agent/v2ray/v2ctl
-                installV2Ray "$1"
-            fi
-        fi
-    fi
-}
 
 # 安装 sing-box
 installSingBox() {
@@ -2447,55 +2383,6 @@ installXray() {
     fi
 }
 
-# v2ray版本管理
-v2rayVersionManageMenu() {
-    echoContent skyBlue "\n进度  $1/${totalProgress} : V2Ray版本管理"
-    if [[ ! -d "/etc/v2ray-agent/v2ray/" ]]; then
-        echoContent red " ---> 没有检测到安装目录，请执行脚本安装内容"
-        menu
-        exit 0
-    fi
-    echoContent red "\n=============================================================="
-    echoContent yellow "1.升级v2ray-core"
-    echoContent yellow "2.回退v2ray-core"
-    echoContent yellow "3.关闭v2ray-core"
-    echoContent yellow "4.打开v2ray-core"
-    echoContent yellow "5.重启v2ray-core"
-    echoContent yellow "6.更新geosite、geoip"
-    echoContent yellow "7.设置自动更新geo文件[每天凌晨更新]"
-    echoContent red "=============================================================="
-    read -r -p "请选择:" selectV2RayType
-    if [[ "${selectV2RayType}" == "1" ]]; then
-        updateV2Ray
-    elif [[ "${selectV2RayType}" == "2" ]]; then
-        echoContent yellow "\n1.只可以回退最近的五个版本"
-        echoContent yellow "2.不保证回退后一定可以正常使用"
-        echoContent yellow "3.如果回退的版本不支持当前的config，则会无法连接，谨慎操作"
-        echoContent skyBlue "------------------------Version-------------------------------"
-        curl -s https://api.github.com/repos/v2fly/v2ray-core/releases | jq -r '.[]|select (.prerelease==false)|.tag_name' | grep -v 'v5' | head -5 | awk '{print ""NR""":"$0}'
-
-        echoContent skyBlue "--------------------------------------------------------------"
-        read -r -p "请输入要回退的版本:" selectV2rayVersionType
-        version=$(curl -s https://api.github.com/repos/v2fly/v2ray-core/releases | jq -r '.[]|select (.prerelease==false)|.tag_name' | grep -v 'v5' | head -5 | awk '{print ""NR""":"$0}' | grep "${selectV2rayVersionType}:" | awk -F "[:]" '{print $2}')
-        if [[ -n "${version}" ]]; then
-            updateV2Ray "${version}"
-        else
-            echoContent red "\n ---> 输入有误，请重新输入"
-            v2rayVersionManageMenu 1
-        fi
-    elif [[ "${selectV2RayType}" == "3" ]]; then
-        handleV2Ray stop
-    elif [[ "${selectV2RayType}" == "4" ]]; then
-        handleV2Ray start
-    elif [[ "${selectV2RayType}" == "5" ]]; then
-        reloadCore
-    elif [[ "${selectXrayType}" == "6" ]]; then
-        updateGeoSite
-    elif [[ "${selectXrayType}" == "7" ]]; then
-        installCronUpdateGeo
-    fi
-}
-
 # xray版本管理
 xrayVersionManageMenu() {
     echoContent skyBlue "\n进度  $1/${totalProgress} : Xray版本管理"
@@ -2571,82 +2458,6 @@ updateGeoSite() {
     reloadCore
     echoContent green " ---> 更新完毕"
 
-}
-# 更新V2Ray
-updateV2Ray() {
-    readInstallType
-    if [[ -z "${coreInstallType}" ]]; then
-
-        if [[ -n "$1" ]]; then
-            version=$1
-        else
-            version=$(curl -s https://api.github.com/repos/v2fly/v2ray-core/releases | jq -r '.[]|select (.prerelease==false)|.tag_name' | grep -v 'v5' | head -1)
-        fi
-        # 使用锁定的版本
-        if [[ -n "${v2rayCoreVersion}" ]]; then
-            version=${v2rayCoreVersion}
-        fi
-        echoContent green " ---> v2ray-core版本:${version}"
-        if [[ "${release}" == "alpine" ]]; then
-            wget -c -q -P /etc/v2ray-agent/v2ray/ "https://github.com/v2fly/v2ray-core/releases/download/${version}/${v2rayCoreCPUVendor}.zip"
-        else
-            wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/v2ray/ "https://github.com/v2fly/v2ray-core/releases/download/${version}/${v2rayCoreCPUVendor}.zip"
-        fi
-
-        unzip -o "/etc/v2ray-agent/v2ray/${v2rayCoreCPUVendor}.zip" -d /etc/v2ray-agent/v2ray >/dev/null
-        rm -rf "/etc/v2ray-agent/v2ray/${v2rayCoreCPUVendor}.zip"
-        handleV2Ray stop
-        handleV2Ray start
-    else
-        echoContent green " ---> 当前v2ray-core版本:$(/etc/v2ray-agent/v2ray/v2ray --version | awk '{print $2}' | head -1)"
-
-        if [[ -n "$1" ]]; then
-            version=$1
-        else
-            version=$(curl -s https://api.github.com/repos/v2fly/v2ray-core/releases | jq -r '.[]|select (.prerelease==false)|.tag_name' | grep -v 'v5' | head -1)
-        fi
-
-        if [[ -n "${v2rayCoreVersion}" ]]; then
-            version=${v2rayCoreVersion}
-        fi
-        if [[ -n "$1" ]]; then
-            read -r -p "回退版本为${version}，是否继续？[y/n]:" rollbackV2RayStatus
-            if [[ "${rollbackV2RayStatus}" == "y" ]]; then
-                if [[ "${coreInstallType}" == "2" ]]; then
-                    echoContent green " ---> 当前v2ray-core版本:$(/etc/v2ray-agent/v2ray/v2ray --version | awk '{print $2}' | head -1)"
-                elif [[ "${coreInstallType}" == "1" ]]; then
-                    echoContent green " ---> 当前Xray-core版本:$(/etc/v2ray-agent/xray/xray --version | awk '{print $2}' | head -1)"
-                fi
-
-                handleV2Ray stop
-                rm -f /etc/v2ray-agent/v2ray/v2ray
-                rm -f /etc/v2ray-agent/v2ray/v2ctl
-                updateV2Ray "${version}"
-            else
-                echoContent green " ---> 放弃回退版本"
-            fi
-        elif [[ "${version}" == "v$(/etc/v2ray-agent/v2ray/v2ray --version | awk '{print $2}' | head -1)" ]]; then
-            read -r -p "当前版本与最新版相同，是否重新安装？[y/n]:" reInstallV2RayStatus
-            if [[ "${reInstallV2RayStatus}" == "y" ]]; then
-                handleV2Ray stop
-                rm -f /etc/v2ray-agent/v2ray/v2ray
-                rm -f /etc/v2ray-agent/v2ray/v2ctl
-                updateV2Ray
-            else
-                echoContent green " ---> 放弃重新安装"
-            fi
-        else
-            read -r -p "最新版本为:${version}，是否更新？[y/n]:" installV2RayStatus
-            if [[ "${installV2RayStatus}" == "y" ]]; then
-                rm -f /etc/v2ray-agent/v2ray/v2ray
-                rm -f /etc/v2ray-agent/v2ray/v2ctl
-                updateV2Ray
-            else
-                echoContent green " ---> 放弃更新"
-            fi
-
-        fi
-    fi
 }
 
 # 更新Xray
@@ -2726,37 +2537,6 @@ checkGFWStatue() {
     else
         echoContent red " ---> 服务启动失败，请检查终端是否有日志打印"
         exit 0
-    fi
-}
-
-# 安装hysteria开机自启
-installHysteriaService() {
-    echoContent skyBlue "\n进度  $1/${totalProgress} : 配置Hysteria开机自启"
-    if [[ -n $(find /bin /usr/bin -name "systemctl") ]]; then
-        rm -rf /etc/systemd/system/hysteria.service
-        touch /etc/systemd/system/hysteria.service
-        execStart='/etc/v2ray-agent/hysteria/hysteria server -c /etc/v2ray-agent/hysteria/conf/config.json --log-level debug'
-        cat <<EOF >/etc/systemd/system/hysteria.service
-[Unit]
-After=network.target nss-lookup.target
-
-[Service]
-User=root
-WorkingDirectory=/root
-CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
-AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
-ExecStart=/etc/v2ray-agent/hysteria/hysteria server -c /etc/v2ray-agent/hysteria/conf/config.json --log-level debug
-Restart=on-failure
-RestartSec=10
-LimitNPROC=infinity
-LimitNOFILE=infinity
-
-[Install]
-WantedBy=multi-user.target
-EOF
-        systemctl daemon-reload
-        systemctl enable hysteria.service
-        echoContent green " ---> 配置Hysteria开机自启成功"
     fi
 }
 
@@ -2882,45 +2662,6 @@ handleHysteria() {
         else
             echoContent red "Hysteria关闭失败"
             echoContent red "请手动执行【ps -ef|grep -v grep|grep hysteria|awk '{print \$2}'|xargs kill -9】"
-            exit 0
-        fi
-    fi
-}
-
-# 操作Tuic
-handleTuic() {
-    # shellcheck disable=SC2010
-    if find /bin /usr/bin | grep -q systemctl && ls /etc/systemd/system/ | grep -q tuic.service; then
-        if [[ -z $(pgrep -f "tuic/tuic") ]] && [[ "$1" == "start" ]]; then
-            singBoxMergeConfig
-            systemctl start tuic.service
-        elif [[ -n $(pgrep -f "tuic/tuic") ]] && [[ "$1" == "stop" ]]; then
-            systemctl stop tuic.service
-        fi
-    elif [[ -f "/etc/init.d/tuic" ]]; then
-        if [[ -z $(pgrep -f "tuic/tuic") ]] && [[ "$1" == "start" ]]; then
-            singBoxMergeConfig
-            rc-service tuic start
-        elif [[ -n $(pgrep -f "tuic/tuic") ]] && [[ "$1" == "stop" ]]; then
-            rc-service tuic stop
-        fi
-    fi
-    sleep 0.8
-
-    if [[ "$1" == "start" ]]; then
-        if [[ -n $(pgrep -f "tuic/tuic") ]]; then
-            echoContent green " ---> Tuic启动成功"
-        else
-            echoContent red "Tuic启动失败"
-            echoContent red "请手动执行【/etc/v2ray-agent/tuic/tuic -c /etc/v2ray-agent/tuic/conf/config.json】，查看错误日志"
-            exit 0
-        fi
-    elif [[ "$1" == "stop" ]]; then
-        if [[ -z $(pgrep -f "tuic/tuic") ]]; then
-            echoContent green " ---> Tuic关闭成功"
-        else
-            echoContent red "Tuic关闭失败"
-            echoContent red "请手动执行【ps -ef|grep -v grep|grep tuic|awk '{print \$2}'|xargs kill -9】"
             exit 0
         fi
     fi
@@ -3180,23 +2921,6 @@ initSingBoxClients() {
     echo "${users}"
 }
 
-# 添加hysteria配置
-addClientsHysteria() {
-    local path=$1
-    local addClientsStatus=$2
-
-    if [[ ${addClientsStatus} == "true" && -n "${previousClients}" ]]; then
-        local uuids=
-        uuids=$(echo "${previousClients}" | jq -r [.[].id])
-
-        if [[ "${frontingType}" == "02_trojan_TCP_inbounds" ]]; then
-            uuids=$(echo "${previousClients}" | jq -r [.[].password])
-        fi
-        config=$(jq -r ".auth.config = ${uuids}" "${path}")
-        echo "${config}" | jq . >"${path}"
-    fi
-}
-
 # 初始化hysteria端口
 initHysteriaPort() {
     readSingBoxConfig
@@ -3225,32 +2949,6 @@ initHysteriaPort() {
     fi
     allowPort "${hysteriaPort}"
     allowPort "${hysteriaPort}" "udp"
-}
-
-# 初始化hysteria的协议
-initHysteriaProtocol() {
-    echoContent skyBlue "\n请选择协议类型"
-    echoContent red "=============================================================="
-    echoContent yellow "1.udp(QUIC)(默认)"
-    echoContent yellow "2.faketcp"
-    echoContent yellow "3.wechat-video"
-    echoContent red "=============================================================="
-    read -r -p "请选择:" selectHysteriaProtocol
-    case ${selectHysteriaProtocol} in
-    1)
-        hysteriaProtocol="udp"
-        ;;
-    2)
-        hysteriaProtocol="faketcp"
-        ;;
-    3)
-        hysteriaProtocol="wechat-video"
-        ;;
-    *)
-        hysteriaProtocol="udp"
-        ;;
-    esac
-    echoContent yellow "\n ---> 协议: ${hysteriaProtocol}\n"
 }
 
 # 初始化hysteria网络信息
@@ -3446,73 +3144,6 @@ portHoppingMenu() {
         portHoppingMenu
     fi
 }
-# 初始化Hysteria配置
-initHysteriaConfig() {
-    echoContent skyBlue "\n进度 $1/${totalProgress} : 初始化Hysteria配置"
-
-    initHysteriaPort
-    #    initHysteriaProtocol
-    #    initHysteriaNetwork
-    local uuid=
-    uuid=$(${ctlPath} uuid)
-    cat <<EOF >/etc/v2ray-agent/hysteria/conf/config.json
-{
-    "listen":":${hysteriaPort}",
-    "tls":{
-        "cert": "/etc/v2ray-agent/tls/${currentHost}.crt",
-        "key": "/etc/v2ray-agent/tls/${currentHost}.key"
-    },
-    "auth":{
-        "type": "password",
-        "password": "${uuid}"
-    },
-    "resolver":{
-      "type": "https",
-      "https":{
-        "addr": "1.1.1.1:443",
-        "timeout": "10s"
-      }
-    },
-    "outbounds":{
-      "name": "socks5_outbound_route",
-        "type": "socks5",
-        "socks5":{
-            "addr": "127.0.0.1:31295",
-            "username": "hysteria_socks5_outbound_route",
-            "password": "${uuid}"
-        }
-    }
-}
-
-EOF
-
-    #    addClientsHysteria "/etc/v2ray-agent/hysteria/conf/config.json" true
-
-    # 添加socks入站
-    cat <<EOF >${configPath}/02_socks_inbounds_hysteria.json
-{
-  "inbounds": [
-    {
-      "listen": "127.0.0.1",
-      "port": 31295,
-      "protocol": "Socks",
-      "tag": "socksHysteriaOutbound",
-      "settings": {
-        "auth": "password",
-        "accounts": [
-          {
-            "user": "hysteria_socks5_outbound_route",
-            "pass": "${uuid}"
-          }
-        ],
-        "udp": true,
-        "ip": "127.0.0.1"
-      }
-    }
-  ]
-}
-EOF
-}
 
 # 初始化tuic端口
 initTuicPort() {
@@ -3603,37 +3234,6 @@ initTuicProtocol() {
 #}
 #EOF
 #}
-
-# 初始化 sing-box Tuic 配置
-initSingBoxTuicConfig() {
-    echoContent skyBlue "\n进度 $1/${totalProgress} : 初始化Tuic配置"
-
-    initTuicPort
-    initTuicProtocol
-    cat <<EOF >/etc/v2ray-agent/sing-box/conf/config/06_hysteria2_inbounds.json
-{
-     "inbounds": [
-    {
-        "type": "tuic",
-        "listen": "::",
-        "tag": "singbox-tuic-in",
-        "listen_port": ${tuicPort},
-        "users": $(initXrayClients 9),
-        "congestion_control": "${tuicAlgorithm}",
-        "tls": {
-            "enabled": true,
-            "server_name":"${currentHost}",
-            "alpn": [
-                "h3"
-            ],
-            "certificate_path": "/etc/v2ray-agent/tls/${currentHost}.crt",
-            "key_path": "/etc/v2ray-agent/tls/${currentHost}.key"
-        }
-    }
-]
-}
-EOF
-}
 
 # 初始化singbox route配置
 initSingBoxRouteConfig() {
@@ -8546,62 +8146,6 @@ singBoxInstall() {
     showAccounts 9
 }
 
-# Hysteria安装
-hysteriaCoreInstall() {
-    if ! echo "${currentInstallProtocolType}" | grep -q ",0," || [[ -z "${coreInstallType}" ]]; then
-        echoContent red "\n ---> 由于环境依赖，如安装hysteria，请先安装Xray-core的VLESS_TCP_TLS_Vision"
-        exit 0
-    fi
-    totalProgress=5
-    installHysteria 1
-    initHysteriaConfig 2
-    installHysteriaService 3
-    reloadCore
-    showAccounts 4
-}
-# 卸载 hysteria
-unInstallHysteriaCore() {
-    if [[ -n "${hysteriaConfigPath}" ]]; then
-        echoContent yellow " ---> 新版本依赖sing-box，检测到旧版本hysteria，执行卸载操作"
-
-        deleteHysteriaPortHoppingRules
-        handleHysteria stop
-        rm -rf /etc/v2ray-agent/hysteria/*
-        rm ${configPath}02_socks_inbounds_hysteria.json
-        rm -rf /etc/systemd/system/hysteria.service
-        echoContent green " ---> 卸载完成"
-    fi
-}
-
-# 卸载Tuic
-unInstallTuicCore() {
-
-    if [[ -n "${tuicConfigPath}" ]]; then
-        echoContent yellow " ---> 新版本依赖sing-box，检测到旧版本Tuic，执行卸载操作"
-
-        handleTuic stop
-        rm -rf /etc/v2ray-agent/tuic/*
-        rm -rf /etc/systemd/system/tuic.service
-        echoContent green " ---> 卸载完成"
-    fi
-
-}
-unInstallXrayCoreReality() {
-
-    if [[ -z "${realityStatus}" ]]; then
-        echoContent red "\n ---> 未安装"
-        exit 0
-    fi
-    echoContent skyBlue "\n功能 1/1 : reality卸载"
-    echoContent red "\n=============================================================="
-    echoContent yellow "# 仅删除VLESS Reality相关配置，不会删除其他内容。"
-    echoContent yellow "# 如果需要卸载其他内容，请卸载脚本功能"
-    handleXray stop
-    rm /etc/v2ray-agent/xray/conf/07_VLESS_vision_reality_inbounds.json
-    rm /etc/v2ray-agent/xray/conf/08_VLESS_vision_gRPC_inbounds.json
-    echoContent green " ---> 卸载完成"
-}
-
 # 核心管理
 coreVersionManageMenu() {
 
@@ -9476,13 +9020,23 @@ initRealityKey() {
             realityPublicKey=$(echo "${realityX25519Key}" | tail -n 1 | awk '{print $2}')
             echo "publicKey:${realityPublicKey}" >/etc/v2ray-agent/sing-box/conf/config/reality_key
         else
-            realityX25519Key=$(/etc/v2ray-agent/xray/xray x25519)
-            realityPrivateKey=$(echo "${realityX25519Key}" | head -1 | awk '{print $3}')
-            realityPublicKey=$(echo "${realityX25519Key}" | tail -n 1 | awk '{print $3}')
+            read -r -p "请输入Private Key[回车自动生成]:" historyPrivateKey
+            if [[ -n "${historyPrivateKey}" ]]; then
+                realityX25519Key=$(/etc/v2ray-agent/xray/xray x25519 -i "${historyPrivateKey}")
+            else
+                realityX25519Key=$(/etc/v2ray-agent/xray/xray x25519)
+            fi
+            realityPrivateKey=$(echo "${realityX25519Key}" | grep "Private key" | awk '{print $3}')
+            realityPublicKey=$(echo "${realityX25519Key}" | grep "Public key" | awk '{print $3}')
+            if [[ -z "${realityPrivateKey}" ]]; then
+                echoContent red "输入的Private Key不合法"
+                initRealityKey
+            else
+                echoContent green "\n privateKey:${realityPrivateKey}"
+                echoContent green "\n publicKey:${realityPublicKey}"
+            fi
         fi
     fi
-    echoContent green "\n privateKey:${realityPrivateKey}"
-    echoContent green "\n publicKey:${realityPublicKey}"
 }
 # 初始化 mldsa65Seed
 initRealityMldsa65() {
@@ -9675,48 +9229,6 @@ initXrayXHTTPort() {
         echoContent yellow "\n ---> 端口: ${xHTTPort}"
     fi
 }
-# 初始化 reality 配置
-initXrayRealityConfig() {
-    echoContent skyBlue "\n进度  $1/${totalProgress} : 初始化 Xray-core reality配置"
-    initXrayRealityPort
-    initRealityKey
-    initRealityClientServersName
-    initRealityMldsa65
-}
-# 修改reality域名端口等信息
-updateXrayRealityConfig() {
-
-    local realityVisionResult
-    realityVisionResult=$(jq -r ".inbounds[0].port = ${realityPort}" ${configPath}07_VLESS_vision_reality_inbounds.json)
-    realityVisionResult=$(echo "${realityVisionResult}" | jq -r ".inbounds[0].streamSettings.realitySettings.dest = \"${realityDestDomain}\"")
-    realityVisionResult=$(echo "${realityVisionResult}" | jq -r ".inbounds[0].streamSettings.realitySettings.serverNames = [${realityServerName}]")
-    realityVisionResult=$(echo "${realityVisionResult}" | jq -r ".inbounds[0].streamSettings.realitySettings.privateKey = \"${realityPrivateKey}\"")
-    realityVisionResult=$(echo "${realityVisionResult}" | jq -r ".inbounds[0].streamSettings.realitySettings.publicKey = \"${realityPublicKey}\"")
-    echo "${realityVisionResult}" | jq . >${configPath}07_VLESS_vision_reality_inbounds.json
-    reloadCore
-    echoContent green " ---> 修改完成"
-}
-# xray-core Reality 安装
-xrayCoreRealityInstall() {
-    totalProgress=13
-    installTools 2
-    # 下载核心
-    #    prereleaseStatus=true
-    #    updateXray
-    installXray 3 false
-    # 生成 privateKey、配置回落地址、配置serverNames
-    installXrayService 6
-    # initXrayRealityConfig 5
-    # 初始化配置
-    initXrayConfig custom 7
-    handleXray stop
-
-    sleep 2
-    # 启动
-    handleXray start
-    # 生成账号
-    showAccounts 8
-}
 
 # reality管理
 manageReality() {
@@ -9863,34 +9375,6 @@ EOF
     handleSingBox stop
     handleSingBox start
 }
-# hysteria版本管理
-hysteriaVersionManageMenu() {
-    echoContent skyBlue "\n进度  $1/${totalProgress} : Hysteria版本管理"
-    if [[ ! -d "/etc/v2ray-agent/hysteria/" ]]; then
-        echoContent red " ---> 没有检测到安装目录，请执行脚本安装内容"
-        menu
-        exit 0
-    fi
-    echoContent red "\n=============================================================="
-    echoContent yellow "1.升级Hysteria"
-    echoContent yellow "2.关闭Hysteria"
-    echoContent yellow "3.打开Hysteria"
-    echoContent yellow "4.重启Hysteria"
-    echoContent red "=============================================================="
-
-    read -r -p "请选择:" selectHysteriaType
-    if [[ "${selectHysteriaType}" == "1" ]]; then
-        installHysteria 1
-        handleHysteria start
-    elif [[ "${selectHysteriaType}" == "2" ]]; then
-        handleHysteria stop
-    elif [[ "${selectHysteriaType}" == "3" ]]; then
-        handleHysteria start
-    elif [[ "${selectHysteriaType}" == "4" ]]; then
-        handleHysteria stop
-        handleHysteria start
-    fi
-}
 
 # sing-box 版本管理
 singBoxVersionManageMenu() {
@@ -9948,7 +9432,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.4.27"
+    echoContent green "当前版本：v3.4.28"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
