@@ -1,6 +1,7 @@
 # Created by .ignore support plugin (hsz.mobi)
 .idea
 fodder/.DS_Store
+.github/FUNDING.yml
 .DS_Store
 GEMINI.md
 GEMINI.zh-CN.md
