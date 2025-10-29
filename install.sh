@@ -7659,6 +7659,7 @@ sniRouting() {
     echoContent red "\n=============================================================="
     echoContent yellow "# 注意事项"
     echoContent yellow "# 使用教程：https://www.v2ray-agent.com/archives/1683226921000 \n"
+    echoContent yellow "# sing-box不支持规则集，仅支持指定域名。\n"
 
     echoContent yellow "1.添加"
     echoContent yellow "2.卸载"
@@ -7678,14 +7679,14 @@ setUnlockSNI() {
     read -r -p "请输入分流的SNI IP:" setSNIP
     if [[ -n ${setSNIP} ]]; then
         echoContent red "=============================================================="
-        echoContent yellow "录入示例:netflix,disney,hulu"
-        read -r -p "请按照上面示例录入域名:" domainList
 
-        if [[ -n "${domainList}" ]]; then
+        if [[ "${coreInstallType}" == 1 ]]; then
+            echoContent yellow "录入示例:netflix,disney,hulu"
+            read -r -p "请按照上面示例录入域名:" xrayDomainList
             local hosts={}
             while read -r domain; do
                 hosts=$(echo "${hosts}" | jq -r ".\"geosite:${domain}\"=\"${setSNIP}\"")
-            done < <(echo "${domainList}" | tr ',' '\n')
+            done < <(echo "${xrayDomainList}" | tr ',' '\n')
             cat <<EOF >${configPath}11_dns.json
 {
     "dns": {
@@ -7697,14 +7698,15 @@ setUnlockSNI() {
     }
 }
 EOF
-            echoContent red " ---> SNI反向代理分流成功"
-            reloadCore
-        else
-            echoContent red " ---> 域名不可为空"
         fi
-
+        if [[ -n "${singBoxConfigPath}" ]]; then
+            echoContent yellow "录入示例:www.netflix.com,www.google.com"
+            read -r -p "请按照上面示例录入域名:" singboxDomainList
+            addSingBoxDNSConfig "${setSNIP}" "${singboxDomainList}" "predefined"
+        fi
+        echoContent yellow " ---> SNI反向代理分流成功"
+        reloadCore
     else
-
         echoContent red " ---> SNI IP不可为空"
     fi
     exit 0
@@ -7749,6 +7751,7 @@ EOF
 addSingBoxDNSConfig() {
     local ip=$1
     local domainList=$2
+    local actionType=$3
 
     local rules=
     rules=$(initSingBoxRules "${domainList}" "dns")
@@ -7766,17 +7769,48 @@ addSingBoxDNSConfig() {
         ruleSetTag=$(echo "${ruleSet}" | jq '.|map(.tag)')
     fi
     if [[ -n "${singBoxConfigPath}" ]]; then
-        cat <<EOF >"${singBoxConfigPath}dns.json"
+        if [[ "${actionType}" == "predefined" ]]; then
+            local predefined={}
+            while read -r line; do
+                predefined=$(echo "${predefined}" | jq ".\"${line}\"=\"${ip}\"")
+            done < <(echo "${domainList}" | tr ',' '\n' | grep -v '^$' | sort -n | uniq | paste -sd ',' | tr ',' '\n')
+
+            cat <<EOF >"${singBoxConfigPath}dns.json"
+{
+  "dns": {
+    "servers": [
+        {
+            "tag": "local",
+            "type": "local"
+        },
+        {
+            "tag": "hosts",
+            "type": "hosts",
+            "predefined": ${predefined}
+        }
+    ],
+    "rules": [
+        {
+            "domain_regex":${domainRules},
+            "server":"hosts"
+        }
+    ]
+  }
+}
+EOF
+        else
+            cat <<EOF >"${singBoxConfigPath}dns.json"
 {
   "dns": {
     "servers": [
       {
         "tag": "local",
-        "address": "local"
+        "type": "local"
       },
       {
         "tag": "dnsRouting",
-        "address": "${ip}"
+        "type": "udp",
+        "server": "${ip}"
       }
     ],
     "rules": [
@@ -7792,6 +7826,7 @@ addSingBoxDNSConfig() {
   }
 }
 EOF
+        fi
     fi
 }
 # 设置dns
@@ -7842,7 +7877,7 @@ EOF
     "dns": {
         "servers":[
             {
-                "address":"local"
+                "type":"local"
             }
         ]
     }
@@ -7859,17 +7894,33 @@ EOF
 
 # 移除SNI分流
 removeUnlockSNI() {
-    cat <<EOF >${configPath}11_dns.json
+    if [[ "${coreInstallType}" == 1 ]]; then
+        cat <<EOF >${configPath}11_dns.json
 {
-	"dns": {
-		"servers": [
-			"localhost"
-		]
-	}
+    "dns": {
+        "servers": [
+            "localhost"
+        ]
+    }
 }
 EOF
-    reloadCore
+    fi
 
+    if [[ "${coreInstallType}" == "2" && -f "${singBoxConfigPath}dns.json" ]]; then
+        cat <<EOF >${singBoxConfigPath}dns.json
+{
+    "dns": {
+        "servers":[
+            {
+                "type":"local"
+            }
+        ]
+    }
+}
+EOF
+    fi
+
+    reloadCore
     echoContent green " ---> 卸载成功"
 
     exit 0
@@ -8484,6 +8535,7 @@ proxy-groups:
       - ${subscribeSalt}_provider
     proxies:
       - 自动选择
+      - 手动切换
       - DIRECT
 
   - name: Telegram
@@ -8538,21 +8590,26 @@ proxy-groups:
     use:
       - ${subscribeSalt}_provider
     proxies:
+      - 手动切换
       - 自动选择
+
+
   - name: OpenAI
     type: select
     use:
       - ${subscribeSalt}_provider
     proxies:
-      - 自动选择
       - 手动切换
+      - 自动选择
+
   - name: ClaudeAI
     type: select
     use:
       - ${subscribeSalt}_provider
     proxies:
-      - 自动选择
       - 手动切换
+      - 自动选择
+
   - name: Disney
     type: select
     use:
@@ -9432,17 +9489,20 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.4.30"
+    echoContent green "当前版本：v3.4.31"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
     checkWgetShowProgress
     echoContent red "\n=========================== 推广区============================"
     echoContent red "                                              "
-    echoContent green "VPS选购攻略：https://www.v2ray-agent.com/archives/1679975663984"
-    echoContent green "年付10美金低价VPS AS4837：https://www.v2ray-agent.com/archives/racknerdtao-can-zheng-li-nian-fu-10mei-yuan"
-    echoContent green "优质常驻套餐DMIT CN2-GIA：https://www.v2ray-agent.com/archives/186cee7b-9459-4e57-b9b2-b07a4f36931c"
-    echoContent green "VPS探针：https://ping.v2ray-agent.com/"
+    echoContent yellow "VPS选购攻略"
+    echoContent green "https://www.v2ray-agent.com/archives/1679975663984"
+    echoContent yellow "年付10美金低价VPS AS4837"
+    echoContent green "https://www.v2ray-agent.com/archives/racknerdtao-can-zheng-li-nian-fu-10mei-yuan"
+    echoContent yellow "优质常驻套餐DMIT CN2-GIA"
+    echoContent green "https://www.v2ray-agent.com/archives/186cee7b-9459-4e57-b9b2-b07a4f36931c"
+    echoContent yellow "VPS探针：https://ping.v2ray-agent.com/"
     echoContent red "=============================================================="
     if [[ -n "${coreInstallType}" ]]; then
         echoContent yellow "1.重新安装"
