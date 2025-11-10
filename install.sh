@@ -1461,14 +1461,14 @@ initTLSNginxConfig() {
             echoContent yellow "\n ---> 域名: ${domain}"
         else
             echo
-            echoContent yellow "请输入要配置的域名 例: www.v2ray-agent.com --->"
+            echoContent yellow "请输入要配置的域名 例: sywl6688.top --->"
             read -r -p "域名:" domain
         fi
     elif [[ -n "${currentHost}" && -n "${lastInstallationConfig}" ]]; then
         domain=${currentHost}
     else
         echo
-        echoContent yellow "请输入要配置的域名 例: www.v2ray-agent.com --->"
+        echoContent yellow "请输入要配置的域名 例: sywl6688.top --->"
         read -r -p "域名:" domain
     fi
 
