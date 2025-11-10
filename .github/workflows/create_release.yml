@@ -1,0 +1,80 @@
+name: Release Check
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  check-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Read version from install.sh
+        id: version
+        run: |
+          FILE_VERSION=$(grep -oP '当前版本：v[0-9]+\.[0-9]+\.[0-9]+' install.sh | sed 's/当前版本：//')
+          echo "file_version=$FILE_VERSION" >> $GITHUB_OUTPUT
+          echo $FILE_VERSION
+
+      - name: Get latest release
+        id: latest
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const {data:latest} = await github.rest.repos.getLatestRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            }).catch(() => ({ data: null }));
+            return latest ? latest.tag_name: "";
+          result-encoding: string
+
+      - name: Create release and cleanup old ones
+        if: ${{ steps.version.outputs.file_version != steps.latest.outputs.tag }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = "${{ steps.version.outputs.file_version }}";
+            
+            const commits = await github.rest.repos.listCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 1
+            });
+            const lastMessage = commits.data[0].commit.message;
+            
+            const release = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag,
+              body: lastMessage
+            }).catch(err => console.log(`Skip release ${err.message}`));
+            
+            const { data: releases } = await github.rest.repos.listReleases({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+            console.log(`releases:${releases}`)
+            
+            const oldReleases = releases.slice(3);
+            for (const rel of oldReleases) {
+              console.log(`🗑 Deleting old release ${rel.tag_name} (id=${rel.id})`);
+              await github.rest.repos.deleteRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: rel.id
+              }).catch(err => console.log(`Skip release ${rel.id}: ${err.message}`));
+              await github.rest.git.deleteRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `tags/${rel.tag_name}`
+              }).catch(err => console.log(`Skip tag ${rel.tag_name}: ${err.message}`));
+            }

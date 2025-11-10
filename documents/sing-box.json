@@ -8,8 +8,8 @@
     "clash_api": {
       "external_controller": "127.0.0.1:9090",
       "external_ui": "metacubexd",
-      "external_ui_download_url": "https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip",
-      "external_ui_download_detour": "手动切换",
+      "external_ui_download_url": "https://gh-proxy.com/https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip",
+      "external_ui_download_detour": "direct",
       "default_mode": "rule"
     },
     "cache_file": {
@@ -20,60 +20,61 @@
     "servers": [
       {
         "tag": "dns_proxy",
-        "address": "https://1.1.1.1/dns-query",
-        "address_resolver": "dns_resolver",
-        "strategy": "ipv4_only",
-        "detour": "手动切换"
+        "type": "https",
+        "server": "1.1.1.1",
+        "server_port": 443,
+        "detour": "自动选择",
+        "path": "/dns-query",
+        "domain_resolver": "dns_resolver"
       },
       {
         "tag": "dns_direct",
-        "address": "h3://dns.alidns.com/dns-query",
-        "address_resolver": "dns_resolver",
-        "strategy": "ipv4_only",
-        "detour": "direct"
+        "type": "h3",
+        "server": "dns.alidns.com",
+        "server_port": 443,
+        "path": "/dns-query",
+        "domain_resolver": "dns_resolver"
       },
       {
         "tag": "google",
-        "address": "tls://8.8.4.4"
-      },
-      {
-        "tag": "dns_block",
-        "address": "rcode://success"
+        "type": "tls",
+        "server": "8.8.4.4",
+        "domain_resolver": "dns_resolver"
       },
       {
         "tag": "dns_resolver",
-        "address": "114.114.114.114",
-        "strategy": "ipv4_only",
-        "detour": "direct"
+        "type": "udp",
+        "server": "114.114.114.114"
+      },
+      {
+        "type": "local",
+        "tag": "local"
       }
     ],
     "rules": [
       {
-        "outbound": "any",
-        "server": "dns_direct"
-      },
-      {
+        "action": "route",
         "clash_mode": "direct",
         "server": "dns_direct"
       },
       {
+        "action": "route",
         "clash_mode": "global",
         "server": "dns_proxy"
       },
       {
+        "action": "route",
         "rule_set": "geosite-cn",
         "server": "dns_direct"
       },
       {
-        "rule_set": "geoip-cn",
-        "server": "dns_direct"
-      },
-      {
+        "action": "route",
         "rule_set": "geosite-geolocation-!cn",
         "server": "dns_proxy"
       }
     ],
     "independent_cache": true,
+    "strategy": "prefer_ipv4",
     "final": "dns_direct"
   },
   "inbounds": [
@@ -82,20 +83,25 @@
       "tag": "tun-in",
       "stack": "system",
       "address": [
-        "172.16.0.1/30",
-        "fd00::1/126"
+        "172.18.0.1/30",
+        "fdfe:dcba:9876::1/126"
       ],
-      "mtu": 1492,
+      "route_address": [
+        "0.0.0.0/1",
+        "128.0.0.0/1",
+        "::/1",
+        "8000::/1"
+      ],
+      "route_exclude_address": [
+        "192.168.0.0/16",
+        "10.0.0.0/8",
+        "172.16.0.0/12",
+        "fc00::/7"
+      ],
+      "mtu": 9000,
       "auto_route": true,
       "strict_route": true,
-      "sniff": true,
-      "platform": {
-        "http_proxy": {
-          "enabled": true,
-          "server": "127.0.0.1",
-          "server_port": 1082
-        }
-      }
+      "sniff": true
     },
     {
       "type": "mixed",
@@ -103,12 +109,6 @@
       "listen_port": 1082,
       "sniff": true,
       "users": []
-    },
-    {
-      "type": "socks",
-      "tag": "socks-in",
-      "listen": "127.0.0.1",
-      "listen_port": 7888
     }
   ],
   "outbounds": [
@@ -211,6 +211,10 @@
     }
   ],
   "route": {
+    "default_domain_resolver": {
+      "server": "dns_resolver",
+      "strategy": "prefer_ipv4"
+    },
     "rule_set": [
       {
         "tag": "geosite-category-ads-all",
@@ -348,6 +352,10 @@
         "action": "hijack-dns"
       },
       {
+        "ip_is_private": true,
+        "outbound": "direct"
+      },
+      {
         "clash_mode": "global",
         "outbound": "手动切换"
       },
@@ -444,3 +452,4 @@
     "auto_detect_interface": true
   }
 }
+
