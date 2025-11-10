@@ -9503,21 +9503,21 @@ singBoxVersionManageMenu() {
 menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
-    echoContent green "作者：mack-a"
+    echoContent green "作者：时屿网络"
     echoContent green "当前版本：v3.4.33"
-    echoContent green "Github：https://github.com/mack-a/v2ray-agent"
-    echoContent green "描述：八合一共存脚本\c"
+    echoContent green "官方网站：https://sywl6688.top"
+    echoContent green "描述：时屿网络超级脚本\c"
     showInstallStatus
     checkWgetShowProgress
     echoContent red "\n=========================== 推广区============================"
     echoContent red "                                              "
-    echoContent yellow "VPS选购攻略"
-    echoContent green "https://www.v2ray-agent.com/archives/1679975663984"
-    echoContent yellow "年付10美金低价VPS AS4837"
-    echoContent green "https://www.v2ray-agent.com/archives/racknerdtao-can-zheng-li-nian-fu-10mei-yuan"
-    echoContent yellow "优质常驻套餐DMIT CN2-GIA"
-    echoContent green "https://www.v2ray-agent.com/archives/186cee7b-9459-4e57-b9b2-b07a4f36931c"
-    echoContent yellow "VPS探针：https://ping.v2ray-agent.com/"
+    echoContent yellow ""
+    echoContent green "时屿网络特价活动：https://wh9527.top/buy/55"
+    echoContent yellow "TikTok直播推荐套装：https://wh9527.top/buy/52"
+    echoContent green ""
+    echoContent yellow ""
+    echoContent green ""
+    echoContent yellow ""
     echoContent red "=============================================================="
     if [[ -n "${coreInstallType}" ]]; then
         echoContent yellow "1.重新安装"
