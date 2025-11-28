@@ -127,6 +127,7 @@ initVar() {
     removeType='yum -y remove'
     upgrade="yum -y update"
     echoType='echo -e'
+#    sudoCMD=""
 
     # 核心支持的cpu版本
     xrayCoreCPUVendor=""
@@ -1069,7 +1070,13 @@ mkdirTools() {
 
     mkdir -p /usr/share/nginx/html/
 }
-
+# 检测root
+checkRoot() {
+    if [ "$(id -u)" -ne 0 ]; then
+#        sudoCMD="sudo"
+        echo "检测到非 Root 用户，将使用 sudo 执行命令..."
+    fi
+}
 # 安装工具包
 installTools() {
     echoContent skyBlue "\n进度  $1/${totalProgress} : 安装工具"
@@ -1094,17 +1101,17 @@ installTools() {
         ${installType} epel-release >/dev/null 2>&1
     fi
 
-    if ! find /usr/bin /usr/sbin | grep -q -w sudo; then
+    if ! sudo --version >/dev/null 2>&1; then
         echoContent green " ---> 安装sudo"
         ${installType} sudo >/dev/null 2>&1
     fi
 
-    if ! find /usr/bin /usr/sbin | grep -q -w wget; then
+    if ! wget --help >/dev/null 2>&1; then
         echoContent green " ---> 安装wget"
         ${installType} wget >/dev/null 2>&1
     fi
 
-    if ! find /usr/bin /usr/sbin | grep -q -w netfilter-persistent; then
+    if ! command -v netfilter-persistent >/dev/null 2>&1; then
         if [[ "${release}" != "centos" ]]; then
             echoContent green " ---> 安装iptables"
             echo "iptables-persistent iptables-persistent/autosave_v4 boolean true" | sudo debconf-set-selections
@@ -1113,70 +1120,75 @@ installTools() {
         fi
     fi
 
-    if ! find /usr/bin /usr/sbin | grep -q -w curl; then
+    if ! curl --help >/dev/null 2>&1; then
         echoContent green " ---> 安装curl"
         ${installType} curl >/dev/null 2>&1
     fi
 
-    if ! find /usr/bin /usr/sbin | grep -q -w unzip; then
+    if ! unzip >/dev/null 2>&1; then
         echoContent green " ---> 安装unzip"
         ${installType} unzip >/dev/null 2>&1
     fi
 
-    if ! find /usr/bin /usr/sbin | grep -q -w socat; then
+    if ! socat -h >/dev/null 2>&1; then
         echoContent green " ---> 安装socat"
         ${installType} socat >/dev/null 2>&1
     fi
 
-    if ! find /usr/bin /usr/sbin | grep -q -w tar; then
+    if ! tar --help >/dev/null 2>&1; then
         echoContent green " ---> 安装tar"
         ${installType} tar >/dev/null 2>&1
     fi
 
-    if ! find /usr/bin /usr/sbin | grep -q -w cron; then
+    if ! crontab -l >/dev/null 2>&1; then
         echoContent green " ---> 安装crontabs"
-        if [[ "${release}" == "ubuntu" ]] || [[ "${release}" == "debian" ]]; then
+        if [[ "${release}" == "ubuntu" || "${release}" == "debian" ]]; then
             ${installType} cron >/dev/null 2>&1
         else
             ${installType} crontabs >/dev/null 2>&1
         fi
     fi
-    if ! find /usr/bin /usr/sbin | grep -q -w jq; then
+    if ! jq --help >/dev/null 2>&1; then
         echoContent green " ---> 安装jq"
         ${installType} jq >/dev/null 2>&1
     fi
 
-    if ! find /usr/bin /usr/sbin | grep -q -w binutils; then
+    if ! command -v ld >/dev/null 2>&1; then
         echoContent green " ---> 安装binutils"
         ${installType} binutils >/dev/null 2>&1
     fi
 
-    if ! find /usr/bin /usr/sbin | grep -q -w openssl; then
+    if ! openssl help >/dev/null 2>&1; then
         echoContent green " ---> 安装openssl"
         ${installType} openssl >/dev/null 2>&1
     fi
 
-    if ! find /usr/bin /usr/sbin | grep -q -w ping6; then
+    if ! ping6 --help >/dev/null 2>&1; then
         echoContent green " ---> 安装ping6"
         ${installType} inetutils-ping >/dev/null 2>&1
     fi
 
-    if ! find /usr/bin /usr/sbin | grep -q -w qrencode; then
+    if ! qrencode --help >/dev/null 2>&1; then
         echoContent green " ---> 安装qrencode"
         ${installType} qrencode >/dev/null 2>&1
     fi
 
-    if ! find /usr/bin /usr/sbin | grep -q -w lsb-release; then
-        echoContent green " ---> 安装lsb-release"
-        ${installType} lsb-release >/dev/null 2>&1
+    if ! command -v lsb_release >/dev/null 2>&1; then
+        if [[ "${release}" == "ubuntu" || "${release}" == "debian" ]]; then
+            ${installType} lsb-release >/dev/null 2>&1
+        elif [[ "${release}" == "centos" ]]; then
+            ${installType} redhat-lsb-core >/dev/null 2>&1
+        else
+            ${installType} lsb-release >/dev/null 2>&1
+        fi
     fi
 
-    if ! find /usr/bin /usr/sbin | grep -q -w lsof; then
+    if ! lsof -h >/dev/null 2>&1; then
         echoContent green " ---> 安装lsof"
         ${installType} lsof >/dev/null 2>&1
     fi
 
-    if ! find /usr/bin /usr/sbin | grep -q -w dig; then
+    if ! dig -h >/dev/null 2>&1; then
         echoContent green " ---> 安装dig"
         if echo "${installType}" | grep -qw "apt"; then
             ${installType} dnsutils >/dev/null 2>&1
@@ -1191,7 +1203,7 @@ installTools() {
     if echo "${selectCustomInstallType}" | grep -qwE ",7,|,8,|,7,8,"; then
         echoContent green " ---> 检测到无需依赖Nginx的服务，跳过安装"
     else
-        if ! find /usr/bin /usr/sbin | grep -q -w nginx; then
+        if ! nginx >/dev/null 2>&1; then
             echoContent green " ---> 安装nginx"
             installNginxTools
         else
@@ -1211,24 +1223,29 @@ installTools() {
         fi
     fi
 
-    if ! find /usr/bin /usr/sbin | grep -q -w semanage; then
+    if ! command -v semanage >/dev/null 2>&1; then
         echoContent green " ---> 安装semanage"
         ${installType} bash-completion >/dev/null 2>&1
 
         if [[ "${centosVersion}" == "7" ]]; then
-            policyCoreUtils="policycoreutils-python.x86_64"
-        elif [[ "${centosVersion}" == "8" ]]; then
-            policyCoreUtils="policycoreutils-python-utils-2.9-9.el8.noarch"
+            policyCoreUtils="policycoreutils-python"
+        elif [[ "${centosVersion}" == "8" || "${release}" == "ubuntu" || "${release}" == "debian" ]]; then
+            policyCoreUtils="policycoreutils-python-utils"
         fi
 
         if [[ -n "${policyCoreUtils}" ]]; then
             ${installType} ${policyCoreUtils} >/dev/null 2>&1
         fi
         if [[ -n $(which semanage) ]]; then
-            semanage port -a -t http_port_t -p tcp 31300
-
+            if command -v getenforce >/dev/null 2>&1; then
+                selinux_status=$(getenforce)
+                if [ "$selinux_status" != "Disabled" ]; then
+                    semanage port -a -t http_port_t -p tcp 31300
+                fi
+            fi
         fi
     fi
+
     if [[ "${selectCustomInstallType}" == "7" ]]; then
         echoContent green " ---> 检测到无需依赖证书的服务，跳过安装"
     else
@@ -9512,7 +9529,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.4.36"
+    echoContent green "当前版本：v3.4.37"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
