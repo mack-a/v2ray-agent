@@ -127,7 +127,7 @@ initVar() {
     removeType='yum -y remove'
     upgrade="yum -y update"
     echoType='echo -e'
-#    sudoCMD=""
+    #    sudoCMD=""
 
     # 核心支持的cpu版本
     xrayCoreCPUVendor=""
@@ -871,8 +871,8 @@ readConfigHostPathUUID() {
         # reality
         if echo ${currentInstallProtocolType} | grep -q ",7,"; then
 
-            currentClients=$(jq -r .inbounds[0].settings.clients ${configPath}07_VLESS_vision_reality_inbounds.json)
-            currentUUID=$(jq -r .inbounds[0].settings.clients[0].id ${configPath}07_VLESS_vision_reality_inbounds.json)
+            currentClients=$(jq -r .inbounds[1].settings.clients ${configPath}07_VLESS_vision_reality_inbounds.json)
+            currentUUID=$(jq -r .inbounds[1].settings.clients[0].id ${configPath}07_VLESS_vision_reality_inbounds.json)
             xrayVLESSRealityVisionPort=$(jq -r .inbounds[0].port ${configPath}07_VLESS_vision_reality_inbounds.json)
             if [[ "${currentPort}" == "${xrayVLESSRealityVisionPort}" ]]; then
                 xrayVLESSRealityVisionPort="${currentDefaultPort}"
@@ -1073,7 +1073,7 @@ mkdirTools() {
 # 检测root
 checkRoot() {
     if [ "$(id -u)" -ne 0 ]; then
-#        sudoCMD="sudo"
+        #        sudoCMD="sudo"
         echo "检测到非 Root 用户，将使用 sudo 执行命令..."
     fi
 }
@@ -2982,14 +2982,14 @@ initHysteria2Network() {
     read -r -p "下行速度:" hysteria2ClientDownloadSpeed
     if [[ -z "${hysteria2ClientDownloadSpeed}" ]]; then
         hysteria2ClientDownloadSpeed=100
-        echoContent yellow "\n ---> 下行速度: ${hysteria2ClientDownloadSpeed}\n"
+        echoContent green "\n ---> 下行速度: ${hysteria2ClientDownloadSpeed}\n"
     fi
 
     echoContent yellow "请输入本地带宽峰值的上行速度（默认：50，单位：Mbps）"
     read -r -p "上行速度:" hysteria2ClientUploadSpeed
     if [[ -z "${hysteria2ClientUploadSpeed}" ]]; then
         hysteria2ClientUploadSpeed=50
-        echoContent yellow "\n ---> 上行速度: ${hysteria2ClientUploadSpeed}\n"
+        echoContent green "\n ---> 上行速度: ${hysteria2ClientUploadSpeed}\n"
     fi
 }
 
@@ -6103,7 +6103,10 @@ addUser() {
     done
     reloadCore
     echoContent green " ---> 添加完成"
-    subscribe false
+    readNginxSubscribe
+    if [[ -n "${subscribePort}" ]]; then
+        subscribe false
+    fi
     manageAccount 1
 }
 # 移除用户
@@ -6202,7 +6205,10 @@ removeUser() {
             echo "${vmessHTTPUpgradeResult}" | jq . >${configPath}11_VMess_HTTPUpgrade_inbounds.json
         fi
         reloadCore
-        subscribe false
+        readNginxSubscribe
+        if [[ -n "${subscribePort}" ]]; then
+            subscribe false
+        fi
     fi
     manageAccount 1
 }
@@ -9529,7 +9535,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.4.37"
+    echoContent green "当前版本：v3.4.38"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
