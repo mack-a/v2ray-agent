@@ -4037,25 +4037,25 @@ EOF
         fallbacksList=${fallbacksList}',{"path":"/'${customPath}'vws","dest":31299,"xver":1}'
         cat <<EOF >/etc/v2ray-agent/xray/conf/05_VMess_WS_inbounds.json
 {
-"inbounds":[
-{
-  "listen": "127.0.0.1",
-  "port": 31299,
-  "protocol": "vmess",
-  "tag":"VMessWS",
-  "settings": {
-    "clients": $(initXrayClients 3)
-  },
-  "streamSettings": {
-    "network": "ws",
-    "security": "none",
-    "wsSettings": {
-      "acceptProxyProtocol": true,
-      "path": "/${customPath}vws"
-    }
-  }
-}
-]
+    "inbounds":[
+        {
+          "listen": "127.0.0.1",
+          "port": 31299,
+          "protocol": "vmess",
+          "tag":"VMessWS",
+          "settings": {
+            "clients": $(initXrayClients 3)
+          },
+          "streamSettings": {
+            "network": "ws",
+            "security": "none",
+            "wsSettings": {
+              "acceptProxyProtocol": true,
+              "path": "/${customPath}vws"
+            }
+          }
+        }
+    ]
 }
 EOF
     elif [[ -z "$3" ]]; then
@@ -4746,6 +4746,7 @@ EOF
         removeSingBoxConfig cn_block_outbound
         removeSingBoxConfig cn_block_route
         removeSingBoxConfig 01_direct_outbound
+        removeSingBoxConfig socks5_outbound.json
         removeSingBoxConfig block_domain_outbound
         removeSingBoxConfig dns
     fi
@@ -6465,7 +6466,7 @@ ipv6Routing() {
                 removeSingBoxConfig wireguard_endpoints_IPv4
                 removeSingBoxConfig wireguard_endpoints_IPv6
 
-                removeSingBoxConfig socks5_inbound_route
+                removeSingBoxConfig socks5_02_inbound_route
 
                 removeSingBoxConfig IPv6_route
 
@@ -7003,7 +7004,7 @@ warpRoutingReg() {
                 removeSingBoxConfig wireguard_endpoints_IPv6_route
 
                 removeSingBoxConfig IPv6_route
-                removeSingBoxConfig socks5_inbound_route
+                removeSingBoxConfig socks5_02_inbound_route
 
                 addSingBoxWireGuardEndpoints "${type}"
                 addWireGuardRoute "${type}" outboundTag ""
@@ -7170,7 +7171,7 @@ socks5InboundRoutingMenu() {
         socks5InboundRoutingMenu
         ;;
     2)
-        showSingBoxRoutingRules socks5_inbound_route
+        showSingBoxRoutingRules socks5_02_inbound_route
         socks5InboundRoutingMenu
         ;;
     3)
@@ -7217,7 +7218,7 @@ socks5OutboundRoutingMenu() {
         socks5OutboundRoutingMenu
         ;;
     3)
-        showSingBoxRoutingRules socks5_outbound_route
+        showSingBoxRoutingRules socks5_01_outbound_route
         showXrayRoutingRules socks5_outbound
         socks5OutboundRoutingMenu
         ;;
@@ -7260,7 +7261,7 @@ setSocks5OutboundRoutingAll() {
             removeSingBoxConfig wireguard_endpoints_IPv4
             removeSingBoxConfig wireguard_endpoints_IPv6
 
-            removeSingBoxConfig socks5_outbound_route
+            removeSingBoxConfig socks5_01_outbound_route
             removeSingBoxConfig 01_direct_outbound
         fi
 
@@ -7272,11 +7273,11 @@ showSingBoxRoutingRules() {
     if [[ -n "${singBoxConfigPath}" ]]; then
         if [[ -f "${singBoxConfigPath}$1.json" ]]; then
             jq .route.rules "${singBoxConfigPath}$1.json"
-        elif [[ "$1" == "socks5_outbound_route" && -f "${singBoxConfigPath}socks5_outbound.json" ]]; then
+        elif [[ "$1" == "socks5_01_outbound_route" && -f "${singBoxConfigPath}socks5_outbound.json" ]]; then
             echoContent yellow "已安装 sing-box socks5全局出站分流"
             echoContent yellow "\n出站分流配置："
             echoContent skyBlue "$(jq .outbounds[0] ${singBoxConfigPath}socks5_outbound.json)"
-        elif [[ "$1" == "socks5_inbound_route" && -f "${singBoxConfigPath}20_socks5_inbounds.json" ]]; then
+        elif [[ "$1" == "socks5_02_inbound_route" && -f "${singBoxConfigPath}20_socks5_inbounds.json" ]]; then
             echoContent yellow "已安装 sing-box socks5全局入站分流"
             echoContent yellow "\n出站分流配置："
             echoContent skyBlue "$(jq .outbounds[0] ${singBoxConfigPath}socks5_outbound.json)"
@@ -7320,14 +7321,14 @@ removeSocks5Routing() {
 
         if [[ -n "${singBoxConfigPath}" ]]; then
             removeSingBoxConfig socks5_outbound
-            removeSingBoxConfig socks5_outbound_route
+            removeSingBoxConfig socks5_01_outbound_route
             addSingBoxOutbound 01_direct_outbound
         fi
 
     elif [[ "${unInstallSocks5RoutingStatus}" == "2" ]]; then
 
         removeSingBoxConfig 20_socks5_inbounds
-        removeSingBoxConfig socks5_inbound_route
+        removeSingBoxConfig socks5_02_inbound_route
 
         handleSingBox stop
     elif [[ "${unInstallSocks5RoutingStatus}" == "3" ]]; then
@@ -7339,9 +7340,9 @@ removeSocks5Routing() {
 
         if [[ -n "${singBoxConfigPath}" ]]; then
             removeSingBoxConfig socks5_outbound
-            removeSingBoxConfig socks5_outbound_route
+            removeSingBoxConfig socks5_01_outbound_route
             removeSingBoxConfig 20_socks5_inbounds
-            removeSingBoxConfig socks5_inbound_route
+            removeSingBoxConfig socks5_02_inbound_route
             addSingBoxOutbound 01_direct_outbound
         fi
 
@@ -7435,14 +7436,14 @@ setSocks5InboundRouting() {
 
     singBoxConfigPath=/etc/v2ray-agent/sing-box/conf/config/
 
-    if [[ "$1" == "addRules" && ! -f "${singBoxConfigPath}socks5_inbound_route.json" && ! -f "${configPath}09_routing.json" ]]; then
+    if [[ "$1" == "addRules" && ! -f "${singBoxConfigPath}socks5_02_inbound_route.json" && ! -f "${configPath}09_routing.json" ]]; then
         echoContent red " ---> 请安装入站分流后再添加分流规则"
         echoContent red " ---> 如已选择允许所有网站，请重新安装分流后设置规则"
         exit 0
     fi
     local socks5InboundRoutingIPs=
     if [[ "$1" == "addRules" ]]; then
-        socks5InboundRoutingIPs=$(jq .route.rules[0].source_ip_cidr "${singBoxConfigPath}socks5_inbound_route.json")
+        socks5InboundRoutingIPs=$(jq .route.rules[0].source_ip_cidr "${singBoxConfigPath}socks5_02_inbound_route.json")
     else
         echoContent red "=============================================================="
         echoContent skyBlue "请输入允许访问的IP地址，多个IP英文逗号隔开。例如:1.1.1.1,2.2.2.2\n"
@@ -7464,11 +7465,11 @@ setSocks5InboundRouting() {
 
     read -r -p "是否允许所有网站？请选择[y/n]:" socks5InboundRoutingDomainStatus
     if [[ "${socks5InboundRoutingDomainStatus}" == "y" ]]; then
-        addSingBoxRouteRule "01_direct_outbound" "" "socks5_inbound_route"
+        addSingBoxRouteRule "01_direct_outbound" "" "socks5_02_inbound_route"
         local route=
-        route=$(jq ".route.rules[0].inbound = [\"socks5_inbound\"]" "${singBoxConfigPath}socks5_inbound_route.json")
+        route=$(jq ".route.rules[0].inbound = [\"socks5_inbound\"]" "${singBoxConfigPath}socks5_02_inbound_route.json")
         route=$(echo "${route}" | jq ".route.rules[0].source_ip_cidr=${socks5InboundRoutingIPs}")
-        echo "${route}" | jq . >"${singBoxConfigPath}socks5_inbound_route.json"
+        echo "${route}" | jq . >"${singBoxConfigPath}socks5_02_inbound_route.json"
 
         addSingBoxOutbound block
         addSingBoxOutbound "01_direct_outbound"
@@ -7479,11 +7480,11 @@ setSocks5InboundRouting() {
             echoContent red " ---> 域名不可为空"
             exit 0
         fi
-        addSingBoxRouteRule "01_direct_outbound" "${socks5InboundRoutingDomain}" "socks5_inbound_route"
+        addSingBoxRouteRule "01_direct_outbound" "${socks5InboundRoutingDomain}" "socks5_02_inbound_route"
         local route=
-        route=$(jq ".route.rules[0].inbound = [\"socks5_inbound\"]" "${singBoxConfigPath}socks5_inbound_route.json")
+        route=$(jq ".route.rules[0].inbound = [\"socks5_inbound\"]" "${singBoxConfigPath}socks5_02_inbound_route.json")
         route=$(echo "${route}" | jq ".route.rules[0].source_ip_cidr=${socks5InboundRoutingIPs}")
-        echo "${route}" | jq . >"${singBoxConfigPath}socks5_inbound_route.json"
+        echo "${route}" | jq . >"${singBoxConfigPath}socks5_02_inbound_route.json"
 
         addSingBoxOutbound block
         addSingBoxOutbound "01_direct_outbound"
@@ -7545,7 +7546,7 @@ EOF
 # socks5 outbound routing规则
 setSocks5OutboundRouting() {
 
-    if [[ "$1" == "addRules" && ! -f "${singBoxConfigPath}socks5_outbound_route.json" && ! -f "${configPath}09_routing.json" ]]; then
+    if [[ "$1" == "addRules" && ! -f "${singBoxConfigPath}socks5_01_outbound_route.json" && ! -f "${configPath}09_routing.json" ]]; then
         echoContent red " ---> 请安装出站分流后再添加分流规则"
         exit 0
     fi
@@ -7562,7 +7563,7 @@ setSocks5OutboundRouting() {
         echoContent red " ---> IP不可为空"
         exit 0
     fi
-    addSingBoxRouteRule "socks5_outbound" "${socks5RoutingOutboundDomain}" "socks5_outbound_route"
+    addSingBoxRouteRule "socks5_outbound" "${socks5RoutingOutboundDomain}" "socks5_01_outbound_route"
     addSingBoxOutbound "01_direct_outbound"
 
     if [[ "${coreInstallType}" == "1" ]]; then
@@ -8046,7 +8047,7 @@ customXrayInstall() {
     echoContent yellow "5.VLESS+TLS+gRPC[仅CDN推荐]"
     echoContent yellow "7.VLESS+Reality+uTLS+Vision[推荐]"
     # echoContent yellow "8.VLESS+Reality+gRPC"
-    echoContent yellow "12.VLESS+Reality+XHTTP+TLS"
+    echoContent yellow "12.VLESS+Reality+XHTTP+TLS[CDN可用]"
     read -r -p "请选择[多选]，[例如:1,2,3]:" selectCustomInstallType
     echoContent skyBlue "--------------------------------------------------------------"
     if echo "${selectCustomInstallType}" | grep -q "，"; then
@@ -9535,7 +9536,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.4.38"
+    echoContent green "当前版本：v3.5.1"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
