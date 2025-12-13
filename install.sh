@@ -5882,9 +5882,9 @@ customUUID() {
     else
         local checkUUID=
         if [[ "${coreInstallType}" == "1" ]]; then
-            checkUUID=$(jq -r --arg currentUUID "$currentCustomUUID" ".inbounds[0].settings.clients[] | select(.uuid | index(\$currentUUID) != null) | .name" ${configPath}${frontingType}.json)
+            checkUUID=$(jq -r --arg currentUUID "$currentCustomUUID" "(.inbounds[0].settings.clients // .inbounds[1].settings.clients)[]? | select(.id == \$currentUUID) | .email" ${configPath}${frontingType:-$frontingTypeReality}.json)
         elif [[ "${coreInstallType}" == "2" ]]; then
-            checkUUID=$(jq -r --arg currentUUID "$currentCustomUUID" ".inbounds[0].users[] | select(.uuid | index(\$currentUUID) != null) | .name//.username" ${configPath}${frontingType}.json)
+            checkUUID=$(jq -r --arg currentUUID "$currentCustomUUID" ".inbounds[0].users[] | select(.uuid == \$currentUUID) | .name//.username" ${configPath}${frontingType}.json)
         fi
 
         if [[ -n "${checkUUID}" ]]; then
@@ -5909,11 +5909,11 @@ customUserEmail() {
                 frontingTypeConfig="07_VLESS_vision_reality_inbounds"
             fi
 
-            checkEmail=$(jq -r --arg currentEmail "$currentCustomEmail" ".inbounds[0].settings.clients[] | select(.name | index(\$currentEmail) != null) | .name" ${configPath}${frontingTypeConfig}.json)
+            checkEmail=$(jq -r --arg currentEmail "$currentCustomEmail" "(.inbounds[0].settings.clients // .inbounds[1].settings.clients)[]? | select(.email == \$currentEmail) | .email" ${configPath}${frontingTypeConfig:-$frontingTypeReality}.json)
         elif
             [[ "${coreInstallType}" == "2" ]]
         then
-            checkEmail=$(jq -r --arg currentEmail "$currentCustomEmail" ".inbounds[0].users[] | select(.name | index(\$currentEmail) != null) | .name" ${configPath}${frontingType}.json)
+            checkEmail=$(jq -r --arg currentEmail "$currentCustomEmail" ".inbounds[0].users[] | select(.name == \$currentEmail) | .name" ${configPath}${frontingType}.json)
         fi
 
         if [[ -n "${checkEmail}" ]]; then
@@ -6025,12 +6025,15 @@ addUser() {
         # vless reality vision
         if echo "${currentInstallProtocolType}" | grep -q ",7,"; then
             local clients=
+            local realityUserConfig=
             if [[ "${coreInstallType}" == "1" ]]; then
                 clients=$(initXrayClients 7 "${uuid}" "${email}")
+                realityUserConfig=".inbounds[1].settings.clients"
             elif [[ "${coreInstallType}" == "2" ]]; then
                 clients=$(initSingBoxClients 7 "${uuid}" "${email}")
+                realityUserConfig=".inbounds[0].settings.clients"
             fi
-            clients=$(jq -r "${userConfig} = ${clients}" ${configPath}07_VLESS_vision_reality_inbounds.json)
+            clients=$(jq -r "${realityUserConfig} = ${clients}" ${configPath}07_VLESS_vision_reality_inbounds.json)
             echo "${clients}" | jq . >${configPath}07_VLESS_vision_reality_inbounds.json
         fi
 
@@ -6112,23 +6115,20 @@ addUser() {
 }
 # 移除用户
 removeUser() {
-    local userConfigType=
-    if [[ -n "${frontingType}" ]]; then
-        userConfigType="${frontingType}"
-    elif [[ -n "${frontingTypeReality}" ]]; then
-        userConfigType="${frontingTypeReality}"
-    fi
 
     local uuid=
-    if [[ -n "${userConfigType}" ]]; then
-        if [[ "${coreInstallType}" == "1" ]]; then
-            jq -r -c .inbounds[0].settings.clients[].email ${configPath}${userConfigType}.json | awk '{print NR""":"$0}'
-        elif [[ "${coreInstallType}" == "2" ]]; then
-            jq -r -c .inbounds[0].users[].name//.inbounds[0].users[].username ${configPath}${userConfigType}.json | awk '{print NR""":"$0}'
-        fi
-
+    if [[ "${coreInstallType}" == "1" ]]; then
+        jq -r -c '(.inbounds[0].settings.clients // .inbounds[1].settings.clients)[]?|.email' ${configPath}${frontingType:-$frontingTypeReality}.json | awk '{print NR""":"$0}'
         read -r -p "请选择要删除的用户编号[仅支持单个删除]:" delUserIndex
-        if [[ $(jq -r '.inbounds[0].settings.clients|length' ${configPath}${userConfigType}.json) -lt ${delUserIndex} && $(jq -r '.inbounds[0].users|length' ${configPath}${userConfigType}.json) -lt ${delUserIndex} ]]; then
+        if [[ $(jq -r '(.inbounds[0].settings.clients // .inbounds[1].settings.clients)?|length' ${configPath}${frontingType:-$frontingTypeReality}.json) -lt ${delUserIndex} ]]; then
+            echoContent red " ---> 选择错误"
+        else
+            delUserIndex=$((delUserIndex - 1))
+        fi
+    elif [[ "${coreInstallType}" == "2" ]]; then
+        jq -r -c .inbounds[0].users[].name//.inbounds[0].users[].username ${configPath}${frontingType:-$frontingTypeReality}.json | awk '{print NR""":"$0}'
+        read -r -p "请选择要删除的用户编号[仅支持单个删除]:" delUserIndex
+        if [[ $(jq -r '.inbounds[0].users|length' ${configPath}${frontingType:-$frontingTypeReality}.json) -lt ${delUserIndex} ]]; then
             echoContent red " ---> 选择错误"
         else
             delUserIndex=$((delUserIndex - 1))
@@ -6174,7 +6174,7 @@ removeUser() {
 
         if echo ${currentInstallProtocolType} | grep -q ",7,"; then
             local vlessRealityResult
-            vlessRealityResult=$(jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}']//.inbounds[0].users['${delUserIndex}'])' ${configPath}07_VLESS_vision_reality_inbounds.json)
+            vlessRealityResult=$(jq -r 'del(.inbounds[0].settings.clients['${delUserIndex}']//.inbounds[1].settings.clients['${delUserIndex}']//.inbounds[0].users['${delUserIndex}'])' ${configPath}07_VLESS_vision_reality_inbounds.json)
             echo "${vlessRealityResult}" | jq . >${configPath}07_VLESS_vision_reality_inbounds.json
         fi
         if echo ${currentInstallProtocolType} | grep -q ",8,"; then
@@ -9536,7 +9536,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.5.1"
+    echoContent green "当前版本：v3.5.2"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
