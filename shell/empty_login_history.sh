@@ -1,13 +1,27 @@
 #!/usr/bin/env bash
-# 清空访问日志
-# wget -P /tmp -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/shell/empty_login_history.sh" && chmod 700 /tmp/empty_login_history.sh && /tmp/empty_login_history.sh
-echo "清空中"
-echo > /var/log/wtmp
-echo > /var/log/btmp
-echo > /var/log/lastlog
-echo > ~/.bash_history
-echo "清空完毕"
-echo "删除脚本"
-rm -rf /tmp/empty_login_history.sh
-history -c
-echo "done"
+# =============================================================================
+# 警告：此脚本的原始功能已被禁用
+# =============================================================================
+# 原脚本会清空以下系统日志：
+#   - /var/log/wtmp (登录记录)
+#   - /var/log/btmp (失败登录尝试)
+#   - /var/log/lastlog (最后登录信息)
+#   - ~/.bash_history (命令历史)
+#
+# 这种行为存在安全风险：
+#   1. 清除审计日志会掩盖潜在的安全入侵痕迹
+#   2. 无法追溯异常登录行为
+#   3. 不利于安全事件调查
+#
+# 如果您确实需要此功能，请自行手动执行相关命令。
+# =============================================================================
+
+echo "⚠️  警告：清空登录历史功能已被禁用"
+echo ""
+echo "清除系统审计日志是危险的反取证行为，可能："
+echo "  - 掩盖未授权访问的痕迹"
+echo "  - 妨碍安全事件调查"
+echo "  - 违反合规要求"
+echo ""
+echo "如需清理特定日志，请手动执行并确保了解其影响。"
+exit 0

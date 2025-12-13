@@ -332,6 +332,9 @@ initVar() {
     # 上次安装配置状态
     lastInstallationConfig=
 
+    # Reality shortId (每次安装随机生成)
+    realityShortId=
+
 }
 
 # 读取tls证书详情
@@ -2087,6 +2090,19 @@ randomNum() {
     else
         echo $((RANDOM % $2 + $1))
     fi
+}
+
+# 生成随机shortId (16位十六进制)
+generateShortId() {
+    if [[ -z "${realityShortId}" ]]; then
+        if [[ -f "/etc/v2ray-agent/reality_shortid" ]]; then
+            realityShortId=$(cat /etc/v2ray-agent/reality_shortid)
+        else
+            realityShortId=$(openssl rand -hex 8)
+            echo "${realityShortId}" > /etc/v2ray-agent/reality_shortid
+        fi
+    fi
+    echo "${realityShortId}"
 }
 # Nginx伪装博客
 nginxBlog() {
@@ -4017,7 +4033,7 @@ EOF
             "maxTimeDiff": 70000,
             "shortIds": [
                 "",
-                "6ba85179e30d4fc2"
+                "${realityShortId}"
             ]
         },
         "xhttpSettings": {
@@ -4189,7 +4205,7 @@ EOF
           "maxTimeDiff": 70000,
           "shortIds": [
             "",
-            "6ba85179e30d4fc2"
+            "${realityShortId}"
           ]
         }
       },
@@ -4487,7 +4503,7 @@ EOF
             "private_key": "${realityPrivateKey}",
             "short_id": [
                 "",
-                "6ba85179e30d4fc2"
+                "${realityShortId}"
             ]
         }
       }
@@ -4528,7 +4544,7 @@ EOF
             "private_key": "${realityPrivateKey}",
             "short_id": [
                 "",
-                "6ba85179e30d4fc2"
+                "${realityShortId}"
             ]
         }
       },
@@ -4795,7 +4811,7 @@ EOF
         echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
 
         echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS_Vision)"
-        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${currentHost}%3A${port}%3Fencryption%3Dnone%26fp%3Dchrome%26security%3Dtls%26type%3Dtcp%26${currentHost}%3D${currentHost}%26headerType%3Dnone%26sni%3D${currentHost}%26flow%3Dxtls-rprx-vision%23${email}\n"
+        echo "vless://${id}@${currentHost}:${port}?encryption=none&security=tls&fp=chrome&type=tcp&host=${currentHost}&headerType=none&sni=${currentHost}&flow=xtls-rprx-vision#${email}" | qrencode -s 10 -m 1 -t UTF8 2>/dev/null
 
     elif [[ "${type}" == "vmessws" ]]; then
         qrCodeBase64Default=$(echo -n "{\"port\":${port},\"ps\":\"${email}\",\"tls\":\"tls\",\"id\":\"${id}\",\"aid\":0,\"v\":2,\"host\":\"${currentHost}\",\"type\":\"none\",\"path\":\"${path}\",\"net\":\"ws\",\"add\":\"${add}\",\"allowInsecure\":0,\"method\":\"none\",\"peer\":\"${currentHost}\",\"sni\":\"${currentHost}\"}" | base64 -w 0)
@@ -4832,7 +4848,7 @@ EOF
 
         echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
 
-        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vmess://${qrCodeBase64Default}\n"
+        echo "vmess://${qrCodeBase64Default}" | qrencode -s 10 -m 1 -t UTF8 2>/dev/null
 
     elif [[ "${type}" == "vlessws" ]]; then
 
@@ -4866,20 +4882,20 @@ EOF
         echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
 
         echoContent yellow " ---> 二维码 VLESS(VLESS+WS+TLS)"
-        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dws%26host%3D${currentHost}%26fp%3Dchrome%26sni%3D${currentHost}%26path%3D${path}%23${email}"
+        echo "vless://${id}@${add}:${port}?encryption=none&security=tls&type=ws&host=${currentHost}&fp=chrome&sni=${currentHost}&path=${path}#${email}" | qrencode -s 10 -m 1 -t UTF8 2>/dev/null
 
     elif [[ "${type}" == "vlessXHTTP" ]]; then
 
         echoContent yellow " ---> 通用格式(VLESS+reality+XHTTP)"
-        echoContent green "    vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&type=xhttp&sni=${xrayVLESSRealityXHTTPServerName}&host=${xrayVLESSRealityXHTTPServerName}&fp=chrome&path=${path}&pbk=${currentRealityXHTTPPublicKey}&sid=6ba85179e30d4fc2#${email}\n"
+        echoContent green "    vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&type=xhttp&sni=${xrayVLESSRealityXHTTPServerName}&host=${xrayVLESSRealityXHTTPServerName}&fp=chrome&path=${path}&pbk=${currentRealityXHTTPPublicKey}&sid=${realityShortId}#${email}\n"
 
         echoContent yellow " ---> 格式化明文(VLESS+reality+XHTTP)"
-        echoContent green "协议类型:VLESS reality，地址:$(getPublicIP)，publicKey:${currentRealityXHTTPPublicKey}，shortId: 6ba85179e30d4fc2,serverNames：${xrayVLESSRealityXHTTPServerName}，端口:${port}，路径：${path}，SNI:${xrayVLESSRealityXHTTPServerName}，伪装域名:${xrayVLESSRealityXHTTPServerName}，用户ID:${id}，传输方式:xhttp，账户名:${email}\n"
+        echoContent green "协议类型:VLESS reality，地址:$(getPublicIP)，publicKey:${currentRealityXHTTPPublicKey}，shortId: ${realityShortId},serverNames：${xrayVLESSRealityXHTTPServerName}，端口:${port}，路径：${path}，SNI:${xrayVLESSRealityXHTTPServerName}，伪装域名:${xrayVLESSRealityXHTTPServerName}，用户ID:${id}，传输方式:xhttp，账户名:${email}\n"
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
-vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&type=xhttp&sni=${xrayVLESSRealityXHTTPServerName}&fp=chrome&path=${path}&pbk=${currentRealityXHTTPPublicKey}&sid=6ba85179e30d4fc2#${email}
+vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&type=xhttp&sni=${xrayVLESSRealityXHTTPServerName}&fp=chrome&path=${path}&pbk=${currentRealityXHTTPPublicKey}&sid=${realityShortId}#${email}
 EOF
         echoContent yellow " ---> 二维码 VLESS(VLESS+reality+XHTTP)"
-        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40$(getPublicIP)%3A${port}%3Fencryption%3Dnone%26security%3Dreality%26type%3Dxhttp%26sni%3D${xrayVLESSRealityXHTTPServerName}%26fp%3Dchrome%26path%3D${path}%26host%3D${xrayVLESSRealityXHTTPServerName}%26pbk%3D${currentRealityXHTTPPublicKey}%26sid%3D6ba85179e30d4fc2%23${email}\n"
+        echo "vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&type=xhttp&sni=${xrayVLESSRealityXHTTPServerName}&fp=chrome&path=${path}&host=${xrayVLESSRealityXHTTPServerName}&pbk=${currentRealityXHTTPPublicKey}&sid=${realityShortId}#${email}" | qrencode -s 10 -m 1 -t UTF8 2>/dev/null
 
     elif
         [[ "${type}" == "vlessgrpc" ]]
@@ -4913,7 +4929,7 @@ EOF
         echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
 
         echoContent yellow " ---> 二维码 VLESS(VLESS+gRPC+TLS)"
-        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dgrpc%26host%3D${currentHost}%26serviceName%3D${currentPath}grpc%26fp%3Dchrome%26path%3D${currentPath}grpc%26sni%3D${currentHost}%26alpn%3Dh2%23${email}"
+        echo "vless://${id}@${add}:${port}?encryption=none&security=tls&type=grpc&host=${currentHost}&serviceName=${currentPath}grpc&fp=chrome&path=${currentPath}grpc&sni=${currentHost}&alpn=h2#${email}" | qrencode -s 10 -m 1 -t UTF8 2>/dev/null
 
     elif [[ "${type}" == "trojan" ]]; then
         # URLEncode
@@ -4938,7 +4954,7 @@ EOF
         echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
 
         echoContent yellow " ---> 二维码 Trojan(TLS)"
-        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${currentHost}%3a${port}%3fpeer%3d${currentHost}%26fp%3Dchrome%26sni%3d${currentHost}%26alpn%3Dhttp/1.1%23${email}\n"
+        echo "trojan://${id}@${currentHost}:${port}?peer=${currentHost}&fp=chrome&sni=${currentHost}&alpn=http/1.1#${email}" | qrencode -s 10 -m 1 -t UTF8 2>/dev/null
 
     elif [[ "${type}" == "trojangrpc" ]]; then
         # URLEncode
@@ -4965,7 +4981,7 @@ EOF
         echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
 
         echoContent yellow " ---> 二维码 Trojan gRPC(TLS)"
-        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${add}%3a${port}%3Fencryption%3Dnone%26fp%3Dchrome%26security%3Dtls%26peer%3d${currentHost}%26type%3Dgrpc%26sni%3d${currentHost}%26path%3D${currentPath}trojangrpc%26alpn%3Dh2%26serviceName%3D${currentPath}trojangrpc%23${email}\n"
+        echo "trojan://${id}@${add}:${port}?encryption=none&fp=chrome&security=tls&peer=${currentHost}&type=grpc&sni=${currentHost}&path=${currentPath}trojangrpc&alpn=h2&serviceName=${currentPath}trojangrpc#${email}" | qrencode -s 10 -m 1 -t UTF8 2>/dev/null
 
     elif [[ "${type}" == "hysteria" ]]; then
         echoContent yellow " ---> Hysteria(TLS)"
@@ -5002,7 +5018,7 @@ EOF
         echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
 
         echoContent yellow " ---> 二维码 Hysteria2(TLS)"
-        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=hysteria2%3A%2F%2F${id}%40${currentHost}%3A${singBoxHysteria2Port}%3F${multiPortEncode}peer%3D${currentHost}%26insecure%3D0%26sni%3D${currentHost}%26alpn%3Dh3%23${email}\n"
+        echo "hysteria2://${id}@${currentHost}:${singBoxHysteria2Port}?${multiPort}peer=${currentHost}&insecure=0&sni=${currentHost}&alpn=h3#${email}" | qrencode -s 10 -m 1 -t UTF8 2>/dev/null
 
     elif [[ "${type}" == "vlessReality" ]]; then
         local realityServerName=${xrayVLESSRealityServerName}
@@ -5014,12 +5030,12 @@ EOF
             publicKey=${singBoxVLESSRealityPublicKey}
         fi
         echoContent yellow " ---> 通用格式(VLESS+reality+uTLS+Vision)"
-        echoContent green "    vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&pqv=${realityMldsa65Verify}&type=tcp&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=6ba85179e30d4fc2&flow=xtls-rprx-vision#${email}\n"
+        echoContent green "    vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&pqv=${realityMldsa65Verify}&type=tcp&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=${realityShortId}&flow=xtls-rprx-vision#${email}\n"
 
         echoContent yellow " ---> 格式化明文(VLESS+reality+uTLS+Vision)"
-        echoContent green "协议类型:VLESS reality，地址:$(getPublicIP)，publicKey:${publicKey}，shortId: 6ba85179e30d4fc2，pqv=${realityMldsa65Verify}，serverNames：${realityServerName}，端口:${port}，用户ID:${id}，传输方式:tcp，账户名:${email}\n"
+        echoContent green "协议类型:VLESS reality，地址:$(getPublicIP)，publicKey:${publicKey}，shortId: ${realityShortId}，pqv=${realityMldsa65Verify}，serverNames：${realityServerName}，端口:${port}，用户ID:${id}，传输方式:tcp，账户名:${email}\n"
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
-vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&pqv=${realityMldsa65Verify}&type=tcp&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=6ba85179e30d4fc2&flow=xtls-rprx-vision#${email}
+vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&pqv=${realityMldsa65Verify}&type=tcp&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=${realityShortId}&flow=xtls-rprx-vision#${email}
 EOF
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
   - name: "${email}"
@@ -5034,15 +5050,15 @@ EOF
     servername: ${realityServerName}
     reality-opts:
       public-key: ${publicKey}
-      short-id: 6ba85179e30d4fc2
+      short-id: ${realityShortId}
     client-fingerprint: chrome
 EOF
 
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vless\",\"server\":\"$(getPublicIP)\",\"server_port\":${port},\"uuid\":\"${id}\",\"flow\":\"xtls-rprx-vision\",\"tls\":{\"enabled\":true,\"server_name\":\"${realityServerName}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"},\"reality\":{\"enabled\":true,\"public_key\":\"${publicKey}\",\"short_id\":\"6ba85179e30d4fc2\"}},\"packet_encoding\":\"xudp\"}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vless\",\"server\":\"$(getPublicIP)\",\"server_port\":${port},\"uuid\":\"${id}\",\"flow\":\"xtls-rprx-vision\",\"tls\":{\"enabled\":true,\"server_name\":\"${realityServerName}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"},\"reality\":{\"enabled\":true,\"public_key\":\"${publicKey}\",\"short_id\":\"${realityShortId}\"}},\"packet_encoding\":\"xudp\"}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
         echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
 
         echoContent yellow " ---> 二维码 VLESS(VLESS+reality+uTLS+Vision)"
-        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40$(getPublicIP)%3A${port}%3Fencryption%3Dnone%26security%3Dreality%26type%3Dtcp%26sni%3D${realityServerName}%26fp%3Dchrome%26pbk%3D${publicKey}%26sid%3D6ba85179e30d4fc2%26flow%3Dxtls-rprx-vision%23${email}\n"
+        echo "vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&type=tcp&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=${realityShortId}&flow=xtls-rprx-vision#${email}" | qrencode -s 10 -m 1 -t UTF8 2>/dev/null
 
     elif [[ "${type}" == "vlessRealityGRPC" ]]; then
         local realityServerName=${xrayVLESSRealityServerName}
@@ -5056,13 +5072,13 @@ EOF
 
         echoContent yellow " ---> 通用格式(VLESS+reality+uTLS+gRPC)"
         # pqv=${realityMldsa65Verify}&
-        echoContent green "    vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&type=grpc&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=6ba85179e30d4fc2&path=grpc&serviceName=grpc#${email}\n"
+        echoContent green "    vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&type=grpc&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=${realityShortId}&path=grpc&serviceName=grpc#${email}\n"
 
         echoContent yellow " ---> 格式化明文(VLESS+reality+uTLS+gRPC)"
         # pqv=${realityMldsa65Verify}，
-        echoContent green "协议类型:VLESS reality，serviceName:grpc，地址:$(getPublicIP)，publicKey:${publicKey}，shortId: 6ba85179e30d4fc2，serverNames：${realityServerName}，端口:${port}，用户ID:${id}，传输方式:gRPC，client-fingerprint：chrome，账户名:${email}\n"
+        echoContent green "协议类型:VLESS reality，serviceName:grpc，地址:$(getPublicIP)，publicKey:${publicKey}，shortId: ${realityShortId}，serverNames：${realityServerName}，端口:${port}，用户ID:${id}，传输方式:gRPC，client-fingerprint：chrome，账户名:${email}\n"
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
-vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&pqv=${realityMldsa65Verify}&type=grpc&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=6ba85179e30d4fc2&path=grpc&serviceName=grpc#${email}
+vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&pqv=${realityMldsa65Verify}&type=grpc&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=${realityShortId}&path=grpc&serviceName=grpc#${email}
 EOF
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
   - name: "${email}"
@@ -5076,17 +5092,17 @@ EOF
     servername: ${realityServerName}
     reality-opts:
       public-key: ${publicKey}
-      short-id: 6ba85179e30d4fc2
+      short-id: ${realityShortId}
     grpc-opts:
       grpc-service-name: "grpc"
     client-fingerprint: chrome
 EOF
 
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vless\",\"server\":\"$(getPublicIP)\",\"server_port\":${port},\"uuid\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${realityServerName}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"},\"reality\":{\"enabled\":true,\"public_key\":\"${publicKey}\",\"short_id\":\"6ba85179e30d4fc2\"}},\"packet_encoding\":\"xudp\",\"transport\":{\"type\":\"grpc\",\"service_name\":\"grpc\"}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vless\",\"server\":\"$(getPublicIP)\",\"server_port\":${port},\"uuid\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${realityServerName}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"},\"reality\":{\"enabled\":true,\"public_key\":\"${publicKey}\",\"short_id\":\"${realityShortId}\"}},\"packet_encoding\":\"xudp\",\"transport\":{\"type\":\"grpc\",\"service_name\":\"grpc\"}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
         echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
 
         echoContent yellow " ---> 二维码 VLESS(VLESS+reality+uTLS+gRPC)"
-        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40$(getPublicIP)%3A${port}%3Fencryption%3Dnone%26security%3Dreality%26type%3Dgrpc%26sni%3D${realityServerName}%26fp%3Dchrome%26pbk%3D${publicKey}%26sid%3D6ba85179e30d4fc2%26path%3Dgrpc%26serviceName%3Dgrpc%23${email}\n"
+        echo "vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&type=grpc&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=${realityShortId}&path=grpc&serviceName=grpc#${email}" | qrencode -s 10 -m 1 -t UTF8 2>/dev/null
     elif [[ "${type}" == "tuic" ]]; then
         local tuicUUID=
         tuicUUID=$(echo "${id}" | awk -F "[_]" '{print $1}')
@@ -5127,7 +5143,7 @@ EOF
         echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
 
         echoContent yellow "\n ---> 二维码 Tuic"
-        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=tuic%3A%2F%2F${tuicUUID}%3A${tuicPassword}%40${currentHost}%3A${tuicPort}%3Fcongestion_control%3D${tuicAlgorithm}%26alpn%3Dh3%26sni%3D${currentHost}%26udp_relay_mode%3Dquic%26allow_insecure%3D0%23${email}\n"
+        echo "tuic://${tuicUUID}:${tuicPassword}@${currentHost}:${tuicPort}?congestion_control=${tuicAlgorithm}&alpn=h3&sni=${currentHost}&udp_relay_mode=quic&allow_insecure=0#${email}" | qrencode -s 10 -m 1 -t UTF8 2>/dev/null
     elif [[ "${type}" == "naive" ]]; then
         echoContent yellow " ---> Naive(TLS)"
 
@@ -5136,7 +5152,7 @@ EOF
 naive+https://${email}:${id}@${currentHost}:${port}?padding=true#${email}
 EOF
         echoContent yellow " ---> 二维码 Naive(TLS)"
-        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=naive%2Bhttps%3A%2F%2F${email}%3A${id}%40${currentHost}%3A${port}%3Fpadding%3Dtrue%23${email}\n"
+        echo "naive+https://${email}:${id}@${currentHost}:${port}?padding=true#${email}" | qrencode -s 10 -m 1 -t UTF8 2>/dev/null
     elif [[ "${type}" == "vmessHTTPUpgrade" ]]; then
         qrCodeBase64Default=$(echo -n "{\"port\":${port},\"ps\":\"${email}\",\"tls\":\"tls\",\"id\":\"${id}\",\"aid\":0,\"v\":2,\"host\":\"${currentHost}\",\"type\":\"none\",\"path\":\"${path}\",\"net\":\"httpupgrade\",\"add\":\"${add}\",\"allowInsecure\":0,\"method\":\"none\",\"peer\":\"${currentHost}\",\"sni\":\"${currentHost}\"}" | base64 -w 0)
         qrCodeBase64Default="${qrCodeBase64Default// /}"
@@ -5173,7 +5189,7 @@ EOF
 
         echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
 
-        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vmess://${qrCodeBase64Default}\n"
+        echo "vmess://${qrCodeBase64Default}" | qrencode -s 10 -m 1 -t UTF8 2>/dev/null
 
     elif [[ "${type}" == "anytls" ]]; then
         echoContent yellow " ---> AnyTLS"
@@ -5203,7 +5219,7 @@ EOF
         echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
 
         echoContent yellow " ---> 二维码 AnyTLS"
-        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=anytls%3A%2F%2F${id}%40${currentHost}%3A${singBoxAnyTLSPort}%3Fpeer%3D${currentHost}%26insecure%3D0%26sni%3D${currentHost}%23${email}\n"
+        echo "anytls://${id}@${currentHost}:${singBoxAnyTLSPort}?peer=${currentHost}&insecure=0&sni=${currentHost}#${email}" | qrencode -s 10 -m 1 -t UTF8 2>/dev/null
     fi
 
 }
@@ -8944,7 +8960,6 @@ subscribe() {
                     echoContent skyBlue "\n----------默认订阅----------\n"
                     echoContent green "email:${email}\n"
                     echoContent yellow "url:${subscribeType}://${currentDomain}/s/default/${emailMd5}\n"
-                    echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${subscribeType}://${currentDomain}/s/default/${emailMd5}\n"
                     if [[ "${release}" != "alpine" ]]; then
                         echo "${subscribeType}://${currentDomain}/s/default/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
                     fi
@@ -8960,7 +8975,6 @@ subscribe() {
                         clashMetaConfig "${clashProxyUrl}" "${emailMd5}"
                         echoContent skyBlue "\n----------clashMeta订阅----------\n"
                         echoContent yellow "url:${subscribeType}://${currentDomain}/s/clashMetaProfiles/${emailMd5}\n"
-                        echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${subscribeType}://${currentDomain}/s/clashMetaProfiles/${emailMd5}\n"
                         if [[ "${release}" != "alpine" ]]; then
                             echo "${subscribeType}://${currentDomain}/s/clashMetaProfiles/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
                         fi
@@ -8982,7 +8996,6 @@ subscribe() {
 
                         echoContent skyBlue "\n----------sing-box订阅----------\n"
                         echoContent yellow "url:${subscribeType}://${currentDomain}/s/sing-box/${emailMd5}\n"
-                        echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${subscribeType}://${currentDomain}/s/sing-box/${emailMd5}\n"
                         if [[ "${release}" != "alpine" ]]; then
                             echo "${subscribeType}://${currentDomain}/s/sing-box/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
                         fi
@@ -9107,6 +9120,9 @@ switchAlpn() {
 # 初始化realityKey
 initRealityKey() {
     echoContent skyBlue "\n生成Reality key\n"
+    # 生成随机shortId
+    generateShortId >/dev/null
+    echoContent green " shortId: ${realityShortId}"
     if [[ -n "${currentRealityPublicKey}" && -z "${lastInstallationConfig}" ]]; then
         read -r -p "读取到上次安装记录，是否使用上次安装时的PublicKey/PrivateKey ？[y/n]:" historyKeyStatus
         if [[ "${historyKeyStatus}" == "y" ]]; then
@@ -9541,16 +9557,6 @@ menu() {
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
     checkWgetShowProgress
-    echoContent red "\n=========================== 推广区============================"
-    echoContent red "                                              "
-    echoContent yellow "VPS选购攻略"
-    echoContent green "https://www.v2ray-agent.com/archives/1679975663984"
-    echoContent yellow "年付10美金低价VPS AS4837"
-    echoContent green "https://www.v2ray-agent.com/archives/racknerdtao-can-zheng-li-nian-fu-10mei-yuan"
-    echoContent yellow "优质常驻套餐DMIT CN2-GIA"
-    echoContent green "https://www.v2ray-agent.com/archives/186cee7b-9459-4e57-b9b2-b07a4f36931c"
-    echoContent yellow "VPS探针：https://ping.v2ray-agent.com/"
-    echoContent red "                                              "
     echoContent red "=============================================================="
     if [[ -n "${coreInstallType}" ]]; then
         echoContent yellow "1.重新安装"
