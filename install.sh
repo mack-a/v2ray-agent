@@ -34,10 +34,10 @@ echoContent() {
 }
 # 检查SELinux状态
 checkCentosSELinux() {
-    if [[ -f "/etc/selinux/config" ]] && ! grep -q "SELINUX=disabled" <"/etc/selinux/config"; then
+    if command -v getenforce >/dev/null 2>&1 && [ "$(getenforce)" == "Enforcing" ]; then
         echoContent yellow "# 注意事项"
         echoContent yellow "检测到SELinux已开启，请手动关闭，教程如下"
-        echoContent yellow "https://www.v2ray-agent.com/archives/1684115970026#centos7-%E5%85%B3%E9%97%ADselinux"
+        echoContent yellow "https://www.v2ray-agent.com/archives/1684115970026#centos-%E5%85%B3%E9%97%ADselinux"
         exit 0
     fi
 }
@@ -56,7 +56,7 @@ checkSystem() {
         release="centos"
         installType='yum -y install'
         removeType='yum -y remove'
-        upgrade="yum update -y --skip-broken"
+        #        upgrade="yum update -y --skip-broken"
         checkCentosSELinux
     elif { [[ -f "/etc/issue" ]] && grep -qi "Alpine" /etc/issue; } || { [[ -f "/proc/version" ]] && grep -qi "Alpine" /proc/version; }; then
         release="alpine"
@@ -698,7 +698,7 @@ allowPort() {
         type=tcp
     fi
     # 如果防火墙启动状态则添加相应的开放端口
-    if dpkg -l | grep -q "^[[:space:]]*ii[[:space:]]\+ufw"; then
+    if command -v dpkg >/dev/null 2>&1 && dpkg -l | grep -q "^[[:space:]]*ii[[:space:]]\+ufw"; then
         if ufw status | grep -q "Status: active"; then
             if ! ufw status | grep -q "$1/${type}"; then
                 sudo ufw allow "$1/${type}"
@@ -1091,7 +1091,10 @@ installTools() {
 
     echoContent green " ---> 检查、安装更新【新机器会很慢，如长时间无反应，请手动停止后重新执行】"
 
-    ${upgrade} >/etc/v2ray-agent/install.log 2>&1
+    if [[ "${release}" != "centos" ]]; then
+        ${upgrade} >/etc/v2ray-agent/install.log 2>&1
+    fi
+
     if grep <"/etc/v2ray-agent/install.log" -q "changed"; then
         ${updateReleaseInfoChange} >/dev/null 2>&1
     fi
@@ -1223,28 +1226,24 @@ installTools() {
         fi
     fi
 
-    if ! command -v semanage >/dev/null 2>&1; then
-        echoContent green " ---> 安装semanage"
-        ${installType} bash-completion >/dev/null 2>&1
-
-        if [[ "${centosVersion}" == "7" ]]; then
-            policyCoreUtils="policycoreutils-python"
-        elif [[ "${centosVersion}" == "8" || "${release}" == "ubuntu" || "${release}" == "debian" ]]; then
-            policyCoreUtils="policycoreutils-python-utils"
-        fi
-
-        if [[ -n "${policyCoreUtils}" ]]; then
-            ${installType} ${policyCoreUtils} >/dev/null 2>&1
-        fi
-        if [[ -n $(which semanage) ]]; then
-            if command -v getenforce >/dev/null 2>&1; then
-                selinux_status=$(getenforce)
-                if [ "$selinux_status" != "Disabled" ]; then
-                    semanage port -a -t http_port_t -p tcp 31300
-                fi
-            fi
-        fi
-    fi
+    #    if ! command -v semanage >/dev/null 2>&1 && [[ "${release}" == "centos" ]]; then
+    #        if command -v getenforce >/dev/null 2>&1 && [ "$(getenforce)" == "Enforcing" ]; then
+    #            if [[ "${centosVersion}" == "7" ]]; then
+    #                policyCoreUtils="policycoreutils-python"
+    #            elif [[ "${centosVersion}" == "8" || "${centosVersion}" == "9" || "${centosVersion}" == "10" ]]; then
+    #                policyCoreUtils="policycoreutils-python-utils"
+    #            fi
+    #            echoContent green " ---> 安装semanage"
+    #
+    #            if [[ -n "${policyCoreUtils}" ]]; then
+    #                ${installType} bash-completion >/dev/null 2>&1
+    #                ${installType} ${policyCoreUtils} >/dev/null 2>&1
+    #            fi
+    #            if [[ -n $(which semanage) ]]; then
+    #                semanage port -a -t http_port_t -p tcp 31300
+    #            fi
+    #        fi
+    #    fi
 
     if [[ "${selectCustomInstallType}" == "7" ]]; then
         echoContent green " ---> 检测到无需依赖证书的服务，跳过安装"
@@ -4062,32 +4061,32 @@ EOF
         rm /etc/v2ray-agent/xray/conf/05_VMess_WS_inbounds.json >/dev/null 2>&1
     fi
     # VLESS_gRPC
-    if echo "${selectCustomInstallType}" | grep -q ",5," || [[ "$1" == "all" ]]; then
-        cat <<EOF >/etc/v2ray-agent/xray/conf/06_VLESS_gRPC_inbounds.json
-{
-    "inbounds":[
-        {
-            "port": 31301,
-            "listen": "127.0.0.1",
-            "protocol": "vless",
-            "tag":"VLESSGRPC",
-            "settings": {
-                "clients": $(initXrayClients 5),
-                "decryption": "none"
-            },
-            "streamSettings": {
-                "network": "grpc",
-                "grpcSettings": {
-                    "serviceName": "${customPath}grpc"
-                }
-            }
-        }
-    ]
-}
-EOF
-    elif [[ -z "$3" ]]; then
-        rm /etc/v2ray-agent/xray/conf/06_VLESS_gRPC_inbounds.json >/dev/null 2>&1
-    fi
+    #    if echo "${selectCustomInstallType}" | grep -q ",5," || [[ "$1" == "all" ]]; then
+    #        cat <<EOF >/etc/v2ray-agent/xray/conf/06_VLESS_gRPC_inbounds.json
+    #{
+    #    "inbounds":[
+    #        {
+    #            "port": 31301,
+    #            "listen": "127.0.0.1",
+    #            "protocol": "vless",
+    #            "tag":"VLESSGRPC",
+    #            "settings": {
+    #                "clients": $(initXrayClients 5),
+    #                "decryption": "none"
+    #            },
+    #            "streamSettings": {
+    #                "network": "grpc",
+    #                "grpcSettings": {
+    #                    "serviceName": "${customPath}grpc"
+    #                }
+    #            }
+    #        }
+    #    ]
+    #}
+    #EOF
+    #    elif [[ -z "$3" ]]; then
+    #        rm /etc/v2ray-agent/xray/conf/06_VLESS_gRPC_inbounds.json >/dev/null 2>&1
+    #    fi
 
     # VLESS Vision
     if echo "${selectCustomInstallType}" | grep -q ",0," || [[ "$1" == "all" ]]; then
@@ -4166,10 +4165,6 @@ EOF
         "clients": $(initXrayClients 7),
         "decryption": "none",
         "fallbacks":[
-          {
-            "dest": "31305",
-            "xver": 1
-          }
         ]
       },
       "streamSettings": {
@@ -4225,32 +4220,32 @@ EOF
   }
 }
 EOF
-        cat <<EOF >/etc/v2ray-agent/xray/conf/08_VLESS_vision_gRPC_inbounds.json
-{
-  "inbounds": [
-    {
-      "port": 31305,
-      "listen": "127.0.0.1",
-      "protocol": "vless",
-      "tag": "VLESSRealityGRPC",
-      "settings": {
-        "clients": $(initXrayClients 8),
-        "decryption": "none"
-      },
-      "streamSettings": {
-            "network": "grpc",
-            "grpcSettings": {
-                "serviceName": "grpc",
-                "multiMode": true
-            },
-            "sockopt": {
-                "acceptProxyProtocol": true
-            }
-      }
-    }
-  ]
-}
-EOF
+        #        cat <<EOF >/etc/v2ray-agent/xray/conf/08_VLESS_vision_gRPC_inbounds.json
+        #{
+        #  "inbounds": [
+        #    {
+        #      "port": 31305,
+        #      "listen": "127.0.0.1",
+        #      "protocol": "vless",
+        #      "tag": "VLESSRealityGRPC",
+        #      "settings": {
+        #        "clients": $(initXrayClients 8),
+        #        "decryption": "none"
+        #      },
+        #      "streamSettings": {
+        #            "network": "grpc",
+        #            "grpcSettings": {
+        #                "serviceName": "grpc",
+        #                "multiMode": true
+        #            },
+        #            "sockopt": {
+        #                "acceptProxyProtocol": true
+        #            }
+        #      }
+        #    }
+        #  ]
+        #}
+        #EOF
 
     elif [[ -z "$3" ]]; then
         rm /etc/v2ray-agent/xray/conf/07_VLESS_vision_reality_inbounds.json >/dev/null 2>&1
@@ -8044,7 +8039,7 @@ customXrayInstall() {
     #    echoContent yellow "2.Trojan+TLS+gRPC[仅CDN推荐]"
     echoContent yellow "3.VMess+TLS+WS[仅CDN推荐]"
     echoContent yellow "4.Trojan+TLS[不推荐]"
-    echoContent yellow "5.VLESS+TLS+gRPC[仅CDN推荐]"
+    #    echoContent yellow "5.VLESS+TLS+gRPC[仅CDN推荐]"
     echoContent yellow "7.VLESS+Reality+uTLS+Vision[推荐]"
     # echoContent yellow "8.VLESS+Reality+gRPC"
     echoContent yellow "12.VLESS+Reality+XHTTP+TLS[CDN可用]"
@@ -9536,7 +9531,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.5.2"
+    echoContent green "当前版本：v3.5.3"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
