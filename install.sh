@@ -8034,6 +8034,47 @@ customSingBoxInstall() {
     fi
 }
 
+# 一键无域名Xray-core Reality
+installXrayReality() {
+    selectCustomInstallType=",7,"
+    readLastInstallationConfig
+    unInstallSubscribe
+    totalProgress=6
+    installTools 1
+
+    handleNginx stop
+
+    # 安装Xray
+    installXray 2 false
+    installXrayService 3
+    initXrayConfig custom 4
+    cleanUp singBoxDel
+
+    handleXray stop
+    handleXray start
+    # 生成账号
+    checkGFWStatue 5
+    showAccounts 6
+}
+# 一键无域名sing-box Reality
+installSingBoxReality() {
+
+    selectCustomInstallType=",7,"
+    readLastInstallationConfig
+    unInstallSubscribe
+    totalProgress=6
+    installTools 1
+
+    installSingBox 2
+    installSingBoxService 3
+    initSingBoxConfig custom 4
+    cleanUp xrayDel
+    handleSingBox stop
+    handleSingBox start
+    # 生成账号
+    checkGFWStatue 5
+    showAccounts 6
+}
 # Xray-core个性化安装
 customXrayInstall() {
     echoContent skyBlue "\n========================个性化安装============================"
@@ -8140,17 +8181,21 @@ selectCoreInstall() {
     read -r -p "请选择:" selectCoreType
     case ${selectCoreType} in
     1)
-        if [[ "${selectInstallType}" == "2" ]]; then
-            customXrayInstall
-        else
+        if [[ "${selectInstallType}" == "1" ]]; then
             xrayCoreInstall
+        elif [[ "${selectInstallType}" == "2" ]]; then
+            customXrayInstall
+        elif [[ "${selectInstallType}" == "3" ]]; then
+            installXrayReality
         fi
         ;;
     2)
-        if [[ "${selectInstallType}" == "2" ]]; then
-            customSingBoxInstall
-        else
+        if [[ "${selectInstallType}" == "1" ]]; then
             singBoxInstall
+        elif [[ "${selectInstallType}" == "2" ]]; then
+            customSingBoxInstall
+        elif [[ "${selectInstallType}" == "3" ]]; then
+            installSingBoxReality
         fi
         ;;
     *)
@@ -9542,7 +9587,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.5.8"
+    echoContent green "当前版本：v3.5.9"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
@@ -9565,6 +9610,7 @@ menu() {
     fi
 
     echoContent yellow "2.任意组合安装"
+    echoContent yellow "3.一键无域名Reality"
     echoContent yellow "4.Hysteria2管理"
     echoContent yellow "5.REALITY管理"
     echoContent yellow "6.Tuic管理"
@@ -9595,9 +9641,9 @@ menu() {
     2)
         selectCoreInstall
         ;;
-        #    3)
-        #        initXrayFrontingConfig 1
-        #        ;;
+    3)
+        selectCoreInstall
+        ;;
     4)
         manageHysteria
         ;;
