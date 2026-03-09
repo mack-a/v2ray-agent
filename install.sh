@@ -1331,20 +1331,22 @@ installWarp() {
         exit 0
     fi
 
+    # 安装 Cloudflare WARP 官方源所需工具
     ${installType} gnupg2 -y >/dev/null 2>&1
-    if [[ "${release}" == "debian" ]]; then
-        curl -s https://pkg.cloudflareclient.com/pubkey.gpg | sudo apt-key add - >/dev/null 2>&1
-        echo "deb http://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list >/dev/null 2>&1
-        sudo apt update >/dev/null 2>&1
+    if [[ "${release}" == "debian" || "${release}" == "ubuntu" ]]; then
+        # 使用新版方式导入 GPG key（apt-key 已废弃）
+        curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg \
+            | gpg --dearmor \
+            | sudo tee /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg >/dev/null 2>&1
 
-    elif [[ "${release}" == "ubuntu" ]]; then
-        curl -s https://pkg.cloudflareclient.com/pubkey.gpg | sudo apt-key add - >/dev/null 2>&1
-        echo "deb http://pkg.cloudflareclient.com/ focal main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list >/dev/null 2>&1
+        echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" \
+            | sudo tee /etc/apt/sources.list.d/cloudflare-warp.list >/dev/null 2>&1
+
         sudo apt update >/dev/null 2>&1
 
     elif [[ "${release}" == "centos" ]]; then
         ${installType} yum-utils >/dev/null 2>&1
-        sudo rpm -ivh "http://pkg.cloudflareclient.com/cloudflare-release-el${centosVersion}.rpm" >/dev/null 2>&1
+        sudo rpm -ivh "https://pkg.cloudflareclient.com/cloudflare-release-el${centosVersion}.rpm" >/dev/null 2>&1 || true
     fi
 
     echoContent green " ---> 安装WARP"
@@ -6866,22 +6868,19 @@ addWireGuardRoute() {
     local type=$1
     local tag=$2
     local domainList=$3
-    # xray
-    if [[ "${coreInstallType}" == "1" ]]; then
-
+    # xray：仅在存在域名分流规则时才添加 routing，避免全局模式传入空域名触发参数校验
+    if [[ "${coreInstallType}" == "1" && -n "${domainList}" ]]; then
         addXrayRouting "wireguard_out_${type}" "${tag}" "${domainList}"
         addXrayOutbound "wireguard_out_${type}"
     fi
     # sing-box
     if [[ -n "${singBoxConfigPath}" ]]; then
-
         # rule
         addSingBoxRouteRule "wireguard_endpoints_${type}" "${domainList}" "wireguard_endpoints_${type}_route"
         # addSingBoxOutbound "wireguard_out_${type}" "wireguard_out"
         if [[ -n "${domainList}" ]]; then
             addSingBoxOutbound "01_direct_outbound"
         fi
-
         # outbound
         addSingBoxWireGuardEndpoints "${type}"
     fi
