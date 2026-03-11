@@ -3,6 +3,154 @@
 # -------------------------------------------------------------
 # 检查系统
 export LANG=en_US.UTF-8
+SCRIPT_VERSION="3.5.9"
+
+hasCommand() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+initGithubMirrors() {
+    # 可通过环境变量覆盖：
+    # - V2RAY_AGENT_GITHUB_MIRRORS: 逗号分隔的镜像前缀（例：https://ghproxy.com/,https://mirror.ghproxy.com/）
+    #   镜像前缀会以 “prefix + 原始URL” 的方式拼接
+    if [[ -n "${V2RAY_AGENT_GITHUB_MIRRORS}" ]]; then
+        IFS=',' read -r -a GITHUB_MIRRORS <<<"${V2RAY_AGENT_GITHUB_MIRRORS}"
+    else
+        # 默认镜像列表（尽量使用通用的“前缀代理”类）
+        GITHUB_MIRRORS=("https://ghproxy.com/" "https://mirror.ghproxy.com/")
+    fi
+}
+
+buildGithubUrlCandidates() {
+    # 输出候选URL（每行一个），第一行为原始URL，其后为镜像前缀+原始URL
+    local url="$1"
+    echo "${url}"
+    if [[ -z "${GITHUB_MIRRORS[*]}" ]]; then
+        return 0
+    fi
+    # 仅对 GitHub 相关地址启用镜像，避免误代理其它站点
+    if echo "${url}" | grep -qE '^https://(raw\.githubusercontent\.com|api\.github\.com|github\.com)/'; then
+        local m
+        for m in "${GITHUB_MIRRORS[@]}"; do
+            [[ -n "${m}" ]] && echo "${m}${url}"
+        done
+    fi
+}
+
+looksLikeGithubRateLimit() {
+    # 根据 body 粗略判断是否遇到 GitHub API rate limit/403 限制
+    # 注意：这里不做严格 JSON 解析，避免依赖 jq
+    echo "$1" | grep -qiE 'api rate limit exceeded|rate limit|secondary rate limit|access forbidden|forbidden'
+}
+
+curlSupportsRetryAllErrors() {
+    if ! hasCommand curl; then
+        return 1
+    fi
+    curl --help all 2>/dev/null | grep -q "retry-all-errors"
+}
+
+httpGet() {
+    local url="$1"
+    local candidate body
+    while read -r candidate; do
+        if hasCommand curl; then
+            local retryAllErrorsOpt=()
+            if curlSupportsRetryAllErrors; then
+                retryAllErrorsOpt=(--retry-all-errors)
+            fi
+            body=$(
+                curl -fsSL \
+                    -H "User-Agent: v2ray-agent" \
+                    -H "Accept: application/vnd.github+json" \
+                    --connect-timeout 10 \
+                    --max-time 60 \
+                    --retry 3 \
+                    --retry-delay 1 \
+                    "${retryAllErrorsOpt[@]}" \
+                    "${candidate}" 2>/dev/null
+            ) || body=""
+        else
+            body=$(wget -qO- --no-check-certificate --timeout=60 --tries=3 "${candidate}" 2>/dev/null) || body=""
+        fi
+
+        # 成功拿到 body 且不是明显的 rate limit 提示就返回
+        if [[ -n "${body}" ]]; then
+            if echo "${candidate}" | grep -qE '^https://api\.github\.com/' && looksLikeGithubRateLimit "${body}"; then
+                # API 被限流：继续尝试镜像候选
+                continue
+            fi
+            echo "${body}"
+            return 0
+        fi
+    done < <(buildGithubUrlCandidates "${url}")
+    return 1
+}
+
+downloadFile() {
+    local url="$1"
+    local outFile="$2"
+    local showProgress="${3:-false}"
+
+    local candidate
+    while read -r candidate; do
+        rm -f "${outFile}" >/dev/null 2>&1
+        if hasCommand curl; then
+            local retryAllErrorsOpt=()
+            if curlSupportsRetryAllErrors; then
+                retryAllErrorsOpt=(--retry-all-errors)
+            fi
+            if [[ "${showProgress}" == "true" ]]; then
+                curl -fL \
+                    -H "User-Agent: v2ray-agent" \
+                    -H "Accept: application/octet-stream" \
+                    --connect-timeout 10 \
+                    --max-time 600 \
+                    --retry 3 \
+                    --retry-delay 1 \
+                    "${retryAllErrorsOpt[@]}" \
+                    -o "${outFile}" \
+                    "${candidate}" >/dev/null 2>&1 || true
+            else
+                curl -fsSL \
+                    -H "User-Agent: v2ray-agent" \
+                    -H "Accept: application/octet-stream" \
+                    --connect-timeout 10 \
+                    --max-time 600 \
+                    --retry 3 \
+                    --retry-delay 1 \
+                    "${retryAllErrorsOpt[@]}" \
+                    -o "${outFile}" \
+                    "${candidate}" >/dev/null 2>&1 || true
+            fi
+        else
+            # wget show-progress 仅在部分版本支持；这里沿用脚本原有逻辑通过调用方控制
+            if [[ "${showProgress}" == "true" ]]; then
+                wget -c -q "${wgetShowProgressStatus}" -O "${outFile}" --no-check-certificate "${candidate}" >/dev/null 2>&1 || true
+            else
+                wget -c -q -O "${outFile}" --no-check-certificate "${candidate}" >/dev/null 2>&1 || true
+            fi
+        fi
+
+        # 只要下载到非空文件就认为成功
+        if [[ -s "${outFile}" ]]; then
+            return 0
+        fi
+    done < <(buildGithubUrlCandidates "${url}")
+    return 1
+}
+
+githubLatestReleaseTag() {
+    # $1: owner/repo  $2: prerelease(true/false)  $3: per_page(default 5)
+    local repo="$1"
+    local prerelease="${2:-false}"
+    local perPage="${3:-5}"
+    if ! hasCommand jq; then
+        echo ""
+        return 0
+    fi
+    httpGet "https://api.github.com/repos/${repo}/releases?per_page=${perPage}" | jq -r ".[]|select (.prerelease==${prerelease})|.tag_name" | head -1
+}
 
 echoContent() {
     case $1 in
@@ -127,6 +275,7 @@ initVar() {
     removeType='yum -y remove'
     upgrade="yum -y update"
     echoType='echo -e'
+    initGithubMirrors
     #    sudoCMD=""
 
     # 核心支持的cpu版本
@@ -2301,17 +2450,22 @@ installSingBox() {
 
     if [[ ! -f "/etc/v2ray-agent/sing-box/sing-box" ]]; then
 
-        version=$(curl -s "https://api.github.com/repos/SagerNet/sing-box/releases?per_page=20" | jq -r ".[]|select (.prerelease==${prereleaseStatus})|.tag_name" | head -1)
+        version=$(githubLatestReleaseTag "SagerNet/sing-box" "${prereleaseStatus}" 20)
+        if [[ -z "${version}" ]]; then
+            echoContent red " ---> 获取最新版本失败，请检查网络/GitHub API 是否可用"
+            read -r -p "是否重试？[y/n]:" downloadStatus
+            if [[ "${downloadStatus}" == "y" ]]; then
+                installSingBox "$1"
+            fi
+            exit 0
+        fi
 
         echoContent green " ---> 最新版本:${version}"
 
-        if [[ "${release}" == "alpine" ]]; then
-            wget -c -q -P /etc/v2ray-agent/sing-box/ "https://github.com/SagerNet/sing-box/releases/download/${version}/sing-box-${version/v/}${singBoxCoreCPUVendor}.tar.gz"
-        else
-            wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/sing-box/ "https://github.com/SagerNet/sing-box/releases/download/${version}/sing-box-${version/v/}${singBoxCoreCPUVendor}.tar.gz"
-        fi
+        mkdir -p /etc/v2ray-agent/sing-box >/dev/null 2>&1
+        downloadFile "https://github.com/SagerNet/sing-box/releases/download/${version}/sing-box-${version/v/}${singBoxCoreCPUVendor}.tar.gz" "/etc/v2ray-agent/sing-box/sing-box-${version/v/}${singBoxCoreCPUVendor}.tar.gz" "$([[ "${release}" == "alpine" ]] && echo false || echo true)"
 
-        if [[ ! -f "/etc/v2ray-agent/sing-box/sing-box-${version/v/}${singBoxCoreCPUVendor}.tar.gz" ]]; then
+        if [[ ! -s "/etc/v2ray-agent/sing-box/sing-box-${version/v/}${singBoxCoreCPUVendor}.tar.gz" ]]; then
             read -r -p "核心下载失败，请重新尝试安装，是否重新尝试？[y/n]" downloadStatus
             if [[ "${downloadStatus}" == "y" ]]; then
                 installSingBox "$1"
@@ -2327,7 +2481,11 @@ installSingBox() {
     else
         echoContent green " ---> 当前版本:v$(/etc/v2ray-agent/sing-box/sing-box version | grep "sing-box version" | awk '{print $3}')"
 
-        version=$(curl -s "https://api.github.com/repos/SagerNet/sing-box/releases?per_page=20" | jq -r ".[]|select (.prerelease==${prereleaseStatus})|.tag_name" | head -1)
+        version=$(githubLatestReleaseTag "SagerNet/sing-box" "${prereleaseStatus}" 20)
+        if [[ -z "${version}" ]]; then
+            echoContent red " ---> 获取最新版本失败，请检查网络/GitHub API 是否可用"
+            exit 0
+        fi
         echoContent green " ---> 最新版本:${version}"
 
         if [[ -z "${lastInstallationConfig}" ]]; then
@@ -2361,15 +2519,20 @@ installXray() {
 
     if [[ ! -f "/etc/v2ray-agent/xray/xray" ]]; then
 
-        version=$(curl -s "https://api.github.com/repos/XTLS/Xray-core/releases?per_page=5" | jq -r ".[]|select (.prerelease==${prereleaseStatus})|.tag_name" | head -1)
-        echoContent green " ---> Xray-core版本:${version}"
-        if [[ "${release}" == "alpine" ]]; then
-            wget -c -q -P /etc/v2ray-agent/xray/ "https://github.com/XTLS/Xray-core/releases/download/${version}/${xrayCoreCPUVendor}.zip"
-        else
-            wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/xray/ "https://github.com/XTLS/Xray-core/releases/download/${version}/${xrayCoreCPUVendor}.zip"
+        version=$(githubLatestReleaseTag "XTLS/Xray-core" "${prereleaseStatus}" 5)
+        if [[ -z "${version}" ]]; then
+            echoContent red " ---> 获取Xray-core版本失败，请检查网络/GitHub API 是否可用"
+            read -r -p "是否重试？[y/n]:" downloadStatus
+            if [[ "${downloadStatus}" == "y" ]]; then
+                installXray "$1" "$2"
+            fi
+            exit 0
         fi
+        echoContent green " ---> Xray-core版本:${version}"
+        mkdir -p /etc/v2ray-agent/xray >/dev/null 2>&1
+        downloadFile "https://github.com/XTLS/Xray-core/releases/download/${version}/${xrayCoreCPUVendor}.zip" "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip" "$([[ "${release}" == "alpine" ]] && echo false || echo true)"
 
-        if [[ ! -f "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip" ]]; then
+        if [[ ! -s "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip" ]]; then
             read -r -p "核心下载失败，请重新尝试安装，是否重新尝试？[y/n]" downloadStatus
             if [[ "${downloadStatus}" == "y" ]]; then
                 installXray "$1"
@@ -2378,18 +2541,13 @@ installXray() {
             unzip -o "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip" -d /etc/v2ray-agent/xray >/dev/null
             rm -rf "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip"
 
-            version=$(curl -s https://api.github.com/repos/Loyalsoldier/v2ray-rules-dat/releases?per_page=1 | jq -r '.[]|.tag_name')
+            version=$(githubLatestReleaseTag "Loyalsoldier/v2ray-rules-dat" false 1)
             echoContent skyBlue "------------------------Version-------------------------------"
             echo "version:${version}"
             rm /etc/v2ray-agent/xray/geo* >/dev/null 2>&1
 
-            if [[ "${release}" == "alpine" ]]; then
-                wget -c -q -P /etc/v2ray-agent/xray/ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geosite.dat"
-                wget -c -q -P /etc/v2ray-agent/xray/ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geoip.dat"
-            else
-                wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/xray/ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geosite.dat"
-                wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/xray/ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geoip.dat"
-            fi
+            downloadFile "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geosite.dat" "/etc/v2ray-agent/xray/geosite.dat" "$([[ "${release}" == "alpine" ]] && echo false || echo true)"
+            downloadFile "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geoip.dat" "/etc/v2ray-agent/xray/geoip.dat" "$([[ "${release}" == "alpine" ]] && echo false || echo true)"
 
             chmod 655 /etc/v2ray-agent/xray/xray
         fi
@@ -2464,18 +2622,17 @@ xrayVersionManageMenu() {
 updateGeoSite() {
     echoContent yellow "\n来源 https://github.com/Loyalsoldier/v2ray-rules-dat"
 
-    version=$(curl -s https://api.github.com/repos/Loyalsoldier/v2ray-rules-dat/releases?per_page=1 | jq -r '.[]|.tag_name')
+    version=$(githubLatestReleaseTag "Loyalsoldier/v2ray-rules-dat" false 1)
+    if [[ -z "${version}" ]]; then
+        echoContent red " ---> 获取规则库版本失败，请检查网络/GitHub API 是否可用"
+        exit 0
+    fi
     echoContent skyBlue "------------------------Version-------------------------------"
     echo "version:${version}"
     rm ${configPath}../geo* >/dev/null
 
-    if [[ "${release}" == "alpine" ]]; then
-        wget -c -q -P ${configPath}../ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geosite.dat"
-        wget -c -q -P ${configPath}../ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geoip.dat"
-    else
-        wget -c -q "${wgetShowProgressStatus}" -P ${configPath}../ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geosite.dat"
-        wget -c -q "${wgetShowProgressStatus}" -P ${configPath}../ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geoip.dat"
-    fi
+    downloadFile "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geosite.dat" "${configPath}../geosite.dat" "$([[ "${release}" == "alpine" ]] && echo false || echo true)"
+    downloadFile "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geoip.dat" "${configPath}../geoip.dat" "$([[ "${release}" == "alpine" ]] && echo false || echo true)"
 
     reloadCore
     echoContent green " ---> 更新完毕"
@@ -2490,17 +2647,22 @@ updateXray() {
         if [[ -n "$1" ]]; then
             version=$1
         else
-            version=$(curl -s "https://api.github.com/repos/XTLS/Xray-core/releases?per_page=5" | jq -r ".[]|select (.prerelease==${prereleaseStatus})|.tag_name" | head -1)
+            version=$(githubLatestReleaseTag "XTLS/Xray-core" "${prereleaseStatus}" 5)
+        fi
+        if [[ -z "${version}" ]]; then
+            echoContent red " ---> 获取Xray-core版本失败，请检查网络/GitHub API 是否可用"
+            exit 0
         fi
 
         echoContent green " ---> Xray-core版本:${version}"
 
-        if [[ "${release}" == "alpine" ]]; then
-            wget -c -q -P /etc/v2ray-agent/xray/ "https://github.com/XTLS/Xray-core/releases/download/${version}/${xrayCoreCPUVendor}.zip"
-        else
-            wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/xray/ "https://github.com/XTLS/Xray-core/releases/download/${version}/${xrayCoreCPUVendor}.zip"
-        fi
+        mkdir -p /etc/v2ray-agent/xray >/dev/null 2>&1
+        downloadFile "https://github.com/XTLS/Xray-core/releases/download/${version}/${xrayCoreCPUVendor}.zip" "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip" "$([[ "${release}" == "alpine" ]] && echo false || echo true)"
 
+        if [[ ! -s "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip" ]]; then
+            echoContent red " ---> 核心下载失败，请检查网络后重试"
+            exit 0
+        fi
         unzip -o "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip" -d /etc/v2ray-agent/xray >/dev/null
         rm -rf "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip"
         chmod 655 /etc/v2ray-agent/xray/xray
@@ -2508,14 +2670,18 @@ updateXray() {
         handleXray start
     else
         echoContent green " ---> 当前版本:v$(/etc/v2ray-agent/xray/xray --version | awk '{print $2}' | head -1)"
-        remoteVersion=$(curl -s "https://api.github.com/repos/XTLS/Xray-core/releases?per_page=5" | jq -r ".[]|select (.prerelease==${prereleaseStatus})|.tag_name" | head -1)
+        remoteVersion=$(githubLatestReleaseTag "XTLS/Xray-core" "${prereleaseStatus}" 5)
 
         echoContent green " ---> 最新版本:${remoteVersion}"
 
         if [[ -n "$1" ]]; then
             version=$1
         else
-            version=$(curl -s "https://api.github.com/repos/XTLS/Xray-core/releases?per_page=10" | jq -r ".[]|select (.prerelease==${prereleaseStatus})|.tag_name" | head -1)
+            version=$(githubLatestReleaseTag "XTLS/Xray-core" "${prereleaseStatus}" 10)
+        fi
+        if [[ -z "${version}" ]]; then
+            echoContent red " ---> 获取Xray-core版本失败，请检查网络/GitHub API 是否可用"
+            exit 0
         fi
 
         if [[ -n "$1" ]]; then
@@ -6217,22 +6383,42 @@ removeUser() {
 # 更新脚本
 updateV2RayAgent() {
     echoContent skyBlue "\n进度  $1/${totalProgress} : 更新v2ray-agent脚本"
-    rm -rf /etc/v2ray-agent/install.sh
-    if [[ "${release}" == "alpine" ]]; then
-        wget -c -q -P /etc/v2ray-agent/ -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh"
-    else
-        wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/ -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh"
+    local url tmpFile targetFile bakFile
+    url="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh"
+    targetFile="/etc/v2ray-agent/install.sh"
+    tmpFile="/etc/v2ray-agent/install.sh.new"
+    bakFile="/etc/v2ray-agent/install.sh.bak.$(date +%s)"
+
+    rm -f "${tmpFile}" >/dev/null 2>&1
+    downloadFile "${url}" "${tmpFile}" "$([[ "${release}" == "alpine" ]] && echo false || echo true)"
+
+    if [[ ! -s "${tmpFile}" ]] || ! grep -q "作者：mack-a" "${tmpFile}"; then
+        rm -f "${tmpFile}" >/dev/null 2>&1
+        echoContent red "\n ---> 更新失败：未下载到有效脚本，请检查网络/GitHub连通性"
+        echoContent yellow " ---> 你也可以手动执行下面命令重试：\n"
+        echoContent skyBlue "wget -P /root -N --no-check-certificate ${url} && chmod 700 /root/install.sh && /root/install.sh"
+        echo
+        exit 0
     fi
 
-    sudo chmod 700 /etc/v2ray-agent/install.sh
+    if [[ -f "${targetFile}" ]]; then
+        cp "${targetFile}" "${bakFile}" >/dev/null 2>&1
+    fi
+
+    chmod 700 "${tmpFile}" >/dev/null 2>&1
+    mv -f "${tmpFile}" "${targetFile}" >/dev/null 2>&1
+
     local version
-    version=$(grep '当前版本：v' "/etc/v2ray-agent/install.sh" | awk -F "[v]" '{print $2}' | tail -n +2 | head -n 1 | awk -F "[\"]" '{print $1}')
+    version=$(grep -E '^SCRIPT_VERSION=' "${targetFile}" 2>/dev/null | head -n 1 | awk -F '"' '{print $2}')
+    if [[ -z "${version}" ]]; then
+        version=$(grep -oE '当前版本：v[0-9]+(\.[0-9]+)*' "${targetFile}" 2>/dev/null | head -n 1 | awk -F 'v' '{print $2}')
+    fi
 
     echoContent green "\n ---> 更新完毕"
     echoContent yellow " ---> 请手动执行[vasma]打开脚本"
-    echoContent green " ---> 当前版本：${version}\n"
+    echoContent green " ---> 当前版本：v${version}\n"
     echoContent yellow "如更新不成功，请手动执行下面命令\n"
-    echoContent skyBlue "wget -P /root -N --no-check-certificate https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh && chmod 700 /root/install.sh && /root/install.sh"
+    echoContent skyBlue "wget -P /root -N --no-check-certificate ${url} && chmod 700 /root/install.sh && /root/install.sh"
     echo
     exit 0
 }
@@ -9416,8 +9602,18 @@ manageReality() {
 # 安装reality scanner
 installRealityScanner() {
     if [[ ! -f "/etc/v2ray-agent/xray/reality_scan/RealiTLScanner-linux-64" ]]; then
-        version=$(curl -s https://api.github.com/repos/XTLS/RealiTLScanner/releases?per_page=1 | jq -r '.[]|.tag_name')
-        wget -c -q -P /etc/v2ray-agent/xray/reality_scan/ "https://github.com/XTLS/RealiTLScanner/releases/download/${version}/RealiTLScanner-linux-64"
+        version=$(githubLatestReleaseTag "XTLS/RealiTLScanner" false 1)
+        if [[ -z "${version}" ]]; then
+            echoContent red " ---> 获取RealiTLScanner版本失败，请检查网络/GitHub API 是否可用"
+            exit 0
+        fi
+        mkdir -p /etc/v2ray-agent/xray/reality_scan >/dev/null 2>&1
+        downloadFile "https://github.com/XTLS/RealiTLScanner/releases/download/${version}/RealiTLScanner-linux-64" "/etc/v2ray-agent/xray/reality_scan/RealiTLScanner-linux-64" "$([[ "${release}" == "alpine" ]] && echo false || echo true)"
+        if [[ ! -s "/etc/v2ray-agent/xray/reality_scan/RealiTLScanner-linux-64" ]]; then
+            echoContent red " ---> 下载RealiTLScanner失败，请检查网络后重试"
+            rm -f "/etc/v2ray-agent/xray/reality_scan/RealiTLScanner-linux-64" >/dev/null 2>&1
+            exit 0
+        fi
         chmod 655 /etc/v2ray-agent/xray/reality_scan/RealiTLScanner-linux-64
     fi
 }
@@ -9586,7 +9782,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.5.9"
+    echoContent green "当前版本：v${SCRIPT_VERSION}"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
