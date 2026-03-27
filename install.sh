@@ -7315,6 +7315,7 @@ removeSocks5Routing() {
         if [[ "${coreInstallType}" == "1" ]]; then
             removeXrayOutbound socks5_outbound
             unInstallRouting socks5_outbound outboundTag
+
             addXrayOutbound z_direct_outbound
         fi
 
@@ -7328,6 +7329,9 @@ removeSocks5Routing() {
 
         removeSingBoxConfig 20_socks5_inbounds
         removeSingBoxConfig socks5_02_inbound_route
+        removeSingBoxConfig sniff_socks5_inbound
+        removeSingBoxConfig "strategy_ipv4_only_socks5_inbound"
+        removeSingBoxConfig "strategy_ipv6_only_socks5_inbound"
 
         handleSingBox stop
     elif [[ "${unInstallSocks5RoutingStatus}" == "3" ]]; then
@@ -7342,6 +7346,10 @@ removeSocks5Routing() {
             removeSingBoxConfig socks5_01_outbound_route
             removeSingBoxConfig 20_socks5_inbounds
             removeSingBoxConfig socks5_02_inbound_route
+            removeSingBoxConfig sniff_socks5_inbound
+            removeSingBoxConfig "strategy_ipv4_only_socks5_inbound"
+            removeSingBoxConfig "strategy_ipv6_only_socks5_inbound"
+
             addSingBoxOutbound 01_direct_outbound
         fi
 
@@ -7404,13 +7412,13 @@ setSocks5Inbound() {
                   "username": "${socks5RoutingUUID}",
                   "password": "${socks5RoutingUUID}"
             }
-          ],
-          "domain_strategy":"${domainStrategy}"
+          ]
         }
     ]
 }
 EOF
-
+    setStrategyRouting socks5_inbound "${domainStrategy}"
+    setSniffRouting socks5_inbound
 }
 
 # 初始化sing-box rule配置
@@ -7491,6 +7499,42 @@ setSocks5InboundRouting() {
 
 }
 
+# 设置sniff routing规则
+setSniffRouting() {
+    local tag=$1
+    cat <<EOF >"/etc/v2ray-agent/sing-box/conf/config/sniff_${tag}.json"
+{
+    "route":{
+        "rules":[
+          {
+            "inbound": "${tag}",
+            "action": "sniff",
+            "timeout": "1s"
+          }
+        ]
+    }
+}
+EOF
+}
+
+# 设置sniff routing规则
+setStrategyRouting() {
+    local tag=$1
+    local strategy=$2
+    cat <<EOF >"/etc/v2ray-agent/sing-box/conf/config/strategy_${strategy}_${tag}.json"
+{
+    "route":{
+        "rules":[
+          {
+            "inbound": "${tag}",
+            "action": "resolve",
+            "strategy": "${strategy}"
+          }
+        ]
+    }
+}
+EOF
+}
 # socks5 出站
 setSocks5Outbound() {
 
@@ -9242,9 +9286,9 @@ checkRealityDest() {
 initRealityClientServersName() {
     local realityDestDomainList=
     if [[ "${coreInstallType}" == "1" || "${selectCoreType}" == "1" ]]; then
-        realityDestDomainList="gateway.icloud.com,itunes.apple.com,swdist.apple.com,swcdn.apple.com,updates.cdn-apple.com,mensura.cdn-apple.com,osxapps.itunes.apple.com,aod.itunes.apple.com,download-installer.cdn.mozilla.net,addons.mozilla.org,s0.awsstatic.com,d1.awsstatic.com,cdn-dynmedia-1.microsoft.com,images-na.ssl-images-amazon.com,m.media-amazon.com,player.live-video.net,one-piece.com,lol.secure.dyn.riotcdn.net,www.lovelive-anime.jp,academy.nvidia.com,software.download.prss.microsoft.com,dl.google.com,www.google-analytics.com,www.caltech.edu,www.calstatela.edu,www.suny.edu,www.suffolk.edu,www.python.org,vuejs-jp.org,vuejs.org,zh-hk.vuejs.org,react.dev,www.java.com,www.oracle.com,www.mysql.com,www.mongodb.com,redis.io,cname.vercel-dns.com,vercel-dns.com,www.swift.com,academy.nvidia.com,www.swift.com,www.cisco.com,www.asus.com,www.samsung.com,www.amd.com,www.umcg.nl,www.fom-international.com,www.u-can.co.jp,github.io"
+        realityDestDomainList="download-installer.cdn.mozilla.net,addons.mozilla.org,s0.awsstatic.com,d1.awsstatic.com,images-na.ssl-images-amazon.com,m.media-amazon.com,player.live-video.net,one-piece.com,lol.secure.dyn.riotcdn.net,www.lovelive-anime.jp,academy.nvidia.com,dl.google.com,www.google-analytics.com,www.caltech.edu,www.calstatela.edu,www.suny.edu,www.suffolk.edu,www.python.org,vuejs-jp.org,vuejs.org,zh-hk.vuejs.org,react.dev,www.java.com,www.oracle.com,www.mysql.com,www.mongodb.com,redis.io,cname.vercel-dns.com,vercel-dns.com,www.swift.com,academy.nvidia.com,www.swift.com,www.cisco.com,www.asus.com,www.samsung.com,www.amd.com,www.umcg.nl,www.fom-international.com,www.u-can.co.jp,github.io"
     elif [[ "${coreInstallType}" == "2" || "${selectCoreType}" == "2" ]]; then
-        realityDestDomainList="gateway.icloud.com,itunes.apple.com,swdist.apple.com,swcdn.apple.com,updates.cdn-apple.com,mensura.cdn-apple.com,osxapps.itunes.apple.com,aod.itunes.apple.com,download-installer.cdn.mozilla.net,addons.mozilla.org,s0.awsstatic.com,d1.awsstatic.com,cdn-dynmedia-1.microsoft.com,images-na.ssl-images-amazon.com,m.media-amazon.com,player.live-video.net,one-piece.com,lol.secure.dyn.riotcdn.net,www.lovelive-anime.jp,academy.nvidia.com,software.download.prss.microsoft.com,dl.google.com,www.google-analytics.com,www.python.org,vuejs-jp.org,vuejs.org,zh-hk.vuejs.org,react.dev,www.java.com,www.oracle.com,www.mysql.com,www.mongodb.com,cname.vercel-dns.com,vercel-dns.com,www.swift.com,academy.nvidia.com,www.swift.com,www.cisco.com,www.asus.com,www.samsung.com,www.amd.com,www.fom-international.com,github.io"
+        realityDestDomainList="download-installer.cdn.mozilla.net,addons.mozilla.org,s0.awsstatic.com,d1.awsstatic.com,images-na.ssl-images-amazon.com,m.media-amazon.com,player.live-video.net,one-piece.com,lol.secure.dyn.riotcdn.net,www.lovelive-anime.jp,academy.nvidia.com,dl.google.com,www.google-analytics.com,www.python.org,vuejs-jp.org,vuejs.org,zh-hk.vuejs.org,react.dev,www.java.com,www.oracle.com,www.mysql.com,www.mongodb.com,cname.vercel-dns.com,vercel-dns.com,www.swift.com,academy.nvidia.com,www.swift.com,www.cisco.com,www.asus.com,www.samsung.com,www.amd.com,www.fom-international.com,github.io"
     fi
     if [[ -n "${realityServerName}" && -z "${lastInstallationConfig}" ]]; then
         if echo ${realityDestDomainList} | grep -q "${realityServerName}"; then
@@ -9587,7 +9631,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.5.9"
+    echoContent green "当前版本：v3.5.10"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
