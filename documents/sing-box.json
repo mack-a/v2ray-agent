@@ -100,14 +100,13 @@
       ],
       "mtu": 9000,
       "auto_route": true,
-      "strict_route": true,
-      "sniff": true
+      "strict_route": true
     },
     {
       "type": "mixed",
+      "tag": "mixed-in",
       "listen": "127.0.0.1",
       "listen_port": 1082,
-      "sniff": true,
       "users": []
     }
   ],
@@ -345,7 +344,14 @@
     ],
     "rules": [
       {
-        "action": "sniff"
+        "inbound": "mixed-in",
+        "action": "sniff",
+        "timeout": "1s"
+      },
+      {
+        "inbound": "tun-in",
+        "action": "sniff",
+        "timeout": "1s"
       },
       {
         "protocol": "dns",

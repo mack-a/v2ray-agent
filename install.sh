@@ -7315,6 +7315,7 @@ removeSocks5Routing() {
         if [[ "${coreInstallType}" == "1" ]]; then
             removeXrayOutbound socks5_outbound
             unInstallRouting socks5_outbound outboundTag
+
             addXrayOutbound z_direct_outbound
         fi
 
@@ -7328,6 +7329,9 @@ removeSocks5Routing() {
 
         removeSingBoxConfig 20_socks5_inbounds
         removeSingBoxConfig socks5_02_inbound_route
+        removeSingBoxConfig sniff_socks5_inbound
+        removeSingBoxConfig "strategy_ipv4_only_socks5_inbound"
+        removeSingBoxConfig "strategy_ipv6_only_socks5_inbound"
 
         handleSingBox stop
     elif [[ "${unInstallSocks5RoutingStatus}" == "3" ]]; then
@@ -7342,6 +7346,10 @@ removeSocks5Routing() {
             removeSingBoxConfig socks5_01_outbound_route
             removeSingBoxConfig 20_socks5_inbounds
             removeSingBoxConfig socks5_02_inbound_route
+            removeSingBoxConfig sniff_socks5_inbound
+            removeSingBoxConfig "strategy_ipv4_only_socks5_inbound"
+            removeSingBoxConfig "strategy_ipv6_only_socks5_inbound"
+
             addSingBoxOutbound 01_direct_outbound
         fi
 
@@ -7404,13 +7412,13 @@ setSocks5Inbound() {
                   "username": "${socks5RoutingUUID}",
                   "password": "${socks5RoutingUUID}"
             }
-          ],
-          "domain_strategy":"${domainStrategy}"
+          ]
         }
     ]
 }
 EOF
-
+    setStrategyRouting socks5_inbound "${domainStrategy}"
+    setSniffRouting socks5_inbound
 }
 
 # 初始化sing-box rule配置
@@ -7491,6 +7499,42 @@ setSocks5InboundRouting() {
 
 }
 
+# 设置sniff routing规则
+setSniffRouting() {
+    local tag=$1
+    cat <<EOF >"/etc/v2ray-agent/sing-box/conf/config/sniff_${tag}.json"
+{
+    "route":{
+        "rules":[
+          {
+            "inbound": "${tag}",
+            "action": "sniff",
+            "timeout": "1s"
+          }
+        ]
+    }
+}
+EOF
+}
+
+# 设置sniff routing规则
+setStrategyRouting() {
+    local tag=$1
+    local strategy=$2
+    cat <<EOF >"/etc/v2ray-agent/sing-box/conf/config/strategy_${strategy}_${tag}.json"
+{
+    "route":{
+        "rules":[
+          {
+            "inbound": "${tag}",
+            "action": "resolve",
+            "strategy": "${strategy}"
+          }
+        ]
+    }
+}
+EOF
+}
 # socks5 出站
 setSocks5Outbound() {
 
@@ -9587,7 +9631,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.5.9"
+    echoContent green "当前版本：v3.5.10"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
