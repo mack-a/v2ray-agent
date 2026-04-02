@@ -912,8 +912,8 @@ readConfigHostPathUUID() {
             if [[ -z "${currentPath}" ]]; then
                 dest=$(jq -r -c '.inbounds[0].settings.fallbacks[]|select(.alpn)|.dest' ${configPath}${frontingType}.json | head -1)
                 if [[ "${dest}" == "31302" || "${dest}" == "31304" ]]; then
-                    checkBTPanel
-                    check1Panel
+                    # checkBTPanel
+                    # check1Panel
                     if grep -q "trojangrpc {" <${nginxConfigPath}alone.conf; then
                         currentPath=$(grep "trojangrpc {" <${nginxConfigPath}alone.conf | awk -F "[/]" '{print $2}' | awk -F "[t][r][o][j][a][n]" '{print $1}')
                     elif grep -q "grpc {" <${nginxConfigPath}alone.conf; then
@@ -1114,14 +1114,14 @@ installTools() {
         ${installType} wget >/dev/null 2>&1
     fi
 
-    if ! command -v netfilter-persistent >/dev/null 2>&1; then
-        if [[ "${release}" != "centos" ]]; then
-            echoContent green " ---> 安装iptables"
-            echo "iptables-persistent iptables-persistent/autosave_v4 boolean true" | sudo debconf-set-selections
-            echo "iptables-persistent iptables-persistent/autosave_v6 boolean true" | sudo debconf-set-selections
-            ${installType} iptables-persistent >/dev/null 2>&1
-        fi
-    fi
+    #    if ! command -v netfilter-persistent >/dev/null 2>&1; then
+    #        if [[ "${release}" != "centos" ]]; then
+    #            echoContent green " ---> 安装iptables"
+    #            echo "iptables-persistent iptables-persistent/autosave_v4 boolean true" | sudo debconf-set-selections
+    #            echo "iptables-persistent iptables-persistent/autosave_v6 boolean true" | sudo debconf-set-selections
+    #            ${installType} iptables-persistent >/dev/null 2>&1
+    #        fi
+    #    fi
 
     if ! curl --help >/dev/null 2>&1; then
         echoContent green " ---> 安装curl"
@@ -4743,6 +4743,8 @@ EOF
         removeSingBoxConfig block_domain_outbound
         removeSingBoxConfig dns
     fi
+
+    setSniffRouting
 }
 # 初始化 sing-box订阅配置
 initSubscribeLocalConfig() {
@@ -4871,6 +4873,25 @@ EOF
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
 vless://${id}@${add}:${port}?encryption=none&security=reality&type=xhttp&sni=${xrayVLESSRealityXHTTPServerName}&fp=chrome&path=${path}&pbk=${currentRealityXHTTPPublicKey}&sid=6ba85179e30d4fc2#${email}
 EOF
+
+        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
+  - name: "${email}"
+    type: vless
+    server: ${add}
+    port: ${port}
+    uuid: ${id}
+    udp: true
+    tls: true
+    network: xhttp
+    client-fingerprint: chrome
+    alpn:
+      - h2
+    servername: ${currentHost}
+    xhttp-opts:
+      path: ${path}
+      host: ${currentHost}
+EOF
+
         echoContent yellow " ---> 二维码 VLESS(VLESS+reality+XHTTP)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dreality%26type%3Dxhttp%26sni%3D${xrayVLESSRealityXHTTPServerName}%26fp%3Dchrome%26path%3D${path}%26host%3D${xrayVLESSRealityXHTTPServerName}%26pbk%3D${currentRealityXHTTPPublicKey}%26sid%3D6ba85179e30d4fc2%23${email}\n"
 
@@ -5750,7 +5771,7 @@ unInstall() {
         menu
         exit 0
     fi
-    checkBTPanel
+    # checkBTPanel
     echoContent yellow " ---> 脚本不会删除acme相关配置，删除请手动执行 [rm -rf /root/.acme.sh]"
     handleNginx stop
     if [[ -z $(pgrep -f "nginx") ]]; then
@@ -7418,7 +7439,6 @@ setSocks5Inbound() {
 }
 EOF
     setStrategyRouting socks5_inbound "${domainStrategy}"
-    setSniffRouting socks5_inbound
 }
 
 # 初始化sing-box rule配置
@@ -7501,13 +7521,11 @@ setSocks5InboundRouting() {
 
 # 设置sniff routing规则
 setSniffRouting() {
-    local tag=$1
-    cat <<EOF >"/etc/v2ray-agent/sing-box/conf/config/sniff_${tag}.json"
+    cat <<EOF >"/etc/v2ray-agent/sing-box/conf/config/sniff.json"
 {
     "route":{
         "rules":[
           {
-            "inbound": "${tag}",
             "action": "sniff",
             "timeout": "1s"
           }
@@ -8159,8 +8177,8 @@ customXrayInstall() {
     if [[ "${selectCustomInstallType//,/}" =~ ^[0-7]+$ ]]; then
         readLastInstallationConfig
         unInstallSubscribe
-        checkBTPanel
-        check1Panel
+        # checkBTPanel
+        # check1Panel
         totalProgress=12
         installTools 1
         if [[ -n "${btDomain}" ]]; then
@@ -8253,8 +8271,8 @@ selectCoreInstall() {
 xrayCoreInstall() {
     readLastInstallationConfig
     unInstallSubscribe
-    checkBTPanel
-    check1Panel
+    # checkBTPanel
+    # check1Panel
     selectCustomInstallType=
     totalProgress=12
     installTools 2
@@ -8298,8 +8316,8 @@ xrayCoreInstall() {
 singBoxInstall() {
     readLastInstallationConfig
     unInstallSubscribe
-    checkBTPanel
-    check1Panel
+    # checkBTPanel
+    # check1Panel
     selectCustomInstallType=
     totalProgress=8
     installTools 2
@@ -9631,7 +9649,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.5.11"
+    echoContent green "当前版本：v3.5.12"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
