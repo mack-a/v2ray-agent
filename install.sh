@@ -64,7 +64,7 @@ checkSystem() {
         upgrade="apk update"
         removeType='apk del'
         nginxConfigPath=/etc/nginx/http.d/
-    elif { [[ -f "/etc/issue" ]] && grep -qi "debian" /etc/issue; } || { [[ -f "/proc/version" ]] && grep -qi "debian" /proc/version; } || { [[ -f "/etc/os-release" ]] && grep -qi "ID=debian" /etc/issue; }; then
+    elif { [[ -f "/etc/issue" ]] && grep -qi "debian" /etc/issue; } || { [[ -f "/proc/version" ]] && grep -qi "debian" /proc/version; } || { [[ -f "/etc/os-release" ]] && grep -qiE "debian|armbian" /etc/os-release; }; then
         release="debian"
         installType='apt -y install'
         upgrade="apt update"
