@@ -5337,7 +5337,7 @@ EOF
 # Script shortcut
 aliasInstall() {
 
-    if [[ -f "$HOME/install.sh" ]] && [[ -d "/etc/v2ray-agent" ]] && grep <"$HOME/install.sh" -q "作者:mack-a"; then
+    if [[ -f "$HOME/install.sh" ]] && [[ -d "/etc/v2ray-agent" ]] && grep <"$HOME/install.sh" -q "作者:sciman"; then
         mv "$HOME/install.sh" /etc/v2ray-agent/install.sh
         local vasmaType=
         if [[ -d "/usr/bin/" ]]; then
@@ -7895,7 +7895,7 @@ tuicVersionManageMenu() {
 menu() {
     cd "$HOME" || exit
     echoContent red "\n================================================ ================="
-    echoContent green "Author: mack-a"
+    echoContent green "Author: sciman"
     echoContent green "Current version: v2.10.20"
     echoContent green "Github: https://github.com/sciman-top/v2ray-agent/tree/sciman-v2ray-agent"
     echoContent green "Description: 8-in-1 coexistence script\c"
