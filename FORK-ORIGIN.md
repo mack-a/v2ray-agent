@@ -5,7 +5,7 @@ This repository is a maintained fork of `mack-a/v2ray-agent`.
 ## Upstream
 
 - Upstream repository: https://github.com/mack-a/v2ray-agent
-- Upstream purpose: original coexistence script project
+- Upstream purpose: original upstream coexistence script project
 
 ## Fork Maintainer
 
@@ -16,6 +16,6 @@ This repository is a maintained fork of `mack-a/v2ray-agent`.
 ## Scope of This Fork
 
 - Preserve upstream license and attribution
-- Keep installation and update entry points pointing to this fork
+- Maintain installation and update entry points on this fork
 - Make compatibility, maintenance, and operational improvements
 - Avoid rewriting upstream history or removing original author rights
