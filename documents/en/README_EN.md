@@ -1,5 +1,14 @@
 # v2ray-agent
 
+## Fork Notice
+
+This repository is a maintained fork of `mack-a/v2ray-agent`.
+
+- Upstream project: https://github.com/mack-a/v2ray-agent
+- Current fork maintainer: sciman
+- Installation and update entry points in this fork point to `sciman-top/v2ray-agent`
+- Original author rights, license terms, and upstream attribution remain preserved
+
 - [Thanks to JetBrains for providing non-commercial open source software development authorization](https://www.jetbrains.com/?from=v2ray-agent)
 
 
