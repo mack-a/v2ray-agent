@@ -28,7 +28,7 @@ Xray-core/sing-box One-click Quick Install Script
 ### Installation
 
 ```
-bash wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh" && chmod 700 /root/install.sh && /root/install.sh
+bash wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/sciman-top/v2ray-agent/sciman-v2ray-agent/install.sh" && chmod 700 /root/install.sh && /root/install.sh
 ```
 
 ### Usage
@@ -55,7 +55,7 @@ vasma
 
 *   **Telegram:** [Channel](https://t.me/v2rayAgentChannel) | [Group](https://t.me/technologyshare)
 *   **Website:** [Official](https://www.v2ray-agent.com/) | [Backup](https://www.592083.xyz/)
-*   **Feedback:** [Submit an issue](https://github.com/mack-a/v2ray-agent/issues)
+*   **Feedback:** [Submit an issue](https://github.com/sciman-top/v2ray-agent/issues)
 
 ## Donation
 

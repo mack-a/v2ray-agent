@@ -28,7 +28,7 @@ Xray-core/sing-box 一键脚本快速安装
 ### 安装
 
 ```
-wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh" && chmod 700 /root/install.sh && /root/install.sh
+wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/sciman-top/v2ray-agent/sciman-v2ray-agent/install.sh" && chmod 700 /root/install.sh && /root/install.sh
 ```
 
 ### 使用
@@ -55,7 +55,7 @@ vasma
 
 *   **Telegram:** [频道](https://t.me/v2rayAgentChannel) | [群组](https://t.me/technologyshare)
 *   **网站:** [官网](https://www.v2ray-agent.com/) | [备用](https://www.592083.xyz/)
-*   **反馈:** [提交 issue](https://github.com/mack-a/v2ray-agent/issues)
+*   **反馈:** [提交 issue](https://github.com/sciman-top/v2ray-agent/issues)
 *   **X:** [链接](https://x.com/v2rayagent)
 
 ## 捐赠
