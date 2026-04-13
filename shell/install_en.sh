@@ -5545,8 +5545,10 @@ blacklist() {
     echoContent red "\n================================================ ================="
     echoContent yellow "1.View blocked domain names"
     echoContent yellow "2.Add domain name"
-    echoContent yellow "3.Block domestic domain names"
-    echoContent yellow "4.Delete blacklist"
+    echoContent yellow "3.Block domestic domain names + IP"
+    echoContent yellow "4.Delete blacklist/whitelist"
+    echoContent yellow "5.Add blocked IP"
+    echoContent yellow "6.Add domain whitelist"
     echoContent red "================================================== ==============="
 
     read -r -p "Please select:" blacklistStatus
@@ -5575,33 +5577,194 @@ blacklist() {
         echoContent green " ---> Added successfully"
 
     elif [[ "${blacklistStatus}" == "3" ]]; then
+        local autoAllowDomainList="dl.google.com,apple.com,bing.com,microsoft.com,gstatic.cn"
+        unInstallRouting blackhole-out outboundTag
+        unInstallRouting blackhole-ip-out outboundTag
+
         addInstallRouting blackhole-out outboundTag "cn"
+        addInstallIPRouting blackhole-ip-out outboundTag "cn"
+        addInstallRouting allow-domain-direct-out outboundTag "${autoAllowDomainList}" "top"
 
         unInstallOutbounds blackhole-out
+        unInstallOutbounds blackhole-ip-out
+        unInstallOutbounds allow-domain-direct-out
 
-        outbounds=$(jq -r '.outbounds += [{"protocol":"blackhole","tag":"blackhole-out"}]' ${configPath}10_ipv4_outbounds.json)
+        outbounds=$(jq -r '.outbounds += [{"protocol":"blackhole","tag":"blackhole-out"},{"protocol":"blackhole","tag":"blackhole-ip-out"},{"protocol":"freedom","tag":"allow-domain-direct-out","settings":{"domainStrategy":"UseIP"}}]' ${configPath}10_ipv4_outbounds.json)
 
         echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
 
-        echoContent green " ---> Domestic domain name blocked successfully"
+        echoContent green " ---> Domestic domain name + IP blocked successfully"
 
     elif [[ "${blacklistStatus}" == "4" ]]; then
 
         unInstallRouting blackhole-out outboundTag
+        unInstallRouting blackhole-ip-out outboundTag
+        unInstallRouting allow-domain-direct-out outboundTag
 
-        echoContent green " ---> Domain name blacklist deleted successfully"
+        unInstallOutbounds blackhole-ip-out
+        unInstallOutbounds allow-domain-direct-out
+
+        echoContent green " ---> Domain blacklist/whitelist deleted successfully"
+    elif [[ "${blacklistStatus}" == "5" ]]; then
+        echoContent yellow "Input example:1.1.1.1,8.8.8.8,1.1.1.0/24,2400:3200::/32\n"
+        read -r -p "Please enter the blocked IP list:" ipList
+        if [[ -z "${ipList}" ]]; then
+            echoContent red " ---> ip cannot be empty"
+            exit 0
+        fi
+
+        addInstallIPRouting blackhole-ip-out outboundTag "${ipList}"
+        unInstallOutbounds blackhole-ip-out
+        outbounds=$(jq -r '.outbounds += [{"protocol":"blackhole","tag":"blackhole-ip-out"}]' ${configPath}10_ipv4_outbounds.json)
+        echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
+        echoContent green " ---> Blocked IP added successfully"
+    elif [[ "${blacklistStatus}" == "6" ]]; then
+        echoContent yellow "Input example:speedtest,openai,google.com\n"
+        read -r -p "Please enter whitelist domains:" allowDomainList
+        if [[ -z "${allowDomainList}" ]]; then
+            echoContent red " ---> domain cannot be empty"
+            exit 0
+        fi
+
+        addInstallRouting allow-domain-direct-out outboundTag "${allowDomainList}" "top"
+        unInstallOutbounds allow-domain-direct-out
+        outbounds=$(jq -r '.outbounds += [{"protocol":"freedom","tag":"allow-domain-direct-out","settings":{"domainStrategy":"UseIP"}}]' ${configPath}10_ipv4_outbounds.json)
+        echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
+        echoContent green " ---> Domain whitelist added successfully"
     else
         echoContent red " ---> Wrong selection"
         exit 0
     fi
     reloadCore
 }
+
+# Download dlc.dat_plain.yml into core directory
+downloadDLCPlainYAML() {
+    local corePath=$1
+    local dlcFilePath="${corePath}/dlc.dat_plain.yml"
+    local tmpFilePath="${dlcFilePath}.tmp"
+
+    if [[ -z "${corePath}" ]]; then
+        return 1
+    fi
+
+    mkdir -p "${corePath}" >/dev/null 2>&1
+    if [[ -s "${dlcFilePath}" ]]; then
+        return 0
+    fi
+
+    local dlcDownloadURL="https://github.com/v2fly/domain-list-community/releases/latest/download/dlc.dat_plain.yml"
+    if [[ "${release}" == "alpine" ]]; then
+        wget -c -q -O "${tmpFilePath}" "${dlcDownloadURL}" >/dev/null 2>&1
+    else
+        wget -c -q "${wgetShowProgressStatus}" -O "${tmpFilePath}" "${dlcDownloadURL}" >/dev/null 2>&1
+    fi
+
+    if [[ $? -ne 0 || ! -s "${tmpFilePath}" ]]; then
+        rm -f "${tmpFilePath}" >/dev/null 2>&1
+        return 1
+    fi
+
+    mv "${tmpFilePath}" "${dlcFilePath}" >/dev/null 2>&1
+}
+
+# Escape grep/regex pattern meta characters
+escapeDLCRegexPattern() {
+    echo "$1" | sed -e 's/[.[\\*^$()+?{|]/\\\\&/g'
+}
+
+# Resolve nearest upper name by matched rule line
+getDLCNameByRuleLine() {
+    local ruleLine=$1
+    local dlcFilePath=$2
+    awk -v targetLine="${ruleLine}" '
+    /^[[:space:]]*-[[:space:]]*name:[[:space:]]*/ {
+        line = $0
+        sub(/^[[:space:]]*-[[:space:]]*name:[[:space:]]*/, "", line)
+        currentName = line
+    }
+    NR == targetLine {
+        print currentName
+        exit
+    }' "${dlcFilePath}"
+}
+
+isDomainFormat() {
+    local target=$1
+    [[ "${target}" =~ ^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z0-9-]{2,63}$ ]]
+}
+
+# Resolve geosite name from dlc.dat_plain.yml by input domain
+getDLCGeositeName() {
+    local inputRule=$1
+    local corePath=$2
+    local dlcFilePath="${corePath}/dlc.dat_plain.yml"
+
+    if [[ -z "${inputRule}" || -z "${corePath}" ]]; then
+        echo ""
+        return
+    fi
+
+    local normalizedInput
+    normalizedInput=$(echo "${inputRule}" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    normalizedInput=${normalizedInput#domain:}
+    normalizedInput=${normalizedInput#full:}
+    normalizedInput=${normalizedInput#keyword:}
+
+    if [[ -z "${normalizedInput}" ]]; then
+        echo ""
+        return
+    fi
+
+    if isDomainFormat "${normalizedInput}"; then
+        return
+    fi
+
+    if ! downloadDLCPlainYAML "${corePath}"; then
+        echo ""
+        return
+    fi
+
+    local escapedInput=
+    escapedInput=$(escapeDLCRegexPattern "${normalizedInput}")
+
+    local matchedLine=
+    matchedLine=$(grep -n -m1 -E "^[[:space:]]*-[[:space:]]*name:[[:space:]]*${escapedInput}[[:space:]]*$" "${dlcFilePath}")
+    if [[ -n "${matchedLine}" ]]; then
+        echo "${normalizedInput}"
+    fi
+}
+
+# Build final rule value: prefer geosite, fallback to domain
+getDLCMatchedRuleValue() {
+    local inputRule=$1
+    local corePath=$2
+    local normalizedInput=
+    normalizedInput=$(echo "${inputRule}" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+    if isDomainFormat "${normalizedInput}"; then
+        local escapedDomain=
+        escapedDomain=$(escapeDLCRegexPattern "${normalizedInput}")
+        echo "regexp:.*${escapedDomain}.*"
+        return
+    fi
+
+    local matchedRuleName=
+    matchedRuleName=$(getDLCGeositeName "${normalizedInput}" "${corePath}")
+    if [[ -n "${matchedRuleName}" ]]; then
+        echo "geosite:${matchedRuleName}"
+    else
+        echo "domain:${normalizedInput}"
+    fi
+}
+
 #Add routing configuration
 addInstallRouting() {
 
     local tag=$1    # warp-socks
     local type=$2   # outboundTag/inboundTag
     local domain=$3 # Domain name
+    local rulePosition=$4
 
     if [[ -z "${tag}" || -z "${type}" || -z "${domain}" ]]; then
         echoContent red " ---> Parameter error"
@@ -5642,24 +5805,83 @@ EOF
         if echo "${routingRule}" | grep -q "${line}"; then
             echoContent yellow " ---> ${line} already exists, skip"
         else
-            local geositeStatus
-            geositeStatus=$(curl -s "https://api.github.com/repos/v2fly/domain-list-community/contents/data/${line}" | jq .message)
-
-            if [[ "${geositeStatus}" == "null" ]]; then
-                routingRule=$(echo "${routingRule}" | jq -r '.domain += ["geosite:'"${line}"'"]')
-            else
-                routingRule=$(echo "${routingRule}" | jq -r '.domain += ["domain:'"${line}"'"]')
-            fi
+            local matchedRuleValue
+            matchedRuleValue=$(getDLCMatchedRuleValue "${line}" "/etc/v2ray-agent/xray")
+            routingRule=$(echo "${routingRule}" | jq -r --arg rule "${matchedRuleValue}" '.domain += [$rule]')
         fi
     done < <(echo "${domain}" | tr ',' '\n')
 
     unInstallRouting "${tag}" "${type}"
     if ! grep -q "gstatic.com" ${configPath}09_routing.json && [[ "${tag}" == "blackhole-out" ]]; then
         local routing=
-        routing=$(jq -r ".routing.rules += [{\"type\": \"field\",\"domain\": [\"gstatic.com\"],\"outboundTag\": \"direct\"}]" ${configPath}09_routing.json)
+        routing=$(jq -r ".routing.rules += [{\"type\": \"field\",\"domain\": [\"domain:gstatic.com\"],\"outboundTag\": \"allow-domain-direct-out\"}]" ${configPath}09_routing.json)
         echo "${routing}" | jq . >${configPath}09_routing.json
+
+        if [[ -f "${configPath}10_ipv4_outbounds.json" ]] && ! grep -q '"allow-domain-direct-out"' "${configPath}10_ipv4_outbounds.json"; then
+            local outbounds=
+            outbounds=$(jq -r '.outbounds += [{"protocol":"freedom","tag":"allow-domain-direct-out","settings":{"domainStrategy":"UseIP"}}]' ${configPath}10_ipv4_outbounds.json)
+            echo "${outbounds}" | jq . >${configPath}10_ipv4_outbounds.json
+        fi
     fi
 
+    if [[ "${rulePosition}" == "top" ]]; then
+        routing=$(jq -r ".routing.rules = [${routingRule}] + .routing.rules" ${configPath}09_routing.json)
+    else
+        routing=$(jq -r ".routing.rules += [${routingRule}]" ${configPath}09_routing.json)
+    fi
+    echo "${routing}" | jq . >${configPath}09_routing.json
+}
+
+# Add Xray IP block routing
+# Supports geoip:cn and custom IPv4/IPv6/CIDR input
+addInstallIPRouting() {
+
+    local tag=$1
+    local type=$2
+    local ipList=$3
+
+    if [[ -z "${tag}" || -z "${type}" || -z "${ipList}" ]]; then
+        echoContent red " ---> Parameter error"
+        exit 0
+    fi
+
+    if [[ ! -f "${configPath}09_routing.json" ]]; then
+        cat <<EOF >${configPath}09_routing.json
+{
+    "routing":{
+        "type": "field",
+        "rules": []
+    }
+}
+EOF
+    fi
+
+    local routingRule=
+    routingRule=$(jq -r ".routing.rules[]|select(.outboundTag==\"${tag}\" and (.protocol == null) and (.ip != null))" ${configPath}09_routing.json)
+    if [[ -z "${routingRule}" ]]; then
+        routingRule="{\"type\": \"field\",\"ip\": [],\"outboundTag\": \"${tag}\"}"
+    fi
+
+    while read -r line; do
+        line=$(echo "${line}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        if [[ -z "${line}" ]]; then
+            continue
+        fi
+
+        local ipRuleValue=${line}
+        if [[ "${line}" == "cn" ]]; then
+            ipRuleValue="geoip:cn"
+        fi
+
+        if echo "${routingRule}" | grep -q "${ipRuleValue}"; then
+            echoContent yellow " ---> ${ipRuleValue} already exists, skip"
+        else
+            routingRule=$(echo "${routingRule}" | jq -r '.ip += ["'"${ipRuleValue}"'"]')
+        fi
+    done < <(echo "${ipList}" | tr ',' '\n')
+
+    unInstallRouting "${tag}" "${type}"
+    local routing=
     routing=$(jq -r ".routing.rules += [${routingRule}]" ${configPath}09_routing.json)
     echo "${routing}" | jq . >${configPath}09_routing.json
 }
@@ -6254,14 +6476,9 @@ EOF
         local domains=
         domains=[]
         while read -r line; do
-            local geositeStatus
-            geositeStatus=$(curl -s "https://api.github.com/repos/v2fly/domain-list-community/contents/data/${line}" | jq .message)
-
-            if [[ "${geositeStatus}" == "null" ]]; then
-                domains=$(echo "${domains}" | jq -r '. += ["geosite:'"${line}"'"]')
-            else
-                domains=$(echo "${domains}" | jq -r '. += ["domain:'"${line}"'"]')
-            fi
+            local matchedRuleValue
+            matchedRuleValue=$(getDLCMatchedRuleValue "${line}" "/etc/v2ray-agent/xray")
+            domains=$(echo "${domains}" | jq -r --arg rule "${matchedRuleValue}" '. += [$rule]')
         done < <(echo "${domainList}" | tr ',' '\n')
 
         if [[ -f "${configPath}09_routing.json" ]]; then
@@ -6427,7 +6644,9 @@ setUnlockSNI() {
         if [[ -n "${domainList}" ]]; then
             local hosts={}
             while read -r domain; do
-                hosts=$(echo "${hosts}" | jq -r ".\"geosite:${domain}\"=\"${setSNIP}\"")
+                local matchedRuleValue
+                matchedRuleValue=$(getDLCMatchedRuleValue "${domain}" "/etc/v2ray-agent/xray")
+                hosts=$(echo "${hosts}" | jq -r --arg key "${matchedRuleValue}" --arg value "${setSNIP}" '. + {($key):$value}')
             done < <(echo "${domainList}" | tr ',' '\n')
             cat <<EOF >${configPath}11_dns.json
 {
@@ -6462,6 +6681,16 @@ setUnlockDNS() {
         echoContent yellow "netflix,bahamut,hulu,hbo,disney,bbc,4chan,fox,abema,dmm,niconico,pixiv,bilibili,viu"
         read -r -p "Please enter the domain name according to the above example:" domainList
         if [[ "${domainList}" == "1" ]]; then
+            domainList="netflix,bahamut,hulu,hbo,disney,bbc,4chan,fox,abema,dmm,niconico,pixiv,bilibili,viu"
+        fi
+        if [[ -n "${domainList}" ]]; then
+            local domains=[]
+            while read -r line; do
+                local matchedRuleValue
+                matchedRuleValue=$(getDLCMatchedRuleValue "${line}" "/etc/v2ray-agent/xray")
+                domains=$(echo "${domains}" | jq -r --arg rule "${matchedRuleValue}" '. += [$rule]')
+            done < <(echo "${domainList}" | tr ',' '\n')
+
             cat <<EOF >${configPath}11_dns.json
 {
     "dns": {
@@ -6469,39 +6698,7 @@ setUnlockDNS() {
             {
                 "address": "${setDNS}",
                 "port": 53,
-                "domains": [
-                    "geosite:netflix",
-                    "geosite:bahamut",
-                    "geosite:hulu",
-                    "geosite:hbo",
-                    "geosite:disney",
-                    "geosite:bbc",
-                    "geosite:4chan",
-                    "geosite:fox",
-                    "geosite:abema",
-                    "geosite:dmm",
-                    "geosite:niconico",
-                    "geosite:pixiv",
-                    "geosite:bilibili",
-                    "geosite:viu"
-                ]
-            },
-        "localhost"
-        ]
-    }
-}
-EOF
-        elif [[ -n "${domainList}" ]]; then
-            cat <<EOF >${configPath}11_dns.json
-{
-    "dns": {
-        "servers": [
-            {
-                "address": "${setDNS}",
-                "port": 53,
-                "domains": [
-                    "geosite:${domainList//,/\",\"geosite:}"
-                ]
+                "domains": ${domains}
             },
         "localhost"
         ]
@@ -7896,7 +8093,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n================================================ ================="
     echoContent green "Author: mack-a"
-    echoContent green "Current version: v2.10.20"
+    echoContent green "Current version: v3.5.13"
     echoContent green "Github: https://github.com/mack-a/v2ray-agent"
     echoContent green "Description: 8-in-1 coexistence script\c"
     showInstallStatus
