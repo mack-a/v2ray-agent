@@ -393,13 +393,17 @@ readInstallType() {
     if [[ -d "/etc/v2ray-agent" ]]; then
         if [[ -f "/etc/v2ray-agent/xray/xray" ]]; then
             # 检测xray-core
-            if [[ -d "/etc/v2ray-agent/xray/conf" ]] && [[ -f "/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/02_trojan_TCP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/07_VLESS_vision_reality_inbounds.json" ]]; then
+            if [[ -d "/etc/v2ray-agent/xray/conf" ]] && [[ -f "/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/02_trojan_TCP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/07_VLESS_vision_reality_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/12_VLESS_XHTTP_inbounds.json" ]]; then
                 # xray-core
                 configPath=/etc/v2ray-agent/xray/conf/
                 ctlPath=/etc/v2ray-agent/xray/xray
                 coreInstallType=1
+
                 if [[ -f "${configPath}07_VLESS_vision_reality_inbounds.json" ]]; then
-                    realityStatus=1
+                    realityStatus=7
+                fi
+                if [[ -f "${configPath}12_VLESS_XHTTP_inbounds.json" ]]; then
+                    realityStatus=12
                 fi
                 if [[ -f "/etc/v2ray-agent/sing-box/sing-box" ]] && [[ -f "/etc/v2ray-agent/sing-box/conf/config/06_hysteria2_inbounds.json" || -f "/etc/v2ray-agent/sing-box/conf/config/09_tuic_inbounds.json" || -f "/etc/v2ray-agent/sing-box/conf/config/20_socks5_inbounds.json" ]]; then
                     singBoxConfigPath=/etc/v2ray-agent/sing-box/conf/config/
@@ -680,16 +684,6 @@ check1Panel() {
         fi
     fi
 }
-# 读取当前alpn的顺序
-readInstallAlpn() {
-    if [[ -n "${currentInstallProtocolType}" && -z "${realityStatus}" ]]; then
-        local alpn
-        alpn=$(jq -r .inbounds[0].streamSettings.tlsSettings.alpn[0] ${configPath}${frontingType}.json)
-        if [[ -n ${alpn} ]]; then
-            currentAlpn=${alpn}
-        fi
-    fi
-}
 
 # 检查防火墙
 allowPort() {
@@ -878,6 +872,17 @@ readConfigHostPathUUID() {
                 xrayVLESSRealityVisionPort="${currentDefaultPort}"
             fi
         fi
+        # reality xhttp
+        if echo ${currentInstallProtocolType} | grep -q ",12,"; then
+
+            currentClients=$(jq -r .inbounds[0].settings.clients ${configPath}12_VLESS_XHTTP_inbounds.json)
+            currentUUID=$(jq -r .inbounds[0].settings.clients[0].id ${configPath}12_VLESS_XHTTP_inbounds.json)
+            xrayVLESSRealityXHTTPort=$(jq -r .inbounds[0].port ${configPath}12_VLESS_XHTTP_inbounds.json)
+            if [[ "${currentPort}" == "${xrayVLESSRealityXHTTPort}" ]]; then
+                xrayVLESSRealityXHTTPort="${currentDefaultPort}"
+            fi
+            currentPath=$(jq -r .inbounds[0].streamSettings.xhttpSettings.path ${configPath}12_VLESS_XHTTP_inbounds.json | awk -F "[/]" '{print $2}' | awk -F "[x][H][T][T][P]" '{print $1}')
+        fi
     elif [[ "${coreInstallType}" == "2" ]]; then
         if [[ -n "${frontingType}" ]]; then
             currentHost=$(jq -r .inbounds[0].tls.server_name ${configPath}${frontingType}.json)
@@ -936,7 +941,6 @@ readConfigHostPathUUID() {
         if [[ "${coreInstallType}" == "2" && -f "${singBoxConfigPath}11_VMess_HTTPUpgrade_inbounds.json" ]]; then
             singBoxVMessHTTPUpgradePath=$(jq -r .inbounds[0].transport.path "${singBoxConfigPath}11_VMess_HTTPUpgrade_inbounds.json")
             currentPath=$(jq -r .inbounds[0].transport.path "${singBoxConfigPath}11_VMess_HTTPUpgrade_inbounds.json" | awk -F "[/]" '{print $2}')
-            # currentPath=${currentPath::-2}
         fi
     fi
     if [[ -f "/etc/v2ray-agent/cdn" ]] && [[ -n "$(head -1 /etc/v2ray-agent/cdn)" ]]; then
@@ -1203,7 +1207,7 @@ installTools() {
     fi
 
     # 检测nginx版本，并提供是否卸载的选项
-    if echo "${selectCustomInstallType}" | grep -qwE ",7,|,8,|,7,8,"; then
+    if echo "${selectCustomInstallType}" | grep -qwE ",7,|,8,|,7,8,|,12,|,7,12,"; then
         echoContent green " ---> 检测到无需依赖Nginx的服务，跳过安装"
     else
         if ! nginx >/dev/null 2>&1; then
@@ -4886,10 +4890,13 @@ EOF
     client-fingerprint: chrome
     alpn:
       - h2
-    servername: ${currentHost}
+    servername: ${xrayVLESSRealityXHTTPServerName}
     xhttp-opts:
       path: ${path}
-      host: ${currentHost}
+      host: ${xrayVLESSRealityXHTTPServerName}
+    reality-opts:
+      public-key: ${currentRealityXHTTPPublicKey}
+      short-id: 6ba85179e30d4fc2
 EOF
 
         echoContent yellow " ---> 二维码 VLESS(VLESS+reality+XHTTP)"
@@ -5472,6 +5479,9 @@ showAccounts() {
             local count=
             while read -r line; do
                 echoContent skyBlue "\n ---> 账号:${email}${count}"
+                if [[ -z "${line}" ]]; then
+                    line=$(getPublicIP)
+                fi
                 if [[ -n "${line}" ]]; then
                     defaultBase64Code vlessXHTTP "${xrayVLESSRealityXHTTPort}" "${email}${count}" "$(echo "${user}" | jq -r .id//.uuid)" "${line}" "${path}"
                     count=$((count + 1))
@@ -6348,10 +6358,15 @@ EOF
 EOF
         fi
 
-        if [[ -n ${realityStatus} ]]; then
+        if [[ ${realityStatus} == "7" ]]; then
             local vlessVisionRealityInbounds
             vlessVisionRealityInbounds=$(jq -r ".inbounds[0].streamSettings.realitySettings.show=${realityLogShow}" ${configPath}07_VLESS_vision_reality_inbounds.json)
             echo "${vlessVisionRealityInbounds}" | jq . >${configPath}07_VLESS_vision_reality_inbounds.json
+        fi
+        if [[ ${realityStatus} == "12" ]]; then
+            local vlessVisionRealityXHTTPInbounds
+            vlessVisionRealityXHTTPInbounds=$(jq -r ".inbounds[0].streamSettings.realitySettings.show=${realityLogShow}" ${configPath}12_VLESS_XHTTP_inbounds.json)
+            echo "${vlessVisionRealityXHTTPInbounds}" | jq . >${configPath}12_VLESS_XHTTP_inbounds.json
         fi
         reloadCore
         checkLog 1
@@ -8458,8 +8473,7 @@ customXrayInstall() {
         echoContent red " ---> 多选请使用英文逗号分隔"
         exit 0
     fi
-
-    if [[ "${selectCustomInstallType}" == "7" ]]; then
+    if echo "${selectCustomInstallType}" | grep -qE '^(7|7,12|12)$'; then
         selectCustomInstallType=",${selectCustomInstallType},"
     else
         if ! echo "${selectCustomInstallType}" | grep -q "0,"; then
@@ -8468,7 +8482,6 @@ customXrayInstall() {
             selectCustomInstallType=",${selectCustomInstallType},"
         fi
     fi
-
     if [[ "${selectCustomInstallType:0:1}" != "," ]]; then
         selectCustomInstallType=",${selectCustomInstallType},"
     fi
@@ -8487,7 +8500,7 @@ customXrayInstall() {
             fi
         else
             # 申请tls
-            if [[ "${selectCustomInstallType}" != ",7," ]]; then
+            if ! echo "${selectCustomInstallType}" | grep -qE '^(,7,|,7,12,|,12,)$'; then
                 initTLSNginxConfig 2
                 handleXray stop
                 installTLS 3
@@ -8506,7 +8519,7 @@ customXrayInstall() {
         else
             nginxBlog 6
         fi
-        if [[ "${selectCustomInstallType}" != ",7," ]]; then
+        if ! echo "${selectCustomInstallType}" | grep -qE '^(,7,|,7,12,|,12,)$'; then
             updateRedirectNginxConf
             handleNginx start
         fi
@@ -8516,7 +8529,7 @@ customXrayInstall() {
         installXrayService 8
         initXrayConfig custom 9
         cleanUp singBoxDel
-        if [[ "${selectCustomInstallType}" != ",7," ]]; then
+        if ! echo "${selectCustomInstallType}" | grep -qE '^(,7,|,7,12,|,12,)$'; then
             installCronTLS 10
         fi
 
@@ -9947,7 +9960,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.5.13"
+    echoContent green "当前版本：v3.5.14"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
