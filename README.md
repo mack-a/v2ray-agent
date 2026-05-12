@@ -25,7 +25,7 @@ Xray-core/sing-box 一键脚本快速安装
 
 ## 快速开始
 
-### 安装
+### 安装脚本版
 
 ```
 wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh" && chmod 700 /root/install.sh && /root/install.sh
@@ -37,6 +37,21 @@ wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-
 
 ```
 vasma
+```
+
+### 安装Docker版
+```
+wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/shell/docker_reality.sh" && chmod 700 /root/docker_reality.sh && /root/docker_reality.sh
+```
+
+### 使用 
+
+* [Docker Reality 使用说明](https://www.v2ray-agent.com/archives/019e1b57-92b3-70ab-8919-cdf8c0bb4fe9)
+ 
+安装后，运行以下命令可再次打开管理菜单:
+
+```
+vasmad
 ```
 
 ## 文档和指南
