@@ -45,6 +45,8 @@ email=""
 generateOnly=0
 startOnly=0
 skipSelfInstall=0
+subscribePort=""
+resolvedSubscribePort=""
 
 # ---------------------------------------------------------------------------
 # QA 覆盖：设置 V2RAY_AGENT_FORCE_NO_DOCKER=1 可在测试中跳过 Docker 检查
@@ -74,6 +76,7 @@ showHelp() {
     echoContent "white" "  --port <端口>           Vision 或单协议模式的外部监听端口（留空则随机）"
     echoContent "white" "  --xhttp-port <端口>     XHTTP 模式端口（留空则随机）"
     echoContent "white" "  --xhttp-path <路径>     XHTTP path 基础值（最终写为 /<path>xHTTP）"
+    echoContent "white" "  --subscribe-port <端口> 订阅访问端口（留空则随机）"
     echoContent "white" "  --server-name <sni>     Reality 握手所用的 SNI / 服务器名称"
     echoContent "white" "  --private-key <密钥>    X25519 私钥（留空则自动生成）"
     echoContent "white" "  --uuid <uuid>           客户端 UUID（留空则自动生成）"
@@ -85,7 +88,7 @@ showHelp() {
     echoContent "white" ""
     echoContent "white" "操作说明："
     echoContent "white" "  1. 交互模式会同时检测 config.json 与 v2ray-agent-docker 容器是否存在，再显示对应菜单。"
-    echoContent "white" "  2. 若两者都不存在，则显示安装菜单；若任一存在，则显示查看账号/重新安装/启动或重建菜单。"
+    echoContent "white" "  2. 若两者都不存在，则显示安装菜单；若任一存在，则显示用户管理/重新安装/启动或重建菜单。"
     echoContent "white" "  3. 安装时可选 Reality Vision、Reality XHTTP 或全部安装；XHTTP 会额外使用 path 输入。"
     echoContent "white" "  4. 非交互模式需要显式提供所有值，但 privateKey/uuid/email 留空时可自动生成/推导。"
     echoContent "white" "  5. 运行数据目录默认为 /etc/v2ray-agent/docker/；可用 --data-dir 覆盖以用于 QA 或自定义路径。"
@@ -197,6 +200,371 @@ normalizeXHTTPPath() {
 # renderXHTTPPath — 将 path 基础值渲染为 install.sh 使用的 /<path>xHTTP 形式。
 renderXHTTPPath() {
     printf '/%sxHTTP' "$1"
+}
+
+urlEncode() {
+    local input="$1"
+    local length=${#input}
+    local index char
+
+    for ((index = 0; index < length; index++)); do
+        char="${input:index:1}"
+        case "${char}" in
+        [a-zA-Z0-9.~_-]) printf '%s' "${char}" ;;
+        *) printf '%%%02X' "'${char}" ;;
+        esac
+    done
+}
+
+# buildVisionSubscriptionLink — 生成 Vision 订阅 URI，空字段时返回失败。
+buildVisionSubscriptionLink() {
+    local displayAddress="$1"
+    local displayPort="$2"
+    local displayServerName="$3"
+    local displayPublicKey="$4"
+    local displayUUID="$5"
+    local displayEmail="$6"
+    local displayShortId="$7"
+
+    if [[ -z "${displayAddress}" || -z "${displayPort}" || -z "${displayServerName}" || -z "${displayPublicKey}" || -z "${displayUUID}" || -z "${displayEmail}" || -z "${displayShortId}" ]]; then
+        return 1
+    fi
+
+    printf 'vless://%s@%s:%s?encryption=none&security=reality&type=tcp&sni=%s&fp=chrome&pbk=%s&sid=%s&flow=xtls-rprx-vision#%s' \
+        "${displayUUID}" \
+        "${displayAddress}" \
+        "${displayPort}" \
+        "${displayServerName}" \
+        "${displayPublicKey}" \
+        "${displayShortId}" \
+        "${displayEmail}"
+}
+
+# buildXHTTPSubscriptionLink — 生成 XHTTP 订阅 URI，空字段时返回失败。
+buildXHTTPSubscriptionLink() {
+    local displayAddress="$1"
+    local displayPort="$2"
+    local displayServerName="$3"
+    local displayPublicKey="$4"
+    local displayUUID="$5"
+    local displayEmail="$6"
+    local displayShortId="$7"
+    local displayPath="$8"
+
+    if [[ -z "${displayAddress}" || -z "${displayPort}" || -z "${displayServerName}" || -z "${displayPublicKey}" || -z "${displayUUID}" || -z "${displayEmail}" || -z "${displayShortId}" || -z "${displayPath}" ]]; then
+        return 1
+    fi
+
+    printf 'vless://%s@%s:%s?encryption=none&security=reality&type=xhttp&sni=%s&host=%s&fp=chrome&path=%s&pbk=%s&sid=%s#%s' \
+        "${displayUUID}" \
+        "${displayAddress}" \
+        "${displayPort}" \
+        "${displayServerName}" \
+        "${displayServerName}" \
+        "${displayPath}" \
+        "${displayPublicKey}" \
+        "${displayShortId}" \
+        "${displayEmail}"
+}
+
+buildXHTTPDefaultSubscriptionLink() {
+    local displayAddress="$1"
+    local displayPort="$2"
+    local displayServerName="$3"
+    local displayPublicKey="$4"
+    local displayUUID="$5"
+    local displayEmail="$6"
+    local displayShortId="$7"
+    local displayPath="$8"
+
+    if [[ -z "${displayAddress}" || -z "${displayPort}" || -z "${displayServerName}" || -z "${displayPublicKey}" || -z "${displayUUID}" || -z "${displayEmail}" || -z "${displayShortId}" || -z "${displayPath}" ]]; then
+        return 1
+    fi
+
+    printf 'vless://%s@%s:%s?encryption=none&security=reality&type=xhttp&sni=%s&fp=chrome&path=%s&pbk=%s&sid=%s#%s' \
+        "${displayUUID}" \
+        "${displayAddress}" \
+        "${displayPort}" \
+        "${displayServerName}" \
+        "${displayPath}" \
+        "${displayPublicKey}" \
+        "${displayShortId}" \
+        "${displayEmail}"
+}
+
+writeVisionClashMetaNode() {
+    local outputFile="$1"
+    local displayAddress="$2"
+    local displayPort="$3"
+    local displayServerName="$4"
+    local displayPublicKey="$5"
+    local displayUUID="$6"
+    local displayEmail="$7"
+    local displayShortId="$8"
+
+    if [[ -z "${displayAddress}" || -z "${displayPort}" || -z "${displayServerName}" || -z "${displayPublicKey}" || -z "${displayUUID}" || -z "${displayEmail}" || -z "${displayShortId}" ]]; then
+        return 1
+    fi
+
+    cat <<EOF >>"${outputFile}"
+  - name: "${displayEmail}"
+    type: vless
+    server: ${displayAddress}
+    port: ${displayPort}
+    uuid: ${displayUUID}
+    network: tcp
+    tls: true
+    udp: true
+    flow: xtls-rprx-vision
+    servername: ${displayServerName}
+    reality-opts:
+      public-key: ${displayPublicKey}
+      short-id: ${displayShortId}
+    client-fingerprint: chrome
+EOF
+}
+
+writeXHTTPClashMetaNode() {
+    local outputFile="$1"
+    local displayAddress="$2"
+    local displayPort="$3"
+    local displayServerName="$4"
+    local displayPublicKey="$5"
+    local displayUUID="$6"
+    local displayEmail="$7"
+    local displayShortId="$8"
+    local displayPath="$9"
+
+    if [[ -z "${displayAddress}" || -z "${displayPort}" || -z "${displayServerName}" || -z "${displayPublicKey}" || -z "${displayUUID}" || -z "${displayEmail}" || -z "${displayShortId}" || -z "${displayPath}" ]]; then
+        return 1
+    fi
+
+    cat <<EOF >>"${outputFile}"
+  - name: "${displayEmail}"
+    type: vless
+    server: ${displayAddress}
+    port: ${displayPort}
+    uuid: ${displayUUID}
+    udp: true
+    tls: true
+    network: xhttp
+    client-fingerprint: chrome
+    alpn:
+      - h2
+    servername: ${displayServerName}
+    xhttp-opts:
+      path: ${displayPath}
+      host: ${displayServerName}
+    reality-opts:
+      public-key: ${displayPublicKey}
+      short-id: ${displayShortId}
+EOF
+}
+
+writeClashMetaProfile() {
+    local outputFile="$1"
+    local providerURL="$2"
+    local providerName="$3"
+
+    cat <<EOF >"${outputFile}"
+log-level: debug
+mode: rule
+ipv6: true
+mixed-port: 7890
+allow-lan: true
+bind-address: "*"
+find-process-mode: strict
+external-controller: 0.0.0.0:9090
+global-client-fingerprint: chrome
+
+profile:
+  store-selected: true
+  store-fake-ip: true
+
+dns:
+  enable: true
+  listen: 0.0.0.0:1053
+  ipv6: true
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  nameserver:
+    - https://1.1.1.1/dns-query
+    - https://8.8.8.8/dns-query
+    - 1.1.1.1
+    - 8.8.8.8
+
+proxy-providers:
+  ${providerName}:
+    type: http
+    path: ./${providerName}.yaml
+    url: ${providerURL}
+    interval: 3600
+    proxy: DIRECT
+    health-check:
+      enable: true
+      url: https://cp.cloudflare.com/generate_204
+      interval: 300
+
+proxy-groups:
+  - name: 手动切换
+    type: select
+    use:
+      - ${providerName}
+    proxies: null
+  - name: 自动选择
+    type: url-test
+    url: http://www.gstatic.com/generate_204
+    interval: 36000
+    tolerance: 50
+    use:
+      - ${providerName}
+    proxies: null
+  - name: 全球代理
+    type: select
+    use:
+      - ${providerName}
+    proxies:
+      - 手动切换
+      - 自动选择
+  - name: 漏网之鱼
+    type: select
+    use:
+      - ${providerName}
+    proxies:
+      - 全球代理
+      - DIRECT
+      - 手动切换
+      - 自动选择
+
+rules:
+  - GEOIP,LAN,DIRECT,no-resolve
+  - GEOSITE,private,DIRECT
+  - GEOSITE,cn,DIRECT
+  - GEOIP,CN,DIRECT
+  - MATCH,漏网之鱼
+EOF
+}
+
+initRandomSalt() {
+    local chars="abcdefghijklmnopqrtuxyz"
+    local randomSalt=""
+    local _idx
+    for _idx in 1 2 3 4 5 6 7 8 9 10; do
+        randomSalt+="${chars:RANDOM%${#chars}:1}"
+    done
+    printf '%s' "${randomSalt}"
+}
+
+md5Text() {
+    if command -v md5sum >/dev/null 2>&1; then
+        printf '%s' "$1" | md5sum | awk '{print $1}'
+    else
+        printf '%s' "$1" | md5 | awk '{print $NF}'
+    fi
+}
+
+base64FileSingleLine() {
+    if base64 --help 2>&1 | grep -q -- '-w'; then
+        base64 -w 0 "$1"
+    else
+        base64 <"$1" | tr -d '\n'
+    fi
+}
+
+generateSubscribeSalt() {
+    local saltFile="${dataDir%/}/subscribe_local/subscribeSalt"
+    if [[ -n "${persistedSubscribeSalt}" ]]; then
+        printf '%s' "${persistedSubscribeSalt}"
+    elif [[ -s "${saltFile}" ]]; then
+        cat "${saltFile}"
+    else
+        local newSalt
+        newSalt="$(initRandomSalt)"
+        mkdir -p "${dataDir%/}/subscribe_local"
+        printf '%s' "${newSalt}" >"${saltFile}"
+        printf '%s' "${newSalt}"
+    fi
+}
+
+startSubscribeContainer() {
+    local displayAddress="$1"
+    local containerName="v2ray-agent-docker-subscribe"
+    local nginxImage="nginx:alpine"
+    local activePort="${persistedSubscribePort:-${resolvedSubscribePort}}"
+    local nginxConfig="${dataDir%/}/subscribe-nginx.conf"
+
+    if [[ -z "${activePort}" ]]; then
+        parsePort ""
+        activePort="${resolvedPort}"
+        checkPortInUse "${activePort}"
+    fi
+
+    mkdir -p "${dataDir%/}/subscribe/default" "${dataDir%/}/subscribe/clashMeta" "${dataDir%/}/subscribe/clashMetaProfiles"
+    cat >"${nginxConfig}" <<'EOF'
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+    location ~ ^/s/(default|clashMeta|clashMetaProfiles)/(.*) {
+        default_type 'text/plain; charset=utf-8';
+        alias /usr/share/nginx/html/subscribe/$1/$2;
+    }
+    location / {
+        return 404;
+    }
+}
+EOF
+
+    docker pull "${nginxImage}" >/dev/null 2>&1 || true
+    if docker ps -a --filter "name=^/${containerName}$" --format '{{.Names}}' | grep -q "^${containerName}$"; then
+        docker rm -f "${containerName}" >/dev/null 2>&1 || true
+    fi
+    if ! docker run -d \
+        --name "${containerName}" \
+        --restart unless-stopped \
+        -p "${activePort}:80" \
+        -v "${dataDir%/}:/usr/share/nginx/html:ro" \
+        -v "${nginxConfig}:/etc/nginx/conf.d/default.conf:ro" \
+        "${nginxImage}" >/dev/null; then
+        echoContent "red" "启动订阅访问容器失败"
+        exit 1
+    fi
+    persistedSubscribePort="${activePort}"
+    echoContent "green" "订阅访问服务已启动：http://${displayAddress}:${activePort}/s/default/<订阅ID>"
+}
+
+persistSubscribeState() {
+    local summaryFile="${dataDir%/}/client-summary.txt"
+    local tmpFile=""
+
+    [[ -f "${summaryFile}" ]] || return 0
+    tmpFile="$(mktemp)"
+    while IFS= read -r line; do
+        case "${line}" in
+        subscribePort:\ * | subscribeSalt:\ *) ;;
+        *) printf '%s\n' "${line}" >>"${tmpFile}" ;;
+        esac
+    done <"${summaryFile}"
+    printf 'subscribePort: %s\n' "${persistedSubscribePort}" >>"${tmpFile}"
+    printf 'subscribeSalt: %s\n' "${persistedSubscribeSalt}" >>"${tmpFile}"
+    mv "${tmpFile}" "${summaryFile}"
+    chmod 600 "${summaryFile}"
+}
+
+ensureSubscribeRuntimeValues() {
+    local inputPort=""
+
+    if [[ -z "${persistedSubscribePort}" ]]; then
+        inputPort="$(promptValue $'请输入订阅访问端口，[回车]随机：' "")"
+        if ! parsePort "${inputPort}"; then
+            exit 1
+        fi
+        persistedSubscribePort="${resolvedPort}"
+    fi
+    if [[ -z "${persistedSubscribeSalt}" ]]; then
+        persistedSubscribeSalt="$(initRandomSalt)"
+    fi
+    persistSubscribeState
 }
 
 installModeHasVision() {
@@ -354,6 +722,14 @@ parseCli() {
                 exit 1
             fi
             email="$2"
+            shift 2
+            ;;
+        --subscribe-port)
+            if [[ $# -lt 2 || (-n "${2:-}" && "${2:0:1}" == "-") ]]; then
+                echoContent "red" "--subscribe-port 需要一个数字值"
+                exit 1
+            fi
+            subscribePort="$2"
             shift 2
             ;;
         --generate-only)
@@ -624,7 +1000,7 @@ checkPortInUse() {
     # 若所有监听 PID 均属于该容器的 docker-proxy 进程，则允许使用该端口。
     local containerExists=0
     if docker ps -a --filter "name=^/v2ray-agent-docker$" --format '{{.Names}}' 2>/dev/null |
-        grep -q "^v2ray-agent-docker$"; then
+        grep -q "^v2ray-agent-docker$" || docker ps -a --filter "name=^/v2ray-agent-docker-subscribe$" --format '{{.Names}}' 2>/dev/null | grep -q "^v2ray-agent-docker-subscribe$"; then
         containerExists=1
     fi
 
@@ -784,6 +1160,8 @@ loadPersistedSummaryIfPresent() {
     persistedVisionEmail=""
     persistedXHTTPEmail=""
     persistedShortId="6ba85179e30d4fc2"
+    persistedSubscribePort=""
+    persistedSubscribeSalt=""
     persistedConfigPath=""
 
     if [[ ! -f "${summaryFile}" ]]; then
@@ -804,6 +1182,8 @@ loadPersistedSummaryIfPresent() {
         visionEmail:\ *) persistedVisionEmail="${line#visionEmail: }" ;;
         xhttpEmail:\ *) persistedXHTTPEmail="${line#xhttpEmail: }" ;;
         shortId:\ *) persistedShortId="${line#shortId: }" ;;
+        subscribePort:\ *) persistedSubscribePort="${line#subscribePort: }" ;;
+        subscribeSalt:\ *) persistedSubscribeSalt="${line#subscribeSalt: }" ;;
         configPath:\ *) persistedConfigPath="${line#configPath: }" ;;
         esac
     done <"${summaryFile}"
@@ -820,6 +1200,8 @@ loadPersistedSummaryIfPresent() {
     persistedVisionEmail="${persistedVisionEmail#"${persistedVisionEmail%%[![:space:]]*}"}"
     persistedXHTTPEmail="${persistedXHTTPEmail#"${persistedXHTTPEmail%%[![:space:]]*}"}"
     persistedShortId="${persistedShortId#"${persistedShortId%%[![:space:]]*}"}"
+    persistedSubscribePort="${persistedSubscribePort#"${persistedSubscribePort%%[![:space:]]*}"}"
+    persistedSubscribeSalt="${persistedSubscribeSalt#"${persistedSubscribeSalt%%[![:space:]]*}"}"
     persistedConfigPath="${persistedConfigPath#"${persistedConfigPath%%[![:space:]]*}"}"
 
     if [[ -n "${persistedContainer}" && "${persistedContainer}" != "v2ray-agent-docker" ]]; then
@@ -1153,6 +1535,41 @@ hasExistingInstallState() {
     return 1
 }
 
+userManageMenu() {
+    local action=""
+
+    if ! hasPersistedConfig; then
+        echoContent "red" "未找到现有配置，无法进入用户管理。请先重新安装。"
+        return 0
+    fi
+
+    echoContent "skyBlue" "─── 用户管理 ───────────────────────────────────────────"
+    echoContent "yellow" "1. 查看账号"
+    echoContent "yellow" "2. 查看订阅"
+    echoContent "yellow" "3. 退出"
+
+    while true; do
+        action="$(promptValue $'请选择 [1-3]：' "")"
+        case "${action}" in
+        1)
+            showAccountInfo
+            exit 0
+            ;;
+        2)
+            showSubscriptionInfo
+            exit 0
+            ;;
+        3)
+            echoContent "white" "已退出，不做任何修改。"
+            exit 0
+            ;;
+        *)
+            echoContent "red" "无效选择，请输入 1-3。"
+            ;;
+        esac
+    done
+}
+
 # uninstallDockerReality — 卸载 Docker Reality 独立脚本生成的容器、配置与快捷方式。
 uninstallDockerReality() {
     local answer=""
@@ -1171,6 +1588,10 @@ uninstallDockerReality() {
     if hasManagedContainer; then
         docker rm -f v2ray-agent-docker >/dev/null 2>&1 || true
         echoContent "green" " ---> 删除 Docker 容器完成"
+    fi
+    if docker ps -a --filter "name=^/v2ray-agent-docker-subscribe$" --format '{{.Names}}' 2>/dev/null | grep -q '^v2ray-agent-docker-subscribe$'; then
+        docker rm -f v2ray-agent-docker-subscribe >/dev/null 2>&1 || true
+        echoContent "green" " ---> 删除订阅访问容器完成"
     fi
 
     rm -rf "${dataDir%/}" >/dev/null 2>&1 || true
@@ -1243,7 +1664,7 @@ promptExistingInstallAction() {
         echoContent "white" "已检测到容器，但未检测到配置文件。请选择下一步操作："
     fi
 
-    echoContent "yellow" "1. 查看账号"
+    echoContent "yellow" "1. 用户管理"
     echoContent "yellow" "2. 重新安装"
     echoContent "yellow" "3. 启动/重建容器"
     echoContent "yellow" "4. 卸载"
@@ -1254,10 +1675,10 @@ promptExistingInstallAction() {
         case "${action}" in
         1)
             if hasPersistedConfig; then
-                showClientInfo
+                userManageMenu
                 exit 0
             else
-                echoContent "red" "未找到现有配置，无法查看账号。请先重新安装。"
+                echoContent "red" "未找到现有配置，无法进入用户管理。请先重新安装。"
             fi
             ;;
         2)
@@ -1307,7 +1728,11 @@ showVisionAccount() {
         displayAddress="YOUR_SERVER_IP"
     fi
 
-    vlessLink="vless://${displayUUID}@${displayAddress}:${displayPort}?encryption=none&security=reality&type=tcp&sni=${displayServerName}&fp=chrome&pbk=${displayPublicKey}&sid=${displayShortId}&flow=xtls-rprx-vision#${displayEmail}"
+    vlessLink="$(buildVisionSubscriptionLink "${displayAddress}" "${displayPort}" "${displayServerName}" "${displayPublicKey}" "${displayUUID}" "${displayEmail}" "${displayShortId}")"
+    if [[ -z "${vlessLink}" ]]; then
+        echoContent "yellow" " ---> Vision 账号信息不完整，已跳过订阅链接输出"
+        return 0
+    fi
     qrData="${vlessLink//:/%3A}"
     qrData="${qrData//\//%2F}"
     qrData="${qrData//@/%40}"
@@ -1348,7 +1773,11 @@ showXHTTPAccount() {
         displayAddress="YOUR_SERVER_IP"
     fi
 
-    vlessLink="vless://${displayUUID}@${displayAddress}:${displayPort}?encryption=none&security=reality&type=xhttp&sni=${displayServerName}&host=${displayServerName}&fp=chrome&path=${displayPath}&pbk=${displayPublicKey}&sid=${displayShortId}#${displayEmail}"
+    vlessLink="$(buildXHTTPSubscriptionLink "${displayAddress}" "${displayPort}" "${displayServerName}" "${displayPublicKey}" "${displayUUID}" "${displayEmail}" "${displayShortId}" "${displayPath}")"
+    if [[ -z "${vlessLink}" ]]; then
+        echoContent "yellow" " ---> XHTTP 账号信息不完整，已跳过订阅链接输出"
+        return 0
+    fi
     qrLink="https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${displayUUID}%40${displayAddress}%3A${displayPort}%3Fencryption%3Dnone%26security%3Dreality%26type%3Dxhttp%26sni%3D${displayServerName}%26fp%3Dchrome%26path%3D${displayPath}%26host%3D${displayServerName}%26pbk%3D${displayPublicKey}%26sid%3D${displayShortId}%23${displayEmail}"
 
     echoContent "skyBlue" "============================= VLESS reality_xhttp  =============================="
@@ -1363,6 +1792,108 @@ showXHTTPAccount() {
     echoContent "white" ""
     echoContent "yellow" " ---> 二维码 VLESS(VLESS+reality+xhttp)"
     echoContent "green" "    ${qrLink}"
+}
+
+# showChineseSubscriptionSection — 输出本地中文订阅内容与风险提示。
+showChineseSubscriptionSection() {
+    local displayAddress="$1"
+    local mode="$2"
+    local displayServerName="$3"
+    local displayPublicKey="$4"
+    local displayUUID="$5"
+    local displayVisionPort="$6"
+    local displayXHTTPPort="$7"
+    local displayXHTTPPath="$8"
+    local displayVisionEmail="$9"
+    local displayXHTTPEmail="${10}"
+    local displayShortId="${11}"
+    local visionLink=""
+    local xhttpLink=""
+    local renderedPath=""
+    local subscribeName=""
+    local subscribeSalt=""
+    local emailMd5=""
+    local defaultLocalFile=""
+    local defaultPublicFile=""
+    local clashLocalFile=""
+    local clashPublicFile=""
+    local clashProfileFile=""
+    local subscribeDomain=""
+    local subscribeURL=""
+    local clashProxyURL=""
+    local clashProfileURL=""
+
+    if [[ -z "${displayAddress}" ]]; then
+        displayAddress="YOUR_SERVER_IP"
+    fi
+
+    subscribeName="${displayVisionEmail:-${displayXHTTPEmail}}"
+    subscribeName="${subscribeName%%-*}"
+    if [[ -z "${subscribeName}" ]]; then
+        echoContent "yellow" " ---> 订阅账号信息不完整，已跳过订阅文件生成"
+        return 0
+    fi
+
+    mkdir -p "${dataDir%/}/subscribe_local/default" "${dataDir%/}/subscribe_local/clashMeta" "${dataDir%/}/subscribe/default" "${dataDir%/}/subscribe/clashMeta" "${dataDir%/}/subscribe/clashMetaProfiles"
+    defaultLocalFile="${dataDir%/}/subscribe_local/default/${subscribeName}"
+    clashLocalFile="${dataDir%/}/subscribe_local/clashMeta/${subscribeName}"
+    : >"${defaultLocalFile}"
+    : >"${clashLocalFile}"
+
+    if installModeHasVision "${mode}"; then
+        visionLink="$(buildVisionSubscriptionLink "${displayAddress}" "${displayVisionPort}" "${displayServerName}" "${displayPublicKey}" "${displayUUID}" "${displayVisionEmail}" "${displayShortId}")" || visionLink=""
+        if [[ -n "${visionLink}" ]]; then
+            printf '%s\n' "${visionLink}" >>"${defaultLocalFile}"
+            writeVisionClashMetaNode "${clashLocalFile}" "${displayAddress}" "${displayVisionPort}" "${displayServerName}" "${displayPublicKey}" "${displayUUID}" "${displayVisionEmail}" "${displayShortId}" || true
+        fi
+    fi
+
+    if installModeHasXHTTP "${mode}"; then
+        renderedPath="$(renderXHTTPPath "${displayXHTTPPath}")"
+        xhttpLink="$(buildXHTTPDefaultSubscriptionLink "${displayAddress}" "${displayXHTTPPort}" "${displayServerName}" "${displayPublicKey}" "${displayUUID}" "${displayXHTTPEmail}" "${displayShortId}" "${renderedPath}")" || xhttpLink=""
+        if [[ -n "${xhttpLink}" ]]; then
+            printf '%s\n' "${xhttpLink}" >>"${defaultLocalFile}"
+            writeXHTTPClashMetaNode "${clashLocalFile}" "${displayAddress}" "${displayXHTTPPort}" "${displayServerName}" "${displayPublicKey}" "${displayUUID}" "${displayXHTTPEmail}" "${displayShortId}" "${renderedPath}" || true
+        fi
+    fi
+
+    if [[ ! -s "${defaultLocalFile}" ]]; then
+        echoContent "yellow" " ---> 订阅账号信息不完整，未生成可用订阅内容"
+        return 0
+    fi
+
+    subscribeSalt="$(generateSubscribeSalt)"
+    emailMd5="$(md5Text "${subscribeName}${subscribeSalt}"$'\n')"
+    defaultPublicFile="${dataDir%/}/subscribe/default/${emailMd5}"
+    base64FileSingleLine "${defaultLocalFile}" >"${defaultPublicFile}"
+
+    startSubscribeContainer "${displayAddress}"
+    subscribeDomain="${displayAddress}:${persistedSubscribePort:-${resolvedSubscribePort}}"
+    subscribeURL="http://${subscribeDomain}/s/default/${emailMd5}"
+    if [[ -s "${clashLocalFile}" ]]; then
+        clashPublicFile="${dataDir%/}/subscribe/clashMeta/${emailMd5}"
+        clashProfileFile="${dataDir%/}/subscribe/clashMetaProfiles/${emailMd5}"
+        clashProxyURL="http://${subscribeDomain}/s/clashMeta/${emailMd5}"
+        clashProfileURL="http://${subscribeDomain}/s/clashMetaProfiles/${emailMd5}"
+        printf 'proxies:\n' >"${clashPublicFile}"
+        cat "${clashLocalFile}" >>"${clashPublicFile}"
+        writeClashMetaProfile "${clashProfileFile}" "${clashProxyURL}" "${subscribeSalt}_provider"
+    fi
+
+    echoContent "skyBlue" "============================= 默认订阅 =============================="
+    echoContent "white" "HTTP 明文订阅有风险，可能暴露 订阅信息。"
+    echoContent "white" "当前 Docker 版通过本机订阅容器提供 HTTP 访问链接，请勿在不可信网络中传播。"
+    echoContent "white" ""
+    echoContent "green" "email: ${subscribeName}"
+    echoContent "yellow" "url: ${subscribeURL}"
+    echoContent "yellow" "在线二维码: https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=$(urlEncode "${subscribeURL}")"
+    if [[ -n "${clashProfileURL}" ]]; then
+        echo
+        echoContent "skyBlue" "--------------Clash Verge(mihomo)订阅--------------"
+        echo
+        echoContent "yellow" "url: ${clashProfileURL}"
+        echoContent "yellow" "在线二维码: https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=$(urlEncode "${clashProfileURL}")"
+    fi
 }
 
 # resolveValues — 将所有 CLI 提供或留空的值解析为 resolved* 全局变量。
@@ -1406,6 +1937,20 @@ resolveValues() {
         normalizeXHTTPPath "${xhttpPath}"
         resolvedXHTTPPath="${resolvedXHTTPPath:-${resolvedXHTTPPath}}"
     fi
+
+    if ! parsePort "${subscribePort}"; then
+        exit 1
+    fi
+    resolvedSubscribePort="${resolvedPort}"
+    if installModeHasVision "${resolvedInstallMode}" && [[ "${resolvedSubscribePort}" == "${resolvedVisionPort}" ]]; then
+        echoContent "red" "订阅端口（${resolvedSubscribePort}）与 Vision 端口相同，请使用不同端口"
+        exit 1
+    fi
+    if installModeHasXHTTP "${resolvedInstallMode}" && [[ "${resolvedSubscribePort}" == "${resolvedXHTTPPort}" ]]; then
+        echoContent "red" "订阅端口（${resolvedSubscribePort}）与 XHTTP 端口相同，请使用不同端口"
+        exit 1
+    fi
+    checkPortInUse "${resolvedSubscribePort}"
 
     # --- 服务器名称 ---
     parseServerName "${serverName}"
@@ -1716,6 +2261,8 @@ EOF
             printf 'xhttpEmail: %s\n' "${resolvedXHTTPEmail}"
         fi
         printf 'shortId: 6ba85179e30d4fc2\n'
+        printf 'subscribePort: %s\n' "${resolvedSubscribePort}"
+        printf 'subscribeSalt: %s\n' "$(initRandomSalt)"
         printf 'configPath: %s\n' "${configFile}"
     } >"${summaryFile}"
     chmod 600 "${summaryFile}"
@@ -1825,16 +2372,17 @@ startContainer() {
 
 }
 
-# showClientInfo — 以 showAccounts 风格打印当前 Reality 账号信息
+# showAccountInfo — 以 showAccounts 风格打印当前 Reality 账号信息
 # 根据 installMode 只显示已安装协议的账号块
-showClientInfo() {
+showAccountInfo() {
     local displayAddress=""
+    local mode=""
+    local shortId=""
 
     loadPersistedAccountInfo
     displayAddress="$(getPublicIP)"
-
-    local shortId="${persistedShortId:-6ba85179e30d4fc2}"
-    local mode="${persistedInstallMode}"
+    mode="${persistedInstallMode}"
+    shortId="${persistedShortId:-6ba85179e30d4fc2}"
 
     if installModeHasVision "${mode}"; then
         showVisionAccount \
@@ -1860,6 +2408,36 @@ showClientInfo() {
             "${shortId}" \
             "${renderedPath}"
     fi
+
+}
+
+showSubscriptionInfo() {
+    local displayAddress=""
+    local mode=""
+    local shortId=""
+
+    loadPersistedAccountInfo
+    ensureSubscribeRuntimeValues
+    displayAddress="$(getPublicIP)"
+    mode="${persistedInstallMode}"
+    shortId="${persistedShortId:-6ba85179e30d4fc2}"
+
+    showChineseSubscriptionSection \
+        "${displayAddress}" \
+        "${mode}" \
+        "${persistedServerName}" \
+        "${persistedPublicKey}" \
+        "${persistedUUID}" \
+        "${persistedVisionPort}" \
+        "${persistedXHTTPPort}" \
+        "${persistedXHTTPPath}" \
+        "${persistedVisionEmail}" \
+        "${persistedXHTTPEmail}" \
+        "${shortId}"
+}
+
+showClientInfo() {
+    showAccountInfo
 }
 
 # ---------------------------------------------------------------------------
