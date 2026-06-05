@@ -2504,16 +2504,30 @@ updateXray() {
     if [[ -z "${coreInstallType}" || "${coreInstallType}" != "1" ]]; then
         if [[ -n "$1" ]]; then
             version=$1
+        elif [[ "${prereleaseStatus}" == "true" ]]; then
+            version=$(curl -s "https://api.github.com/repos/XTLS/Xray-core/releases?per_page=5" | jq -r ".[]|select (.prerelease==true)|.tag_name" | head -1)
         else
-            version=$(curl -s "https://api.github.com/repos/XTLS/Xray-core/releases?per_page=5" | jq -r ".[]|select (.prerelease==${prereleaseStatus})|.tag_name" | head -1)
+            version=$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases/latest | jq -r .tag_name)
         fi
 
         echoContent green " ---> Xray-core版本:${version}"
+
+        if [[ -z "${version}" || "${version}" == "null" ]]; then
+            echoContent red " ---> 获取Xray-core版本失败，请检查网络或稍后重试"
+            handleXray start
+            exit 1
+        fi
 
         if [[ "${release}" == "alpine" ]]; then
             wget -c -q -P /etc/v2ray-agent/xray/ "https://github.com/XTLS/Xray-core/releases/download/${version}/${xrayCoreCPUVendor}.zip"
         else
             wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/xray/ "https://github.com/XTLS/Xray-core/releases/download/${version}/${xrayCoreCPUVendor}.zip"
+        fi
+
+        if [[ ! -f "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip" ]]; then
+            echoContent red " ---> Xray-core下载失败，请检查网络或稍后重试"
+            handleXray start
+            exit 1
         fi
 
         unzip -o "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip" -d /etc/v2ray-agent/xray >/dev/null
@@ -9978,7 +9992,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.5.19"
+    echoContent green "当前版本：v3.5.20"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
