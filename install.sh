@@ -2504,8 +2504,16 @@ updateXray() {
     if [[ -z "${coreInstallType}" || "${coreInstallType}" != "1" ]]; then
         if [[ -n "$1" ]]; then
             version=$1
+        elif [[ "${prereleaseStatus}" == "true" ]]; then
+            version=$(curl -s "https://api.github.com/repos/XTLS/Xray-core/releases?per_page=100" | jq -r "[.[]|select(.prerelease==true and .draft==false)]|sort_by(.published_at)|reverse|.[0].tag_name")
         else
-            version=$(curl -s "https://api.github.com/repos/XTLS/Xray-core/releases?per_page=5" | jq -r ".[]|select (.prerelease==${prereleaseStatus})|.tag_name" | head -1)
+            version=$(curl -s "https://api.github.com/repos/XTLS/Xray-core/releases/latest" | jq -r ".tag_name")
+        fi
+
+        if [[ -z "${version}" || "${version}" == "null" ]]; then
+            echoContent red " ---> 获取Xray-core版本失败，请检查网络或稍后重试"
+            handleXray start
+            exit 1
         fi
 
         echoContent green " ---> Xray-core版本:${version}"
@@ -2516,8 +2524,22 @@ updateXray() {
             wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/xray/ "https://github.com/XTLS/Xray-core/releases/download/${version}/${xrayCoreCPUVendor}.zip"
         fi
 
+        if [[ "$?" != "0" || ! -f "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip" ]]; then
+            echoContent red " ---> Xray-core下载失败，请检查网络或稍后重试"
+            rm -f "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip"
+            handleXray start
+            exit 1
+        fi
+
         unzip -o "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip" -d /etc/v2ray-agent/xray >/dev/null
         rm -rf "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip"
+
+        if [[ ! -f "/etc/v2ray-agent/xray/xray" ]]; then
+            echoContent red " ---> Xray-core安装失败，解压后未找到可执行文件，请稍后重试"
+            handleXray start
+            exit 1
+        fi
+
         chmod 655 /etc/v2ray-agent/xray/xray
         handleXray stop
         handleXray start
