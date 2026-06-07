@@ -2502,10 +2502,15 @@ updateXray() {
     readInstallType
 
     if [[ -z "${coreInstallType}" || "${coreInstallType}" != "1" ]]; then
+
+        if [[ "${prereleaseStatus}" == "true" ]]; then
+            version=$(curl -s "https://api.github.com/repos/XTLS/Xray-core/releases?per_page=5" | jq -r ".[]|select (.prerelease==${prereleaseStatus})|.tag_name" | head -1)
+        else
+            version=$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases/latest | jq -r .tag_name)
+        fi
+
         if [[ -n "$1" ]]; then
             version=$1
-        else
-            version=$(curl -s "https://api.github.com/repos/XTLS/Xray-core/releases?per_page=5" | jq -r ".[]|select (.prerelease==${prereleaseStatus})|.tag_name" | head -1)
         fi
 
         echoContent green " ---> Xray-core版本:${version}"
@@ -9978,7 +9983,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.5.19"
+    echoContent green "当前版本：v3.5.20"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
