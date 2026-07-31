@@ -1023,13 +1023,29 @@ showInstallStatus() {
     fi
 }
 
+# 清理核心服务
+removeCoreService() {
+    local serviceName=$1
+    if [[ "${release}" == "alpine" ]]; then
+        rc-update del "${serviceName}" default >/dev/null 2>&1
+        rm -f "/etc/init.d/${serviceName}"
+    elif [[ -n $(find /bin /usr/bin -name "systemctl") ]]; then
+        systemctl disable "${serviceName}.service" >/dev/null 2>&1
+        rm -f "/etc/systemd/system/${serviceName}.service"
+        systemctl daemon-reload
+        systemctl reset-failed "${serviceName}.service" >/dev/null 2>&1
+    fi
+}
+
 # 清理旧残留
 cleanUp() {
     if [[ "$1" == "xrayDel" ]]; then
         handleXray stop
+        removeCoreService xray
         rm -rf /etc/v2ray-agent/xray/*
     elif [[ "$1" == "singBoxDel" ]]; then
         handleSingBox stop
+        removeCoreService sing-box
         rm -rf /etc/v2ray-agent/sing-box/conf/config.json >/dev/null 2>&1
         rm -rf /etc/v2ray-agent/sing-box/conf/config/* >/dev/null 2>&1
     fi
@@ -2636,6 +2652,7 @@ installSingBoxService() {
 Description=Sing-Box Service
 Documentation=https://sing-box.sagernet.org
 After=network.target nss-lookup.target
+ConditionPathExists=/etc/v2ray-agent/sing-box/conf/config.json
 
 [Service]
 User=root
@@ -2643,7 +2660,7 @@ WorkingDirectory=/root
 CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_SYS_PTRACE CAP_DAC_READ_SEARCH
 AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_SYS_PTRACE CAP_DAC_READ_SEARCH
 ExecStart=${execStart}
-ExecReload=/bin/kill -HUP $MAINPID
+ExecReload=/bin/kill -HUP \$MAINPID
 Restart=on-failure
 RestartSec=10
 LimitNPROC=infinity
