@@ -2167,10 +2167,19 @@ updateSELinuxHTTPPortT() {
     fi
 }
 
+# 检查Nginx服务是否运行
+isNginxRunning() {
+    if [[ "${release}" == "alpine" ]]; then
+        rc-service nginx status >/dev/null 2>&1
+    else
+        systemctl is-active --quiet nginx
+    fi
+}
+
 # 操作Nginx
 handleNginx() {
 
-    if ! echo "${selectCustomInstallType}" | grep -qwE ",7,|,8,|,7,8," && [[ -z $(pgrep -f "nginx") ]] && [[ "$1" == "start" ]]; then
+    if ! echo "${selectCustomInstallType}" | grep -qwE ",7,|,8,|,7,8," && ! isNginxRunning && [[ "$1" == "start" ]]; then
         if [[ "${release}" == "alpine" ]]; then
             rc-service nginx start 2>/etc/v2ray-agent/nginx_error.log
         else
@@ -2179,10 +2188,10 @@ handleNginx() {
 
         sleep 0.5
 
-        if [[ -z $(pgrep -f "nginx") ]]; then
+        if ! isNginxRunning; then
             echoContent red " ---> Nginx启动失败"
             echoContent red " ---> 请将下方日志反馈给开发者"
-            nginx
+            nginx -t
             if grep -q "journalctl -xe" </etc/v2ray-agent/nginx_error.log; then
                 updateSELinuxHTTPPortT
             fi
@@ -2190,7 +2199,7 @@ handleNginx() {
             echoContent green " ---> Nginx启动成功"
         fi
 
-    elif [[ -n $(pgrep -f "nginx") ]] && [[ "$1" == "stop" ]]; then
+    elif isNginxRunning && [[ "$1" == "stop" ]]; then
 
         if [[ "${release}" == "alpine" ]]; then
             rc-service nginx stop
@@ -2198,10 +2207,6 @@ handleNginx() {
             systemctl stop nginx
         fi
         sleep 0.5
-
-        if [[ -z ${btDomain} && -n $(pgrep -f "nginx") ]]; then
-            pgrep -f "nginx" | xargs kill -9
-        fi
         echoContent green " ---> Nginx关闭成功"
     fi
 }
@@ -5642,7 +5647,7 @@ updateNginxBlog() {
             addNginx302 "${redirectDomain}"
             handleNginx stop
             handleNginx start
-            if [[ -z $(pgrep -f "nginx") ]]; then
+            if ! isNginxRunning; then
                 backupNginxConfig restoreBackup
                 handleNginx start
                 exit 0
@@ -5812,7 +5817,7 @@ unInstall() {
     # checkBTPanel
     echoContent yellow " ---> 脚本不会删除acme相关配置，删除请手动执行 [rm -rf /root/.acme.sh]"
     handleNginx stop
-    if [[ -z $(pgrep -f "nginx") ]]; then
+    if ! isNginxRunning; then
         echoContent green " ---> 停止Nginx成功"
     fi
     if [[ "${release}" == "alpine" ]]; then
@@ -8845,7 +8850,7 @@ EOF
         handleNginx stop
         handleNginx start
     fi
-    if [[ -z $(pgrep -f "nginx") ]]; then
+    if ! isNginxRunning; then
         handleNginx start
     fi
 }
