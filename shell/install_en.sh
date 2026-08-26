@@ -1709,15 +1709,20 @@ updateSELinuxHTTPPortT() {
     fi
 }
 
+# Check whether the Nginx service is running
+isNginxRunning() {
+    systemctl is-active --quiet nginx
+}
+
 #Operation Nginx
 handleNginx() {
 
-    if [[ -z $(pgrep -f "nginx") ]] && [[ "$1" == "start" ]]; then
+    if ! isNginxRunning && [[ "$1" == "start" ]]; then
         systemctl start nginx 2>/etc/v2ray-agent/nginx_error.log
 
         sleep 0.5
 
-        if [[ -z $(pgrep -f "nginx") ]]; then
+        if ! isNginxRunning; then
             echoContent red " ---> Nginx failed to start"
             echoContent red " ---> Please try to install nginx manually and execute the script again"
 
@@ -1730,12 +1735,9 @@ handleNginx() {
             echoContent green " ---> Nginx started successfully"
         fi
 
-    elif [[ -n $(pgrep -f "nginx") ]] && [[ "$1" == "stop" ]]; then
+    elif isNginxRunning && [[ "$1" == "stop" ]]; then
         systemctl stop nginx
         sleep 0.5
-        if [[ -n $(pgrep -f "nginx") ]]; then
-            pgrep -f "nginx" | xargs kill -9
-        fi
         echoContent green " ---> Nginx closed successfully"
     fi
 }
@@ -4548,7 +4550,7 @@ updateNginxBlog() {
             addNginx302 "${redirectDomain}"
             handleNginx stop
             handleNginx start
-            if [[ -z $(pgrep -f "nginx") ]]; then
+            if ! isNginxRunning; then
                 backupNginxConfig restoreBackup
                 handleNginx start
                 exit 0
@@ -4708,7 +4710,7 @@ unInstall() {
     fi
     echoContent yellow " ---> The script will not delete acme related configurations. To delete, please execute manually [rm -rf /root/.acme.sh]"
     handleNginx stop
-    if [[ -z $(pgrep -f "nginx") ]]; then
+    if ! isNginxRunning; then
         echoContent green " ---> Stop Nginx successfully"
     fi
 
