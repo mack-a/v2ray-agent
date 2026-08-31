@@ -3782,6 +3782,7 @@ EOF
             ],
             "privateKey": "${realityPrivateKey}",
             "publicKey": "${realityPublicKey}",
+            "minClientVer": "1.8.2",
             "maxTimeDiff": 70000,
             "shortIds": [
                 "6ba85179e30d4fc2"

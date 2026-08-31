@@ -4,6 +4,12 @@
     "level": "info",
     "timestamp": true
   },
+  "http_clients": [
+    {
+      "tag": "rule_set_http",
+      "detour": "本地直连"
+    }
+  ],
   "experimental": {
     "clash_api": {
       "external_controller": "127.0.0.1:9090",
@@ -73,7 +79,6 @@
         "server": "dns_proxy"
       }
     ],
-    "independent_cache": true,
     "strategy": "prefer_ipv4",
     "final": "dns_direct"
   },
@@ -210,6 +215,7 @@
     }
   ],
   "route": {
+    "default_http_client": "rule_set_http",
     "default_domain_resolver": {
       "server": "dns_resolver",
       "strategy": "prefer_ipv4"
@@ -458,4 +464,3 @@
     "auto_detect_interface": true
   }
 }
-

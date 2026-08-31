@@ -2049,6 +2049,7 @@ _buildVisionInbounds() {
           "serverNames": ["$(jsonEscape "${sName}")"],
           "privateKey": "$(jsonEscape "${privKey}")",
           "publicKey": "$(jsonEscape "${pubKey}")",
+          "minClientVer": "1.8.2",
           "maxTimeDiff": 70000,
           "shortIds": ["", "6ba85179e30d4fc2"]
         }
@@ -2095,6 +2096,7 @@ _buildXHTTPInbound() {
           "serverNames": ["$(jsonEscape "${sName}")"],
           "privateKey": "$(jsonEscape "${privKey}")",
           "publicKey": "$(jsonEscape "${pubKey}")",
+          "minClientVer": "1.8.2",
           "maxTimeDiff": 70000,
           "shortIds": ["", "6ba85179e30d4fc2"]
         },
