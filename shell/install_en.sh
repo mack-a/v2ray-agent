@@ -204,6 +204,7 @@ initVar() {
     # xray-core reality serverName publicKey
     xrayVLESSRealityServerName=
     xrayVLESSRealityPort=
+    xrayVLESSRealityVisionPort=
     xrayVLESSRealityXHTTPServerName=
     xrayVLESSRealityXHTTPort=
     #    xrayVLESSRealityPublicKey=
@@ -431,6 +432,7 @@ readInstallProtocolType() {
     frontingType=
 
     xrayVLESSRealityPort=
+    xrayVLESSRealityVisionPort=
     xrayVLESSRealityServerName=
 
     xrayVLESSRealityXHTTPort=
@@ -5193,6 +5195,20 @@ EOF
 
 }
 
+# Get Reality subscription port
+getRealitySubscriptionPort() {
+    local protocol=$1
+    if [[ "${coreInstallType}" == "2" ]]; then
+        if [[ "${protocol}" == "grpc" ]]; then
+            printf '%s\n' "${singBoxVLESSRealityGRPCPort}"
+        else
+            printf '%s\n' "${singBoxVLESSRealityVisionPort}"
+        fi
+    else
+        printf '%s\n' "${xrayVLESSRealityVisionPort}"
+    fi
+}
+
 # account
 showAccounts() {
     readInstallType
@@ -5361,7 +5377,7 @@ showAccounts() {
 
             echoContent skyBlue "\n --->Account:${email}"
             echo
-            defaultBase64Code vlessReality "${xrayVLESSRealityVisionPort}${singBoxVLESSRealityVisionPort}" "${email}" "$(echo "${user}" | jq -r .id//.uuid)"
+            defaultBase64Code vlessReality "$(getRealitySubscriptionPort vision)" "${email}" "$(echo "${user}" | jq -r .id//.uuid)"
         done
     fi
     # VLESS reality gRPC
@@ -5373,7 +5389,7 @@ showAccounts() {
 
             echoContent skyBlue "\n --->Account:${email}"
             echo
-            defaultBase64Code vlessRealityGRPC "${xrayVLESSRealityVisionPort}${singBoxVLESSRealityGRPCPort}" "${email}" "$(echo "${user}" | jq -r .id//.uuid)"
+            defaultBase64Code vlessRealityGRPC "$(getRealitySubscriptionPort grpc)" "${email}" "$(echo "${user}" | jq -r .id//.uuid)"
         done
     fi
     # tuic
@@ -9650,6 +9666,8 @@ initRealityClientServersName() {
         fi
     fi
 
+    realityDestDomain="${realityServerName}:${realityDomainPort}"
+    checkRealityDest
                     echoContent yellow "Online QR code: https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://${currentDomain}/s/clashMetaProfiles/${emailMd5}\n "
 }
 initXrayRealityPort() {

@@ -200,6 +200,7 @@ initVar() {
     # xray-core reality serverName publicKey
     xrayVLESSRealityServerName=
     xrayVLESSRealityPort=
+    xrayVLESSRealityVisionPort=
     xrayVLESSRealityXHTTPServerName=
     xrayVLESSRealityXHTTPort=
     #    xrayVLESSRealityPublicKey=
@@ -425,6 +426,7 @@ readInstallProtocolType() {
     frontingType=
 
     xrayVLESSRealityPort=
+    xrayVLESSRealityVisionPort=
     xrayVLESSRealityServerName=
 
     xrayVLESSRealityXHTTPort=
@@ -5233,6 +5235,20 @@ EOF
 
 }
 
+# 获取Reality订阅端口
+getRealitySubscriptionPort() {
+    local protocol=$1
+    if [[ "${coreInstallType}" == "2" ]]; then
+        if [[ "${protocol}" == "grpc" ]]; then
+            printf '%s\n' "${singBoxVLESSRealityGRPCPort}"
+        else
+            printf '%s\n' "${singBoxVLESSRealityVisionPort}"
+        fi
+    else
+        printf '%s\n' "${xrayVLESSRealityVisionPort}"
+    fi
+}
+
 # 账号
 showAccounts() {
     readInstallType
@@ -5401,7 +5417,7 @@ showAccounts() {
 
             echoContent skyBlue "\n ---> 账号:${email}"
             echo
-            defaultBase64Code vlessReality "${xrayVLESSRealityVisionPort}${singBoxVLESSRealityVisionPort}" "${email}" "$(echo "${user}" | jq -r .id//.uuid)"
+            defaultBase64Code vlessReality "$(getRealitySubscriptionPort vision)" "${email}" "$(echo "${user}" | jq -r .id//.uuid)"
         done
     fi
     # VLESS reality gRPC
@@ -5413,7 +5429,7 @@ showAccounts() {
 
             echoContent skyBlue "\n ---> 账号:${email}"
             echo
-            defaultBase64Code vlessRealityGRPC "${xrayVLESSRealityVisionPort}${singBoxVLESSRealityGRPCPort}" "${email}" "$(echo "${user}" | jq -r .id//.uuid)"
+            defaultBase64Code vlessRealityGRPC "$(getRealitySubscriptionPort grpc)" "${email}" "$(echo "${user}" | jq -r .id//.uuid)"
         done
     fi
     # tuic
@@ -9638,7 +9654,7 @@ checkRealityDest() {
     local traceResult=
     traceResult=$(curl -s "https://$(echo "${realityDestDomain}" | cut -d ':' -f 1)/cdn-cgi/trace" | grep "visit_scheme=https")
     if [[ -n "${traceResult}" ]]; then
-        echoContent red "\n ---> 检测到使用的域名，托管在cloudflare并开启了代理，使用此类型域名可能导致VPS流量被其他人使用[不建议使用]\n"
+        echoContent red "\n ---> 禁止使用已启用 Cloudflare 代理的域名。强制使用将导致 VPS 流量被他人滥用，相关后果由您自行承担。\n"
         read -r -p "是否继续 ？[y/n]" setRealityDestStatus
         if [[ "${setRealityDestStatus}" != 'y' ]]; then
             exit 0
@@ -9719,6 +9735,8 @@ initRealityClientServersName() {
         fi
     fi
 
+    realityDestDomain="${realityServerName}:${realityDomainPort}"
+    checkRealityDest
     echoContent yellow "\n ---> 客户端可用域名: ${realityServerName}:${realityDomainPort}\n"
 }
 # 初始化reality端口
@@ -9996,7 +10014,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.5.21"
+    echoContent green "当前版本：v3.5.22"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
