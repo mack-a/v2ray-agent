@@ -77,6 +77,17 @@
   },
   "inbounds": [
     {
+      "type": "tun",
+      "tag": "tun-in",
+      "stack": "system",
+      "address": [
+        "172.19.0.1/30",
+        "fdfe:dcba:9876::1/126"
+      ],
+      "auto_route": true,
+      "strict_route": true
+    },
+    {
       "type": "mixed",
       "tag": "mixed-in",
       "listen": "127.0.0.1",
@@ -177,6 +188,16 @@
         "自动选择"
       ],
       "default": "direct"
+    },
+    {
+      "type": "selector",
+      "tag": "漏网之鱼",
+      "outbounds": [
+        "自动选择",
+        "手动切换",
+        "direct"
+      ],
+      "default": "自动选择"
     },
     {
       "tag": "direct",
@@ -316,7 +337,6 @@
     ],
     "rules": [
       {
-        "inbound": "mixed-in",
         "action": "sniff",
         "timeout": "1s"
       },
@@ -421,6 +441,7 @@
         "outbound": "本地直连"
       }
     ],
-    "final": "本地直连"
+    "final": "漏网之鱼",
+    "auto_detect_interface": true
   }
 }

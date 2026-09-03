@@ -3371,7 +3371,10 @@ addSingBoxOutbound() {
              "type": "direct",
              "tag": "${tag}",
              "detour": "${detour}",
-             "domain_strategy": "${type}_only"
+             "domain_resolver": {
+                 "server": "local",
+                 "strategy": "${type}_only"
+             }
         }
     ]
 }
@@ -3407,7 +3410,10 @@ EOF
         {
              "type": "direct",
              "tag": "${tag}",
-             "domain_strategy": "${type}_only"
+             "domain_resolver": {
+                 "server": "local",
+                 "strategy": "${type}_only"
+             }
         }
     ]
 }
@@ -3709,8 +3715,87 @@ singBoxHysteria2Install() {
     showAccounts 4
 }
 
+# 初始化sing-box本地DNS解析器
+initSingBoxLocalDNSConfig() {
+    local singBoxConfigDir="/etc/v2ray-agent/sing-box/conf/config"
+    local singBoxDNSConfigPath="${singBoxConfigDir}/dns.json"
+
+    mkdir -p "${singBoxConfigDir}"
+    if [[ -f "${singBoxDNSConfigPath}" ]] && jq empty "${singBoxDNSConfigPath}" >/dev/null 2>&1; then
+        jq '
+          . = (if type == "object" then . else {} end)
+          | .dns = (if (.dns | type) == "object" then .dns else {} end)
+          | .dns.servers = (if ((.dns.servers | type) == "array" and all(.dns.servers[]?; type == "object")) then .dns.servers else [] end)
+          | if any(.dns.servers[]?; .tag == "local") then .
+            elif any(.dns.servers[]?; .type == "local" and ((.tag // "") == "")) then
+              .dns.servers |= map(if .type == "local" and ((.tag // "") == "") then .tag = "local" else . end)
+            else
+              .dns.servers += [{"tag": "local", "type": "local"}]
+            end
+        ' "${singBoxDNSConfigPath}" >"${singBoxDNSConfigPath}.tmp" && mv "${singBoxDNSConfigPath}.tmp" "${singBoxDNSConfigPath}"
+    else
+        cat <<EOF >"${singBoxDNSConfigPath}"
+{
+    "dns": {
+        "servers": [
+            {
+                "tag": "local",
+                "type": "local"
+            }
+        ]
+    }
+}
+EOF
+    fi
+}
+
+# 迁移脚本旧版本生成的sing-box出站配置
+migrateSingBoxLegacyOutboundConfig() {
+    local singBoxConfigDir=${1:-/etc/v2ray-agent/sing-box/conf/config}
+    local outboundTag=
+    local outboundConfigPath=
+
+    for outboundTag in IPv4_out IPv6_out; do
+        outboundConfigPath="${singBoxConfigDir}/${outboundTag}.json"
+        if [[ -f "${outboundConfigPath}" ]] && jq -e 'any(.outbounds[]?; .type == "direct" and (.domain_strategy? != null))' "${outboundConfigPath}" >/dev/null 2>&1; then
+            jq '
+              .outbounds |= map(
+                if .type == "direct" and (.domain_strategy? != null) then
+                  .domain_resolver = {
+                    "server": "local",
+                    "strategy": .domain_strategy
+                  }
+                  | del(.domain_strategy)
+                else . end
+              )
+            ' "${outboundConfigPath}" >"${outboundConfigPath}.tmp" && mv "${outboundConfigPath}.tmp" "${outboundConfigPath}"
+        fi
+    done
+}
+
+# 初始化sing-box远程规则集HTTP客户端
+initSingBoxHTTPClientConfig() {
+    local singBoxConfigDir="/etc/v2ray-agent/sing-box/conf/config"
+
+    initSingBoxLocalDNSConfig
+    migrateSingBoxLegacyOutboundConfig
+    cat <<EOF >"${singBoxConfigDir}/00_http_clients.json"
+{
+  "http_clients": [
+    {
+      "tag": "rule_set_http"
+    }
+  ],
+  "route": {
+    "default_http_client": "rule_set_http"
+  }
+}
+EOF
+}
+
 # 合并config
 singBoxMergeConfig() {
+    initSingBoxHTTPClientConfig
     rm /etc/v2ray-agent/sing-box/conf/config.json >/dev/null 2>&1
     /etc/v2ray-agent/sing-box/sing-box merge config.json -C /etc/v2ray-agent/sing-box/conf/config/ -D /etc/v2ray-agent/sing-box/conf/ >/dev/null 2>&1
 }
@@ -7862,31 +7947,7 @@ setSocks5InboundRouting() {
 
 # 设置sniff routing规则
 setSniffRouting() {
-    local singBoxDNSConfigPath="/etc/v2ray-agent/sing-box/conf/config/dns.json"
-    if [[ -f "${singBoxDNSConfigPath}" ]]; then
-        jq '
-          .dns.servers = (.dns.servers // [])
-          | if any(.dns.servers[]?; .tag == "local") then .
-            elif any(.dns.servers[]?; .type == "local" and ((.tag // "") == "")) then
-              .dns.servers |= map(if .type == "local" and ((.tag // "") == "") then .tag = "local" else . end)
-            else
-              .dns.servers += [{"tag": "local", "type": "local"}]
-            end
-        ' "${singBoxDNSConfigPath}" >"${singBoxDNSConfigPath}.tmp" && mv "${singBoxDNSConfigPath}.tmp" "${singBoxDNSConfigPath}"
-    else
-        cat <<EOF >"${singBoxDNSConfigPath}"
-{
-    "dns": {
-        "servers": [
-            {
-                "tag": "local",
-                "type": "local"
-            }
-        ]
-    }
-}
-EOF
-    fi
+    initSingBoxLocalDNSConfig
 
     cat <<EOF >"/etc/v2ray-agent/sing-box/conf/config/sniff.json"
 {
@@ -8343,7 +8404,7 @@ removeUnlockDNS() {
 EOF
     fi
 
-    if [[ "${coreInstallType}" == "2" && -f "${singBoxConfigPath}dns.json" ]]; then
+    if [[ -n "${singBoxConfigPath}" && -f "${singBoxConfigPath}dns.json" ]]; then
         cat <<EOF >${singBoxConfigPath}dns.json
 {
     "dns": {
@@ -8379,12 +8440,13 @@ removeUnlockSNI() {
 EOF
     fi
 
-    if [[ "${coreInstallType}" == "2" && -f "${singBoxConfigPath}dns.json" ]]; then
+    if [[ -n "${singBoxConfigPath}" && -f "${singBoxConfigPath}dns.json" ]]; then
         cat <<EOF >${singBoxConfigPath}dns.json
 {
     "dns": {
         "servers":[
             {
+                "tag":"local",
                 "type":"local"
             }
         ]
@@ -10014,7 +10076,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.5.22"
+    echoContent green "当前版本：v3.5.23"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
