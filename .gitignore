@@ -9,3 +9,5 @@ AGENTS.md
 .worktrees/
 docs
 .sisyphus
+tests
+test

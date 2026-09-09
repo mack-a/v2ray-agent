@@ -207,6 +207,8 @@ initVar() {
     xrayVLESSRealityVisionPort=
     xrayVLESSRealityXHTTPServerName=
     xrayVLESSRealityXHTTPort=
+    xrayVLESSXHTTPTLSPort=
+    xHTTPTLSPort=
     #    xrayVLESSRealityPublicKey=
 
     #    interfaceName=
@@ -343,6 +345,234 @@ initVar() {
 
 }
 
+# Canonicalize Xray protocol selections while preserving legacy fronting.
+normalizeXrayInstallSelection() {
+    local selection="${1//[[:space:]]/}"
+    selection="${selection#,}"
+    selection="${selection%,}"
+    local normalized=()
+    local token
+    local has_legacy=false
+    local has_base=false
+    IFS=',' read -r -a tokens <<<"${selection}"
+    for token in "${tokens[@]}"; do
+        [[ -z "${token}" ]] && continue
+        normalized+=("${token}")
+        case "${token}" in
+        0) has_base=true ;;
+        1|2|3|4|5) has_legacy=true ;;
+        esac
+    done
+    if [[ "${has_legacy}" == true && "${has_base}" == false ]]; then
+        normalized=(0 "${normalized[@]}")
+    fi
+    local result=,
+    if ((${#normalized[@]})); then
+        local IFS=,
+        result="${result}${normalized[*]},"
+    fi
+    printf '%s\n' "${result}"
+}
+
+xraySelectionNeedsNginx() {
+    local selection="$1"
+    [[ "${selection}" == *,0,* || "${selection}" == *,1,* || "${selection}" == *,3,* || "${selection}" == *,4,* || "${selection}" == *,5,* ]]
+}
+
+xraySelectionNeedsCustomPort() {
+    [[ "${1:-}" =~ ,(0|1|2|3|4|5), ]]
+}
+
+xraySelectionNeedsCertificate() {
+    local selection="${1:-}"
+    [[ "${selection}" =~ ,(0|1|2|3|4|5|11|13|14), ]]
+}
+
+isValidXHTTPTLSPort() {
+    [[ "${1:-}" =~ ^[0-9]+$ ]] && ((10#${1} >= 10000 && 10#${1} <= 30000))
+}
+
+buildXrayXHTTPTLSConfig() {
+    local port="$1" domain="$2" path="$3" clients_json="$4"
+    jq -n --arg domain "${domain}" --arg path "/${path#/}xHTTP" --argjson clients "${clients_json}" --argjson port "${port}" '
+      {inbounds:[
+        {listen:"127.0.0.1",port:45988,protocol:"vless",tag:"VLESSXHTTPTLS",settings:{clients:$clients,decryption:"none"},streamSettings:{network:"xhttp",security:"tls",tlsSettings:{serverName:$domain,minVersion:"1.2",rejectUnknownSni:true,certificates:[{certificateFile:("/etc/v2ray-agent/tls/"+$domain+".crt"),keyFile:("/etc/v2ray-agent/tls/"+$domain+".key")}]},xhttpSettings:{host:$domain,path:$path,mode:"auto"}}},
+        {listen:"0.0.0.0",port:$port,protocol:"dokodemo-door",tag:"dokodemo-in-VLESSXHTTPTLS",settings:{address:"127.0.0.1",port:45988,network:"tcp"},streamSettings:{network:"tcp",security:"none"}}
+      ],routing:{rules:[{type:"field",inboundTag:["dokodemo-in-VLESSXHTTPTLS"],outboundTag:"z_direct_outbound"}]}}'
+}
+
+buildVLESSXHTTPTLSURI() {
+    local address="$1" port="$2" uuid="$3" domain="$4" path="$5" mode="$6" name="$7"
+    local encoded_path="${path//\//%2F}"
+    printf 'vless://%s@%s:%s?encryption=none&security=tls&type=xhttp&sni=%s&host=%s&fp=chrome&alpn=h2&path=%s&mode=%s#%s\n' \
+        "${uuid}" "${address}" "${port}" "${domain}" "${domain}" "${encoded_path}" "${mode}" "${name}"
+}
+
+buildMihomoXHTTPTLSNode() {
+    local address="$1" port="$2" uuid="$3" domain="$4" path="$5" mode="$6" name="$7"
+    cat <<EOF
+  - name: "${name}"
+    type: vless
+    server: ${address}
+    port: ${port}
+    uuid: ${uuid}
+    network: xhttp
+    tls: true
+    udp: true
+    packet-encoding: xudp
+    client-fingerprint: chrome
+    alpn: [h2]
+    servername: ${domain}
+    xhttp-opts:
+      path: ${path}
+      host: ${domain}
+      mode: ${mode}
+EOF
+}
+
+uniqueCDNAddresses() {
+    awk -v csv="$1" 'BEGIN { n=split(csv, a, ","); for (i=1; i<=n; i++) { gsub(/^[[:space:]]+|[[:space:]]+$/, "", a[i]); if (a[i] != "" && !seen[a[i]]++) print a[i] } }'
+}
+
+listXHTTPTLSEndpoints() {
+    local origin_address="$1" origin_port="$2" cdn_csv="$3"
+    printf '%s\t%s\tauto\n' "${origin_address}" "${origin_port}"
+    while IFS= read -r address; do
+        [[ -n "${address}" ]] && printf '%s\t443\tpacket-up\n' "${address}"
+    done < <(uniqueCDNAddresses "${cdn_csv}")
+}
+
+buildXHTTPTLSNodeName() {
+    local accountName="$1" endpointIndex="${2:-0}" usedNames="${3:-}"
+    local candidate base suffix=1
+    if [[ "${endpointIndex}" == 0 ]]; then
+        candidate="${accountName}"
+    else
+        candidate="${accountName}_cdn${endpointIndex}"
+    fi
+    base=${candidate}
+    while [[ "${usedNames}" == *$'\n'"${candidate}"$'\n'* ]]; do
+        candidate="${base}_${suffix}"
+        suffix=$((suffix + 1))
+    done
+    printf '%s\n' "${candidate}"
+}
+
+removeXrayClientByUUID() {
+    local file="$1" uuid="$2"
+    [[ -f "${file}" ]] || return 1
+    local dir base tmp
+    dir=$(dirname "${file}")
+    base=$(basename "${file}")
+    tmp=$(mktemp "${dir}/.${base}.tmp.XXXXXX") || return 1
+    if ! jq --arg uuid "${uuid}" '(.inbounds[]?.settings.clients? // empty) |= map(select((.id // .password) != $uuid))' "${file}" >"${tmp}" || ! jq empty "${tmp}"; then
+        rm -f "${tmp}"
+        return 1
+    fi
+    mv -f "${tmp}" "${file}"
+}
+
+getXrayAccountReferenceConfig() {
+    local candidate
+    for candidate in \
+        "${configPath}${frontingType:-}.json" \
+        "${configPath}${frontingTypeReality:-}.json" \
+        "${configPath}14_VLESS_XHTTP_TLS_inbounds.json" \
+        "${configPath}12_VLESS_XHTTP_inbounds.json"; do
+        if [[ -f "${candidate}" ]] && jq -e '(.inbounds[0].settings.clients // .inbounds[1].settings.clients) | type == "array"' "${candidate}" >/dev/null 2>&1; then
+            printf '%s\n' "${candidate}"
+            return 0
+        fi
+    done
+    return 1
+}
+
+beginAccountTransaction() {
+    accountTransactionDir=$(mktemp -d "${TMPDIR:-/tmp}/v2ray-agent-account.XXXXXX") || return 1
+    accountTransactionManifest="${accountTransactionDir}/manifest"
+    : >"${accountTransactionManifest}" || return 1
+    local directory file backupName count=0 seenDirectories=$'\n'
+    for directory in "${configPath:-}" "${singBoxConfigPath:-}"; do
+        [[ -z "${directory}" || "${seenDirectories}" == *$'\n'"${directory}"$'\n'* ]] && continue
+        seenDirectories="${seenDirectories}${directory}"$'\n'
+        for file in "${directory}"*_inbounds.json; do
+            [[ -f "${file}" ]] || continue
+            count=$((count + 1))
+            backupName="${accountTransactionDir}/${count}.json"
+            cp -p "${file}" "${backupName}" || { rollbackAccountTransaction; return 1; }
+            printf '%s\t%s\n' "${file}" "${backupName}" >>"${accountTransactionManifest}"
+        done
+    done
+}
+
+rollbackAccountTransaction() {
+    local file backupName
+    if [[ -f "${accountTransactionManifest:-}" ]]; then
+        while IFS=$'\t' read -r file backupName; do
+            [[ -f "${backupName}" ]] && cp -p "${backupName}" "${file}"
+        done <"${accountTransactionManifest}"
+    fi
+    [[ -n "${accountTransactionDir:-}" ]] && rm -rf "${accountTransactionDir}"
+    accountTransactionDir=
+    accountTransactionManifest=
+}
+
+commitAccountTransaction() {
+    local file backupName
+    while IFS=$'\t' read -r file backupName; do
+        if [[ ! -f "${file}" ]] || ! jq empty "${file}" >/dev/null 2>&1; then
+            echoContent red "Account JSON validation failed; changes were rolled back."
+            rollbackAccountTransaction
+            reloadCore transaction >/dev/null 2>&1 || true
+            return 1
+        fi
+    done <"${accountTransactionManifest}"
+    if [[ -x "/etc/v2ray-agent/xray/xray" && -d "/etc/v2ray-agent/xray/conf" ]] && \
+        ! /etc/v2ray-agent/xray/xray run -test -confdir /etc/v2ray-agent/xray/conf >/dev/null 2>&1; then
+        echoContent red "Xray account configuration validation failed; changes were rolled back."
+        rollbackAccountTransaction
+        reloadCore transaction >/dev/null 2>&1 || true
+        return 1
+    fi
+    if ! reloadCore transaction; then
+        echoContent red "Core reload failed; account changes were rolled back."
+        rollbackAccountTransaction
+        reloadCore transaction >/dev/null 2>&1 || true
+        return 1
+    fi
+    rm -rf "${accountTransactionDir}"
+    accountTransactionDir=
+    accountTransactionManifest=
+}
+
+rollbackXrayXHTTPTLSDeployment() {
+    if [[ -n "${xhttpTLSDeploymentConfig:-}" ]]; then
+        if [[ "${xhttpTLSDeploymentHadPrevious:-}" == true && -f "${xhttpTLSDeploymentBackup:-}" ]]; then
+            mv -f "${xhttpTLSDeploymentBackup}" "${xhttpTLSDeploymentConfig}"
+        else
+            rm -f "${xhttpTLSDeploymentConfig}"
+            [[ -n "${xhttpTLSDeploymentBackup:-}" ]] && rm -f "${xhttpTLSDeploymentBackup}"
+        fi
+    fi
+    xhttpTLSDeploymentBackup=
+    xhttpTLSDeploymentConfig=
+    xhttpTLSDeploymentHadPrevious=
+}
+
+restartXrayWithXHTTPTLSRollback() {
+    if ! handleXray stop transaction || ! handleXray start transaction; then
+        rollbackXrayXHTTPTLSDeployment
+        handleXray stop transaction >/dev/null 2>&1 || true
+        handleXray start transaction >/dev/null 2>&1 || true
+        echoContent red "XHTTP TLS reload failed; the previous configuration was restored."
+        return 1
+    fi
+    [[ -n "${xhttpTLSDeploymentBackup:-}" ]] && rm -f "${xhttpTLSDeploymentBackup}"
+    xhttpTLSDeploymentBackup=
+    xhttpTLSDeploymentConfig=
+    xhttpTLSDeploymentHadPrevious=
+}
+
 # Read tls certificate details
 readAcmeTLS() {
     local readAcmeDomain=
@@ -400,7 +630,7 @@ readInstallType() {
     #1.Detect the installation directory
     if [[ -d "/etc/v2ray-agent" ]]; then
         if [[ -f "/etc/v2ray-agent/xray/xray" ]]; then
-            if [[ -d "/etc/v2ray-agent/xray/conf" ]] && [[ -f "/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/02_trojan_TCP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/07_VLESS_vision_reality_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/12_VLESS_XHTTP_inbounds.json" ]]; then
+            if [[ -d "/etc/v2ray-agent/xray/conf" ]] && [[ -f "/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/02_trojan_TCP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/07_VLESS_vision_reality_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/12_VLESS_XHTTP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/14_VLESS_XHTTP_TLS_inbounds.json" ]]; then
                 # xray-core
                 #xray-core
                 configPath=/etc/v2ray-agent/xray/conf/
@@ -412,6 +642,9 @@ readInstallType() {
                 fi
                 if [[ -f "${configPath}12_VLESS_XHTTP_inbounds.json" ]]; then
                     realityStatus=12
+                fi
+                if [[ -f "${configPath}14_VLESS_XHTTP_TLS_inbounds.json" ]]; then
+                    realityStatus=14
                 fi
                 if [[ -f "/etc/v2ray-agent/sing-box/sing-box" ]] && [[ -f "/etc/v2ray-agent/sing-box/conf/config/06_hysteria2_inbounds.json" || -f "/etc/v2ray-agent/sing-box/conf/config/09_tuic_inbounds.json" || -f "/etc/v2ray-agent/sing-box/conf/config/20_socks5_inbounds.json" ]]; then
                     singBoxConfigPath=/etc/v2ray-agent/sing-box/conf/config/
@@ -437,6 +670,7 @@ readInstallProtocolType() {
 
     xrayVLESSRealityXHTTPort=
     xrayVLESSRealityXHTTPServerName=
+    xrayVLESSXHTTPTLSPort=
 
     #    currentRealityXHTTPPrivateKey=
     currentRealityXHTTPPublicKey=
@@ -492,6 +726,10 @@ readInstallProtocolType() {
             #                frontingType=03_VLESS_WS_inbounds
             #                singBoxVLESSWSPort=$(jq .inbounds[0].listen_port "${row}.json")
             #            fi
+        fi
+        if echo "${row}" | grep -q 14_VLESS_XHTTP_TLS_inbounds; then
+            currentInstallProtocolType="${currentInstallProtocolType}14,"
+            xrayVLESSXHTTPTLSPort=$(jq -r '.inbounds[1].port' "${row}.json")
         fi
 
         if echo "${row}" | grep -q trojan_gRPC_inbounds; then
@@ -888,6 +1126,13 @@ readConfigHostPathUUID() {
             fi
             currentPath=$(jq -r .inbounds[0].streamSettings.xhttpSettings.path ${configPath}12_VLESS_XHTTP_inbounds.json | awk -F "[/]" '{print $2}' | awk -F "[x][H][T][T][P]" '{print $1}')
         fi
+        if echo ${currentInstallProtocolType} | grep -q ",14,"; then
+            currentClients=$(jq -r .inbounds[0].settings.clients "${configPath}14_VLESS_XHTTP_TLS_inbounds.json")
+            currentUUID=$(jq -r .inbounds[0].settings.clients[0].id "${configPath}14_VLESS_XHTTP_TLS_inbounds.json")
+            xrayVLESSXHTTPTLSPort=$(jq -r .inbounds[1].port "${configPath}14_VLESS_XHTTP_TLS_inbounds.json")
+            currentHost=$(jq -r '.inbounds[0].streamSettings.xhttpSettings.host // .inbounds[0].streamSettings.tlsSettings.serverName // empty' "${configPath}14_VLESS_XHTTP_TLS_inbounds.json")
+            currentPath=$(jq -r .inbounds[0].streamSettings.xhttpSettings.path "${configPath}14_VLESS_XHTTP_TLS_inbounds.json" | sed -E 's#^/##; s#xHTTP$##')
+        fi
     elif [[ "${coreInstallType}" == "2" ]]; then
         if [[ -n "${frontingType}" ]]; then
             currentHost=$(jq -r .inbounds[0].tls.server_name ${configPath}${frontingType}.json)
@@ -1039,15 +1284,17 @@ cleanUp() {
         rm -rf /etc/v2ray-agent/sing-box/conf/config/* >/dev/null 2>&1
     fi
 }
-initVar "$1"
-checkSystem
-checkCPUVendor
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    initVar "${1:-}"
+    checkSystem
+    checkCPUVendor
 
-readInstallType
-readInstallProtocolType
-readConfigHostPathUUID
-readCustomPort
-readSingBoxConfig
+    readInstallType
+    readInstallProtocolType
+    readConfigHostPathUUID
+    readCustomPort
+    readSingBoxConfig
+fi
 # -------------------------------------------------------------
 
 #------------------------------------------------ ----------
@@ -1504,7 +1751,7 @@ initTLSNginxConfig() {
         initTLSNginxConfig 3
     else
         dnsTLSDomain=$(echo "${domain}" | awk -F "." '{$1="";print $0}' | sed 's/^[[:space:]]*//' | sed 's/ /./g')
-        if [[ "${selectCoreType}" == "1" ]]; then
+        if [[ "${selectCoreType}" == "1" ]] && xraySelectionNeedsCustomPort "${selectCustomInstallType}"; then
             customPortFunction
         fi
         handleNginx stop
@@ -1961,6 +2208,7 @@ checkPort() {
     if [[ -n "$1" ]] && lsof -i "tcp:$1" | grep -q LISTEN; then
         echoContent red "\n ---> $1 port is occupied, please close it manually and install\n"
         lsof -i "tcp:$1" | grep LISTEN
+        [[ "${2:-}" == "transaction" ]] && return 1
         exit 0
     fi
 }
@@ -2750,6 +2998,7 @@ handleSingBox() {
     echoContent yellow "2.Fallback v2ray-core"
             echo
     echoContent yellow "3.Close v2ray-core"
+            [[ "${2:-}" == "transaction" ]] && return 1
             exit 0
         fi
     elif [[ "$1" == "stop" ]]; then
@@ -2758,6 +3007,7 @@ handleSingBox() {
         else
             echoContent red "\n ---> Incorrect input, please re-enter"
         echoContent red " ---> Service startup failed, please check if there are logs printed in the terminal"
+            [[ "${2:-}" == "transaction" ]] && return 1
             exit 0
         fi
     fi
@@ -2787,6 +3037,7 @@ handleXray() {
         else
             echoContent red "V2Ray failed to start"
             echoContent red "Please manually execute [/etc/v2ray-agent/v2ray/v2ray -confdir /etc/v2ray-agent/v2ray/conf] and check the error log"
+            [[ "${2:-}" == "transaction" ]] && return 1
             exit 0
         fi
     elif [[ "$1" == "stop" ]]; then
@@ -2795,6 +3046,7 @@ handleXray() {
         else
             echoContent red "V2Ray failed to close"
             echoContent red "Please execute manually [ps -ef|grep -v grep|grep v2ray|awk '{print \$2}'|xargs kill -9]"
+            [[ "${2:-}" == "transaction" ]] && return 1
             exit 0
         fi
     fi
@@ -2803,11 +3055,11 @@ handleXray() {
 # Read user data and initialize
 initXrayClients() {
     local type=",$1,"
-    local newUUID=$2
-    local newEmail=$3
+    local newUUID="${2:-}"
+    local newEmail="${3:-}"
     if [[ -n "${newUUID}" ]]; then
         local newUser=
-        newUser="{\"id\":\"${uuid}\",\"flow\":\"xtls-rprx-vision\",\"email\":\"${newEmail}-VLESS_TCP/TLS_Vision\"}"
+        newUser="{\"id\":\"${newUUID}\",\"flow\":\"xtls-rprx-vision\",\"email\":\"${newEmail}-VLESS_TCP/TLS_Vision\"}"
         currentClients=$(echo "${currentClients}" | jq -r ". +=[${newUser}]")
     fi
     local users=
@@ -2829,6 +3081,11 @@ initXrayClients() {
         # VLESS XHTTP
         if echo "${type}" | grep -q ",12,"; then
             currentUser="{\"id\":\"${uuid}\",\"email\":\"${email}-VLESS_Reality_XHTTP\"}"
+            users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
+        fi
+        # VLESS XHTTP TLS (Xray only)
+        if echo "${type}" | grep -q ",14,"; then
+            currentUser="{\"id\":\"${uuid}\",\"email\":\"${email}-VLESS_XHTTP_TLS\"}"
             users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
         fi
         # trojan grpc
@@ -2889,8 +3146,8 @@ initXrayClients() {
 }
 initSingBoxClients() {
     local type=",$1,"
-    local newUUID=$2
-    local newName=$3
+    local newUUID="${2:-}"
+    local newName="${3:-}"
 
     if [[ -n "${newUUID}" ]]; then
         local newUser=
@@ -4076,6 +4333,49 @@ EOF
     elif [[ -z "$3" ]]; then
         rm /etc/v2ray-agent/xray/conf/12_VLESS_XHTTP_inbounds.json >/dev/null 2>&1
     fi
+
+    # VLESS XHTTP TLS (Xray only, without Nginx)
+    if echo "${selectCustomInstallType}" | grep -q ",14," || [[ "$1" == "all" ]]; then
+        initXrayXHTTPTLSPort || return 1
+        if ! checkPort 45988 transaction; then
+            echoContent red "XHTTP TLS internal port 45988 is already in use."
+            return 1
+        fi
+        if [[ -z "${domain}" || ! -f "/etc/v2ray-agent/tls/${domain}.crt" || ! -f "/etc/v2ray-agent/tls/${domain}.key" ]]; then
+            echoContent red "XHTTP TLS requires a domain and ${domain}.crt/${domain}.key."
+            return 1
+        fi
+        local xhttpTLSClients xhttpTLSTmp xhttpTLSFile xhttpTLSBackup="" xhttpTLSConfigDir
+        xhttpTLSConfigDir="${configPath:-/etc/v2ray-agent/xray/conf/}"
+        xhttpTLSFile="${xhttpTLSConfigDir}14_VLESS_XHTTP_TLS_inbounds.json"
+        xhttpTLSTmp=$(mktemp "${xhttpTLSConfigDir}.14_VLESS_XHTTP_TLS.XXXXXX") || return 1
+        xhttpTLSClients=$(initXrayClients 14) || { rm -f "${xhttpTLSTmp}"; return 1; }
+        if ! buildXrayXHTTPTLSConfig "${xHTTPTLSPort}" "${domain}" "${customPath}" "${xhttpTLSClients}" | jq . >"${xhttpTLSTmp}"; then
+            rm -f "${xhttpTLSTmp}"
+            return 1
+        fi
+        local xhttpTLSHadPrevious=false
+        if [[ -f "${xhttpTLSFile}" ]]; then
+            xhttpTLSBackup=$(mktemp "${xhttpTLSConfigDir}.14_VLESS_XHTTP_TLS.backup.XXXXXX") || { rm -f "${xhttpTLSTmp}"; return 1; }
+            cp -f "${xhttpTLSFile}" "${xhttpTLSBackup}" || { rm -f "${xhttpTLSTmp}" "${xhttpTLSBackup}"; return 1; }
+            xhttpTLSHadPrevious=true
+        fi
+        mv -f "${xhttpTLSTmp}" "${xhttpTLSFile}" || { rm -f "${xhttpTLSTmp}" "${xhttpTLSBackup}"; return 1; }
+        if [[ ! -x "/etc/v2ray-agent/xray/xray" ]] || ! /etc/v2ray-agent/xray/xray run -test -confdir /etc/v2ray-agent/xray/conf >/dev/null 2>&1; then
+            if [[ -n "${xhttpTLSBackup}" ]]; then
+                mv -f "${xhttpTLSBackup}" "${xhttpTLSFile}"
+            else
+                rm -f "${xhttpTLSFile}"
+            fi
+            echoContent red "Xray configuration validation failed; previous XHTTP TLS config retained."
+            return 1
+        fi
+        xhttpTLSDeploymentBackup="${xhttpTLSBackup}"
+        xhttpTLSDeploymentConfig="${xhttpTLSFile}"
+        xhttpTLSDeploymentHadPrevious="${xhttpTLSHadPrevious}"
+    elif [[ -z "$3" ]]; then
+        rm -f /etc/v2ray-agent/xray/conf/14_VLESS_XHTTP_TLS_inbounds.json >/dev/null 2>&1
+    fi
     if echo "${selectCustomInstallType}" | grep -q ",3," || [[ "$1" == "all" ]]; then
         fallbacksList=${fallbacksList}',{"path":"/'${customPath}'vws","dest":31299,"xver":1}'
         cat <<EOF >/etc/v2ray-agent/xray/conf/05_VMess_WS_inbounds.json
@@ -4792,6 +5092,8 @@ EOF
     setSniffRouting
 }
 initSubscribeLocalConfig() {
+    rm -rf /etc/v2ray-agent/subscribe_local/default/*
+    rm -rf /etc/v2ray-agent/subscribe_local/clashMeta/*
     rm -rf /etc/v2ray-agent/subscribe_local/sing-box/*
 }
 # General
@@ -4804,6 +5106,19 @@ defaultBase64Code() {
     local path=$6
     local user=
     user=$(echo "${email}" | awk -F "[-]" '{print $1}')
+    if [[ "${type}" == "vlessXHTTPTLS" ]]; then
+        local xhttpTLSURI
+        xhttpTLSURI=$(buildVLESSXHTTPTLSURI "${add}" "${port}" "${id}" "${currentHost}" "${path}" "${currentXHTTPMode:-auto}" "${email}")
+        echoContent yellow " ---> General format (VLESS+XHTTP+TLS)"
+        echoContent green "    ${xhttpTLSURI}"
+        echoContent yellow " ---> Formatted details (VLESS+XHTTP+TLS)"
+        echoContent green "Protocol:VLESS, address:${add}, SNI:${currentHost}, port:${port}, UUID:${id}, security:tls, transport:xhttp, path:${path}, mode:${currentXHTTPMode:-auto}, account:${email}\n"
+        echoContent yellow " ---> QR code VLESS(VLESS+XHTTP+TLS)"
+        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dxhttp%26sni%3D${currentHost}%26host%3D${currentHost}%26fp%3Dchrome%26alpn%3Dh2%26path%3D%252F${path#/}%26mode%3D${currentXHTTPMode:-auto}%23${email}"
+        printf '%s\n' "${xhttpTLSURI}" >>"/etc/v2ray-agent/subscribe_local/default/${user}"
+        buildMihomoXHTTPTLSNode "${add}" "${port}" "${id}" "${currentHost}" "${path}" "${currentXHTTPMode:-auto}" "${email}" >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
+        return 0
+    fi
     if [[ ! -f "/etc/v2ray-agent/subscribe_local/sing-box/${user}" ]]; then
         echo [] >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
     fi
@@ -5554,6 +5869,29 @@ showAccounts() {
             done < <(echo "${currentCDNAddress}" | tr ',' '\n')
         done
     fi
+    # VLESS XHTTP TLS tunnel (Xray-only subscriptions)
+    if echo ${currentInstallProtocolType} | grep -q ",14," && [[ -f "${configPath}14_VLESS_XHTTP_TLS_inbounds.json" ]]; then
+        echoContent skyBlue "\n================================ VLESS XHTTP TLS [random public port] ================================\n"
+        local xhttpTLSCDNAddress=""
+        if [[ -f "/etc/v2ray-agent/cdn" && -n "$(head -1 /etc/v2ray-agent/cdn)" ]]; then
+            xhttpTLSCDNAddress="${currentCDNAddress}"
+        fi
+        local xhttpTLSUsedNames=$'\n'
+        while read -r user; do
+            local email uuidValue endpointIndex=0 nodeName
+            email=$(echo "${user}" | jq -r '.email // .name')
+            uuidValue=$(echo "${user}" | jq -r '.id // .uuid // .password')
+            while IFS=$'\t' read -r endpointAddress endpointPort endpointMode; do
+                [[ -z "${endpointAddress}" ]] && continue
+                nodeName=$(buildXHTTPTLSNodeName "${email}" "${endpointIndex}" "${xhttpTLSUsedNames}")
+                xhttpTLSUsedNames="${xhttpTLSUsedNames}${nodeName}"$'\n'
+                echoContent skyBlue "\n ---> Account:${nodeName}"
+                currentXHTTPMode="${endpointMode}"
+                defaultBase64Code vlessXHTTPTLS "${endpointPort}" "${nodeName}" "${uuidValue}" "${endpointAddress}" "/${currentPath}xHTTP"
+                endpointIndex=$((endpointIndex + 1))
+            done < <(listXHTTPTLSEndpoints "$(getPublicIP)" "${xrayVLESSXHTTPTLSPort}" "${xhttpTLSCDNAddress}")
+        done < <(jq -c '.inbounds[0].settings.clients[]?' "${configPath}14_VLESS_XHTTP_TLS_inbounds.json")
+    fi
     # AnyTLS
     if echo ${currentInstallProtocolType} | grep -q ",13,"; then
         echoContent skyBlue "\n================================  AnyTLS ================================\n"
@@ -5983,7 +6321,9 @@ customUUID() {
     else
         local checkUUID=
         if [[ "${coreInstallType}" == "1" ]]; then
-            checkUUID=$(jq -r --arg currentUUID "$currentCustomUUID" "(.inbounds[0].settings.clients // .inbounds[1].settings.clients)[]? | select(.id == \$currentUUID) | .email" ${configPath}${frontingType:-$frontingTypeReality}.json)
+            local referenceConfig
+            referenceConfig=$(getXrayAccountReferenceConfig) || return 1
+            checkUUID=$(jq -r --arg currentUUID "$currentCustomUUID" '(.inbounds[0].settings.clients // .inbounds[1].settings.clients)[]? | select(.id == $currentUUID or .password == $currentUUID) | .email' "${referenceConfig}")
         elif [[ "${coreInstallType}" == "2" ]]; then
             checkUUID=$(jq -r --arg currentUUID "$currentCustomUUID" ".inbounds[0].users[] | select(.uuid == \$currentUUID) | .name//.username" ${configPath}${frontingType}.json)
         fi
@@ -6010,7 +6350,9 @@ customUserEmail() {
                 frontingTypeConfig="07_VLESS_vision_reality_inbounds"
             fi
 
-            checkEmail=$(jq -r --arg currentEmail "$currentCustomEmail" "(.inbounds[0].settings.clients // .inbounds[1].settings.clients)[]? | select(.email == \$currentEmail) | .email" ${configPath}${frontingTypeConfig:-$frontingTypeReality}.json)
+            local referenceConfig
+            referenceConfig=$(getXrayAccountReferenceConfig) || return 1
+            checkEmail=$(jq -r --arg currentEmail "$currentCustomEmail" '(.inbounds[0].settings.clients // .inbounds[1].settings.clients)[]? | select(.email == $currentEmail) | .email' "${referenceConfig}")
         elif
             [[ "${coreInstallType}" == "2" ]]
         then
@@ -6038,6 +6380,10 @@ addUser() {
     elif [[ "${coreInstallType}" == "2" ]]; then
         userConfig=".inbounds[0].users"
     fi
+    beginAccountTransaction || {
+        echoContent red "Unable to back up account configuration files."
+        return 1
+    }
 
     while [[ ${userNum} -gt 0 ]]; do
         readConfigHostPathUUID
@@ -6073,6 +6419,21 @@ addUser() {
 
             clients=$(jq -r "${userConfig} = ${clients}" ${configPath}03_VLESS_WS_inbounds.json)
             echo "${clients}" | jq . >${configPath}03_VLESS_WS_inbounds.json
+        fi
+
+        # VLESS XHTTP TLS tunnel
+        if echo "${currentInstallProtocolType}" | grep -q ",14," && [[ -f "${configPath}14_VLESS_XHTTP_TLS_inbounds.json" ]]; then
+            local clients xhttpTLSResult
+            clients=$(initXrayClients 14 "${uuid}" "${email}")
+            xhttpTLSResult=$(jq --argjson clients "${clients}" '.inbounds[0].settings.clients = $clients' "${configPath}14_VLESS_XHTTP_TLS_inbounds.json")
+            echo "${xhttpTLSResult}" | jq . >"${configPath}14_VLESS_XHTTP_TLS_inbounds.json"
+        fi
+        # VLESS Reality XHTTP
+        if echo "${currentInstallProtocolType}" | grep -q ",12," && [[ -f "${configPath}12_VLESS_XHTTP_inbounds.json" ]]; then
+            local clients xhttpRealityResult
+            clients=$(initXrayClients 12 "${uuid}" "${email}")
+            xhttpRealityResult=$(jq --argjson clients "${clients}" '.inbounds[0].settings.clients = $clients' "${configPath}12_VLESS_XHTTP_inbounds.json")
+            echo "${xhttpRealityResult}" | jq . >"${configPath}12_VLESS_XHTTP_inbounds.json"
         fi
 
         # trojan grpc
@@ -6206,7 +6567,7 @@ addUser() {
             echo "${clients}" | jq . >${configPath}13_anytls_inbounds.json
         fi
     done
-    reloadCore
+    commitAccountTransaction || return 1
         echoContent green "    vless://${id}@$(getPublicIP):${currentRealityPort}?encryption=none&security=reality&type=tcp&sni=${currentRealityServerNames}&fp=chrome&pbk=${currentRealityPublicKey}&sid=6ba85179e30d4fc2&flow=xtls-rprx-vision#${email}\n"
     readNginxSubscribe
     if [[ -n "${subscribePort}" ]]; then
@@ -6218,56 +6579,84 @@ addUser() {
 removeUser() {
 
     local uuid=
+    local referenceConfig=
     if [[ "${coreInstallType}" == "1" ]]; then
-        jq -r -c '(.inbounds[0].settings.clients // .inbounds[1].settings.clients)[]?|.email' ${configPath}${frontingType:-$frontingTypeReality}.json | awk '{print NR""":"$0}'
+        referenceConfig=$(getXrayAccountReferenceConfig) || {
+            echoContent red "No manageable Xray account configuration was found."
+            return 1
+        }
+        jq -r -c '(.inbounds[0].settings.clients // .inbounds[1].settings.clients)[]?|.email' "${referenceConfig}" | awk '{print NR""":"$0}'
         read -r -p "Please select the user number to delete [only supports single deletion]:" delUserIndex
-        if [[ $(jq -r '(.inbounds[0].settings.clients // .inbounds[1].settings.clients)?|length' ${configPath}${frontingType:-$frontingTypeReality}.json) -lt ${delUserIndex} ]]; then
-        echoContent red " ---> Not installed, please use script to install"
+        if [[ ! "${delUserIndex}" =~ ^[0-9]+$ ]] || [[ "${delUserIndex}" -lt 1 ]] || [[ $(jq -r '(.inbounds[0].settings.clients // .inbounds[1].settings.clients)?|length' "${referenceConfig}") -lt ${delUserIndex} ]]; then
+            echoContent red "Invalid user selection."
+            return 1
         else
             delUserIndex=$((delUserIndex - 1))
+            uuid=$(jq -r --argjson index "${delUserIndex}" '(.inbounds[0].settings.clients // .inbounds[1].settings.clients)[$index].id // (.inbounds[0].settings.clients // .inbounds[1].settings.clients)[$index].password // empty' "${referenceConfig}")
+            [[ -n "${uuid}" ]] || {
+                echoContent red "Unable to read the selected account UUID."
+                return 1
+            }
         fi
     elif [[ "${coreInstallType}" == "2" ]]; then
         jq -r -c .inbounds[0].users[].name//.inbounds[0].users[].username ${configPath}${frontingType:-$frontingTypeReality}.json | awk '{print NR""":"$0}'
         read -r -p "Please select the user number to delete [only supports single deletion]:" delUserIndex
         if [[ $(jq -r '.inbounds[0].users|length' ${configPath}${frontingType:-$frontingTypeReality}.json) -lt ${delUserIndex} ]]; then
         echoContent red " ---> Available types are not installed"
+            return 1
         else
             delUserIndex=$((delUserIndex - 1))
         fi
     fi
 
     if [[ -n "${delUserIndex}" ]]; then
+        beginAccountTransaction || {
+            echoContent red "Unable to back up account configuration files."
+            return 1
+        }
 
-        if echo ${currentInstallProtocolType} | grep -q ",0,"; then
+        if [[ "${coreInstallType}" == "1" ]]; then
+            local xrayClientFile
+            for xrayClientFile in "${configPath}"*_inbounds.json; do
+                [[ -f "${xrayClientFile}" ]] || continue
+                if ! removeXrayClientByUUID "${xrayClientFile}" "${uuid}"; then
+                    echoContent red "Xray account removal failed; changes were rolled back."
+                    rollbackAccountTransaction
+                    return 1
+                fi
+            done
+        fi
+
+        if [[ "${coreInstallType}" != "1" ]] && echo ${currentInstallProtocolType} | grep -q ",0,"; then
             local vlessVision
             vlessVision=$(jq -r 'del(.inbounds[0].settings.clients['"${delUserIndex}"']//.inbounds[0].users['"${delUserIndex}"'])' ${configPath}02_VLESS_TCP_inbounds.json)
             echo "${vlessVision}" | jq . >${configPath}02_VLESS_TCP_inbounds.json
         fi
-        if echo ${currentInstallProtocolType} | grep -q ",1,"; then
+        if [[ "${coreInstallType}" != "1" ]] && echo ${currentInstallProtocolType} | grep -q ",1,"; then
             local vlessWSResult
             vlessWSResult=$(jq -r 'del(.inbounds[0].settings.clients['"${delUserIndex}"']//.inbounds[0].users['"${delUserIndex}"'])' ${configPath}03_VLESS_WS_inbounds.json)
             echo "${vlessWSResult}" | jq . >${configPath}03_VLESS_WS_inbounds.json
         fi
 
-        if echo ${currentInstallProtocolType} | grep -q ",2,"; then
+        if [[ "${coreInstallType}" != "1" ]] && echo ${currentInstallProtocolType} | grep -q ",2,"; then
             local trojangRPCUsers
             trojangRPCUsers=$(jq -r 'del(.inbounds[0].settings.clients['"${delUserIndex}"']//.inbounds[0].users['"${delUserIndex}"')' ${configPath}04_trojan_gRPC_inbounds.json)
             echo "${trojangRPCUsers}" | jq . >${configPath}04_trojan_gRPC_inbounds.json
         fi
 
-        if echo ${currentInstallProtocolType} | grep -q ",3,"; then
+        if [[ "${coreInstallType}" != "1" ]] && echo ${currentInstallProtocolType} | grep -q ",3,"; then
             local vmessWSResult
             vmessWSResult=$(jq -r 'del(.inbounds[0].settings.clients['"${delUserIndex}"']//.inbounds[0].users['"${delUserIndex}"'])' ${configPath}05_VMess_WS_inbounds.json)
             echo "${vmessWSResult}" | jq . >${configPath}05_VMess_WS_inbounds.json
         fi
 
-        if echo ${currentInstallProtocolType} | grep -q ",5,"; then
+        if [[ "${coreInstallType}" != "1" ]] && echo ${currentInstallProtocolType} | grep -q ",5,"; then
             local vlessGRPCResult
             vlessGRPCResult=$(jq -r 'del(.inbounds[0].settings.clients['"${delUserIndex}"']//.inbounds[0].users['"${delUserIndex}"'])' ${configPath}06_VLESS_gRPC_inbounds.json)
             echo "${vlessGRPCResult}" | jq . >${configPath}06_VLESS_gRPC_inbounds.json
         fi
 
-        if echo ${currentInstallProtocolType} | grep -q ",4,"; then
+        if [[ "${coreInstallType}" != "1" ]] && echo ${currentInstallProtocolType} | grep -q ",4,"; then
             local trojanTCPResult
             trojanTCPResult=$(jq -r 'del(.inbounds[0].settings.clients['"${delUserIndex}"']//.inbounds[0].users['"${delUserIndex}"'])' ${configPath}04_trojan_TCP_inbounds.json)
             echo "${trojanTCPResult}" | jq . >${configPath}04_trojan_TCP_inbounds.json
@@ -6278,12 +6667,12 @@ removeUser() {
             hysteriaResult=$(jq -r 'del(.inbounds[0].users['"${delUserIndex}"'])' "${singBoxConfigPath}06_hysteria2_inbounds.json")
             echo "${hysteriaResult}" | jq . >"${singBoxConfigPath}06_hysteria2_inbounds.json"
         fi
-        if echo ${currentInstallProtocolType} | grep -q ",7,"; then
+        if [[ "${coreInstallType}" != "1" ]] && echo ${currentInstallProtocolType} | grep -q ",7,"; then
             local vlessRealityResult
             vlessRealityResult=$(jq -r 'del(.inbounds[1].settings.clients['"${delUserIndex}"']//.inbounds[0].users['"${delUserIndex}"'])' ${configPath}07_VLESS_vision_reality_inbounds.json)
             echo "${vlessRealityResult}" | jq . >${configPath}07_VLESS_vision_reality_inbounds.json
         fi
-        if echo ${currentInstallProtocolType} | grep -q ",8,"; then
+        if [[ "${coreInstallType}" != "1" ]] && echo ${currentInstallProtocolType} | grep -q ",8,"; then
             local vlessRealityGRPCResult
             vlessRealityGRPCResult=$(jq -r 'del(.inbounds[0].settings.clients['"${delUserIndex}"']//.inbounds[0].users['"${delUserIndex}"'])' ${configPath}08_VLESS_vision_gRPC_inbounds.json)
             echo "${vlessRealityGRPCResult}" | jq . >${configPath}08_VLESS_vision_gRPC_inbounds.json
@@ -6312,7 +6701,7 @@ removeUser() {
             anyTLSResult=$(jq -r 'del(.inbounds[0].users['"${delUserIndex}"'])' "${singBoxConfigPath}13_anytls_inbounds.json")
             echo "${anyTLSResult}" | jq . >"${singBoxConfigPath}13_anytls_inbounds.json"
         fi
-        reloadCore
+        commitAccountTransaction || return 1
         readNginxSubscribe
         if [[ -n "${subscribePort}" ]]; then
             subscribe false
@@ -8094,12 +8483,12 @@ reloadCore() {
     readInstallType
 
     if [[ "${coreInstallType}" == "1" ]]; then
-        handleXray stop
-        handleXray start
+        handleXray stop "${1:-}" || return 1
+        handleXray start "${1:-}" || return 1
     fi
     if echo "${currentInstallProtocolType}" | grep -q ",20," || [[ "${coreInstallType}" == "2" || -n "${singBoxConfigPath}" ]]; then
-        handleSingBox stop
-        handleSingBox start
+        handleSingBox stop "${1:-}" || return 1
+        handleSingBox start "${1:-}" || return 1
     fi
 }
 
@@ -8511,29 +8900,19 @@ customXrayInstall() {
     echoContent yellow "VLESS is prefixed and 0 is installed by default. If you only need to install 0, just select 0"
     # echoContent yellow "8.VLESS+Reality+gRPC"
     echoContent yellow "0.VLESS+TLS_Vision+TCP[recommended]"
+    echoContent yellow "14.VLESS+XHTTP+TLS (Xray only)"
     read -r -p "Please select [multiple selection], [for example: 123]:" selectCustomInstallType
     echoContent skyBlue "--------------------------------------------------------------"
     if echo "${selectCustomInstallType}" | grep -q "，"; then
         echoContent red " ---> Not installed, please use script to install"
         exit 0
     fi
-    if [[ "${selectCustomInstallType}" != "12" ]] && ((${#selectCustomInstallType} >= 2)) && ! echo "${selectCustomInstallType}" | grep -q ","; then
+    if [[ "${selectCustomInstallType}" != "12" ]] && [[ "${selectCustomInstallType}" != "14" ]] && ((${#selectCustomInstallType} >= 2)) && ! echo "${selectCustomInstallType}" | grep -q ","; then
     echoContent red "\n================================================ ================="
         exit 0
     fi
-    if echo "${selectCustomInstallType}" | grep -qE '^(7|7,12|12)$'; then
-        selectCustomInstallType=",${selectCustomInstallType},"
-    else
-        if ! echo "${selectCustomInstallType}" | grep -q "0,"; then
-            selectCustomInstallType=",0,${selectCustomInstallType},"
-        else
-            selectCustomInstallType=",${selectCustomInstallType},"
-        fi
-    fi
-    if [[ "${selectCustomInstallType:0:1}" != "," ]]; then
-        selectCustomInstallType=",${selectCustomInstallType},"
-    fi
-    if [[ "${selectCustomInstallType//,/}" =~ ^[0-7]+$ ]]; then
+    selectCustomInstallType="$(normalizeXrayInstallSelection "${selectCustomInstallType}")"
+    if [[ "${selectCustomInstallType//,/}" =~ ^[0-9]+$ ]]; then
         readLastInstallationConfig
         unInstallSubscribe
         # checkBTPanel
@@ -8543,12 +8922,12 @@ customXrayInstall() {
         if [[ -n "${btDomain}" ]]; then
     echoContent skyBlue "\nFunction 1/${totalProgress}: Add inbound at any door"
             handleXray stop
-            if [[ "${selectCustomInstallType}" != ",7," ]]; then
+            if xraySelectionNeedsCustomPort "${selectCustomInstallType}"; then
                 customPortFunction
             fi
         else
-            if ! echo "${selectCustomInstallType}" | grep -qE '^(,7,|,7,12,|,12,)$'; then
-            # Apply for tls
+            if xraySelectionNeedsCertificate "${selectCustomInstallType}"; then
+                # Apply for tls
                 initTLSNginxConfig 2
                 handleXray stop
                 installTLS 3
@@ -8558,15 +8937,15 @@ customXrayInstall() {
         fi
 
         handleNginx stop
-        if echo "${selectCustomInstallType}" | grep -qE ",1,|,2,|,3,|,5,|,12,"; then
+        if echo "${selectCustomInstallType}" | grep -qE ",1,|,2,|,3,|,5,|,12,|,14,"; then
             randomPathFunction 4
         fi
-        if [[ -n "${btDomain}" ]]; then
+        if [[ -n "${btDomain}" ]] || ! xraySelectionNeedsNginx "${selectCustomInstallType}"; then
     echoContent skyBlue "\nFunction 1/${totalProgress}: SNI reverse proxy offload"
         else
             nginxBlog 6
         fi
-        if ! echo "${selectCustomInstallType}" | grep -qE '^(,7,|,7,12,|,12,)$'; then
+        if xraySelectionNeedsNginx "${selectCustomInstallType}"; then
             updateRedirectNginxConf
             handleNginx start
         fi
@@ -8576,12 +8955,16 @@ customXrayInstall() {
         installXrayService 8
         initXrayConfig custom 9
         cleanUp singBoxDel
-        if ! echo "${selectCustomInstallType}" | grep -qE '^(,7,|,7,12,|,12,)$'; then
+        if xraySelectionNeedsNginx "${selectCustomInstallType}"; then
             installCronTLS 10
         fi
 
-        handleXray stop
-        handleXray start
+        if echo "${selectCustomInstallType}" | grep -q ",14,"; then
+            restartXrayWithXHTTPTLSRollback || return 1
+        else
+            handleXray stop
+            handleXray start
+        fi
         # Generate account
         checkGFWStatue 11
         showAccounts 12
@@ -8662,9 +9045,13 @@ xrayCoreInstall() {
         nginxBlog 10
     fi
     updateRedirectNginxConf
-    handleXray stop
-    sleep 2
-    handleXray start
+    if [[ -n "${xhttpTLSDeploymentConfig:-}" ]]; then
+        restartXrayWithXHTTPTLSRollback || return 1
+    else
+        handleXray stop
+        sleep 2
+        handleXray start
+    fi
 
     handleNginx start
     checkGFWStatue 11
@@ -8801,7 +9188,7 @@ installSubscribe() {
         echo
         local httpSubscribeStatus=
 
-        if ! echo "${selectCustomInstallType}" | grep -qE ",0,|,1,|,2,|,3,|,4,|,5,|,6,|,9,|,10,|,11,|,13," && ! echo "${currentInstallProtocolType}" | grep -qE ",0,|,1,|,2,|,3,|,4,|,5,|,6,|,9,|,10,|,11,|,13," && [[ -z "${domain}" ]]; then
+        if ! echo "${selectCustomInstallType}" | grep -qE ",0,|,1,|,2,|,3,|,4,|,5,|,6,|,9,|,10,|,11,|,13,|,14," && ! echo "${currentInstallProtocolType}" | grep -qE ",0,|,1,|,2,|,3,|,4,|,5,|,6,|,9,|,10,|,11,|,13,|14," && [[ -z "${domain}" ]]; then
             httpSubscribeStatus=true
         fi
 
@@ -8949,8 +9336,6 @@ geo-update-interval: 24
 external-controller-cors:
   allow-private-network: true
 
-global-client-fingerprint: chrome
-
 profile:
   store-selected: true
   store-fake-ip: true
@@ -9013,7 +9398,7 @@ proxy-groups:
     proxies: null
   - name: 自动选择
     type: url-test
-    url: http://www.gstatic.com/generate_204
+    url: https://cp.cloudflare.com/generate_204
     interval: 36000
     tolerance: 50
     use:
@@ -9443,7 +9828,7 @@ subscribe() {
                         jq ".outbounds += $(jq '.' "/etc/v2ray-agent/subscribe_local/sing-box/${email}")" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}" >"/etc/v2ray-agent/subscribe/sing-box/${emailMd5}_tmp" && mv "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}_tmp" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}"
 
     echoContent skyBlue "Input example: www.v2ray-agent.com:443:vps1\n"
-                        echoContent yellow "url:${subscribeType}://${currentDomain}/s/sing-box/${emailMd5}\n"
+                        echoContent yellow "url:${subscribeType}://${currentDomain}/s/sing-box/${emailMd5}"
     echoContent yellow "Please read the following article carefully: https://www.v2ray-agent.com/archives/1681804748677"
                         if [[ "${release}" != "alpine" ]]; then
                             echo "${subscribeType}://${currentDomain}/s/sing-box/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
@@ -9800,6 +10185,44 @@ initXrayXHTTPort() {
         allowPort "${xHTTPort}" "udp"
         echoContent yellow "1.Switch alpn h2 first"
     fi
+}
+
+initXrayXHTTPTLSPort() {
+    xHTTPTLSPort="${xrayVLESSXHTTPTLSPort}"
+    if [[ -n "${xHTTPTLSPort}" && -z "${lastInstallationConfig}" ]]; then
+        read -r -p "Previous XHTTP TLS port found. Use it? [y/n]:" historyXHTTPTLSPortStatus
+        [[ "${historyXHTTPTLSPortStatus}" != "y" ]] && xHTTPTLSPort=
+    fi
+    local randomPort=false
+    if [[ -z "${xHTTPTLSPort}" ]]; then
+        read -r -p "XHTTP TLS public TCP port (10000-30000, Enter for random):" xHTTPTLSPort
+        [[ -z "${xHTTPTLSPort}" ]] && randomPort=true
+    fi
+    if [[ "${randomPort}" == true ]]; then
+        local attempt
+        for ((attempt = 1; attempt <= 20; attempt++)); do
+            xHTTPTLSPort=$((RANDOM % 20001 + 10000))
+            if ! lsof -i "tcp:${xHTTPTLSPort}" 2>/dev/null | grep -q LISTEN; then
+                break
+            fi
+            xHTTPTLSPort=
+        done
+        if [[ -z "${xHTTPTLSPort}" ]]; then
+            echoContent red "Unable to find a free XHTTP TLS port after 20 attempts."
+            return 1
+        fi
+    elif ! isValidXHTTPTLSPort "${xHTTPTLSPort}"; then
+        echoContent red "Invalid XHTTP TLS port; enter an integer from 10000 to 30000."
+        return 1
+    fi
+    if [[ "${xrayVLESSXHTTPTLSPort}" != "${xHTTPTLSPort}" ]]; then
+        if lsof -i "tcp:${xHTTPTLSPort}" 2>/dev/null | grep -q LISTEN; then
+            echoContent red "XHTTP TLS port ${xHTTPTLSPort} is already in use."
+            return 1
+        fi
+        checkPort "${xHTTPTLSPort}"
+    fi
+    allowPort "${xHTTPTLSPort}" tcp || return 1
 }
 
 #realitymanagement

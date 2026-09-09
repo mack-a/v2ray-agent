@@ -413,7 +413,7 @@ proxy-groups:
     proxies: null
   - name: 自动选择
     type: url-test
-    url: http://www.gstatic.com/generate_204
+    url: https://cp.cloudflare.com/generate_204
     interval: 36000
     tolerance: 50
     use:
