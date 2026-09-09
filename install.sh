@@ -1693,7 +1693,10 @@ checkPortOpen() {
 
     if [[ -z "${btDomain}" ]]; then
 
-        handleNginx stop
+        if ! handleNginx stop; then
+            echoContent red " ---> 无法停止Nginx，退出端口检测"
+            exit 1
+        fi
         # 初始化nginx配置
         touch ${nginxConfigPath}checkPortOpen.conf
         local listenIPv6PortConfig=
@@ -1719,12 +1722,19 @@ server {
     }
 }
 EOF
-        handleNginx start
+        if ! handleNginx start; then
+            rm -f "${nginxConfigPath}checkPortOpen.conf"
+            echoContent red " ---> Nginx启动失败，无法检测端口，请检查服务日志及端口占用"
+            exit 1
+        fi
         # 检查域名+端口的开放
         checkPortOpenResult=$(curl -s -m 10 "http://${domain}:${port}/checkPort")
         localIP=$(curl -s -m 10 "http://${domain}:${port}/ip")
         rm "${nginxConfigPath}checkPortOpen.conf"
-        handleNginx stop
+        if ! handleNginx stop; then
+            echoContent red " ---> 无法停止端口检测服务，退出安装"
+            exit 1
+        fi
         if [[ "${checkPortOpenResult}" == "fjkvymb6len" ]]; then
             echoContent green " ---> 检测到${port}端口已开放"
         else
@@ -2437,47 +2447,64 @@ updateSELinuxHTTPPortT() {
             $(find /usr/bin /usr/sbin | grep -w semanage) port -a -t http_port_t -p tcp 31302
             echoContent green " ---> http_port_t 31302 端口开放成功"
         fi
-        handleNginx start
+        return 0
 
     else
-        exit 0
+        return 1
     fi
 }
 
 # 操作Nginx
 handleNginx() {
+    # 使用宿主机服务状态，避免匹配或终止容器中的Nginx进程。
+    local -a nginxStart nginxStop nginxStatus
+    if [[ "${release}" == "alpine" ]]; then
+        nginxStart=(rc-service nginx start)
+        nginxStop=(rc-service nginx stop)
+        nginxStatus=(rc-service nginx status)
+    else
+        nginxStart=(systemctl start nginx)
+        nginxStop=(systemctl stop nginx)
+        nginxStatus=(systemctl is-active --quiet nginx)
+    fi
 
-    if ! echo "${selectCustomInstallType}" | grep -qwE ",7,|,8,|,7,8," && [[ -z $(pgrep -f "nginx") ]] && [[ "$1" == "start" ]]; then
-        if [[ "${release}" == "alpine" ]]; then
-            rc-service nginx start 2>/etc/v2ray-agent/nginx_error.log
-        else
-            systemctl start nginx 2>/etc/v2ray-agent/nginx_error.log
+    if [[ "$1" == "start" ]]; then
+        if echo "${selectCustomInstallType}" | grep -qwE ",7,|,8,|,7,8,"; then
+            return 0
+        fi
+        if "${nginxStatus[@]}" >/dev/null 2>&1; then
+            return 0
         fi
 
-        sleep 0.5
-
-        if [[ -z $(pgrep -f "nginx") ]]; then
-            echoContent red " ---> Nginx启动失败"
-            echoContent red " ---> 请将下方日志反馈给开发者"
-            nginx
-            if grep -q "journalctl -xe" </etc/v2ray-agent/nginx_error.log; then
-                updateSELinuxHTTPPortT
+        local startResult=0
+        "${nginxStart[@]}" 2>/etc/v2ray-agent/nginx_error.log || startResult=$?
+        if [[ "${startResult}" -ne 0 ]] || ! "${nginxStatus[@]}" >/dev/null 2>&1; then
+            # SELinux修复成功后只重试一次，避免递归启动。
+            if [[ "${release}" != "alpine" ]] && updateSELinuxHTTPPortT; then
+                startResult=0
+                "${nginxStart[@]}" 2>/etc/v2ray-agent/nginx_error.log || startResult=$?
             fi
-        else
-            echoContent green " ---> Nginx启动成功"
+            if [[ "${startResult}" -ne 0 ]] || ! "${nginxStatus[@]}" >/dev/null 2>&1; then
+                echoContent red " ---> Nginx启动失败，请检查服务日志及端口占用"
+                cat /etc/v2ray-agent/nginx_error.log
+                # 仅检查配置，不直接启动脱离服务管理的Nginx进程。
+                nginx -t || true
+                return 1
+            fi
         fi
+        echoContent green " ---> Nginx启动成功"
 
-    elif [[ -n $(pgrep -f "nginx") ]] && [[ "$1" == "stop" ]]; then
-
-        if [[ "${release}" == "alpine" ]]; then
-            rc-service nginx stop
-        else
-            systemctl stop nginx
+    elif [[ "$1" == "stop" ]]; then
+        if ! "${nginxStatus[@]}" >/dev/null 2>&1; then
+            return 0
         fi
-        sleep 0.5
-
-        if [[ -z ${btDomain} && -n $(pgrep -f "nginx") ]]; then
-            pgrep -f "nginx" | xargs kill -9
+        if ! "${nginxStop[@]}"; then
+            echoContent red " ---> Nginx关闭失败，请检查宿主机服务状态"
+            return 1
+        fi
+        if "${nginxStatus[@]}" >/dev/null 2>&1; then
+            echoContent red " ---> Nginx仍在运行，请检查宿主机服务状态"
+            return 1
         fi
         echoContent green " ---> Nginx关闭成功"
     fi
