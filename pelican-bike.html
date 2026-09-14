@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>The Great Pelican Ride</title>
+<style>
+:root{--paper:#f4e4bd;--ink:#17324b;--coral:#ef6a4c;--orange:#f5a33b;--mint:#8fb9a6;--deep:#244b58}
+*{box-sizing:border-box} body{margin:0;min-height:100vh;display:grid;place-items:center;background:#d2b77f;color:var(--ink);font-family:Georgia,serif;padding:22px}
+.poster{width:min(980px,100%);background:var(--paper);border:9px solid var(--ink);box-shadow:12px 12px 0 #a88352;position:relative;overflow:hidden;padding:24px 24px 18px}
+.poster:after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.1;background-image:radial-gradient(#17324b 0.7px,transparent .7px);background-size:5px 5px;mix-blend-mode:multiply}
+header{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:end;border-bottom:3px solid var(--ink);padding-bottom:12px;margin-bottom:4px}h1{font-size:clamp(28px,5vw,62px);line-height:.9;letter-spacing:2px;margin:0;text-transform:uppercase} .stamp{font-size:12px;letter-spacing:3px;border:2px solid var(--coral);color:var(--coral);padding:8px 10px;transform:rotate(-4deg);font-weight:bold}svg{display:block;width:100%;height:auto;position:relative;z-index:1}.caption{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center;border-top:3px solid var(--ink);padding-top:10px;margin-top:4px;font-size:14px;letter-spacing:1px;text-transform:uppercase}.caption button{font:inherit;font-weight:bold;letter-spacing:1px;color:var(--paper);background:var(--ink);border:0;padding:10px 16px;cursor:pointer}.caption button:hover{background:var(--coral)}
+.cloud{animation:drift 18s linear infinite}.cloud.slow{animation-duration:25s}.bike-wheel{transform-box:fill-box;transform-origin:center;animation:spin 1.6s linear infinite}.pelican{transform-box:fill-box;transform-origin:center bottom;animation:bob .8s ease-in-out infinite}.leg-a{transform-box:fill-box;transform-origin:top center;animation:pedalA 1.6s ease-in-out infinite}.leg-b{transform-box:fill-box;transform-origin:top center;animation:pedalB 1.6s ease-in-out infinite}.wing{transform-box:fill-box;transform-origin:bottom left;animation:flap 1.6s ease-in-out infinite}.paused *{animation-play-state:paused!important}@keyframes spin{to{transform:rotate(360deg)}}@keyframes drift{from{transform:translateX(-80px)}to{transform:translateX(980px)}}@keyframes bob{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-7px) rotate(1deg)}}@keyframes pedalA{0%,100%{transform:rotate(28deg)}50%{transform:rotate(-28deg)}}@keyframes pedalB{0%,100%{transform:rotate(-28deg)}50%{transform:rotate(28deg)}}@keyframes flap{0%,100%{transform:rotate(2deg)}50%{transform:rotate(-7deg)}}@media(prefers-reduced-motion:reduce){.cloud,.bike-wheel,.pelican,.leg-a,.leg-b,.wing{animation:none}}@media(max-width:600px){.poster{border-width:6px;padding:14px}.stamp{font-size:9px;padding:6px}.caption{font-size:11px;gap:10px}.caption button{padding:8px 10px;font-size:11px}}
+</style>
+</head>
+<body>
+<main class="poster" id="poster">
+<header><h1>The Great<br>Pelican Ride</h1><div class="stamp">COASTAL<br>EXPRESS · 1957</div></header>
+<svg viewBox="0 0 900 520" role="img" aria-labelledby="title desc">
+<title id="title">一只骑自行车的鹈鹕</title><desc id="desc">复古海报风格的鹈鹕正在海边骑自行车。</desc>
+<circle cx="755" cy="102" r="56" fill="var(--orange)" stroke="var(--ink)" stroke-width="5"/><g fill="none" stroke="var(--ink)" stroke-width="5" stroke-linecap="round"><path d="M70 130q35-32 70 0q35-32 70 0"/><path d="M650 155q28-25 56 0q28-25 56 0"/></g>
+<path d="M0 260 Q130 190 260 260T520 250T900 230V390H0Z" fill="var(--mint)" stroke="var(--ink)" stroke-width="5"/><path d="M0 310 Q160 250 300 315T600 300T900 285V390H0Z" fill="#d47f59" stroke="var(--ink)" stroke-width="5" opacity=".9"/>
+<path d="M0 366H900V520H0Z" fill="#e9c884"/><path d="M0 410q120-35 240 0t240 0t240 0t240 0" fill="none" stroke="var(--ink)" stroke-width="5"/><g fill="var(--deep)" opacity=".7"><path d="M90 360l10-34 10 34zM135 360l10-28 10 28zM790 360l10-34 10 34zM835 360l10-26 10 26z"/></g>
+<!-- bicycle -->
+<g fill="none" stroke="var(--ink)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><g class="bike-wheel"><circle cx="300" cy="390" r="66" stroke="var(--coral)"/><circle cx="300" cy="390" r="8" fill="var(--ink)"/><path d="M300 324v132M234 390h132M253 343l94 94M347 343l-94 94" stroke-width="3"/></g><g class="bike-wheel"><circle cx="610" cy="390" r="66" stroke="var(--coral)"/><circle cx="610" cy="390" r="8" fill="var(--ink)"/><path d="M610 324v132M544 390h132M563 343l94 94M657 343l-94 94" stroke-width="3"/></g><path d="M300 390l110-78 70 78-180 0 110-78 70-1M480 390l-22-96h-45M458 294h45l18-24M410 312l-8-24h-34"/><circle cx="410" cy="312" r="10" fill="var(--orange)"/><path d="M398 390h25M545 390h-28"/></g>
+<!-- pelican -->
+<g class="pelican"><path d="M455 290q-35-75 18-128q55-54 107-7q34 31 14 91q-13 40-58 56Z" fill="#f7f0dc" stroke="var(--ink)" stroke-width="6"/><path class="wing" d="M485 229q48-44 91 8q-20 38-71 45q-28-14-20-53Z" fill="var(--coral)" stroke="var(--ink)" stroke-width="5"/><path d="M528 158q-13-36 14-60q28-22 62-3q27 16 16 48q-9 27-38 34Z" fill="#fff6dc" stroke="var(--ink)" stroke-width="6"/><path d="M575 151q45 3 102 25q-4 19-28 25l-79-20Z" fill="var(--orange)" stroke="var(--ink)" stroke-width="5"/><circle cx="591" cy="128" r="6" fill="var(--ink)"/><path d="M559 115q14-14 28-5" fill="none" stroke="var(--ink)" stroke-width="4" stroke-linecap="round"/>
+<g fill="none" stroke="var(--ink)" stroke-width="7" stroke-linecap="round"><path class="leg-a" d="M500 276l-30 48 10 38"/><path class="leg-b" d="M535 277l22 48-13 38"/></g><g fill="var(--coral)" stroke="var(--ink)" stroke-width="4"><ellipse cx="480" cy="365" rx="20" ry="8"/><ellipse cx="544" cy="365" rx="20" ry="8"/></g></g>
+<text x="450" y="492" text-anchor="middle" font-size="18" letter-spacing="5" fill="var(--ink)" font-weight="bold">WIND · WHEELS · WINGS</text>
+</svg>
+<div class="caption"><span>Keep rolling toward the horizon</span><button id="toggle-motion" type="button" aria-pressed="false">Ⅱ Pause ride</button></div>
+</main>
+<script>const poster=document.querySelector('#poster');const button=document.querySelector('#toggle-motion');button.addEventListener('click',()=>{const paused=poster.classList.toggle('paused');button.textContent=paused?'▶ Continue ride':'Ⅱ Pause ride';button.setAttribute('aria-pressed',paused)});</script>
+</body></html>
