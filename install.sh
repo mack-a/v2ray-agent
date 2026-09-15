@@ -840,7 +840,7 @@ readInstallProtocolType() {
             currentInstallProtocolType="${currentInstallProtocolType}11,"
             if [[ "${coreInstallType}" == "2" ]]; then
                 frontingType=11_VMess_HTTPUpgrade_inbounds
-                singBoxVMessHTTPUpgradePort=$(grep 'listen' <${nginxConfigPath}sing_box_VMess_HTTPUpgrade.conf | awk '{print $2}')
+                singBoxVMessHTTPUpgradePort=$(grep 'listen' "${nginxConfigPath}sing_box_VMess_HTTPUpgrade.conf" 2>/dev/null | awk '{print $2}')
             fi
         fi
         if echo "${row}" | grep -q socks5_inbounds; then
@@ -1157,7 +1157,7 @@ readConfigHostPathUUID() {
         if [[ -n "${frontingType}" ]]; then
             currentHost=$(jq -r .inbounds[0].tls.server_name ${configPath}${frontingType}.json)
             if echo ${currentInstallProtocolType} | grep -q ",11," && [[ "${currentHost}" == "null" ]]; then
-                currentHost=$(grep 'server_name' <${nginxConfigPath}sing_box_VMess_HTTPUpgrade.conf | awk '{print $2}')
+                currentHost=$(grep 'server_name' "${nginxConfigPath}sing_box_VMess_HTTPUpgrade.conf" 2>/dev/null | awk '{print $2}')
                 currentHost=${currentHost//;/}
             fi
             currentUUID=$(jq -r .inbounds[0].users[0].uuid ${configPath}${frontingType}.json)
@@ -1189,10 +1189,10 @@ readConfigHostPathUUID() {
                 if [[ "${dest}" == "31302" || "${dest}" == "31304" ]]; then
                     # checkBTPanel
                     # check1Panel
-                    if grep -q "trojangrpc {" <${nginxConfigPath}alone.conf; then
-                        currentPath=$(grep "trojangrpc {" <${nginxConfigPath}alone.conf | awk -F "[/]" '{print $2}' | awk -F "[t][r][o][j][a][n]" '{print $1}')
-                    elif grep -q "grpc {" <${nginxConfigPath}alone.conf; then
-                        currentPath=$(grep "grpc {" <${nginxConfigPath}alone.conf | head -1 | awk -F "[/]" '{print $2}' | awk -F "[g][r][p][c]" '{print $1}')
+                    if [[ -f "${nginxConfigPath}alone.conf" ]] && grep -q "trojangrpc {" "${nginxConfigPath}alone.conf"; then
+                        currentPath=$(grep "trojangrpc {" "${nginxConfigPath}alone.conf" 2>/dev/null | awk -F "[/]" '{print $2}' | awk -F "[t][r][o][j][a][n]" '{print $1}')
+                    elif [[ -f "${nginxConfigPath}alone.conf" ]] && grep -q "grpc {" "${nginxConfigPath}alone.conf"; then
+                        currentPath=$(grep "grpc {" "${nginxConfigPath}alone.conf" 2>/dev/null | head -1 | awk -F "[/]" '{print $2}' | awk -F "[g][r][p][c]" '{print $1}')
                     fi
                 fi
             fi
