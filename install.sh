@@ -206,9 +206,6 @@ initVar() {
     xrayVLESSXHTTPTLSPort=
     xrayVLESSXHTTPTLSServerName=
     xHTTPTLSPort=
-    xhttpTLSDeploymentBackup=
-    xhttpTLSDeploymentConfig=
-    xhttpTLSDeploymentHadPrevious=
     #    xrayVLESSRealityPublicKey=
 
     #    interfaceName=
@@ -353,9 +350,9 @@ normalizeXrayInstallSelection() {
     for token in "${selection[@]}"; do
         [[ -z "${token}" ]] && continue
         case "${token}" in
-            0) has_zero=true ;;
-            1|2|3|4|5) has_legacy=true ;;
-            7|12|14) ;;
+        0) has_zero=true ;;
+        1 | 2 | 3 | 4 | 5) has_legacy=true ;;
+        7 | 12 | 14) ;;
         esac
         normalized+="${token},"
     done
@@ -370,7 +367,8 @@ xraySelectionNeedsNginx() {
 }
 
 xraySelectionNeedsCustomPort() {
-    [[ "${1:-}" =~ ,(0|1|2|3|4|5), ]]
+    # An empty selection is the full-install sentinel used by xrayCoreInstall.
+    [[ -z "${1:-}" || "${1:-}" =~ ,(0|1|2|3|4|5), ]]
 }
 
 xraySelectionNeedsCertificate() {
@@ -465,21 +463,6 @@ buildXHTTPTLSNodeName() {
     printf '%s\n' "${candidate}"
 }
 
-removeXrayClientByUUID() {
-    local file=$1 uuidValue=$2 dir tmp
-    [[ -f "${file}" ]] || return 1
-    dir=$(dirname "${file}")
-    tmp=$(mktemp "${dir}/.xray-client.XXXXXX") || return 1
-    if ! jq --arg uuid "${uuidValue}" '
-      .inbounds |= map(if (.settings.clients? | type) == "array"
-        then .settings.clients |= map(select((.id? != $uuid) and (.password? != $uuid)))
-        else . end)' "${file}" >"${tmp}" || ! jq empty "${tmp}"; then
-        rm -f "${tmp}"
-        return 1
-    fi
-    mv -f "${tmp}" "${file}"
-}
-
 getXrayAccountReferenceConfig() {
     local candidate
     for candidate in \
@@ -493,92 +476,6 @@ getXrayAccountReferenceConfig() {
         fi
     done
     return 1
-}
-
-beginAccountTransaction() {
-    accountTransactionDir=$(mktemp -d "${TMPDIR:-/tmp}/v2ray-agent-account.XXXXXX") || return 1
-    accountTransactionManifest="${accountTransactionDir}/manifest"
-    : >"${accountTransactionManifest}" || return 1
-    local directory file backupName count=0 seenDirectories=$'\n'
-    for directory in "${configPath:-}" "${singBoxConfigPath:-}"; do
-        [[ -z "${directory}" || "${seenDirectories}" == *$'\n'"${directory}"$'\n'* ]] && continue
-        seenDirectories="${seenDirectories}${directory}"$'\n'
-        for file in "${directory}"*_inbounds.json; do
-            [[ -f "${file}" ]] || continue
-            count=$((count + 1))
-            backupName="${accountTransactionDir}/${count}.json"
-            cp -p "${file}" "${backupName}" || { rollbackAccountTransaction; return 1; }
-            printf '%s\t%s\n' "${file}" "${backupName}" >>"${accountTransactionManifest}"
-        done
-    done
-}
-
-rollbackAccountTransaction() {
-    local file backupName
-    if [[ -f "${accountTransactionManifest:-}" ]]; then
-        while IFS=$'\t' read -r file backupName; do
-            [[ -f "${backupName}" ]] && cp -p "${backupName}" "${file}"
-        done <"${accountTransactionManifest}"
-    fi
-    [[ -n "${accountTransactionDir:-}" ]] && rm -rf "${accountTransactionDir}"
-    accountTransactionDir=
-    accountTransactionManifest=
-}
-
-commitAccountTransaction() {
-    local file backupName
-    while IFS=$'\t' read -r file backupName; do
-        if [[ ! -f "${file}" ]] || ! jq empty "${file}" >/dev/null 2>&1; then
-            echoContent red " ---> 用户配置JSON校验失败，已回滚"
-            rollbackAccountTransaction
-            reloadCore transaction >/dev/null 2>&1 || true
-            return 1
-        fi
-    done <"${accountTransactionManifest}"
-    if [[ -x "/etc/v2ray-agent/xray/xray" && -d "/etc/v2ray-agent/xray/conf" ]] && \
-        ! "/etc/v2ray-agent/xray/xray" run -test -confdir "/etc/v2ray-agent/xray/conf" >/dev/null 2>&1; then
-        echoContent red " ---> Xray用户配置校验失败，已回滚"
-        rollbackAccountTransaction
-        reloadCore transaction >/dev/null 2>&1 || true
-        return 1
-    fi
-    if ! reloadCore transaction; then
-        echoContent red " ---> 核心重载失败，已回滚用户变更"
-        rollbackAccountTransaction
-        reloadCore transaction >/dev/null 2>&1 || true
-        return 1
-    fi
-    rm -rf "${accountTransactionDir}"
-    accountTransactionDir=
-    accountTransactionManifest=
-}
-
-rollbackXrayXHTTPTLSDeployment() {
-    if [[ -n "${xhttpTLSDeploymentConfig:-}" ]]; then
-        if [[ "${xhttpTLSDeploymentHadPrevious:-}" == true && -f "${xhttpTLSDeploymentBackup:-}" ]]; then
-            mv -f "${xhttpTLSDeploymentBackup}" "${xhttpTLSDeploymentConfig}"
-        else
-            rm -f "${xhttpTLSDeploymentConfig}"
-            [[ -n "${xhttpTLSDeploymentBackup:-}" ]] && rm -f "${xhttpTLSDeploymentBackup}"
-        fi
-    fi
-    xhttpTLSDeploymentBackup=
-    xhttpTLSDeploymentConfig=
-    xhttpTLSDeploymentHadPrevious=
-}
-
-restartXrayWithXHTTPTLSRollback() {
-    if ! handleXray stop transaction || ! handleXray start transaction; then
-        rollbackXrayXHTTPTLSDeployment
-        handleXray stop transaction >/dev/null 2>&1 || true
-        handleXray start transaction >/dev/null 2>&1 || true
-        echoContent red " ---> XHTTP TLS配置重载失败，已恢复上一份配置"
-        return 1
-    fi
-    [[ -n "${xhttpTLSDeploymentBackup:-}" ]] && rm -f "${xhttpTLSDeploymentBackup}"
-    xhttpTLSDeploymentBackup=
-    xhttpTLSDeploymentConfig=
-    xhttpTLSDeploymentHadPrevious=
 }
 
 # 读取tls证书详情
@@ -640,7 +537,7 @@ readInstallType() {
     if [[ -d "/etc/v2ray-agent" ]]; then
         if [[ -f "/etc/v2ray-agent/xray/xray" ]]; then
             # 检测xray-core
-        if [[ -d "/etc/v2ray-agent/xray/conf" ]] && [[ -f "/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/02_trojan_TCP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/07_VLESS_vision_reality_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/12_VLESS_XHTTP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/14_VLESS_XHTTP_TLS_inbounds.json" ]]; then
+            if [[ -d "/etc/v2ray-agent/xray/conf" ]] && [[ -f "/etc/v2ray-agent/xray/conf/02_VLESS_TCP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/02_trojan_TCP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/07_VLESS_vision_reality_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/12_VLESS_XHTTP_inbounds.json" || -f "/etc/v2ray-agent/xray/conf/14_VLESS_XHTTP_TLS_inbounds.json" ]]; then
                 # xray-core
                 configPath=/etc/v2ray-agent/xray/conf/
                 ctlPath=/etc/v2ray-agent/xray/xray
@@ -2187,9 +2084,8 @@ customPortFunction() {
             port=${currentPort}
         fi
     fi
-    if [[ -z "${currentPort}" ]] || [[ "${historyCustomPortStatus}" == "n" ]]; then
+    if [[ -z "${currentPort}" ]] || [[ "${historyCustomPortStatus}" != "y" ]]; then
         echo
-
         if [[ -n "${btDomain}" ]]; then
             echoContent yellow "请输入端口[不可与BT Panel/1Panel端口相同，回车随机]"
             read -r -p "端口:" port
@@ -4031,36 +3927,11 @@ EOF
     fi
 }
 
-# 迁移脚本旧版本生成的sing-box出站配置
-migrateSingBoxLegacyOutboundConfig() {
-    local singBoxConfigDir=${1:-/etc/v2ray-agent/sing-box/conf/config}
-    local outboundTag=
-    local outboundConfigPath=
-
-    for outboundTag in IPv4_out IPv6_out; do
-        outboundConfigPath="${singBoxConfigDir}/${outboundTag}.json"
-        if [[ -f "${outboundConfigPath}" ]] && jq -e 'any(.outbounds[]?; .type == "direct" and (.domain_strategy? != null))' "${outboundConfigPath}" >/dev/null 2>&1; then
-            jq '
-              .outbounds |= map(
-                if .type == "direct" and (.domain_strategy? != null) then
-                  .domain_resolver = {
-                    "server": "local",
-                    "strategy": .domain_strategy
-                  }
-                  | del(.domain_strategy)
-                else . end
-              )
-            ' "${outboundConfigPath}" >"${outboundConfigPath}.tmp" && mv "${outboundConfigPath}.tmp" "${outboundConfigPath}"
-        fi
-    done
-}
-
 # 初始化sing-box远程规则集HTTP客户端
 initSingBoxHTTPClientConfig() {
     local singBoxConfigDir="/etc/v2ray-agent/sing-box/conf/config"
 
     initSingBoxLocalDNSConfig
-    migrateSingBoxLegacyOutboundConfig
     cat <<EOF >"${singBoxConfigDir}/00_http_clients.json"
 {
   "http_clients": [
@@ -4401,43 +4272,13 @@ EOF
     fi
     # VLESS XHTTP TLS tunnel (Xray-only, no Nginx path fronting)
     if echo "${selectCustomInstallType}" | grep -q ",14," || [[ "$1" == "all" ]]; then
-        initXrayXHTTPTLSPort || return 1
-        if ! checkPort 45988 transaction; then
-            echoContent red " ---> XHTTP TLS本地端口45988被占用"
-            return 1
-        fi
-        if [[ -z "${domain}" || ! -f "/etc/v2ray-agent/tls/${domain}.crt" || ! -f "/etc/v2ray-agent/tls/${domain}.key" ]]; then
-            echoContent red " ---> XHTTP TLS域名或证书不存在"
-            return 1
-        fi
-        local xhttpTLSConfigDir="${configPath:-/etc/v2ray-agent/xray/conf/}"
-        local xhttpTLSConfigFile="${xhttpTLSConfigDir}14_VLESS_XHTTP_TLS_inbounds.json"
-        local xhttpTLSTmp xhttpTLSClients
-        xhttpTLSTmp=$(mktemp "${xhttpTLSConfigDir}.14_VLESS_XHTTP_TLS.XXXXXX") || return 1
-        xhttpTLSClients=$(initXrayClients 14) || { rm -f "${xhttpTLSTmp}"; return 1; }
-        if ! buildXrayXHTTPTLSConfig "${xHTTPTLSPort}" "${domain}" "${customPath}" "${xhttpTLSClients}" | jq . >"${xhttpTLSTmp}"; then
-            rm -f "${xhttpTLSTmp}"
-            return 1
-        fi
-        local xhttpTLSBackup=""
-        local xhttpTLSHadPrevious=false
-        if [[ -f "${xhttpTLSConfigFile}" ]]; then
-            xhttpTLSBackup=$(mktemp "${xhttpTLSConfigDir}.14_VLESS_XHTTP_TLS.backup.XXXXXX") || { rm -f "${xhttpTLSTmp}"; return 1; }
-            cp -f "${xhttpTLSConfigFile}" "${xhttpTLSBackup}" || { rm -f "${xhttpTLSTmp}" "${xhttpTLSBackup}"; return 1; }
-            xhttpTLSHadPrevious=true
-        fi
-        mv -f "${xhttpTLSTmp}" "${xhttpTLSConfigFile}" || { rm -f "${xhttpTLSTmp}" "${xhttpTLSBackup}"; return 1; }
-        if [[ -x "/etc/v2ray-agent/xray/xray" ]] && ! "/etc/v2ray-agent/xray/xray" run -test -confdir "/etc/v2ray-agent/xray/conf" >/dev/null 2>&1; then
-            if [[ -n "${xhttpTLSBackup}" ]]; then mv -f "${xhttpTLSBackup}" "${xhttpTLSConfigFile}"; else rm -f "${xhttpTLSConfigFile}"; fi
-            echoContent red " ---> XHTTP TLS配置校验失败"
-            return 1
-        fi
-        xhttpTLSDeploymentBackup=${xhttpTLSBackup}
-        xhttpTLSDeploymentConfig=${xhttpTLSConfigFile}
-        xhttpTLSDeploymentHadPrevious=${xhttpTLSHadPrevious}
+        initXrayXHTTPTLSPort
+
+        buildXrayXHTTPTLSConfig "${xHTTPTLSPort}" "${domain}" "${customPath}" "$(initXrayClients 14)" | jq . >"${configPath}14_VLESS_XHTTP_TLS_inbounds.json"
     elif [[ -z "$3" ]]; then
         rm /etc/v2ray-agent/xray/conf/14_VLESS_XHTTP_TLS_inbounds.json >/dev/null 2>&1
     fi
+
     if echo "${selectCustomInstallType}" | grep -q ",3," || [[ "$1" == "all" ]]; then
         fallbacksList=${fallbacksList}',{"path":"/'${customPath}'vws","dest":31299,"xver":1}'
         cat <<EOF >/etc/v2ray-agent/xray/conf/05_VMess_WS_inbounds.json
@@ -4662,7 +4503,7 @@ EOF
     if [[ -z "$3" ]]; then
         removeXrayOutbound wireguard_out_IPv4_route
         removeXrayOutbound wireguard_out_IPv6_route
-        removeXrayOutbound wireguard_outbound
+        removeXrayOutbound  wireguard_outbound
         removeXrayOutbound IPv4_out
         removeXrayOutbound IPv6_out
         removeXrayOutbound socks5_outbound
@@ -5933,7 +5774,7 @@ showAccounts() {
     fi
     # VLESS XHTTP TLS tunnel (Xray-only subscriptions)
     if echo ${currentInstallProtocolType} | grep -q ",14," && [[ -f "${configPath}14_VLESS_XHTTP_TLS_inbounds.json" ]]; then
-        echoContent skyBlue "\n================================ VLESS XHTTP TLS [随机端口] ================================\n"
+        echoContent skyBlue "\n================================ VLESS XHTTP TLS  ================================\n"
         local xhttpTLSCDNAddress=
         if [[ -f "/etc/v2ray-agent/cdn" ]]; then
             xhttpTLSCDNAddress=$(head -1 "/etc/v2ray-agent/cdn" | tr -d '\r\n')
@@ -6429,11 +6270,6 @@ addUser() {
     elif [[ "${coreInstallType}" == "2" ]]; then
         userConfig=".inbounds[0].users"
     fi
-    beginAccountTransaction || {
-        echoContent red " ---> 无法创建用户配置备份"
-        return 1
-    }
-
     while [[ ${userNum} -gt 0 ]]; do
         readConfigHostPathUUID
         local users=
@@ -6616,7 +6452,6 @@ addUser() {
             echo "${clients}" | jq . >${configPath}13_anytls_inbounds.json
         fi
     done
-    commitAccountTransaction || return 1
     echoContent green " ---> 添加完成"
     readNginxSubscribe
     if [[ -n "${subscribePort}" ]]; then
@@ -6659,22 +6494,6 @@ removeUser() {
     fi
 
     if [[ -n "${delUserIndex}" ]]; then
-        beginAccountTransaction || {
-            echoContent red " ---> 无法创建用户配置备份"
-            return 1
-        }
-
-        if [[ "${coreInstallType}" == "1" ]]; then
-            local xrayClientFile
-            for xrayClientFile in "${configPath}"*_inbounds.json; do
-                [[ -f "${xrayClientFile}" ]] || continue
-                if ! removeXrayClientByUUID "${xrayClientFile}" "${uuid}"; then
-                    echoContent red " ---> Xray用户删除失败，已回滚"
-                    rollbackAccountTransaction
-                    return 1
-                fi
-            done
-        fi
 
         if [[ "${coreInstallType}" != "1" ]] && echo ${currentInstallProtocolType} | grep -q ",0,"; then
             local vlessVision
@@ -6750,7 +6569,6 @@ removeUser() {
             anyTLSResult=$(jq -r 'del(.inbounds[0].users['"${delUserIndex}"'])' "${singBoxConfigPath}13_anytls_inbounds.json")
             echo "${anyTLSResult}" | jq . >"${singBoxConfigPath}13_anytls_inbounds.json"
         fi
-        commitAccountTransaction || return 1
         readNginxSubscribe
         if [[ -n "${subscribePort}" ]]; then
             subscribe false
@@ -9047,12 +8865,8 @@ customXrayInstall() {
             installCronTLS 10
         fi
 
-        if echo "${selectCustomInstallType}" | grep -q ",14,"; then
-            restartXrayWithXHTTPTLSRollback || return 1
-        else
-            handleXray stop
-            handleXray start
-        fi
+        handleXray stop
+        handleXray start
         # 生成账号
         checkGFWStatue 11
         showAccounts 12
@@ -9131,13 +8945,10 @@ xrayCoreInstall() {
         nginxBlog 10
     fi
     updateRedirectNginxConf
-    if [[ -n "${xhttpTLSDeploymentConfig:-}" ]]; then
-        restartXrayWithXHTTPTLSRollback || return 1
-    else
-        handleXray stop
-        sleep 2
-        handleXray start
-    fi
+
+    handleXray stop
+    sleep 2
+    handleXray start
 
     handleNginx start
     # 生成账号
@@ -10046,6 +9857,7 @@ initRealityKey() {
     echoContent skyBlue "\n生成Reality key\n"
     if [[ -n "${currentRealityPublicKey}" && -z "${lastInstallationConfig}" ]]; then
         read -r -p "读取到上次安装记录，是否使用上次安装时的PublicKey/PrivateKey ？[y/n]:" historyKeyStatus
+        echo
         if [[ "${historyKeyStatus}" == "y" ]]; then
             realityPrivateKey=${currentRealityPrivateKey}
             realityPublicKey=${currentRealityPublicKey}
@@ -10088,6 +9900,7 @@ initRealityMldsa65() {
         if [ "$length" -gt 3500 ]; then
             if [[ -n "${currentRealityMldsa65Seed}" && -z "${lastInstallationConfig}" ]]; then
                 read -r -p "读取到上次安装记录，是否使用上次安装时的Seed/Verify ？[y/n]:" historyMldsa65Status
+                echo
                 if [[ "${historyMldsa65Status}" == "y" ]]; then
                     realityMldsa65Seed=${currentRealityMldsa65Seed}
                     realityMldsa65Verify=${currentRealityMldsa65Verify}
@@ -10112,6 +9925,7 @@ initRealityMldsa65() {
             #    echoContent green "\n Verify:${realityMldsa65Verify}"
         else
             echoContent green " 目标域名支持X25519MLKEM768，但是证书的长度不足，忽略ML-DSA-65。"
+            echo
         fi
     else
         echoContent green " 目标域名不支持X25519MLKEM768，忽略ML-DSA-65。"
@@ -10204,8 +10018,10 @@ initRealityClientServersName() {
     fi
 
     realityDestDomain="${realityServerName}:${realityDomainPort}"
-    checkRealityDest
     echoContent yellow "\n ---> 客户端可用域名: ${realityServerName}:${realityDomainPort}\n"
+    if [[ "${coreInstallType}" == "2" || "${selectCoreType}" == "2" ]]; then
+        checkRealityDest
+    fi
 }
 # 初始化reality端口
 initXrayRealityPort() {
@@ -10285,6 +10101,7 @@ initXrayXHTTPTLSPort() {
     xHTTPTLSPort=
     if [[ -n "${xrayVLESSXHTTPTLSPort}" && -z "${lastInstallationConfig}" ]]; then
         read -r -p "读取到上次安装记录，是否使用上次安装时的端口？[y/n]:" historyXHTTPTLSPortStatus
+        echo
         [[ "${historyXHTTPTLSPortStatus}" == "y" ]] && xHTTPTLSPort=${xrayVLESSXHTTPTLSPort}
     elif [[ -n "${xrayVLESSXHTTPTLSPort}" && -n "${lastInstallationConfig}" ]]; then
         xHTTPTLSPort=${xrayVLESSXHTTPTLSPort}
@@ -10520,7 +10337,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.5.24"
+    echoContent green "当前版本：v3.5.25"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
