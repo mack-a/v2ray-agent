@@ -281,8 +281,8 @@ initVar() {
     #sslmail
     sslEmail=
 
-    # Check the number of days
-    sslRenewalDays=90
+    # Automatically renew when this many days or fewer remain before expiry
+    sslRenewalThresholdDays=7
 
     #    dnsSSLStatus=
     # dns tls domain
@@ -481,6 +481,7 @@ getXrayAccountReferenceConfig() {
 # 读取tls证书详情
 readAcmeTLS() {
     local readAcmeDomain=
+    installedDNSAPIStatus=
     if [[ -n "${currentHost}" ]]; then
         readAcmeDomain="${currentHost}"
     fi
@@ -490,7 +491,10 @@ readAcmeTLS() {
     fi
 
     dnsTLSDomain=$(echo "${readAcmeDomain}" | awk -F "." '{$1="";print $0}' | sed 's/^[[:space:]]*//' | sed 's/ /./g')
-    if [[ -d "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc" && -f "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.key" && -f "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.cer" ]]; then
+    if [[ -s "$HOME/.acme.sh/${readAcmeDomain}_ecc/${readAcmeDomain}.key" && -s "$HOME/.acme.sh/${readAcmeDomain}_ecc/${readAcmeDomain}.cer" ]]; then
+        return 0
+    fi
+    if compgen -G "$HOME/.acme.sh/*${dnsTLSDomain}_ecc/*${dnsTLSDomain}.key" >/dev/null 2>&1 && compgen -G "$HOME/.acme.sh/*${dnsTLSDomain}_ecc/*${dnsTLSDomain}.cer" >/dev/null 2>&1; then
         installedDNSAPIStatus=true
     fi
 }
@@ -879,7 +883,7 @@ allowPort() {
                 checkUFWAllowPort "$1"
             fi
         fi
-    elif dpkg -l | grep -q "^[[:space:]]*ii[[:space:]]\+netfilter-persistent" && systemctl status netfilter-persistent 2>/dev/null | grep -q "active (exited)"; then
+    elif command -v dpkg >/dev/null 2>&1 && dpkg -l | grep -q "^[[:space:]]*ii[[:space:]]\+netfilter-persistent" && systemctl status netfilter-persistent 2>/dev/null | grep -q "active (exited)"; then
         local updateFirewalldStatus=
         if ! iptables -L | grep -q "$1/${type}(mack-a)"; then
             updateFirewalldStatus=true
@@ -1257,6 +1261,9 @@ checkRoot() {
 # Install toolkit
 installTools() {
     echoContent skyBlue "\nProgress$1/${totalProgress}: Installation tools"
+    # installTools can run before menu() creates the rest of the directory tree.
+    mkdir -p /etc/v2ray-agent
+    touch /etc/v2ray-agent/install.log
     # Repair individual system problems in ubuntu
     if [[ "${release}" == "ubuntu" ]]; then
         dpkg --configure -a
@@ -2413,65 +2420,110 @@ renewalTLS() {
     if [[ -n $1 ]]; then
         echoContent skyBlue "\nProgress$1/1: Update certificate"
     fi
-    readAcmeTLS
     local domain=${currentHost}
     if [[ -z "${currentHost}" && -n "${tlsDomain}" ]]; then
         domain=${tlsDomain}
     fi
+    readAcmeTLS
 
-    if [[ -f "/etc/v2ray-agent/tls/ssl_type" ]]; then
-        if grep -q "buypass" <"/etc/v2ray-agent/tls/ssl_type"; then
-            sslRenewalDays=180
-        fi
+    local acmeCertPath=
+    local acmeInstallDomain="${domain}"
+    if [[ -s "$HOME/.acme.sh/${domain}_ecc/${domain}.cer" && -s "$HOME/.acme.sh/${domain}_ecc/${domain}.key" ]]; then
+        acmeCertPath="$HOME/.acme.sh/${domain}_ecc/${domain}.cer"
+    elif [[ "${installedDNSAPIStatus}" == "true" ]]; then
+        acmeCertPath=$(compgen -G "$HOME/.acme.sh/*${dnsTLSDomain}_ecc/*${dnsTLSDomain}.cer" | head -n 1)
+        acmeInstallDomain="*.${dnsTLSDomain}"
     fi
-    if [[ -d "$HOME/.acme.sh/${domain}_ecc" && -f "$HOME/.acme.sh/${domain}_ecc/${domain}.key" && -f "$HOME/.acme.sh/${domain}_ecc/${domain}.cer" ]] || [[ "${installedDNSAPIStatus}" == "true" ]]; then
-        modifyTime=
 
-        if [[ "${installedDNSAPIStatus}" == "true" ]]; then
-            modifyTime=$(stat --format=%z "$HOME/.acme.sh/*.${dnsTLSDomain}_ecc/*.${dnsTLSDomain}.cer")
+    if [[ -z "${acmeCertPath}" || ! -s "${acmeCertPath}" ]]; then
+        if [[ -s "/etc/v2ray-agent/tls/${domain}.crt" && -s "/etc/v2ray-agent/tls/${domain}.key" ]]; then
+            echoContent yellow " ---> A custom certificate was detected, cannot execute renew operation."
         else
-            modifyTime=$(stat --format=%z "$HOME/.acme.sh/${domain}_ecc/${domain}.cer")
+            echoContent red " ---> Not installed"
         fi
+        return 0
+    fi
 
-        modifyTime=$(date +%s -d "${modifyTime}")
-        currentTime=$(date +%s)
-        ((stampDiff = currentTime - modifyTime))
-        ((days = stampDiff / 86400))
-        ((remainingDays = sslRenewalDays - days))
+    local certPath="/etc/v2ray-agent/tls/${domain}.crt"
+    if [[ ! -s "${certPath}" ]]; then
+        certPath=${acmeCertPath}
+    fi
 
-        tlsStatus=${remainingDays}
-        if [[ ${remainingDays} -le 0 ]]; then
-            tlsStatus="Expired"
-        fi
+    local notAfter
+    if ! notAfter=$(openssl x509 -in "${certPath}" -noout -enddate 2>/dev/null); then
+        echoContent red " ---> Unable to read the certificate expiration time"
+        return 1
+    fi
+    notAfter=${notAfter#notAfter=}
+    if [[ -z "${notAfter}" ]]; then
+        echoContent red " ---> Unable to parse the certificate expiration time"
+        return 1
+    fi
 
-        echoContent skyBlue " ---> Certificate check date:$(date "+%F %H:%M:%S")"
-        echoContent skyBlue " ---> Certificate generation date: $(date -d @"${modifyTime}" +"%F %H:%M:%S")"
-        echoContent skyBlue " ---> Certificate generation days: ${days}"
-        echoContent skyBlue " ---> Number of days remaining on the certificate: "${tlsStatus}
-        echoContent skyBlue " ---> The certificate will be automatically updated on the last day before it expires. If the update fails, please update manually"
-
-        if [[ ${remainingDays} -le 1 ]]; then
-            echoContent yellow " ---> Regenerate certificate"
-            handleNginx stop
-
-            if [[ "${coreInstallType}" == "1" ]]; then
-                handleXray stop
-            elif [[ "${coreInstallType}" == "2" ]]; then
-                handleSingBox stop
-            fi
-
-            sudo "$HOME/.acme.sh/acme.sh" --cron --home "$HOME/.acme.sh"
-            sudo "$HOME/.acme.sh/acme.sh" --installcert -d "${domain}" --fullchainpath /etc/v2ray-agent/tls/"${domain}.crt" --keypath /etc/v2ray-agent/tls/"${domain}.key" --ecc
-            reloadCore
-            handleNginx start
-        else
-            echoContent green " ---> The certificate is valid"
-        fi
-    elif [[ -f "/etc/v2ray-agent/tls/${tlsDomain}.crt" && -f "/etc/v2ray-agent/tls/${tlsDomain}.key" && -n $(cat "/etc/v2ray-agent/tls/${tlsDomain}.crt") ]]; then
-        echoContent yellow " ---> A custom certificate was detected , Cannot execute renew operation ."
+    local expiryTime
+    if ! expiryTime=$(date +%s -d "${notAfter}" 2>/dev/null); then
+        echoContent red " ---> Unable to parse the certificate expiration time"
+        return 1
+    fi
+    local currentTime
+    currentTime=$(date +%s)
+    local remainingSeconds=$((expiryTime - currentTime))
+    local remainingDays
+    local tlsStatus
+    if (( remainingSeconds <= 0 )); then
+        remainingDays=0
+        tlsStatus="Expired"
     else
-        echoContent red " ---> not installed"
+        remainingDays=$(( (remainingSeconds + 86399) / 86400 ))
+        tlsStatus=${remainingDays}
     fi
+
+    echoContent skyBlue " ---> Certificate check date:$(date "+%F %H:%M:%S")"
+    echoContent skyBlue " ---> Certificate expiration time:$(date -d @"${expiryTime}" +"%F %H:%M:%S")"
+    echoContent skyBlue " ---> Certificate days remaining:${tlsStatus}"
+
+    if (( remainingSeconds > sslRenewalThresholdDays * 86400 )); then
+        echoContent green " ---> The certificate is valid"
+        return 0
+    fi
+
+    echoContent yellow " ---> Certificate is within the ${sslRenewalThresholdDays}-day renewal window, starting renewal"
+    handleNginx stop
+
+    if [[ "${coreInstallType}" == "1" ]]; then
+        handleXray stop
+    elif [[ "${coreInstallType}" == "2" ]]; then
+        handleSingBox stop
+    fi
+
+    local renewalSuccess=false
+    if sudo "$HOME/.acme.sh/acme.sh" --cron --home "$HOME/.acme.sh" &&
+        sudo "$HOME/.acme.sh/acme.sh" --installcert -d "${acmeInstallDomain}" --fullchainpath "/etc/v2ray-agent/tls/${domain}.crt" --keypath "/etc/v2ray-agent/tls/${domain}.key" --ecc; then
+        local newExpiry
+        local newNotAfter
+        if newNotAfter=$(openssl x509 -in "/etc/v2ray-agent/tls/${domain}.crt" -noout -enddate 2>/dev/null); then
+            newNotAfter=${newNotAfter#notAfter=}
+            if newExpiry=$(date +%s -d "${newNotAfter}" 2>/dev/null) && (( newExpiry > currentTime && newExpiry > expiryTime )); then
+                renewalSuccess=true
+                echoContent green " ---> Certificate renewal succeeded, new expiration time:$(date -d @"${newExpiry}" +"%F %H:%M:%S")"
+            fi
+        fi
+    fi
+
+    if [[ "${renewalSuccess}" != "true" ]]; then
+        echoContent red " ---> Certificate renewal failed; the next scheduled task will retry"
+        if [[ "${coreInstallType}" == "1" ]]; then
+            handleXray start
+        elif [[ "${coreInstallType}" == "2" ]]; then
+            handleSingBox start
+        fi
+        handleNginx start
+        return 1
+    fi
+
+    reloadCore
+    handleNginx start
+    return 0
 }
 
 # 安装 sing-box
@@ -5324,6 +5376,7 @@ EOF
     tls: true
     udp: true
     flow: xtls-rprx-vision
+    packet-encoding: xudp
     servername: ${realityServerName}
     reality-opts:
       public-key: ${publicKey}
@@ -10341,7 +10394,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "Author: mack-a"
-    echoContent green " Current version: v3.5.25"
+    echoContent green " Current version: v3.5.26"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "Description: 8-in-1 coexistence script\c"
     showInstallStatus
