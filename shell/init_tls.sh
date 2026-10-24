@@ -97,26 +97,65 @@ installTools(){
 }
 # 恢复配置
 resetNginxConfig(){
-    `cp -Rrf /tmp/mack-a/nginx/nginx.conf /etc/nginx/nginx.conf`
-    rm -rf /etc/nginx/conf.d/5NX2O9XQKP.conf
+    if ! cp -f /tmp/mack-a/nginx/nginx.conf /etc/nginx/nginx.conf; then
+        echoColor red "Nginx配置恢复失败，请检查备份文件\n"
+        return 1
+    fi
+    rm -f /etc/nginx/conf.d/5NX2O9XQKP.conf || return 1
     echoColor green "\n恢复配置完毕"
 }
 # 备份
 bakConfig(){
-    mkdir -p /tmp/mack-a/nginx
-    `cp -Rrf /etc/nginx/nginx.conf /tmp/mack-a/nginx/nginx.conf`
+    mkdir -p /tmp/mack-a/nginx || return 1
+    cp -f /etc/nginx/nginx.conf /tmp/mack-a/nginx/nginx.conf
 }
+# 检查Nginx服务是否运行
+isNginxRunning(){
+    systemctl is-active --quiet nginx
+}
+startNginx(){
+    systemctl start nginx || return 1
+    isNginxRunning
+}
+stopNginx(){
+    if ! isNginxRunning; then
+        return 0
+    fi
+    systemctl stop nginx || return 1
+    ! isNginxRunning
+}
+restoreNginxState(){
+    local restoreResult=0
+    if ! stopNginx; then
+        echoColor red "临时Nginx服务停止失败，请检查服务状态\n"
+        restoreResult=1
+    fi
+    resetNginxConfig || return 1
+    if [[ ${restoreResult} != 0 ]]; then
+        return 1
+    fi
+    if [[ ${nginxStatus} = 2 ]] && ! startNginx; then
+        echoColor red "Nginx恢复启动失败，请检查服务状态\n"
+        return 1
+    fi
+    return 0
+}
+
 # 安装证书
 installTLS(){
-    echoColor yellow "请输入域名【例:blog.v2ray-agent.com】："
-    read domain
-    if [[ -z ${domain} ]]
-    then
+    while true; do
+        echoColor yellow "请输入域名【例:blog.v2ray-agent.com】："
+        read -r domain || return 1
+        if [[ -n ${domain} ]]; then
+            break
+        fi
         echoColor red "域名未填写\n"
-        installTLS
-    fi
+    done
     # 备份
-    bakConfig
+    if ! bakConfig; then
+        echoColor red "Nginx配置备份失败，退出证书申请\n"
+        return 1
+    fi
     # 替换原始文件中的域名
     if [[ ! -z `cat /etc/nginx/nginx.conf|grep -v grep|grep "${domain}"` ]]
     then
@@ -125,50 +164,64 @@ installTLS(){
 
     touch /etc/nginx/conf.d/6GFV1ES52V2.conf
     echo "server {listen 80;server_name ${domain};root /usr/share/nginx/html;location ~ /.well-known {allow all;}location /test {return 200 '5NX2O9XQKP';}}" > /etc/nginx/conf.d/5NX2O9XQKP.conf
-    nginxStatus=1;
-    if [[ ! -z `ps -ef|grep -v grep|grep nginx` ]]
+    local nginxStatus=1
+    if isNginxRunning
     then
         nginxStatus=2;
-        ps -ef|grep -v grep|grep nginx|awk '{print $2}'|xargs kill -9
+        if ! stopNginx; then
+            echoColor red "Nginx停止失败，无法申请证书\n"
+            restoreNginxState
+            return 1
+        fi
         sleep 0.5
-        nginx
-    else
-        nginx
+    fi
+    if ! startNginx; then
+        echoColor red "Nginx启动失败，无法验证域名\n"
+        restoreNginxState
+        return 1
     fi
     echoColor yellow "\n验证域名以及服务器是否可用"
     if [[ ! -z `curl -s ${domain}/test|grep 5NX2O9XQKP` ]]
     then
-        ps -ef|grep -v grep|grep nginx|awk '{print $2}'|xargs kill -9
+        if ! stopNginx; then
+            echoColor red "Nginx停止失败，无法继续申请证书\n"
+            restoreNginxState
+            return 1
+        fi
         sleep 0.5
         echoColor green "服务可用，生成TLS中，请等待\n"
     else
         echoColor red "服务不可用请检测dns配置是否正确"
         # 恢复备份
-        resetNginxConfig
-        exit 0;
+        restoreNginxState
+        return 1
     fi
-    sudo ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 >/dev/null
-    ~/.acme.sh/acme.sh --installcert -d ${domain} --fullchainpath /tmp/mack-a/nginx/${domain}.crt --keypath /tmp/mack-a/nginx/${domain}.key --ecc >/dev/null
-    if [[ -z `cat /tmp/mack-a/nginx/${domain}.key` ]]
+    if ! sudo ~/.acme.sh/acme.sh --issue -d "${domain}" --standalone -k ec-256 >/dev/null; then
+        echoColor red "证书申请失败，请检查acme日志\n"
+        restoreNginxState
+        return 1
+    fi
+    if ! ~/.acme.sh/acme.sh --installcert -d "${domain}" --fullchainpath "/tmp/mack-a/nginx/${domain}.crt" --keypath "/tmp/mack-a/nginx/${domain}.key" --ecc >/dev/null; then
+        echoColor red "证书安装失败，请检查acme日志\n"
+        restoreNginxState
+        return 1
+    fi
+    if [[ ! -s /tmp/mack-a/nginx/${domain}.key ]]
     then
         echoColor red "证书key生成失败，请重新运行"
-        resetNginxConfig
-        exit
-    elif [[ -z `cat /tmp/mack-a/nginx/${domain}.crt` ]]
+        restoreNginxState
+        return 1
+    elif [[ ! -s /tmp/mack-a/nginx/${domain}.crt ]]
     then
         echoColor red "证书crt生成失败，请重新运行"
-        resetNginxConfig
-        exit
+        restoreNginxState
+        return 1
     fi
     echoColor green "证书生成成功"
     echoColor green "证书目录/tmp/mack-a/nginx"
     ls /tmp/mack-a/nginx
 
-    resetNginxConfig
-    if [[ ${nginxStatus} = 2  ]]
-    then
-        nginx
-    fi
+    restoreNginxState
 }
 
 init(){
