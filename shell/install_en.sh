@@ -463,6 +463,90 @@ buildXHTTPTLSNodeName() {
     printf '%s\n' "${candidate}"
 }
 
+# Restore every file if a multi-protocol user deletion fails.
+restoreXrayUserConfigs() {
+    local backupDir=$1 file index=0 status=0
+    shift
+    for file in "$@"; do
+        cp -p "${backupDir}/${index}.backup" "${file}" || status=1
+        index=$((index + 1))
+    done
+    return "${status}"
+}
+
+# Stage all changes before writing files and reloading the cores.
+deleteXrayUserByUUID() {
+    local uuidValue=$1 backupDir file tmpFile index=0 failed=false
+    local -a files=()
+    [[ -n "${uuidValue}" && -n "${configPath}" ]] || return 1
+    backupDir=$(mktemp -d "${TMPDIR:-/tmp}/v2ray-agent-delete.XXXXXX") || return 1
+    for file in "${configPath}"*_inbounds.json; do
+        [[ -f "${file}" ]] && files+=("${file}")
+    done
+    if [[ -n "${singBoxConfigPath}" ]]; then
+        for file in "${singBoxConfigPath}06_hysteria2_inbounds.json" "${singBoxConfigPath}09_tuic_inbounds.json"; do
+            [[ -f "${file}" ]] && files+=("${file}")
+        done
+    fi
+    for file in "${files[@]}"; do
+        if ! cp -p "${file}" "${backupDir}/${index}.backup" ||
+            ! jq -e --arg uuid "${uuidValue}" '
+              .inbounds |= map(
+                if (.settings.clients? | type) == "array" then
+                  .settings.clients |= map(select((.id? != $uuid) and (.password? != $uuid)))
+                elif .type == "hysteria2" and (.users? | type) == "array" then
+                  .users |= map(select(.password? != $uuid))
+                elif .type == "tuic" and (.users? | type) == "array" then
+                  .users |= map(select(.uuid? != $uuid))
+                else . end)' "${file}" >"${backupDir}/${index}.json"; then
+            rm -rf "${backupDir}"
+            return 1
+        fi
+        index=$((index + 1))
+    done
+    index=0
+    for file in "${files[@]}"; do
+        if ! cmp -s "${backupDir}/${index}.backup" "${backupDir}/${index}.json"; then
+            tmpFile=$(mktemp "${file}.delete.XXXXXX") || { failed=true; break; }
+            if ! cp -p "${file}" "${tmpFile}" ||
+                ! cat "${backupDir}/${index}.json" >"${tmpFile}" ||
+                ! mv -f "${tmpFile}" "${file}"; then
+                rm -f "${tmpFile}"
+                failed=true
+                break
+            fi
+        fi
+        index=$((index + 1))
+    done
+    if [[ "${failed}" == false ]] && ! "${ctlPath}" run -test -confdir "${configPath}"; then
+        failed=true
+    fi
+    if [[ "${failed}" == false && -n "${singBoxConfigPath}" ]]; then
+        local singBoxCtl="${singBoxConfigPath%/conf/config/}/sing-box"
+        if ! "${singBoxCtl}" merge "${backupDir}/sing-box.json" -C "${singBoxConfigPath}" -D "${singBoxConfigPath%config/}" ||
+            ! "${singBoxCtl}" check -c "${backupDir}/sing-box.json" -D "${singBoxConfigPath%config/}"; then
+            failed=true
+        fi
+    fi
+    if [[ "${failed}" == true ]]; then
+        if restoreXrayUserConfigs "${backupDir}" "${files[@]}"; then
+            rm -rf "${backupDir}"
+        else
+            echoContent red " ---> Restore failed; backups: ${backupDir}"
+        fi
+        return 1
+    fi
+    if ! reloadCore transaction; then
+        if restoreXrayUserConfigs "${backupDir}" "${files[@]}" && reloadCore transaction; then
+            rm -rf "${backupDir}"
+        else
+            echoContent red " ---> Service recovery failed; backups: ${backupDir}"
+        fi
+        return 1
+    fi
+    rm -rf "${backupDir}"
+}
+
 getXrayAccountReferenceConfig() {
     local candidate
     for candidate in \
@@ -6559,26 +6643,40 @@ addUser() {
 # Remove user
 removeUser() {
 
+    local delUserIndex=
     local uuid=
     local referenceConfig=
     if [[ "${coreInstallType}" == "1" ]]; then
         referenceConfig=$(getXrayAccountReferenceConfig) || {
-            echoContent red " ---> No manageable entries found for Xray user configuration "
+            echoContent red " ---> No manageable Xray user configuration found"
             return 1
         }
         jq -r -c '(.inbounds[0].settings.clients // .inbounds[1].settings.clients)[]?|.email' "${referenceConfig}" | awk '{print NR""":"$0}'
-        read -r -p "Please select the user number to delete [only supports single deletion]:" delUserIndex
-        if [[ ! "${delUserIndex}" =~ ^[0-9]+$ ]] || [[ "${delUserIndex}" -lt 1 ]] || [[ $(jq -r '(.inbounds[0].settings.clients // .inbounds[1].settings.clients)?|length' "${referenceConfig}") -lt ${delUserIndex} ]]; then
+        read -r -p "Please select the user number to delete [single deletion only]:" delUserIndex
+        if ! delUserIndex=$(jq -enr --arg index "${delUserIndex}" \
+            --argjson count "$(jq '(.inbounds[0].settings.clients // .inbounds[1].settings.clients) | length' "${referenceConfig}")" '
+              select($index | test("^[0-9]+$")) | ($index | tonumber) |
+              select(. >= 1 and . <= $count) | . - 1'); then
             echoContent red " ---> Wrong selection"
             return 1
         else
-            delUserIndex=$((delUserIndex - 1))
             uuid=$(jq -r --argjson index "${delUserIndex}" '(.inbounds[0].settings.clients // .inbounds[1].settings.clients)[$index].id // (.inbounds[0].settings.clients // .inbounds[1].settings.clients)[$index].password // empty' "${referenceConfig}")
             [[ -n "${uuid}" ]] || {
                 echoContent red " ---> Unable to read the selected user's UUID"
                 return 1
             }
         fi
+        if ! deleteXrayUserByUUID "${uuid}"; then
+            echoContent red " ---> User deletion failed; check the errors above"
+            return 1
+        fi
+        echoContent green " ---> User deleted"
+        readNginxSubscribe
+        if [[ -n "${subscribePort}" ]]; then
+            subscribe false || echoContent red " ---> User deleted, but subscription refresh failed"
+        fi
+        manageAccount 1
+        return
     elif [[ "${coreInstallType}" == "2" ]]; then
         jq -r -c .inbounds[0].users[].name//.inbounds[0].users[].username ${configPath}${frontingType:-$frontingTypeReality}.json | awk '{print NR""":"$0}'
         read -r -p "Please select the user number to delete [only supports single deletion]:" delUserIndex
@@ -10434,7 +10532,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "Author: mack-a"
-    echoContent green " Current version: v3.5.27"
+    echoContent green " Current version: v3.5.28"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "Description: 8-in-1 coexistence script\c"
     showInstallStatus

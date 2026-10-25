@@ -463,6 +463,90 @@ buildXHTTPTLSNodeName() {
     printf '%s\n' "${candidate}"
 }
 
+# Restore every file if a multi-protocol user deletion fails.
+restoreXrayUserConfigs() {
+    local backupDir=$1 file index=0 status=0
+    shift
+    for file in "$@"; do
+        cp -p "${backupDir}/${index}.backup" "${file}" || status=1
+        index=$((index + 1))
+    done
+    return "${status}"
+}
+
+# Stage all changes before writing files and reloading the cores.
+deleteXrayUserByUUID() {
+    local uuidValue=$1 backupDir file tmpFile index=0 failed=false
+    local -a files=()
+    [[ -n "${uuidValue}" && -n "${configPath}" ]] || return 1
+    backupDir=$(mktemp -d "${TMPDIR:-/tmp}/v2ray-agent-delete.XXXXXX") || return 1
+    for file in "${configPath}"*_inbounds.json; do
+        [[ -f "${file}" ]] && files+=("${file}")
+    done
+    if [[ -n "${singBoxConfigPath}" ]]; then
+        for file in "${singBoxConfigPath}06_hysteria2_inbounds.json" "${singBoxConfigPath}09_tuic_inbounds.json"; do
+            [[ -f "${file}" ]] && files+=("${file}")
+        done
+    fi
+    for file in "${files[@]}"; do
+        if ! cp -p "${file}" "${backupDir}/${index}.backup" ||
+            ! jq -e --arg uuid "${uuidValue}" '
+              .inbounds |= map(
+                if (.settings.clients? | type) == "array" then
+                  .settings.clients |= map(select((.id? != $uuid) and (.password? != $uuid)))
+                elif .type == "hysteria2" and (.users? | type) == "array" then
+                  .users |= map(select(.password? != $uuid))
+                elif .type == "tuic" and (.users? | type) == "array" then
+                  .users |= map(select(.uuid? != $uuid))
+                else . end)' "${file}" >"${backupDir}/${index}.json"; then
+            rm -rf "${backupDir}"
+            return 1
+        fi
+        index=$((index + 1))
+    done
+    index=0
+    for file in "${files[@]}"; do
+        if ! cmp -s "${backupDir}/${index}.backup" "${backupDir}/${index}.json"; then
+            tmpFile=$(mktemp "${file}.delete.XXXXXX") || { failed=true; break; }
+            if ! cp -p "${file}" "${tmpFile}" ||
+                ! cat "${backupDir}/${index}.json" >"${tmpFile}" ||
+                ! mv -f "${tmpFile}" "${file}"; then
+                rm -f "${tmpFile}"
+                failed=true
+                break
+            fi
+        fi
+        index=$((index + 1))
+    done
+    if [[ "${failed}" == false ]] && ! "${ctlPath}" run -test -confdir "${configPath}"; then
+        failed=true
+    fi
+    if [[ "${failed}" == false && -n "${singBoxConfigPath}" ]]; then
+        local singBoxCtl="${singBoxConfigPath%/conf/config/}/sing-box"
+        if ! "${singBoxCtl}" merge "${backupDir}/sing-box.json" -C "${singBoxConfigPath}" -D "${singBoxConfigPath%config/}" ||
+            ! "${singBoxCtl}" check -c "${backupDir}/sing-box.json" -D "${singBoxConfigPath%config/}"; then
+            failed=true
+        fi
+    fi
+    if [[ "${failed}" == true ]]; then
+        if restoreXrayUserConfigs "${backupDir}" "${files[@]}"; then
+            rm -rf "${backupDir}"
+        else
+            echoContent red " ---> 恢复配置失败，备份保留在： ${backupDir}"
+        fi
+        return 1
+    fi
+    if ! reloadCore transaction; then
+        if restoreXrayUserConfigs "${backupDir}" "${files[@]}" && reloadCore transaction; then
+            rm -rf "${backupDir}"
+        else
+            echoContent red " ---> 恢复服务失败，备份保留在： ${backupDir}"
+        fi
+        return 1
+    fi
+    rm -rf "${backupDir}"
+}
+
 getXrayAccountReferenceConfig() {
     local candidate
     for candidate in \
@@ -6555,6 +6639,7 @@ addUser() {
 # 移除用户
 removeUser() {
 
+    local delUserIndex=
     local uuid=
     local referenceConfig=
     if [[ "${coreInstallType}" == "1" ]]; then
@@ -6564,17 +6649,30 @@ removeUser() {
         }
         jq -r -c '(.inbounds[0].settings.clients // .inbounds[1].settings.clients)[]?|.email' "${referenceConfig}" | awk '{print NR""":"$0}'
         read -r -p "请选择要删除的用户编号[仅支持单个删除]:" delUserIndex
-        if [[ ! "${delUserIndex}" =~ ^[0-9]+$ ]] || [[ "${delUserIndex}" -lt 1 ]] || [[ $(jq -r '(.inbounds[0].settings.clients // .inbounds[1].settings.clients)?|length' "${referenceConfig}") -lt ${delUserIndex} ]]; then
+        if ! delUserIndex=$(jq -enr --arg index "${delUserIndex}" \
+            --argjson count "$(jq '(.inbounds[0].settings.clients // .inbounds[1].settings.clients) | length' "${referenceConfig}")" '
+              select($index | test("^[0-9]+$")) | ($index | tonumber) |
+              select(. >= 1 and . <= $count) | . - 1'); then
             echoContent red " ---> 选择错误"
             return 1
         else
-            delUserIndex=$((delUserIndex - 1))
             uuid=$(jq -r --argjson index "${delUserIndex}" '(.inbounds[0].settings.clients // .inbounds[1].settings.clients)[$index].id // (.inbounds[0].settings.clients // .inbounds[1].settings.clients)[$index].password // empty' "${referenceConfig}")
             [[ -n "${uuid}" ]] || {
                 echoContent red " ---> 无法读取所选用户的UUID"
                 return 1
             }
         fi
+        if ! deleteXrayUserByUUID "${uuid}"; then
+            echoContent red " ---> 删除用户失败，请检查上方错误信息"
+            return 1
+        fi
+        echoContent green " ---> 删除用户完成"
+        readNginxSubscribe
+        if [[ -n "${subscribePort}" ]]; then
+            subscribe false || echoContent red " ---> 用户已删除，但订阅刷新失败"
+        fi
+        manageAccount 1
+        return
     elif [[ "${coreInstallType}" == "2" ]]; then
         jq -r -c .inbounds[0].users[].name//.inbounds[0].users[].username ${configPath}${frontingType:-$frontingTypeReality}.json | awk '{print NR""":"$0}'
         read -r -p "请选择要删除的用户编号[仅支持单个删除]:" delUserIndex
@@ -10430,7 +10528,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.5.27"
+    echoContent green "当前版本：v3.5.28"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
