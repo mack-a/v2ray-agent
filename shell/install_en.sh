@@ -1048,6 +1048,9 @@ readLastInstallationConfig() {
 # 卸载 sing-box
 unInstallSingBox() {
     local type=$1
+    local hoppingTarget=${singBoxHysteria2Port}
+    [[ "${type}" != tuic ]] || hoppingTarget=${singBoxTuicPort}
+    deletePortHoppingRules "${type}" '' '' "${hoppingTarget}" || return 1
     if [[ -n "${singBoxConfigPath}" ]]; then
         if grep -q 'tuic' </etc/v2ray-agent/sing-box/conf/config.json && [[ "${type}" == "tuic" ]]; then
             rm "${singBoxConfigPath}09_tuic_inbounds.json"
@@ -2889,7 +2892,11 @@ updateXray() {
             remoteVersion=$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases/latest | jq -r .tag_name)
         fi
 
-        echoContent green " ---> Latest version :${remoteVersion}"
+        if [[ "${prereleaseStatus}" == "true" ]]; then
+            echoContent green " ---> Latest Pre-release version :${remoteVersion}"
+        else
+            echoContent green " ---> Latest version :${remoteVersion}"
+        fi
 
         if [[ -n "$1" ]]; then
             version=$1
@@ -2909,7 +2916,11 @@ updateXray() {
                 echoContent green " ---> Abandon the rollback version"
             fi
         elif [[ "${version}" == "v$(/etc/v2ray-agent/xray/xray --version | awk '{print $2}' | head -1)" ]]; then
-            read -r -p "The current version is the same as the latest version. Do you want to reinstall? [y/n]:" reInstallXrayStatus
+            if [[ "${prereleaseStatus}" == "true" ]]; then
+                read -r -p "The current version is the same as the latest pre-release version. Do you want to reinstall? [y/n]:" reInstallXrayStatus
+            else
+                read -r -p "The current version is the same as the latest version. Do you want to reinstall? [y/n]:" reInstallXrayStatus
+            fi
             if [[ "${reInstallXrayStatus}" == "y" ]]; then
                 handleXray stop
                 rm -f /etc/v2ray-agent/xray/xray
@@ -2918,7 +2929,11 @@ updateXray() {
                 echoContent green " ---> Give up and reinstall"
             fi
         else
-            read -r -p "The latest version is: ${version}, is it updated? [y/n]:" installXrayStatus
+            if [[ "${prereleaseStatus}" == "true" ]]; then
+                read -r -p "The latest pre-release version is: ${version}, do you want to update? [y/n]:" installXrayStatus
+            else
+                read -r -p "The latest version is: ${version}, is it updated? [y/n]:" installXrayStatus
+            fi
             if [[ "${installXrayStatus}" == "y" ]]; then
                 rm /etc/v2ray-agent/xray/xray
                 updateXray
@@ -3382,179 +3397,466 @@ initHysteria2Network() {
     fi
 }
 
-# firewalld设置端口跳跃
-addFirewalldPortHopping() {
-
-    local start=$1
-    local end=$2
-    local targetPort=$3
-    for port in $(seq "$start" "$end"); do
-        sudo firewall-cmd --permanent --add-forward-port=port="${port}":proto=udp:toport="${targetPort}"
+# Port hopping rules are owned per protocol; never flush another firewall's rules.
+validPortHoppingConfig() {
+    [[ "$1" == hysteria2 || "$1" == tuic ]] || return 1
+    local number
+    for number in "$2" "$3" "$4" "${5:-60}"; do
+        [[ "${number}" =~ ^[0-9]{1,5}$ ]] || return 1
     done
-    sudo firewall-cmd --reload
+    ((10#$2 >= 1 && 10#$2 <= 10#$3 && 10#$3 <= 65535 && 10#$4 >= 1 && 10#$4 <= 65535 && 10#${5:-60} >= 5 && 10#${5:-60} <= 86400))
+}
+
+portHoppingBackend() {
+    if command -v firewall-cmd >/dev/null 2>&1 && firewall-cmd --state >/dev/null 2>&1; then
+        echo firewalld
+    elif command -v nft >/dev/null 2>&1 && nft list tables >/dev/null 2>&1; then
+        echo nftables
+    elif command -v iptables >/dev/null 2>&1 && iptables -w -t nat -S PREROUTING >/dev/null 2>&1; then
+        echo iptables
+    else
+        return 1
+    fi
+}
+
+# Also read rules created by older installers, whose metadata was not saved.
+loadPortHoppingConfig() {
+    local type=$1 targetPort=$2 tool saved ports
+    hoppingBackend= hoppingStart= hoppingEnd= hoppingTarget= hoppingZone= hoppingFamilies=
+    hoppingInterval=60
+    [[ "${type}" == hysteria2 || "${type}" == tuic ]] || return 1
+    local state="/etc/v2ray-agent/port-hopping/${type}.json"
+    if [[ -f "${state}" ]]; then
+        saved=$(jq -er '[.backend, .start, .end, .target, .interval, .families, .zone] | map(tostring) | join("|")' "${state}") || return 1
+        IFS='|' read -r hoppingBackend hoppingStart hoppingEnd hoppingTarget hoppingInterval hoppingFamilies hoppingZone <<<"${saved}"
+        [[ "${hoppingBackend}" == nftables || "${hoppingBackend}" == iptables || "${hoppingBackend}" == firewalld || "${hoppingBackend}" == legacy-iptables || "${hoppingBackend}" == legacy-firewalld ]] || return 1
+        [[ "${hoppingFamilies}" == 4 || "${hoppingFamilies}" == 4,6 ]] || return 1
+        [[ "${hoppingZone}" =~ ^[a-zA-Z0-9_-]*$ ]] || return 1
+        validPortHoppingConfig "${type}" "${hoppingStart}" "${hoppingEnd}" "${hoppingTarget}" "${hoppingInterval}"
+        return $?
+    fi
+    for tool in iptables-save ip6tables-save; do
+        command -v "${tool}" >/dev/null 2>&1 || continue
+        saved=$("${tool}" -t nat 2>/dev/null) || continue
+        ports=$(echo "${saved}" | awk -v tag="mack-a_${type}_portHopping" '
+            $1 == "-A" && $2 == "PREROUTING" {
+                matchTag=0; range=""; target=""
+                for (i=3; i<=NF; i++) {
+                    if ($i == "--comment" && $(i+1) == tag) matchTag=1
+                    if ($i == "--comment" && $(i+1) == "\"" tag "\"") matchTag=1
+                    if ($i == "--dport") range=$(i+1)
+                    if ($i == "--to-destination" || $i == "--to-ports") target=$(i+1)
+                }
+                if (matchTag) {gsub(/:/, " ", range); sub(/^:/, "", target); print range, target; exit}
+            }')
+        if [[ -n "${ports}" ]]; then
+            read -r hoppingStart hoppingEnd hoppingTarget <<<"${ports}"
+            hoppingBackend=legacy-iptables
+            validPortHoppingConfig "${type}" "${hoppingStart}" "${hoppingEnd}" "${hoppingTarget}" && return 0
+        fi
+    done
+    if [[ -n "${targetPort}" ]] && command -v firewall-cmd >/dev/null 2>&1 && firewall-cmd --state >/dev/null 2>&1; then
+        hoppingZone=$(firewall-cmd --get-default-zone) || return 1
+        saved=$(firewall-cmd --zone="${hoppingZone}" --list-forward-ports) || return 1
+        ports=$(echo "${saved}" | tr ' ' '\n' | awk -F '[:=]' -v target="${targetPort}" '
+            $1 == "port" && $3 == "proto" && $4 == "udp" && $5 == "toport" && $6 == target && $7 == "toaddr" && $8 == "" && $2 ~ /^[0-9]+$/ && $2 >= 30000 && $2 <= 40000 {print $2}' | sort -n)
+        if [[ -n "${ports}" ]]; then
+            hoppingStart=$(echo "${ports}" | head -1)
+            hoppingEnd=$(echo "${ports}" | tail -1)
+            hoppingTarget=${targetPort}
+            hoppingBackend=legacy-firewalld
+            validPortHoppingConfig "${type}" "${hoppingStart}" "${hoppingEnd}" "${hoppingTarget}" && return 0
+        fi
+    fi
+    hoppingStart= hoppingEnd=
+    return 1
+}
+
+readPortHopping() {
+    local type=$1 targetPort=$2
+    local hoppingBackend hoppingStart hoppingEnd hoppingTarget hoppingInterval hoppingFamilies hoppingZone
+    if ! loadPortHoppingConfig "${type}" "${targetPort}"; then
+        hoppingStart= hoppingEnd=
+    fi
+    # A reinstalled inbound may use a different port. Do not export a stale range.
+    if [[ "${hoppingTarget}" != "${targetPort}" ]]; then
+        hoppingStart= hoppingEnd=
+    fi
+    if [[ "${type}" == hysteria2 ]]; then
+        hysteria2PortHoppingStart=${hoppingStart}
+        hysteria2PortHoppingEnd=${hoppingEnd}
+        hysteria2PortHopping=
+        hysteria2HopInterval=${hoppingInterval:-60}
+        [[ -z "${hoppingStart}" ]] || hysteria2PortHopping="${hoppingStart}-${hoppingEnd}"
+    elif [[ "${type}" == tuic ]]; then
+        tuicPortHoppingStart=${hoppingStart}
+        tuicPortHoppingEnd=${hoppingEnd}
+    fi
+}
+
+installPortHoppingService() {
+    cat > /etc/v2ray-agent/port-hopping/restore.sh <<'RESTORE' || return 1
+#!/bin/sh
+set -e
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+for file in /etc/v2ray-agent/port-hopping/*.nft; do
+    [ -f "$file" ] || continue
+    table=$(sed -n 's/^table inet \([a-zA-Z0-9_]*\) {$/\1/p' "$file")
+    [ -n "$table" ] || exit 1
+    nft list table inet "$table" >/dev/null 2>&1 || nft -f "$file"
+done
+for file in /etc/v2ray-agent/port-hopping/*.iptables; do
+    [ ! -f "$file" ] || /bin/sh "$file" add
+done
+RESTORE
+    chmod 700 /etc/v2ray-agent/port-hopping/restore.sh || return 1
+    if [[ "${release}" == alpine ]]; then
+        cat > /etc/init.d/v2ray-agent-port-hopping <<'OPENRC' || return 1
+#!/sbin/openrc-run
+description="Restore v2ray-agent port hopping"
+depend() {
+    need net
+    after nftables iptables
+    before sing-box
+}
+start() {
+    /bin/sh /etc/v2ray-agent/port-hopping/restore.sh
+}
+OPENRC
+        chmod 700 /etc/init.d/v2ray-agent-port-hopping && rc-update add v2ray-agent-port-hopping default
+    else
+        cat > /etc/systemd/system/v2ray-agent-port-hopping.service <<'SYSTEMD' || return 1
+[Unit]
+Description=Restore v2ray-agent port hopping
+After=network-pre.target nftables.service netfilter-persistent.service ufw.service
+Before=sing-box.service
+[Service]
+Type=oneshot
+ExecStart=/bin/sh /etc/v2ray-agent/port-hopping/restore.sh
+RemainAfterExit=yes
+[Install]
+WantedBy=multi-user.target
+SYSTEMD
+        systemctl daemon-reload && systemctl enable v2ray-agent-port-hopping.service
+    fi
+}
+
+cleanupPortHoppingService() {
+    if compgen -G '/etc/v2ray-agent/port-hopping/*.nft' >/dev/null || compgen -G '/etc/v2ray-agent/port-hopping/*.iptables' >/dev/null; then
+        return 0
+    fi
+    if [[ -f /etc/init.d/v2ray-agent-port-hopping ]]; then
+        rc-update del v2ray-agent-port-hopping default || return 1
+        rm -f /etc/init.d/v2ray-agent-port-hopping
+    fi
+    if [[ -f /etc/systemd/system/v2ray-agent-port-hopping.service ]]; then
+        systemctl disable --now v2ray-agent-port-hopping.service || return 1
+        rm -f /etc/systemd/system/v2ray-agent-port-hopping.service
+        systemctl daemon-reload || return 1
+    fi
+    rm -f /etc/v2ray-agent/port-hopping/restore.sh
+}
+
+firewalldPortHoppingRule() {
+    printf 'rule family="ipv%s" forward-port port="%s-%s" protocol="udp" to-port="%s"' "$1" "$2" "$3" "$4"
+}
+
+# Query before changing a rule: an absent rule is OK, a query error is not.
+changeFirewalldPortHopping() {
+    local action=$1 zone=$2 start=$3 end=$4 targetPort=$5 family mode rule status
+    for family in 4 6; do
+        rule=$(firewalldPortHoppingRule "${family}" "${start}" "${end}" "${targetPort}")
+        for mode in runtime permanent; do
+            local options=(--zone="${zone}")
+            [[ "${mode}" != permanent ]] || options+=(--permanent)
+            firewall-cmd "${options[@]}" --query-rich-rule="${rule}" >/dev/null 2>&1
+            status=$?
+            ((status == 0 || status == 1)) || return 1
+            if [[ "${action}" == check ]]; then
+                ((status == 1)) || return 1
+            elif [[ "${action}" == add && "${status}" == 1 ]]; then
+                firewall-cmd "${options[@]}" --add-rich-rule="${rule}" >/dev/null || return 1
+            elif [[ "${action}" == delete && "${status}" == 0 ]]; then
+                firewall-cmd "${options[@]}" --remove-rich-rule="${rule}" >/dev/null || return 1
+            fi
+        done
+    done
+}
+
+createPortHoppingRules() {
+    local type=$1 start=$2 end=$3 targetPort=$4 interval=${5:-60}
+    validPortHoppingConfig "${type}" "${start}" "${end}" "${targetPort}" "${interval}" || return 1
+    start=$((10#${start})); end=$((10#${end})); targetPort=$((10#${targetPort})); interval=$((10#${interval}))
+    local hoppingBackend hoppingStart hoppingEnd hoppingTarget hoppingInterval hoppingFamilies hoppingZone
+    [[ ! -e "/etc/v2ray-agent/port-hopping/${type}.json" ]] || return 1
+    if loadPortHoppingConfig "${type}" "${targetPort}"; then
+        return 1
+    fi
+    local otherType=tuic otherTarget=${singBoxTuicPort} otherRange
+    if [[ "${type}" == tuic ]]; then
+        otherType=hysteria2
+        otherTarget=${singBoxHysteria2Port}
+    fi
+    otherRange=$(loadPortHoppingConfig "${otherType}" "${otherTarget}" && echo "${hoppingStart} ${hoppingEnd}")
+    if [[ -n "${otherRange}" ]]; then
+        local otherStart otherEnd
+        read -r otherStart otherEnd <<<"${otherRange}"
+        ((end < otherStart || start > otherEnd)) || return 1
+    fi
+    local backend zone= families=4 dir=/etc/v2ray-agent/port-hopping file extension status=0
+    backend=$(portHoppingBackend) || return 1
+    mkdir -p "${dir}" && chmod 700 "${dir}" || return 1
+    file="${dir}/${type}"
+    case "${backend}" in
+    nftables)
+        # Refuse to overwrite an existing table without its ownership metadata.
+        if nft list table inet "v2ray_agent_${type}" >/dev/null 2>&1; then
+            return 1
+        fi
+        extension=nft
+        cat > "${file}.nft.tmp" <<NFT
+table inet v2ray_agent_${type} {
+    chain prerouting {
+        type nat hook prerouting priority dstnat; policy accept;
+        fib daddr type local udp dport ${start}-${end} counter redirect to :${targetPort} comment "mack-a_${type}_portHopping"
+    }
+}
+NFT
+        if [[ "$?" != 0 ]] || ! nft -c -f "${file}.nft.tmp"; then
+            rm -f "${file}.nft.tmp"
+            return 1
+        fi
+        ;;
+    iptables)
+        if [[ -n $(cat /proc/net/if_inet6 2>/dev/null) ]]; then
+            command -v ip6tables >/dev/null 2>&1 && ip6tables -w -t nat -S PREROUTING >/dev/null 2>&1 || return 1
+            families=4,6
+        fi
+        extension=iptables
+        cat > "${file}.iptables.tmp" <<IPTABLES
+#!/bin/sh
+set -e
+HOPPING_ACTION=\${1:-add}
+for tool in iptables $([[ "${families}" != 4,6 ]] || echo ip6tables); do
+    if "\$tool" -w -t nat -C PREROUTING -p udp --dport ${start}:${end} -m addrtype --dst-type LOCAL -m comment --comment mack-a_${type}_portHopping -j REDIRECT --to-ports ${targetPort} 2>/dev/null; then
+        [ "\$HOPPING_ACTION" != delete ] || "\$tool" -w -t nat -D PREROUTING -p udp --dport ${start}:${end} -m addrtype --dst-type LOCAL -m comment --comment mack-a_${type}_portHopping -j REDIRECT --to-ports ${targetPort}
+    else
+        status=\$?
+        [ "\$status" -eq 1 ] || exit "\$status"
+        [ "\$HOPPING_ACTION" = delete ] || "\$tool" -w -t nat -A PREROUTING -p udp --dport ${start}:${end} -m addrtype --dst-type LOCAL -m comment --comment mack-a_${type}_portHopping -j REDIRECT --to-ports ${targetPort}
+    fi
+done
+IPTABLES
+        if [[ "$?" != 0 ]]; then
+            rm -f "${file}.iptables.tmp"
+            return 1
+        fi
+        ;;
+    firewalld)
+        zone=$(firewall-cmd --get-default-zone) || return 1
+        [[ "${zone}" =~ ^[a-zA-Z0-9_-]+$ ]] || return 1
+        changeFirewalldPortHopping check "${zone}" "${start}" "${end}" "${targetPort}" || return 1
+        ;;
+    esac
+    # Publish ownership before changing the firewall, so failed rollback is retryable.
+    if ! jq -n --arg backend "${backend}" --arg zone "${zone}" --arg families "${families}" \
+        --argjson start "${start}" --argjson end "${end}" --argjson target "${targetPort}" --argjson interval "${interval}" \
+        '{backend:$backend,start:$start,end:$end,target:$target,interval:$interval,zone:$zone,families:$families}' > "${file}.json.tmp" ||
+        ! mv "${file}.json.tmp" "${file}.json"; then
+        rm -f "${file}.json.tmp" "${file}.nft.tmp" "${file}.iptables.tmp"
+        return 1
+    fi
+    if [[ "${backend}" == firewalld ]]; then
+        changeFirewalldPortHopping add "${zone}" "${start}" "${end}" "${targetPort}" || status=1
+    else
+        mv "${file}.${extension}.tmp" "${file}.${extension}" || status=1
+        if [[ "${status}" == 0 ]]; then
+            if [[ "${backend}" == nftables ]]; then
+                nft -f "${file}.nft" || status=1
+            else
+                /bin/sh "${file}.iptables" add || status=1
+            fi
+        fi
+        if [[ "${status}" == 0 ]]; then
+            installPortHoppingService || status=1
+        fi
+    fi
+    if ((status != 0)); then
+        deletePortHoppingRules "${type}" '' '' "${targetPort}" || return 1
+        rm -f "${file}.nft.tmp" "${file}.iptables.tmp"
+        return 1
+    fi
+}
+
+# Delete legacy iptables rules from highest index down, preserving unrelated rules.
+deleteLegacyPortHopping() {
+    local type=$1 targetPort=$2 backend=$3 start=$4 end=$5 tool rules lines line
+    for tool in iptables ip6tables; do
+        [[ "${backend}" == legacy-iptables ]] || break
+        command -v "${tool}" >/dev/null 2>&1 || continue
+        rules=$("${tool}" -w -t nat -L PREROUTING -n --line-numbers 2>/dev/null) || return 1
+        lines=$(echo "${rules}" | awk -v tag="mack-a_${type}_portHopping" '{for(i=2;i<=NF;i++) if($i==tag) {print $1;break}}' | sort -rn)
+        while read -r line; do
+            [[ -n "${line}" ]] || continue
+            "${tool}" -w -t nat -D PREROUTING "${line}" || return 1
+        done <<<"${lines}"
+    done
+    if [[ "${backend}" == legacy-iptables ]] && command -v netfilter-persistent >/dev/null 2>&1; then
+        netfilter-persistent save || return 1
+    fi
+    if [[ "${backend}" == legacy-firewalld ]]; then
+        local zone mode spec saved
+        zone=$(firewall-cmd --get-default-zone) || return 1
+        for mode in runtime permanent; do
+            local options=(--zone="${zone}")
+            [[ "${mode}" != permanent ]] || options+=(--permanent)
+            saved=$(firewall-cmd "${options[@]}" --list-forward-ports) || return 1
+            for spec in ${saved}; do
+                if [[ "${spec}" =~ ^port=([0-9]+):proto=udp:toport=([0-9]+):toaddr=$ ]] && [[ "${BASH_REMATCH[2]}" == "${targetPort}" ]] && ((BASH_REMATCH[1] >= start && BASH_REMATCH[1] <= end)); then
+                    firewall-cmd "${options[@]}" --remove-forward-port="${spec}" >/dev/null || return 1
+                fi
+            done
+        done
+    fi
+}
+
+deletePortHoppingRules() {
+    local type=$1 targetPort=$4
+    local hoppingBackend hoppingStart hoppingEnd hoppingTarget hoppingInterval hoppingFamilies hoppingZone
+    local file="/etc/v2ray-agent/port-hopping/${type}"
+    [[ "${type}" == hysteria2 || "${type}" == tuic ]] || return 1
+    if [[ -f "${file}.json" ]]; then
+        loadPortHoppingConfig "${type}" "${targetPort}" || return 1
+        case "${hoppingBackend}" in
+        nftables)
+            local tables
+            tables=$(nft list tables) || return 1
+            if echo "${tables}" | grep -qx "table inet v2ray_agent_${type}"; then
+                nft delete table inet "v2ray_agent_${type}" || return 1
+            fi
+            ;;
+        iptables)
+            [[ -f "${file}.iptables" ]] && /bin/sh "${file}.iptables" delete || return 1
+            # netfilter-persistent may have saved these rules after another action.
+            if command -v netfilter-persistent >/dev/null 2>&1; then
+                netfilter-persistent save || return 1
+            fi
+            ;;
+        firewalld)
+            changeFirewalldPortHopping delete "${hoppingZone}" "${hoppingStart}" "${hoppingEnd}" "${hoppingTarget}" || return 1
+            ;;
+        legacy-iptables|legacy-firewalld)
+            deleteLegacyPortHopping "${type}" "${hoppingTarget}" "${hoppingBackend}" "${hoppingStart}" "${hoppingEnd}" || return 1
+            ;;
+        esac
+        rm -f "${file}.json" "${file}.nft" "${file}.iptables" || return 1
+    else
+        if loadPortHoppingConfig "${type}" "${targetPort}"; then
+            # Save a deletion checkpoint: runtime removal may succeed while saving
+            # persistent rules fails. The next attempt must still finish cleanup.
+            mkdir -p /etc/v2ray-agent/port-hopping && chmod 700 /etc/v2ray-agent/port-hopping || return 1
+            jq -n --arg backend "${hoppingBackend}" --arg zone "${hoppingZone}" \
+                --argjson start "${hoppingStart}" --argjson end "${hoppingEnd}" --argjson target "${hoppingTarget}" \
+                '{backend:$backend,start:$start,end:$end,target:$target,interval:60,zone:$zone,families:"4"}' > "${file}.json.tmp" &&
+                mv "${file}.json.tmp" "${file}.json" || return 1
+            deletePortHoppingRules "${type}" '' '' "${targetPort}"
+            return $?
+        fi
+    fi
+    cleanupPortHoppingService
+}
+
+removeAllPortHopping() {
+    deletePortHoppingRules hysteria2 '' '' "${singBoxHysteria2Port}" &&
+        deletePortHoppingRules tuic '' '' "${singBoxTuicPort}"
+}
+
+buildSingBoxHysteria2Node() {
+    local port=$1 email=$2 password=$3
+    jq -n --arg port "${port}" --arg tag "${email}" --arg password "${password}" --arg host "${currentHost}" \
+        --argjson listenPort "${singBoxHysteria2Port}" --argjson up "${hysteria2ClientUploadSpeed}" \
+        --argjson down "${hysteria2ClientDownloadSpeed}" --arg interval "${hysteria2HopInterval:-60}s" \
+        '{tag:$tag,type:"hysteria2",server:$host,up_mbps:$up,down_mbps:$down,password:$password,tls:{enabled:true,server_name:$host,alpn:["h3"]}} +
+        (if $port | contains("-") then {server_ports:[($port | sub("-"; ":"))],hop_interval:$interval} else {server_port:$listenPort} end)'
 }
 
 # 端口跳跃
 addPortHopping() {
-    local type=$1
-    local targetPort=$2
-    if [[ -n "${portHoppingStart}" || -n "${portHoppingEnd}" ]]; then
-        echoContent red " ---> Already added; duplicate entries are not allowed , Delete it before adding it again "
-        exit 0
+    local type=$1 targetPort=$2 range interval=60
+    local hoppingBackend hoppingStart hoppingEnd hoppingTarget hoppingInterval hoppingFamilies hoppingZone
+    if [[ -e "/etc/v2ray-agent/port-hopping/${type}.json" ]] || loadPortHoppingConfig "${type}" "${targetPort}"; then
+        echoContent red " ---> Port hopping already exists; delete it before adding a new range"
+        return 1
     fi
-    if [[ "${release}" == "centos" ]]; then
-        if ! systemctl status firewalld 2>/dev/null | grep -q "active (running)"; then
-            echoContent red " ---> Not running: firewalld firewall , Cannot configure port hopping ."
-            exit 0
+    echoContent yellow "Enter a port range, e.g. 30000-31000 (within 30000-40000)"
+    read -r -p "Range:" range
+    if [[ ! "${range}" =~ ^[0-9]{5}-[0-9]{5}$ ]]; then
+        echoContent red " ---> Invalid range"
+        return 1
+    fi
+    local start=${range%-*} end=${range#*-}
+    if ! validPortHoppingConfig "${type}" "${start}" "${end}" "${targetPort}" || ((10#${start} < 30000 || 10#${end} > 40000)); then
+        echoContent red " ---> Invalid range or protocol is not installed"
+        return 1
+    fi
+    if [[ "${type}" == hysteria2 ]]; then
+        read -r -p "Hop interval (seconds, default 60, minimum 5):" interval
+        interval=${interval:-60}
+        if ! validPortHoppingConfig "${type}" "${start}" "${end}" "${targetPort}" "${interval}"; then
+            echoContent red " ---> Hop interval must be 5-86400 seconds"
+            return 1
         fi
     fi
-
-    echoContent skyBlue "\n Progress 1/1 : port hopping "
-    echoContent red "\n=============================================================="
-    echoContent yellow "# Notes\n"
-    echoContent yellow " Only supports Hysteria2、Tuic"
-    echoContent yellow " The port-hopping range starts at 30000"
-    echoContent yellow " The port-hopping range ends at 40000"
-    echoContent yellow " Choose within 30000-40000 range: select a subrange "
-    echoContent yellow " Recommended 1000 entries "
-    echoContent yellow " Do not overlap existing port-hopping ranges , Overlapping settings will overwrite existing rules ."
-
-    echoContent yellow " Enter the port-hopping range , e.g. [30000-31000]"
-
-    read -r -p " Range :" portHoppingRange
-    if [[ -z "${portHoppingRange}" ]]; then
-        echoContent red " ---> Range cannot be empty "
-        addPortHopping "${type}" "${targetPort}"
-    elif echo "${portHoppingRange}" | grep -q "-"; then
-
-        local portStart=
-        local portEnd=
-        portStart=$(echo "${portHoppingRange}" | awk -F '-' '{print $1}')
-        portEnd=$(echo "${portHoppingRange}" | awk -F '-' '{print $2}')
-
-        if [[ -z "${portStart}" || -z "${portEnd}" ]]; then
-            echoContent red " ---> Invalid range "
-            addPortHopping "${type}" "${targetPort}"
-        elif ((portStart < 30000 || portStart > 40000 || portEnd < 30000 || portEnd > 40000 || portEnd < portStart)); then
-            echoContent red " ---> Invalid range "
-            addPortHopping "${type}" "${targetPort}"
-        else
-            echoContent green "\n Port range : ${portHoppingRange}\n"
-            if [[ "${release}" == "centos" ]]; then
-                sudo firewall-cmd --permanent --add-masquerade
-                sudo firewall-cmd --reload
-                addFirewalldPortHopping "${portStart}" "${portEnd}" "${targetPort}"
-                if ! sudo firewall-cmd --list-forward-ports | grep -q "toport=${targetPort}"; then
-                    echoContent red " ---> Failed to add port hopping "
-                    exit 0
-                fi
-            else
-                iptables -t nat -A PREROUTING -p udp --dport "${portStart}:${portEnd}" -m comment --comment "mack-a_${type}_portHopping" -j DNAT --to-destination ":${targetPort}"
-                sudo netfilter-persistent save
-                if ! iptables-save | grep -q "mack-a_${type}_portHopping"; then
-                    echoContent red " ---> Failed to add port hopping "
-                    exit 0
-                fi
-            fi
-            allowPort "${portStart}:${portEnd}" udp
-            echoContent green " ---> Port hopping added "
+    if ! portHoppingBackend >/dev/null; then
+        if [[ -n "${installType}" ]] && ! command -v nft >/dev/null 2>&1; then
+            ${installType} nftables || return 1
         fi
     fi
+    if ! createPortHoppingRules "${type}" "${start}" "${end}" "${targetPort}" "${interval}"; then
+        echoContent red " ---> Failed to add rules; check the firewall, startup service and overlapping ranges"
+        return 1
+    fi
+    echoContent green " ---> Port hopping enabled, range: ${start}-${end}"
+    echoContent yellow " ---> Allow this UDP range in your cloud security group, then refresh the client subscription"
 }
 
-# 读取端口跳跃的配置
-readPortHopping() {
-    local type=$1
-    local targetPort=$2
-    local portHoppingStart=
-    local portHoppingEnd=
-
-    if [[ "${release}" == "centos" ]]; then
-        portHoppingStart=$(sudo firewall-cmd --list-forward-ports | grep "toport=${targetPort}" | head -1 | cut -d ":" -f 1 | cut -d "=" -f 2)
-        portHoppingEnd=$(sudo firewall-cmd --list-forward-ports | grep "toport=${targetPort}" | tail -n 1 | cut -d ":" -f 1 | cut -d "=" -f 2)
-    else
-        if iptables-save | grep -q "mack-a_${type}_portHopping"; then
-            local portHopping=
-            portHopping=$(iptables-save | grep "mack-a_${type}_portHopping" | cut -d " " -f 8)
-
-            portHoppingStart=$(echo "${portHopping}" | cut -d ":" -f 1)
-            portHoppingEnd=$(echo "${portHopping}" | cut -d ":" -f 2)
-        fi
-    fi
-    if [[ "${type}" == "hysteria2" ]]; then
-        hysteria2PortHoppingStart="${portHoppingStart}"
-        hysteria2PortHoppingEnd=${portHoppingEnd}
-        hysteria2PortHopping="${portHoppingStart}-${portHoppingEnd}"
-    elif [[ "${type}" == "tuic" ]]; then
-        tuicPortHoppingStart="${portHoppingStart}"
-        tuicPortHoppingEnd="${portHoppingEnd}"
-        #        tuicPortHopping="${portHoppingStart}-${portHoppingEnd}"
-    fi
-}
-# 删除端口跳跃iptables规则
-deletePortHoppingRules() {
-    local type=$1
-    local start=$2
-    local end=$3
-    local targetPort=$4
-
-    if [[ "${release}" == "centos" ]]; then
-        for port in $(seq "${start}" "${end}"); do
-            sudo firewall-cmd --permanent --remove-forward-port=port="${port}":proto=udp:toport="${targetPort}"
-        done
-        sudo firewall-cmd --reload
-    else
-        iptables -t nat -L PREROUTING --line-numbers | grep "mack-a_${type}_portHopping" | awk '{print $1}' | while read -r line; do
-            iptables -t nat -D PREROUTING 1
-            sudo netfilter-persistent save
-        done
-    fi
-}
-
-# 端口跳跃菜单
 portHoppingMenu() {
-    local type=$1
-    # Determine whether iptables exists
-    if ! find /usr/bin /usr/sbin | grep -q -w iptables; then
-        echoContent red " ---> Unable to detect iptables Tools , Port hopping is unavailable , Exit installation "
-        exit 0
-    fi
-
-    local targetPort=
-    local portHoppingStart=
-    local portHoppingEnd=
-
-    if [[ "${type}" == "hysteria2" ]]; then
-        readPortHopping "${type}" "${singBoxHysteria2Port}"
-        targetPort=${singBoxHysteria2Port}
-        portHoppingStart=${hysteria2PortHoppingStart}
-        portHoppingEnd=${hysteria2PortHoppingEnd}
-    elif [[ "${type}" == "tuic" ]]; then
-        readPortHopping "${type}" "${singBoxTuicPort}"
-        targetPort=${singBoxTuicPort}
-        portHoppingStart=${tuicPortHoppingStart}
-        portHoppingEnd=${tuicPortHoppingEnd}
-    fi
-
-    echoContent skyBlue "\n Progress 1/1 : port hopping "
-    echoContent red "\n=============================================================="
-    echoContent yellow "1. Add port hopping "
-    echoContent yellow "2. Delete port hopping "
-    echoContent yellow "3. View port hopping "
-    read -r -p " Select :" selectPortHoppingStatus
-    if [[ "${selectPortHoppingStatus}" == "1" ]]; then
-        addPortHopping "${type}" "${targetPort}"
-    elif [[ "${selectPortHoppingStatus}" == "2" ]]; then
-        deletePortHoppingRules "${type}" "${portHoppingStart}" "${portHoppingEnd}" "${targetPort}"
-        echoContent green " ---> Deleted successfully "
-    elif [[ "${selectPortHoppingStatus}" == "3" ]]; then
-        if [[ -n "${portHoppingStart}" && -n "${portHoppingEnd}" ]]; then
-            echoContent green " ---> Current port-hopping range: : ${portHoppingStart}-${portHoppingEnd}"
+    local type=$1 targetPort selectPortHoppingStatus
+    case "${type}" in
+    hysteria2) targetPort=${singBoxHysteria2Port} ;;
+    tuic) targetPort=${singBoxTuicPort} ;;
+    *) return 1 ;;
+    esac
+    echoContent skyBlue "\nProgress 1/1 : Port hopping"
+    echoContent yellow "1. Add port hopping"
+    echoContent yellow "2. Delete port hopping"
+    echoContent yellow "3. View port hopping"
+    read -r -p "Select:" selectPortHoppingStatus
+    case "${selectPortHoppingStatus}" in
+    1) addPortHopping "${type}" "${targetPort}" || return 1 ;;
+    2)
+        deletePortHoppingRules "${type}" '' '' "${targetPort}" || {
+            echoContent red " ---> Removal failed; configuration was kept for retry"
+            return 1
+        }
+        echoContent green " ---> Deleted successfully"
+        ;;
+    3)
+        local hoppingBackend hoppingStart hoppingEnd hoppingTarget hoppingInterval hoppingFamilies hoppingZone
+        if loadPortHoppingConfig "${type}" "${targetPort}"; then
+            echoContent green " ---> Current range: ${hoppingStart}-${hoppingEnd}, target port: ${hoppingTarget}, firewall: ${hoppingBackend}"
+            [[ "${type}" != hysteria2 ]] || echoContent green " ---> Hop interval: ${hoppingInterval}s"
         else
-            echoContent yellow " ---> Port hopping is not configured "
+            echoContent yellow " ---> Port hopping is not configured"
         fi
-    else
-        portHoppingMenu
+        return 0
+        ;;
+    *) return 0 ;;
+    esac
+    readPortHopping "${type}" "${targetPort}"
+    readNginxSubscribe
+    if [[ -n "${subscribePort}" ]]; then
+        subscribe false
     fi
 }
 
@@ -5442,7 +5744,8 @@ EOF
         local multiPort=
         local multiPortEncode
         if echo "${port}" | grep -q "-"; then
-            clashMetaPortContent="ports: ${port}"
+            clashMetaPortContent="ports: \"${port}\"
+    hop-interval: ${hysteria2HopInterval:-60}"
             multiPort="mport=${port}&"
             multiPortEncode="mport%3D${port}%26"
         fi
@@ -5452,7 +5755,10 @@ EOF
 hysteria2://${id}@${currentHost}:${singBoxHysteria2Port}?${multiPort}peer=${currentHost}&insecure=0&sni=${currentHost}&alpn=h3#${email}
 EOF
         echoContent yellow " ---> v2rayN(hysteria+TLS)"
-        echo "{\"server\": \"${currentHost}:${port}\",\"socks5\": { \"listen\": \"127.0.0.1:7798\", \"timeout\": 300},\"auth\":\"${id}\",\"tls\":{\"sni\":\"${currentHost}\"}}" | jq
+        jq -n --arg server "${currentHost}:${port}" --arg password "${id}" --arg host "${currentHost}" \
+            --arg port "${port}" --arg interval "${hysteria2HopInterval:-60}s" \
+            '{server:$server,socks5:{listen:"127.0.0.1:7798",timeout:300},auth:$password,tls:{sni:$host}} +
+            (if $port | contains("-") then {transport:{udp:{hopInterval:$interval}}} else {} end)'
 
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
   - name: "${email}"
@@ -5467,7 +5773,9 @@ EOF
     down: "${hysteria2ClientDownloadSpeed} Mbps"
 EOF
 
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"hysteria2\",\"server\":\"${currentHost}\",\"server_port\":${singBoxHysteria2Port},\"up_mbps\":${hysteria2ClientUploadSpeed},\"down_mbps\":${hysteria2ClientDownloadSpeed},\"password\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"alpn\":[\"h3\"]}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
+        local hysteria2Node
+        hysteria2Node=$(buildSingBoxHysteria2Node "${port}" "${email}" "${id}") || return 1
+        singBoxSubscribeLocalConfig=$(jq --argjson node "${hysteria2Node}" '. += [$node]' "/etc/v2ray-agent/subscribe_local/sing-box/${user}") || return 1
         echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
 
         echoContent yellow " ---> QR code Hysteria(TLS)"
@@ -6268,6 +6576,10 @@ unInstall() {
         menu
         exit 0
     fi
+    removeAllPortHopping || {
+        echoContent red " ---> Port hopping cleanup failed; uninstall stopped. Check the firewall and retry"
+        return 1
+    }
     # checkBTPanel
     echoContent yellow " ---> The script will not delete acme related configurations. To delete, please execute manually [rm -rf /root/.acme.sh]"
     handleNginx stop
@@ -10532,7 +10844,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "Author: mack-a"
-    echoContent green " Current version: v3.5.28"
+    echoContent green " Current version: v3.5.29"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "Description: 8-in-1 coexistence script\c"
     showInstallStatus
