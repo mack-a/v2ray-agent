@@ -5492,6 +5492,7 @@ defaultBase64Code() {
     local id=$4
     local add=$5
     local path=$6
+    local outputRoot=${accountSubscriptionLocalRoot:-/etc/v2ray-agent/subscribe_local}
     local user=
     user=$(echo "${email}" | awk -F "[-]" '{print $1}')
     if [[ "${type}" == "vlessXHTTPTLS" ]]; then
@@ -5503,12 +5504,12 @@ defaultBase64Code() {
         echoContent green " Protocol :VLESS, Address :${add}, Server name /SNI:${currentHost}, Port :${port}, User ID:${id}, Security :tls, Transport :xhttp, Path :${path}, Mode :${currentXHTTPMode:-auto}, Account :${email}\n"
         echoContent yellow " ---> QR code VLESS(VLESS+XHTTP+TLS)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dxhttp%26sni%3D${currentHost}%26host%3D${currentHost}%26fp%3Dchrome%26alpn%3Dh2%26path%3D%252F${path#/}%26mode%3D${currentXHTTPMode:-auto}%23${email}"
-        printf '%s\n' "${xhttpTLSURI}" >>"/etc/v2ray-agent/subscribe_local/default/${user}"
-        buildMihomoXHTTPTLSNode "${add}" "${port}" "${id}" "${currentHost}" "${path}" "${currentXHTTPMode:-auto}" "${email}" >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
+        printf '%s\n' "${xhttpTLSURI}" >>"${outputRoot}/default/${user}"
+        buildMihomoXHTTPTLSNode "${add}" "${port}" "${id}" "${currentHost}" "${path}" "${currentXHTTPMode:-auto}" "${email}" >>"${outputRoot}/clashMeta/${user}"
         return 0
     fi
-    if [[ ! -f "/etc/v2ray-agent/subscribe_local/sing-box/${user}" ]]; then
-        echo [] >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
+    if [[ ! -f "${outputRoot}/sing-box/${user}" ]]; then
+        echo [] >"${outputRoot}/sing-box/${user}"
     fi
     local singBoxSubscribeLocalConfig=
     if [[ "${type}" == "vlesstcp" ]]; then
@@ -5518,10 +5519,10 @@ defaultBase64Code() {
 
         echoContent yellow " ---> Formatted plain text (VLESS+TCP+TLS_Vision)"
         echoContent green " Protocol :VLESS, Address :${currentHost}, Port :${port}, User ID:${id}, Security :tls, client-fingerprint: chrome, Transport :tcp, flow:xtls-rprx-vision, Account :${email}\n"
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
+        cat <<EOF >>"${outputRoot}/default/${user}"
 vless://${id}@${currentHost}:${port}?encryption=none&security=tls&type=tcp&host=${currentHost}&fp=chrome&headerType=none&sni=${currentHost}&flow=xtls-rprx-vision#${email}
 EOF
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
+        cat <<EOF >>"${outputRoot}/clashMeta/${user}"
   - name: "${email}"
     type: vless
     server: ${currentHost}
@@ -5533,8 +5534,8 @@ EOF
     flow: xtls-rprx-vision
     client-fingerprint: chrome
 EOF
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vless\",\"server\":\"${currentHost}\",\"server_port\":${port},\"uuid\":\"${id}\",\"flow\":\"xtls-rprx-vision\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"packet_encoding\":\"xudp\"}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
-        echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vless\",\"server\":\"${currentHost}\",\"server_port\":${port},\"uuid\":\"${id}\",\"flow\":\"xtls-rprx-vision\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"packet_encoding\":\"xudp\"}]" "${outputRoot}/sing-box/${user}")
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}"
 
         echoContent yellow " ---> Formatted plain text (VLESS+TCP+TLS)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${currentHost}%3A${port}%3Fencryption%3Dnone%26fp%3Dchrome%26security%3Dtls%26type%3Dtcp%26${currentHost}%3D${currentHost}%26headerType%3Dnone%26sni%3D${currentHost}%26flow%3Dxtls-rprx-vision%23${email}\n"
@@ -5549,10 +5550,10 @@ EOF
         echoContent green "    vmess://${qrCodeBase64Default}\n"
         echoContent yellow " ---> QR code vmess(VMess+WS+TLS)"
 
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
+        cat <<EOF >>"${outputRoot}/default/${user}"
 vmess://${qrCodeBase64Default}
 EOF
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
+        cat <<EOF >>"${outputRoot}/clashMeta/${user}"
   - name: "${email}"
     type: vmess
     server: ${add}
@@ -5570,9 +5571,9 @@ EOF
       headers:
         Host: ${currentHost}
 EOF
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vmess\",\"server\":\"${add}\",\"server_port\":${port},\"uuid\":\"${id}\",\"alter_id\":0,\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"packet_encoding\":\"packetaddr\",\"transport\":{\"type\":\"ws\",\"path\":\"${path}\",\"max_early_data\":2048,\"early_data_header_name\":\"Sec-WebSocket-Protocol\"}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vmess\",\"server\":\"${add}\",\"server_port\":${port},\"uuid\":\"${id}\",\"alter_id\":0,\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"packet_encoding\":\"packetaddr\",\"transport\":{\"type\":\"ws\",\"path\":\"${path}\",\"max_early_data\":2048,\"early_data_header_name\":\"Sec-WebSocket-Protocol\"}}]" "${outputRoot}/sing-box/${user}")
 
-        echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}"
 
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vmess://${qrCodeBase64Default}\n"
 
@@ -5584,10 +5585,10 @@ EOF
         echoContent yellow " ---> Formatted plain text (VLESS+WS+TLS)"
         echoContent green " Protocol :VLESS, Address :${add}, Server name /SNI:${currentHost}, Port :${port}, client-fingerprint: chrome, User ID:${id}, Security :tls, Transport :ws, Path :${path}, Account :${email}\n"
 
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
+        cat <<EOF >>"${outputRoot}/default/${user}"
 vless://${id}@${add}:${port}?encryption=none&security=tls&type=ws&host=${currentHost}&sni=${currentHost}&fp=chrome&path=${path}#${email}
 EOF
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
+        cat <<EOF >>"${outputRoot}/clashMeta/${user}"
   - name: "${email}"
     type: vless
     server: ${add}
@@ -5604,8 +5605,8 @@ EOF
         Host: ${currentHost}
 EOF
 
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vless\",\"server\":\"${add}\",\"server_port\":${port},\"uuid\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"multiplex\":{\"enabled\":false,\"protocol\":\"smux\",\"max_streams\":32},\"packet_encoding\":\"xudp\",\"transport\":{\"type\":\"ws\",\"path\":\"${path}\",\"headers\":{\"Host\":\"${currentHost}\"}}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
-        echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vless\",\"server\":\"${add}\",\"server_port\":${port},\"uuid\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"multiplex\":{\"enabled\":false,\"protocol\":\"smux\",\"max_streams\":32},\"packet_encoding\":\"xudp\",\"transport\":{\"type\":\"ws\",\"path\":\"${path}\",\"headers\":{\"Host\":\"${currentHost}\"}}}]" "${outputRoot}/sing-box/${user}")
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}"
 
         echoContent yellow " ---> QR code VLESS(VLESS+WS+TLS)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dws%26host%3D${currentHost}%26fp%3Dchrome%26sni%3D${currentHost}%26path%3D${path}%23${email}"
@@ -5624,11 +5625,11 @@ EOF
 
         echoContent yellow " ---> Formatted details (VLESS+reality+XHTTP)"
         echoContent green " Protocol :VLESS reality, Address :${add}, publicKey:${currentRealityXHTTPPublicKey}, shortId: 6ba85179e30d4fc2,serverNames: ${xrayVLESSRealityXHTTPServerName}, Port :${port}, Path : ${path}, SNI:${xrayVLESSRealityXHTTPServerName}, Server name :${xrayVLESSRealityXHTTPServerName}, User ID:${id}, Transport :xhttp, Account :${email}\n"
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
+        cat <<EOF >>"${outputRoot}/default/${user}"
 vless://${id}@${add}:${port}?encryption=none&security=reality${xhttpMldsa65Param}&type=xhttp&sni=${xrayVLESSRealityXHTTPServerName}&fp=chrome&path=${path}&pbk=${currentRealityXHTTPPublicKey}&sid=6ba85179e30d4fc2#${email}
 EOF
 
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
+        cat <<EOF >>"${outputRoot}/clashMeta/${user}"
   - name: "${email}"
     type: vless
     server: ${add}
@@ -5662,10 +5663,10 @@ EOF
         echoContent yellow " ---> Formatted plain text (VLESS+gRPC+TLS)"
         echoContent green " Protocol :VLESS, Address :${add}, Server name /SNI:${currentHost}, Port :${port}, User ID:${id}, Security :tls, Transport :gRPC, alpn:h2, client-fingerprint: chrome,serviceName:${currentPath}grpc, Account :${email}\n"
 
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
+        cat <<EOF >>"${outputRoot}/default/${user}"
 vless://${id}@${add}:${port}?encryption=none&security=tls&type=grpc&host=${currentHost}&path=${currentPath}grpc&serviceName=${currentPath}grpc&fp=chrome&alpn=h2&sni=${currentHost}#${email}
 EOF
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
+        cat <<EOF >>"${outputRoot}/clashMeta/${user}"
   - name: "${email}"
     type: vless
     server: ${add}
@@ -5680,8 +5681,8 @@ EOF
       grpc-service-name: ${currentPath}grpc
 EOF
 
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\": \"vless\",\"server\": \"${add}\",\"server_port\": ${port},\"uuid\": \"${id}\",\"tls\": {  \"enabled\": true,  \"server_name\": \"${currentHost}\",  \"utls\": {    \"enabled\": true,    \"fingerprint\": \"chrome\"  }},\"packet_encoding\": \"xudp\",\"transport\": {  \"type\": \"grpc\",  \"service_name\": \"${currentPath}grpc\"}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
-        echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\": \"vless\",\"server\": \"${add}\",\"server_port\": ${port},\"uuid\": \"${id}\",\"tls\": {  \"enabled\": true,  \"server_name\": \"${currentHost}\",  \"utls\": {    \"enabled\": true,    \"fingerprint\": \"chrome\"  }},\"packet_encoding\": \"xudp\",\"transport\": {  \"type\": \"grpc\",  \"service_name\": \"${currentPath}grpc\"}}]" "${outputRoot}/sing-box/${user}")
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}"
 
         echoContent yellow " ---> QR code VLESS(VLESS+gRPC+TLS)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dgrpc%26host%3D${currentHost}%26serviceName%3D${currentPath}grpc%26fp%3Dchrome%26path%3D${currentPath}grpc%26sni%3D${currentHost}%26alpn%3Dh2%23${email}"
@@ -5691,11 +5692,11 @@ EOF
         echoContent yellow " ---> Trojan(TLS)"
         echoContent green "    trojan://${id}@${currentHost}:${port}?peer=${currentHost}&fp=chrome&sni=${currentHost}&alpn=http/1.1#${currentHost}_Trojan\n"
 
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
+        cat <<EOF >>"${outputRoot}/default/${user}"
 trojan://${id}@${currentHost}:${port}?peer=${currentHost}&fp=chrome&sni=${currentHost}&alpn=http/1.1#${email}_Trojan
 EOF
 
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
+        cat <<EOF >>"${outputRoot}/clashMeta/${user}"
   - name: "${email}"
     type: trojan
     server: ${currentHost}
@@ -5705,8 +5706,8 @@ EOF
     udp: true
     sni: ${currentHost}
 EOF
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"trojan\",\"server\":\"${currentHost}\",\"server_port\":${port},\"password\":\"${id}\",\"tls\":{\"alpn\":[\"http/1.1\"],\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
-        echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"trojan\",\"server\":\"${currentHost}\",\"server_port\":${port},\"password\":\"${id}\",\"tls\":{\"alpn\":[\"http/1.1\"],\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}}}]" "${outputRoot}/sing-box/${user}")
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}"
 
         echoContent yellow " ---> QR code Trojan(TLS)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${currentHost}%3a${port}%3fpeer%3d${currentHost}%26fp%3Dchrome%26sni%3d${currentHost}%26alpn%3Dhttp/1.1%23${email}\n"
@@ -5716,10 +5717,10 @@ EOF
 
         echoContent yellow " ---> Trojan gRPC(TLS)"
         echoContent green "    trojan://${id}@${add}:${port}?encryption=none&peer=${currentHost}&fp=chrome&security=tls&type=grpc&sni=${currentHost}&alpn=h2&path=${currentPath}trojangrpc&serviceName=${currentPath}trojangrpc#${email}\n"
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
+        cat <<EOF >>"${outputRoot}/default/${user}"
 trojan://${id}@${add}:${port}?encryption=none&peer=${currentHost}&security=tls&type=grpc&fp=chrome&sni=${currentHost}&alpn=h2&path=${currentPath}trojangrpc&serviceName=${currentPath}trojangrpc#${email}
 EOF
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
+        cat <<EOF >>"${outputRoot}/clashMeta/${user}"
   - name: "${email}"
     server: ${add}
     port: ${port}
@@ -5732,8 +5733,8 @@ EOF
       grpc-service-name: ${currentPath}trojangrpc
 EOF
 
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"trojan\",\"server\":\"${add}\",\"server_port\":${port},\"password\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"insecure\":true,\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"transport\":{\"type\":\"grpc\",\"service_name\":\"${currentPath}trojangrpc\",\"idle_timeout\":\"15s\",\"ping_timeout\":\"15s\",\"permit_without_stream\":false},\"multiplex\":{\"enabled\":false,\"protocol\":\"smux\",\"max_streams\":32}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
-        echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"trojan\",\"server\":\"${add}\",\"server_port\":${port},\"password\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"insecure\":true,\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"transport\":{\"type\":\"grpc\",\"service_name\":\"${currentPath}trojangrpc\",\"idle_timeout\":\"15s\",\"ping_timeout\":\"15s\",\"permit_without_stream\":false},\"multiplex\":{\"enabled\":false,\"protocol\":\"smux\",\"max_streams\":32}}]" "${outputRoot}/sing-box/${user}")
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}"
 
         echoContent yellow " ---> QR code Trojan gRPC(TLS)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${add}%3a${port}%3Fencryption%3Dnone%26fp%3Dchrome%26security%3Dtls%26peer%3d${currentHost}%26type%3Dgrpc%26sni%3d${currentHost}%26path%3D${currentPath}trojangrpc%26alpn%3Dh2%26serviceName%3D${currentPath}trojangrpc%23${email}\n"
@@ -5751,7 +5752,7 @@ EOF
         fi
 
         echoContent green "    hysteria2://${id}@${currentHost}:${singBoxHysteria2Port}?${multiPort}peer=${currentHost}&insecure=0&sni=${currentHost}&alpn=h3#${email}\n"
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
+        cat <<EOF >>"${outputRoot}/default/${user}"
 hysteria2://${id}@${currentHost}:${singBoxHysteria2Port}?${multiPort}peer=${currentHost}&insecure=0&sni=${currentHost}&alpn=h3#${email}
 EOF
         echoContent yellow " ---> v2rayN(hysteria+TLS)"
@@ -5760,7 +5761,7 @@ EOF
             '{server:$server,socks5:{listen:"127.0.0.1:7798",timeout:300},auth:$password,tls:{sni:$host}} +
             (if $port | contains("-") then {transport:{udp:{hopInterval:$interval}}} else {} end)'
 
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
+        cat <<EOF >>"${outputRoot}/clashMeta/${user}"
   - name: "${email}"
     type: hysteria2
     server: ${currentHost}
@@ -5775,8 +5776,8 @@ EOF
 
         local hysteria2Node
         hysteria2Node=$(buildSingBoxHysteria2Node "${port}" "${email}" "${id}") || return 1
-        singBoxSubscribeLocalConfig=$(jq --argjson node "${hysteria2Node}" '. += [$node]' "/etc/v2ray-agent/subscribe_local/sing-box/${user}") || return 1
-        echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
+        singBoxSubscribeLocalConfig=$(jq --argjson node "${hysteria2Node}" '. += [$node]' "${outputRoot}/sing-box/${user}") || return 1
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}"
 
         echoContent yellow " ---> QR code Hysteria(TLS)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=hysteria2%3A%2F%2F${id}%40${currentHost}%3A${singBoxHysteria2Port}%3F${multiPortEncode}peer%3D${currentHost}%26insecure%3D0%26sni%3D${currentHost}%26alpn%3Dh3%23${email}\n"
@@ -5795,10 +5796,10 @@ EOF
 
         echoContent yellow " ---> Formatted plain text (VLESS+reality+uTLS+Vision)"
         echoContent green " Protocol :VLESS reality, Address :$(getPublicIP), publicKey:${publicKey}, shortId: 6ba85179e30d4fc2, pqv=${realityMldsa65Verify}, serverNames: ${realityServerName}, Port :${port}, User ID:${id}, Transport :tcp, Account :${email}\n"
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
+        cat <<EOF >>"${outputRoot}/default/${user}"
 vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&pqv=${realityMldsa65Verify}&type=tcp&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=6ba85179e30d4fc2&flow=xtls-rprx-vision#${email}
 EOF
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
+        cat <<EOF >>"${outputRoot}/clashMeta/${user}"
   - name: "${email}"
     type: vless
     server: $(getPublicIP)
@@ -5816,8 +5817,8 @@ EOF
     client-fingerprint: chrome
 EOF
 
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vless\",\"server\":\"$(getPublicIP)\",\"server_port\":${port},\"uuid\":\"${id}\",\"flow\":\"xtls-rprx-vision\",\"tls\":{\"enabled\":true,\"server_name\":\"${realityServerName}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"},\"reality\":{\"enabled\":true,\"public_key\":\"${publicKey}\",\"short_id\":\"6ba85179e30d4fc2\"}},\"packet_encoding\":\"xudp\"}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
-        echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vless\",\"server\":\"$(getPublicIP)\",\"server_port\":${port},\"uuid\":\"${id}\",\"flow\":\"xtls-rprx-vision\",\"tls\":{\"enabled\":true,\"server_name\":\"${realityServerName}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"},\"reality\":{\"enabled\":true,\"public_key\":\"${publicKey}\",\"short_id\":\"6ba85179e30d4fc2\"}},\"packet_encoding\":\"xudp\"}]" "${outputRoot}/sing-box/${user}")
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}"
 
         echoContent yellow " ---> QR code VLESS(VLESS+reality+uTLS+Vision)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40$(getPublicIP)%3A${port}%3Fencryption%3Dnone%26security%3Dreality%26type%3Dtcp%26sni%3D${realityServerName}%26fp%3Dchrome%26pbk%3D${publicKey}%26sid%3D6ba85179e30d4fc2%26flow%3Dxtls-rprx-vision%23${email}\n"
@@ -5839,10 +5840,10 @@ EOF
         echoContent yellow " ---> Formatted plain text (VLESS+reality+uTLS+gRPC)"
         # pqv=${realityMldsa65Verify}，
         echoContent green " Protocol :VLESS reality, serviceName:grpc, Address :$(getPublicIP), publicKey:${publicKey}, shortId: 6ba85179e30d4fc2, serverNames: ${realityServerName}, Port :${port}, User ID:${id}, Transport :gRPC, client-fingerprint: chrome, Account :${email}\n"
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
+        cat <<EOF >>"${outputRoot}/default/${user}"
 vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&pqv=${realityMldsa65Verify}&type=grpc&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=6ba85179e30d4fc2&path=grpc&serviceName=grpc#${email}
 EOF
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
+        cat <<EOF >>"${outputRoot}/clashMeta/${user}"
   - name: "${email}"
     type: vless
     server: $(getPublicIP)
@@ -5860,8 +5861,8 @@ EOF
     client-fingerprint: chrome
 EOF
 
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vless\",\"server\":\"$(getPublicIP)\",\"server_port\":${port},\"uuid\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${realityServerName}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"},\"reality\":{\"enabled\":true,\"public_key\":\"${publicKey}\",\"short_id\":\"6ba85179e30d4fc2\"}},\"packet_encoding\":\"xudp\",\"transport\":{\"type\":\"grpc\",\"service_name\":\"grpc\"}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
-        echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vless\",\"server\":\"$(getPublicIP)\",\"server_port\":${port},\"uuid\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${realityServerName}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"},\"reality\":{\"enabled\":true,\"public_key\":\"${publicKey}\",\"short_id\":\"6ba85179e30d4fc2\"}},\"packet_encoding\":\"xudp\",\"transport\":{\"type\":\"grpc\",\"service_name\":\"grpc\"}}]" "${outputRoot}/sing-box/${user}")
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}"
 
         echoContent yellow " ---> QR code VLESS(VLESS+reality+uTLS+gRPC)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40$(getPublicIP)%3A${port}%3Fencryption%3Dnone%26security%3Dreality%26type%3Dgrpc%26sni%3D${realityServerName}%26fp%3Dchrome%26pbk%3D${publicKey}%26sid%3D6ba85179e30d4fc2%26path%3Dgrpc%26serviceName%3Dgrpc%23${email}\n"
@@ -5880,13 +5881,13 @@ EOF
         echoContent yellow " ---> Formatted plain text (Tuic+TLS)"
         echoContent green " Protocol :Tuic, Address :${currentHost}, Port : ${port}, uuid: ${tuicUUID}, password: ${tuicPassword}, congestion-controller:${tuicAlgorithm}, alpn: h3, Account :${email}\n"
 
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
+        cat <<EOF >>"${outputRoot}/default/${user}"
 tuic://${tuicUUID}:${tuicPassword}@${currentHost}:${port}?congestion_control=${tuicAlgorithm}&alpn=h3&sni=${currentHost}&udp_relay_mode=quic&allow_insecure=0#${email}
 EOF
         echoContent yellow " ---> v2rayN(Tuic+TLS)"
         echo "{\"relay\": {\"server\": \"${currentHost}:${port}\",\"uuid\": \"${tuicUUID}\",\"password\": \"${tuicPassword}\",\"ip\": \"${currentHost}\",\"congestion_control\": \"${tuicAlgorithm}\",\"alpn\": [\"h3\"]},\"local\": {\"server\": \"127.0.0.1:7798\"},\"log_level\": \"warn\"}" | jq
 
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
+        cat <<EOF >>"${outputRoot}/clashMeta/${user}"
   - name: "${email}"
     server: ${currentHost}
     type: tuic
@@ -5901,8 +5902,8 @@ EOF
     sni: ${email}
 EOF
 
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\": \"tuic\",\"server\": \"${currentHost}\",\"server_port\": ${port},\"uuid\": \"${tuicUUID}\",\"password\": \"${tuicPassword}\",\"congestion_control\": \"${tuicAlgorithm}\",\"tls\": {\"enabled\": true,\"server_name\": \"${currentHost}\",\"alpn\": [\"h3\"]}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
-        echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\": \"tuic\",\"server\": \"${currentHost}\",\"server_port\": ${port},\"uuid\": \"${tuicUUID}\",\"password\": \"${tuicPassword}\",\"congestion_control\": \"${tuicAlgorithm}\",\"tls\": {\"enabled\": true,\"server_name\": \"${currentHost}\",\"alpn\": [\"h3\"]}}]" "${outputRoot}/sing-box/${user}")
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}"
 
         echoContent yellow "\n ---> QR code Tuic"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=tuic%3A%2F%2F${tuicUUID}%3A${tuicPassword}%40${currentHost}%3A${tuicPort}%3Fcongestion_control%3D${tuicAlgorithm}%26alpn%3Dh3%26sni%3D${currentHost}%26udp_relay_mode%3Dquic%26allow_insecure%3D0%23${email}\n"
@@ -5910,7 +5911,7 @@ EOF
         echoContent yellow " ---> Naive(TLS)"
 
         echoContent green "    naive+https://${email}:${id}@${currentHost}:${port}?padding=true#${email}\n"
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
+        cat <<EOF >>"${outputRoot}/default/${user}"
 naive+https://${email}:${id}@${currentHost}:${port}?padding=true#${email}
 EOF
         echoContent yellow " ---> QR code Naive(TLS)"
@@ -5925,10 +5926,10 @@ EOF
         echoContent green "    vmess://${qrCodeBase64Default}\n"
         echoContent yellow " ---> QR code vmess(VMess+HTTPUpgrade+TLS)"
 
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
+        cat <<EOF >>"${outputRoot}/default/${user}"
    vmess://${qrCodeBase64Default}
 EOF
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
+        cat <<EOF >>"${outputRoot}/clashMeta/${user}"
   - name: "${email}"
     type: vmess
     server: ${add}
@@ -5947,9 +5948,9 @@ EOF
        Host: ${currentHost}
      v2ray-http-upgrade: true
 EOF
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vmess\",\"server\":\"${add}\",\"server_port\":${port},\"uuid\":\"${id}\",\"security\":\"auto\",\"alter_id\":0,\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"packet_encoding\":\"packetaddr\",\"transport\":{\"type\":\"httpupgrade\",\"path\":\"${path}\"}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vmess\",\"server\":\"${add}\",\"server_port\":${port},\"uuid\":\"${id}\",\"security\":\"auto\",\"alter_id\":0,\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"packet_encoding\":\"packetaddr\",\"transport\":{\"type\":\"httpupgrade\",\"path\":\"${path}\"}}]" "${outputRoot}/sing-box/${user}")
 
-        echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}"
 
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vmess://${qrCodeBase64Default}\n"
 
@@ -5960,10 +5961,10 @@ EOF
         echoContent green " Protocol :anytls, Address :${currentHost}, Port :${singBoxAnyTLSPort}, User ID:${id}, Transport :tcp, Account :${email}\n"
 
         echoContent green "    anytls://${id}@${currentHost}:${singBoxAnyTLSPort}?peer=${currentHost}&insecure=0&sni=${currentHost}#${email}\n"
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
+        cat <<EOF >>"${outputRoot}/default/${user}"
 anytls://${id}@${currentHost}:${singBoxAnyTLSPort}?peer=${currentHost}&insecure=0&sni=${currentHost}#${email}
 EOF
-        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
+        cat <<EOF >>"${outputRoot}/clashMeta/${user}"
   - name: "${email}"
     type: anytls
     port: ${singBoxAnyTLSPort}
@@ -5977,8 +5978,8 @@ EOF
       - http/1.1
 EOF
 
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"anytls\",\"server\":\"${currentHost}\",\"server_port\":${singBoxAnyTLSPort},\"password\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\"}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
-        echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"anytls\",\"server\":\"${currentHost}\",\"server_port\":${singBoxAnyTLSPort},\"password\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\"}}]" "${outputRoot}/sing-box/${user}")
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}"
 
         echoContent yellow " ---> QR code AnyTLS"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=anytls%3A%2F%2F${id}%40${currentHost}%3A${singBoxAnyTLSPort}%3Fpeer%3D${currentHost}%26insecure%3D0%26sni%3D${currentHost}%23${email}\n"
@@ -6000,8 +6001,78 @@ getRealitySubscriptionPort() {
     fi
 }
 
+# 从原始账号名得到现有订阅文件使用的用户键。
+accountUserKey() {
+    local name=$1
+    printf '%s\n' "${name%%-*}"
+}
+
+accountUserMatches() {
+    local user=$1 selectedKey=$2 rawName key
+    rawName=$(jq -er '.email // .name // .username // empty | strings' <<<"${user}") || return 1
+    key=$(accountUserKey "${rawName}")
+    [[ "${key}" == "${selectedKey}" ]]
+}
+
+# 读取 Xray 与 sing-box 用户配置，合并成与订阅文件一致的用户列表。
+collectAccountUsers() {
+    local dir file record name key label
+    local seenFiles=$'\n'
+    local users='[]'
+    for dir in "${configPath}" "${singBoxConfigPath}"; do
+        [[ -n "${dir}" && -d "${dir}" ]] || continue
+        while IFS= read -r -d '' file; do
+            case "${seenFiles}" in *$'\n'"${file}"$'\n'*) continue ;; esac
+            seenFiles+="${file}"$'\n'
+            jq -e 'type == "object" and (.inbounds | type == "array")' "${file}" >/dev/null 2>&1 || {
+                echoContent red " ---> Invalid user configuration: ${file}"
+                return 1
+            }
+            label=$(basename "${file}" .json)
+            while IFS= read -r record; do
+                name=$(jq -er '.email // .name // .username // empty | strings' <<<"${record}") || continue
+                key=$(accountUserKey "${name}")
+                if [[ -z "${key}" || "${key}" == . || "${key}" == .. || "${key}" == */* || "${key}" == *$'\n'* || "${key}" == *$'\r'* ]]; then
+                    echoContent red " ---> Username cannot be used safely in subscription path: ${name} (${file})"
+                    return 1
+                fi
+                users=$(jq -c --arg key "${key}" --arg name "${name}" --arg protocol "${label}" \
+                    '([.[] | select(.key == $key)][0] // {key:$key,names:[],protocols:[]}) as $current |
+                     map(select(.key != $key)) + [($current | .names += [$name] | .names |= unique | .protocols += [$protocol] | .protocols |= unique)]' \
+                    <<<"${users}") || return 1
+            done < <(jq -c '[.inbounds[]? | (.settings.clients[]?, .users[]?)] | .[]' "${file}")
+        done < <(find "${dir}" -maxdepth 1 -type f -name '*_inbounds.json' -print0 2>/dev/null)
+    done
+    jq -c 'sort_by(.key)' <<<"${users}"
+}
+
+selectAccountUser() {
+    local users=$1 count index selected
+    count=$(jq 'length' <<<"${users}") || return 1
+    ((count > 0)) || { echoContent yellow " ---> No users are available"; return 2; }
+    while :; do
+        echoContent skyBlue "\nSelect a user to view:"
+        jq -r 'to_entries[] | "\(.key + 1).\(.value.key)"' <<<"${users}"
+        read -r -p "Please enter:" selected || return 2
+        case "${selected}" in
+        ''|*[!0-9]*) echoContent red " ---> Invalid selection, try again" ;;
+        *)
+            index=$((10#${selected}))
+            if ((index >= 1 && index <= count)); then
+                accountSelectionKey=$(jq -r --argjson index "$((index - 1))" '.[$index].key' <<<"${users}") || return 1
+                return 0
+            fi
+            echoContent red " ---> Invalid selection, try again"
+            ;;
+        esac
+    done
+}
+
 # account
 showAccounts() {
+    local accountViewKey=${2:-}
+    local accountSubscriptionLocalRoot=${3:-/etc/v2ray-agent/subscribe_local}
+    local accountViewUserKey=${accountViewKey}
     readInstallType
     readInstallProtocolType
     readConfigHostPathUUID
@@ -6010,12 +6081,17 @@ showAccounts() {
     echo
     echoContent skyBlue "\nProgress$1/${totalProgress}: account"
 
-    initSubscribeLocalConfig
+    if [[ -z "${accountViewKey}" ]]; then
+        initSubscribeLocalConfig
+    else
+        mkdir -p "${accountSubscriptionLocalRoot}/default" "${accountSubscriptionLocalRoot}/clashMeta" "${accountSubscriptionLocalRoot}/sing-box" || return 1
+    fi
     # VLESS TCP
     if echo ${currentInstallProtocolType} | grep -q ",0,"; then
 
         echoContent skyBlue "============================= VLESS TCP TLS_Vision ==============================\n"
         jq .inbounds[0].settings.clients//.inbounds[0].users ${configPath}02_VLESS_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
+            if [[ -n "${accountViewUserKey}" ]] && ! accountUserMatches "${user}" "${accountViewUserKey}"; then continue; fi
             local email=
             email=$(echo "${user}" | jq -r .email//.name)
 
@@ -6030,6 +6106,7 @@ showAccounts() {
         echoContent skyBlue "\n================================ VLESS WS TLS CDN ================================\n"
 
         jq .inbounds[0].settings.clients//.inbounds[0].users ${configPath}03_VLESS_WS_inbounds.json | jq -c '.[]' | while read -r user; do
+            if [[ -n "${accountViewUserKey}" ]] && ! accountUserMatches "${user}" "${accountViewUserKey}"; then continue; fi
             local email=
             email=$(echo "${user}" | jq -r .email//.name)
 
@@ -6061,6 +6138,7 @@ showAccounts() {
     if echo ${currentInstallProtocolType} | grep -q ",2,"; then
         echoContent skyBlue "\n================================ Trojan gRPC TLS [ Only CDN Recommended ] ================================\n"
         jq .inbounds[0].settings.clients ${configPath}04_trojan_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
+            if [[ -n "${accountViewUserKey}" ]] && ! accountUserMatches "${user}" "${accountViewUserKey}"; then continue; fi
             local email=
             email=$(echo "${user}" | jq -r .email)
             local count=
@@ -6085,6 +6163,7 @@ showAccounts() {
             path="${singBoxVMessWSPath}"
         fi
         jq .inbounds[0].settings.clients//.inbounds[0].users ${configPath}05_VMess_WS_inbounds.json | jq -c '.[]' | while read -r user; do
+            if [[ -n "${accountViewUserKey}" ]] && ! accountUserMatches "${user}" "${accountViewUserKey}"; then continue; fi
             local email=
             email=$(echo "${user}" | jq -r .email//.name)
 
@@ -6109,6 +6188,7 @@ showAccounts() {
     if echo ${currentInstallProtocolType} | grep -q ",4,"; then
         echoContent skyBlue "\n================================== Trojan TLS [ Not recommended ] ==================================\n"
         jq .inbounds[0].settings.clients//.inbounds[0].users ${configPath}04_trojan_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
+            if [[ -n "${accountViewUserKey}" ]] && ! accountUserMatches "${user}" "${accountViewUserKey}"; then continue; fi
             local email=
             email=$(echo "${user}" | jq -r .email//.name)
             echoContent skyBlue "\n --->Account:${email}"
@@ -6120,6 +6200,7 @@ showAccounts() {
     if echo ${currentInstallProtocolType} | grep -q ",5,"; then
         echoContent skyBlue "\n=============================== VLESS gRPC TLS CDN ===============================\n"
         jq .inbounds[0].settings.clients ${configPath}06_VLESS_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
+            if [[ -n "${accountViewUserKey}" ]] && ! accountUserMatches "${user}" "${accountViewUserKey}"; then continue; fi
 
             local email=
             email=$(echo "${user}" | jq -r .email)
@@ -6152,6 +6233,7 @@ showAccounts() {
         fi
 
         jq -r -c '.inbounds[]|.users[]' "${path}06_hysteria2_inbounds.json" | while read -r user; do
+            if [[ -n "${accountViewUserKey}" ]] && ! accountUserMatches "${user}" "${accountViewUserKey}"; then continue; fi
             echoContent skyBlue "\n ---> Account :$(echo "${user}" | jq -r .name)"
             echo
             defaultBase64Code hysteria "${hysteria2DefaultPort}" "$(echo "${user}" | jq -r .name)" "$(echo "${user}" | jq -r .password)"
@@ -6163,6 +6245,7 @@ showAccounts() {
     if echo ${currentInstallProtocolType} | grep -q ",7,"; then
         echoContent skyBlue "============================= VLESS reality_vision  ==============================\n"
         jq .inbounds[1].settings.clients//.inbounds[0].users ${configPath}07_VLESS_vision_reality_inbounds.json | jq -c '.[]' | while read -r user; do
+            if [[ -n "${accountViewUserKey}" ]] && ! accountUserMatches "${user}" "${accountViewUserKey}"; then continue; fi
             local email=
             email=$(echo "${user}" | jq -r .email//.name)
 
@@ -6175,6 +6258,7 @@ showAccounts() {
     if echo ${currentInstallProtocolType} | grep -q ",8,"; then
         echoContent skyBlue "\n================================  Tuic TLS  ================================\n"
         jq .inbounds[0].settings.clients//.inbounds[0].users ${configPath}08_VLESS_vision_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
+            if [[ -n "${accountViewUserKey}" ]] && ! accountUserMatches "${user}" "${accountViewUserKey}"; then continue; fi
             local email=
             email=$(echo "${user}" | jq -r .email//.name)
 
@@ -6191,6 +6275,7 @@ showAccounts() {
             path="${singBoxConfigPath}"
         fi
         jq -r -c '.inbounds[].users[]' "${path}09_tuic_inbounds.json" | while read -r user; do
+            if [[ -n "${accountViewUserKey}" ]] && ! accountUserMatches "${user}" "${accountViewUserKey}"; then continue; fi
             echoContent skyBlue "\n ---> Account :$(echo "${user}" | jq -r .name)"
             echo
             defaultBase64Code tuic "${singBoxTuicPort}" "$(echo "${user}" | jq -r .name)" "$(echo "${user}" | jq -r .uuid)_$(echo "${user}" | jq -r .password)"
@@ -6202,6 +6287,7 @@ showAccounts() {
         echoContent skyBlue "\n================================ naive TLS [ Recommended , does not support ClashMeta] ================================\n"
 
         jq -r -c '.inbounds[]|.users[]' "${configPath}10_naive_inbounds.json" | while read -r user; do
+            if [[ -n "${accountViewUserKey}" ]] && ! accountUserMatches "${user}" "${accountViewUserKey}"; then continue; fi
             echoContent skyBlue "\n ---> Account :$(echo "${user}" | jq -r .username)"
             echo
             defaultBase64Code naive "${singBoxNaivePort}" "$(echo "${user}" | jq -r .username)" "$(echo "${user}" | jq -r .password)"
@@ -6218,6 +6304,7 @@ showAccounts() {
             path="${singBoxVMessHTTPUpgradePath}"
         fi
         jq .inbounds[0].settings.clients//.inbounds[0].users ${configPath}11_VMess_HTTPUpgrade_inbounds.json | jq -c '.[]' | while read -r user; do
+            if [[ -n "${accountViewUserKey}" ]] && ! accountUserMatches "${user}" "${accountViewUserKey}"; then continue; fi
             local email=
             email=$(echo "${user}" | jq -r .email//.name)
 
@@ -6242,6 +6329,7 @@ showAccounts() {
         echoContent skyBlue "\n================================ VLESS Reality XHTTP TLS [ Only CDN Recommended ] ================================\n"
 
         jq .inbounds[0].settings.clients//.inbounds[0].users ${configPath}12_VLESS_XHTTP_inbounds.json | jq -c '.[]' | while read -r user; do
+            if [[ -n "${accountViewUserKey}" ]] && ! accountUserMatches "${user}" "${accountViewUserKey}"; then continue; fi
             local email=
             email=$(echo "${user}" | jq -r .email//.name)
             echo
@@ -6270,6 +6358,7 @@ showAccounts() {
         fi
         local xhttpTLSUsedNames=$'\n'
         while read -r user; do
+            if [[ -n "${accountViewUserKey}" ]] && ! accountUserMatches "${user}" "${accountViewUserKey}"; then continue; fi
             local email uuidValue
             email=$(echo "${user}" | jq -r '.email // .name')
             uuidValue=$(echo "${user}" | jq -r '.id // .uuid // .password')
@@ -6290,6 +6379,7 @@ showAccounts() {
         echoContent skyBlue "\n================================  AnyTLS ================================\n"
 
         jq -r -c '.inbounds[]|.users[]' "${configPath}13_anytls_inbounds.json" | while read -r user; do
+            if [[ -n "${accountViewUserKey}" ]] && ! accountUserMatches "${user}" "${accountViewUserKey}"; then continue; fi
             echoContent skyBlue "\n ---> Account :$(echo "${user}" | jq -r .name)"
             echo
             defaultBase64Code anytls "${singBoxAnyTLSPort}" "$(echo "${user}" | jq -r .name)" "$(echo "${user}" | jq -r .password)"
@@ -9549,18 +9639,21 @@ manageAccount() {
     echoContent yellow "3.Add subscription"
     echoContent yellow "4.Add user"
     echoContent yellow "5.Delete user"
+    echoContent yellow "6.Generate/update subscriptions (all users)"
     echoContent red "=============================================================="
     read -r -p "Please enter:" manageAccountStatus
     if [[ "${manageAccountStatus}" == "1" ]]; then
-        showAccounts 1
+        viewAccountsByUser
     elif [[ "${manageAccountStatus}" == "2" ]]; then
-        subscribe
+        viewSubscriptionByUser
     elif [[ "${manageAccountStatus}" == "3" ]]; then
         addSubscribeMenu 1
     elif [[ "${manageAccountStatus}" == "4" ]]; then
         addUser
     elif [[ "${manageAccountStatus}" == "5" ]]; then
         removeUser
+    elif [[ "${manageAccountStatus}" == "6" ]]; then
+        subscribe
     else
         echoContent red " ---> Wrong selection"
     fi
@@ -10116,6 +10209,59 @@ initRandomSalt() {
     done
     echo "${initCustomPath}"
 }
+viewAccountsByUser() {
+    readInstallType
+    local users tempDir
+    users=$(collectAccountUsers) || return 1
+    selectAccountUser "${users}" || return 0
+    tempDir=$(mktemp -d) || return 1
+    chmod 700 "${tempDir}" || { rm -rf "${tempDir}"; return 1; }
+    (
+        trap 'rm -rf "${tempDir}"' EXIT
+        showAccounts 1 "${accountSelectionKey}" "${tempDir}"
+    )
+}
+
+viewSubscriptionByUser() {
+    readInstallType
+    local users
+    users=$(collectAccountUsers) || return 1
+    selectAccountUser "${users}" || return 0
+    readNginxSubscribe
+    if [[ -z "${subscribePort}" || ! -f /etc/v2ray-agent/subscribe_local/subscribeSalt ]]; then
+        echoContent red " ---> Subscription service is not initialized. Use 6.Generate/update subscriptions first."
+        return 1
+    fi
+    local subscribeSalt emailMd5 currentDomain publishDir format file formatFound=false
+    subscribeSalt=$(cat /etc/v2ray-agent/subscribe_local/subscribeSalt) || return 1
+    emailMd5=$(printf '%s\n' "${accountSelectionKey}${subscribeSalt}" | md5sum | awk '{print $1}')
+    currentDomain=${currentHost}
+    if [[ -n "${subscribePort}" ]]; then
+        if [[ "${subscribeType}" == http ]]; then
+            currentDomain="$(getPublicIP):${subscribePort}"
+        else
+            currentDomain="${currentHost}:${subscribePort}"
+        fi
+    elif [[ -n "${currentDefaultPort}" && "${currentDefaultPort}" != "443" ]]; then
+        currentDomain="${currentHost}:${currentDefaultPort}"
+    fi
+    publishDir=/etc/v2ray-agent/subscribe
+    for format in default clashMetaProfiles sing-box; do
+        file="${publishDir}/${format}/${emailMd5}"
+        [[ -s "${file}" ]] || continue
+        case "${format}" in
+        default) echoContent yellow "Default subscription: ${subscribeType}://${currentDomain}/s/default/${emailMd5}" ;;
+        clashMetaProfiles) echoContent yellow "Mihomo subscription: ${subscribeType}://${currentDomain}/s/clashMetaProfiles/${emailMd5}" ;;
+        sing-box) echoContent yellow "sing-box subscription: ${subscribeType}://${currentDomain}/s/sing-box/${emailMd5}" ;;
+        esac
+        formatFound=true
+    done
+    if [[ "${formatFound}" != true ]]; then
+        echoContent yellow " ---> No subscription files exist for this user. Use 6.Generate/update subscriptions first."
+        return 1
+    fi
+}
+
 # Subscribe
 subscribe() {
     readInstallProtocolType
@@ -10844,7 +10990,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "Author: mack-a"
-    echoContent green " Current version: v3.5.29"
+    echoContent green " Current version: v3.5.30"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "Description: 8-in-1 coexistence script\c"
     showInstallStatus
