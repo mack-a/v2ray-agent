@@ -494,7 +494,7 @@ startSubscribeContainer() {
     if [[ -z "${activePort}" ]]; then
         parsePort ""
         activePort="${resolvedPort}"
-        checkPortInUse "${activePort}"
+        checkPortInUse "${activePort}" v2ray-agent-docker-subscribe
     fi
 
     mkdir -p "${dataDir%/}/subscribe/default" "${dataDir%/}/subscribe/clashMeta" "${dataDir%/}/subscribe/clashMetaProfiles"
@@ -989,38 +989,25 @@ checkPortInUse() {
     if ! command -v lsof >/dev/null 2>&1; then
         return 0
     fi
-    # Collect PIDs listening on this port
-    local listenPids
+    local containerName="${2:-v2ray-agent-docker}"
+    local listenPids mappedPorts
     listenPids=$(lsof -i "tcp:${p}" -sTCP:LISTEN -t 2>/dev/null || true)
     [[ -z "${listenPids}" ]] && return 0
 
-    # Check whether the existing v2ray-agent-docker container holds the port.
-    # If the container exists, its published ports are managed by docker-proxy.
-    # If all listening PIDs belong to that container's docker-proxy processes, allow the port.
-    local containerExists=0
-    if docker ps -a --filter "name=^/v2ray-agent-docker$" --format '{{.Names}}' 2>/dev/null \
-            | grep -q "^v2ray-agent-docker$" || docker ps -a --filter "name=^/v2ray-agent-docker-subscribe$" --format '{{.Names}}' 2>/dev/null | grep -q "^v2ray-agent-docker-subscribe$"; then
-        containerExists=1
-    fi
-
-    if [[ "${containerExists}" == "1" ]]; then
-        # Verify all listening PIDs are docker-proxy processes (Docker's forwarder for published ports).
-        # If any PID is not docker-proxy, the port is held by an unrelated process — a real conflict.
-        local unrelatedPids=0
-        local pid
+    # Only accept the published port of the container that will be replaced.
+    mappedPorts=$(docker inspect --format '{{range $port, $bindings := .NetworkSettings.Ports}}{{range $bindings}}{{println .HostPort}}{{end}}{{end}}' "${containerName}" 2>/dev/null || true)
+    if printf '%s\n' "${mappedPorts}" | grep -qx "${p}"; then
+        local unrelatedPids=0 pid comm
         while IFS= read -r pid; do
-            [[ -z "${pid}" ]] && continue
-            local comm
+            [[ -n "${pid}" ]] || continue
             comm=$(cat "/proc/${pid}/comm" 2>/dev/null || ps -p "${pid}" -o comm= 2>/dev/null || true)
-            if [[ "${comm}" != *"docker-proxy"* ]]; then
+            if [[ "${comm}" != *docker-proxy* ]]; then
                 unrelatedPids=1
                 break
             fi
         done <<<"${listenPids}"
-
-        if [[ "${unrelatedPids}" == "0" ]]; then
-            # Port is held only by v2ray-agent-docker's docker-proxy — safe to continue
-            echoContent "yellow" "Port ${p} is held by the existing v2ray-agent-docker container (will be replaced)"
+        if [[ "${unrelatedPids}" == 0 ]]; then
+            echoContent "yellow" "Port ${p} is published by ${containerName} (will be replaced)"
             return 0
         fi
     fi
@@ -1932,7 +1919,7 @@ resolveValues() {
         echoContent "red" "Subscription port (${resolvedSubscribePort}) is the same as the XHTTP port — please use different ports"
         exit 1
     fi
-    checkPortInUse "${resolvedSubscribePort}"
+    checkPortInUse "${resolvedSubscribePort}" v2ray-agent-docker-subscribe
 
     # --- Server name ---
     parseServerName "${serverName}"

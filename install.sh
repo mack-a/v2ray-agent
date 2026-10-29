@@ -64,7 +64,7 @@ checkSystem() {
         upgrade="apk update"
         removeType='apk del'
         nginxConfigPath=/etc/nginx/http.d/
-    elif { [[ -f "/etc/issue" ]] && grep -qi "debian" /etc/issue; } || { [[ -f "/proc/version" ]] && grep -qi "debian" /proc/version; } || { [[ -f "/etc/os-release" ]] && grep -qi "ID=debian" /etc/issue; }; then
+    elif { [[ -f "/etc/issue" ]] && grep -qi "debian" /etc/issue; } || { [[ -f "/proc/version" ]] && grep -qi "debian" /proc/version; } || { [[ -f "/etc/os-release" ]] && grep -qE '^ID="?debian"?$' /etc/os-release; }; then
         release="debian"
         installType='apt -y install'
         upgrade="apt update"
@@ -210,9 +210,6 @@ initVar() {
 
     #    interfaceName=
     # 端口跳跃
-    portHoppingStart=
-    portHoppingEnd=
-    portHopping=
 
     hysteria2PortHoppingStart=
     hysteria2PortHoppingEnd=
@@ -596,22 +593,21 @@ readCustomPort() {
 
 # 读取nginx订阅端口
 readNginxSubscribe() {
-    subscribeType="https"
-    if [[ -f "${nginxConfigPath}subscribe.conf" ]]; then
-        if grep -q "sing-box" "${nginxConfigPath}subscribe.conf"; then
-            subscribePort=$(grep "listen" "${nginxConfigPath}subscribe.conf" | awk '{print $2}')
-            subscribeDomain=$(grep "server_name" "${nginxConfigPath}subscribe.conf" | awk '{print $2}')
-            subscribeDomain=${subscribeDomain//;/}
-            if [[ -n "${currentHost}" && "${subscribeDomain}" != "${currentHost}" ]]; then
-                subscribePort=
-                subscribeType=
-            else
-                if ! grep "listen" "${nginxConfigPath}subscribe.conf" | grep -q "ssl"; then
-                    subscribeType="http"
-                fi
-            fi
-
-        fi
+    subscribePort=
+    subscribeType=https
+    subscribeDomain=
+    local subscribeConfig="${nginxConfigPath}subscribe.conf"
+    [[ -f "${subscribeConfig}" ]] || return 0
+    grep -q "sing-box" "${subscribeConfig}" || return 0
+    subscribePort=$(awk 'BEGIN { RS=";" } { gsub(/#[^\n]*/, ""); for (i=1; i<NF; i++) if ($i == "listen") {
+        port=$(i+1); sub(/^.*:/, "", port); if (port ~ /^[0-9]+$/) { print port; exit }
+    }}' "${subscribeConfig}")
+    subscribeDomain=$(awk 'BEGIN { RS=";" } { for (i=1; i<NF; i++) if ($i == "server_name") { print $(i+1); exit }}' "${subscribeConfig}")
+    if [[ -n "${currentHost}" && -n "${subscribeDomain}" && "${subscribeDomain}" != "${currentHost}" ]]; then
+        subscribePort=
+        subscribeType=
+    elif ! grep -Eq '(^|[;[:space:]])listen[^;]*[[:space:]]ssl([;[:space:]]|$)' "${subscribeConfig}"; then
+        subscribeType=http
     fi
 }
 
@@ -1356,10 +1352,6 @@ installTools() {
         dpkg --configure -a
     fi
 
-    if [[ -n $(pgrep -f "apt") ]]; then
-        pgrep -f apt | xargs kill -9
-    fi
-
     echoContent green " ---> 检查、安装更新【新机器会很慢，如长时间无反应，请手动停止后重新执行】"
 
     if [[ "${release}" != "centos" ]]; then
@@ -1477,19 +1469,22 @@ installTools() {
     if echo "${selectCustomInstallType}" | grep -qwE ",7,|,8,|,7,8,|,12,|,7,12,"; then
         echoContent green " ---> 检测到无需依赖Nginx的服务，跳过安装"
     else
-        if ! nginx >/dev/null 2>&1; then
+        if ! command -v nginx >/dev/null 2>&1; then
             echoContent green " ---> 安装nginx"
-            installNginxTools
+            installNginxTools || return 1
         else
-            nginxVersion=$(nginx -v 2>&1)
-            nginxVersion=$(echo "${nginxVersion}" | awk -F "[n][g][i][n][x][/]" '{print $2}' | awk -F "[.]" '{print $2}')
-            if [[ ${nginxVersion} -lt 14 ]]; then
+            local nginxMajor nginxMinor
+            nginxVersion=$(nginx -v 2>&1) || nginxVersion=
+            read -r nginxMajor nginxMinor < <(printf '%s\n' "${nginxVersion}" | sed -nE 's@^.*nginx/([0-9]+)\.([0-9]+).*@\1 \2@p')
+            if ! [[ "${nginxMajor}" =~ ^[0-9]+$ && "${nginxMinor}" =~ ^[0-9]+$ ]]; then
+                echoContent yellow " ---> 无法可靠读取Nginx版本，跳过版本重装检查"
+            elif (( nginxMajor < 1 || (nginxMajor == 1 && nginxMinor < 14) )); then
                 read -r -p "读取到当前的Nginx版本不支持gRPC，会导致安装失败，是否卸载Nginx后重新安装 ？[y/n]:" unInstallNginxStatus
                 if [[ "${unInstallNginxStatus}" == "y" ]]; then
                     ${removeType} nginx >/dev/null 2>&1
                     echoContent yellow " ---> nginx卸载完成"
                     echoContent green " ---> 安装nginx"
-                    installNginxTools >/dev/null 2>&1
+                    installNginxTools >/dev/null 2>&1 || return 1
                 else
                     exit 0
                 fi
@@ -1591,8 +1586,11 @@ EOF
     elif [[ "${release}" == "alpine" ]]; then
         rm "${nginxConfigPath}default.conf"
     fi
-    ${installType} nginx >/dev/null 2>&1
-    bootStartup nginx
+    if ! ${installType} nginx >/dev/null 2>&1; then
+        echoContent red " ---> Nginx安装失败"
+        return 1
+    fi
+    bootStartup nginx || return 1
 }
 
 # 安装warp
@@ -2158,20 +2156,6 @@ switchSSLType() {
 
 # 选择acme安装证书方式
 selectAcmeInstallSSL() {
-    #    local sslIPv6=
-    #    local currentIPType=
-    if [[ "${ipType}" == "6" ]]; then
-        sslIPv6="--listen-v6"
-    fi
-    #    currentIPType=$(curl -s "-${ipType}" http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | cut -d "=" -f 2)
-
-    #    if [[ -z "${currentIPType}" ]]; then
-    #                currentIPType=$(curl -s -6 http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | cut -d "=" -f 2)
-    #        if [[ -n "${currentIPType}" ]]; then
-    #            sslIPv6="--listen-v6"
-    #        fi
-    #    fi
-
     acmeInstallSSL
 
     readAcmeTLS
@@ -2180,24 +2164,26 @@ selectAcmeInstallSSL() {
 # 安装SSL证书
 acmeInstallSSL() {
     local dnsAPIDomain="${tlsDomain}"
-    local dnsAPIExtraDomain="-d ${dnsTLSDomain}"
+    local -a dnsAPIExtraDomain=(-d "${dnsTLSDomain}")
+    local -a sslOptions=()
+    [[ "${ipType}" != 6 ]] || sslOptions+=(--listen-v6)
     if [[ "${dnsAPIStatus}" == "y" ]]; then
         dnsAPIDomain="*.${dnsTLSDomain}"
     else
         # 用户选择不使用通配符时，只为自己输入的子域申请证书，
         # 避免脚本追加根域 -d ${dnsTLSDomain} 导致根域不属于自己（例如 dpdns.org 等公共后缀）时签发失败
-        dnsAPIExtraDomain=""
+        dnsAPIExtraDomain=()
     fi
 
     if [[ "${dnsAPIType}" == "cloudflare" ]]; then
         echoContent green " ---> DNS API 生成证书中"
-        sudo CF_Token="${cfAPIToken}" "$HOME/.acme.sh/acme.sh" --issue -d "${dnsAPIDomain}" ${dnsAPIExtraDomain} --dns dns_cf -k ec-256 --server "${sslType}" ${sslIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
+        sudo CF_Token="${cfAPIToken}" "$HOME/.acme.sh/acme.sh" --issue -d "${dnsAPIDomain}" "${dnsAPIExtraDomain[@]}" --dns dns_cf -k ec-256 --server "${sslType}" "${sslOptions[@]}" 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
     elif [[ "${dnsAPIType}" == "aliyun" ]]; then
         echoContent green " --->  DNS API 生成证书中"
-        sudo Ali_Key="${aliKey}" Ali_Secret="${aliSecret}" "$HOME/.acme.sh/acme.sh" --issue -d "${dnsAPIDomain}" ${dnsAPIExtraDomain} --dns dns_ali -k ec-256 --server "${sslType}" ${sslIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
+        sudo Ali_Key="${aliKey}" Ali_Secret="${aliSecret}" "$HOME/.acme.sh/acme.sh" --issue -d "${dnsAPIDomain}" "${dnsAPIExtraDomain[@]}" --dns dns_ali -k ec-256 --server "${sslType}" "${sslOptions[@]}" 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
     else
         echoContent green " ---> 生成证书中"
-        sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --server "${sslType}" ${sslIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
+        sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --server "${sslType}" "${sslOptions[@]}" 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
     fi
 }
 # 自定义端口
@@ -2674,6 +2660,40 @@ renewalTLS() {
     return 0
 }
 
+# Download and validate the new binary before replacing the installed core.
+installCoreRelease() (
+    local core=$1 version=$2 coreDir archive binary tmpDir
+    local -a wgetArgs=(-q)
+    [[ "${version}" =~ ^v[0-9][A-Za-z0-9._-]*$ ]] || {
+        echoContent red " ---> 无法读取有效的核心版本，保留当前程序"
+        return 1
+    }
+    coreDir="/etc/v2ray-agent/${core}"
+    mkdir -p "${coreDir}" || return 1
+    tmpDir=$(mktemp -d "${coreDir}/.release.XXXXXX") || return 1
+    trap 'rm -rf "${tmpDir}"' EXIT
+    if [[ "${release}" != alpine && -n "${wgetShowProgressStatus}" ]]; then
+        wgetArgs+=("${wgetShowProgressStatus}")
+    fi
+    if [[ "${core}" == sing-box ]]; then
+        archive="sing-box-${version#v}${singBoxCoreCPUVendor}"
+        wget "${wgetArgs[@]}" -O "${tmpDir}/archive.tar.gz" \
+            "https://github.com/SagerNet/sing-box/releases/download/${version}/${archive}.tar.gz" &&
+            tar -xzf "${tmpDir}/archive.tar.gz" -C "${tmpDir}" || return 1
+        binary="${tmpDir}/${archive}/sing-box"
+        [[ -s "${binary}" ]] && chmod 755 "${binary}" && "${binary}" version >/dev/null 2>&1 || return 1
+    elif [[ "${core}" == xray ]]; then
+        wget "${wgetArgs[@]}" -O "${tmpDir}/archive.zip" \
+            "https://github.com/XTLS/Xray-core/releases/download/${version}/${xrayCoreCPUVendor}.zip" &&
+            unzip -oq "${tmpDir}/archive.zip" -d "${tmpDir}" || return 1
+        binary="${tmpDir}/xray"
+        [[ -s "${binary}" ]] && chmod 755 "${binary}" && "${binary}" --version >/dev/null 2>&1 || return 1
+    else
+        return 1
+    fi
+    mv -f "${binary}" "${coreDir}/${core}"
+)
+
 # 安装 sing-box
 installSingBox() {
     readInstallType
@@ -2689,25 +2709,7 @@ installSingBox() {
 
         echoContent green " ---> 最新版本:${version}"
 
-        if [[ "${release}" == "alpine" ]]; then
-            wget -c -q -P /etc/v2ray-agent/sing-box/ "https://github.com/SagerNet/sing-box/releases/download/${version}/sing-box-${version/v/}${singBoxCoreCPUVendor}.tar.gz"
-        else
-            wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/sing-box/ "https://github.com/SagerNet/sing-box/releases/download/${version}/sing-box-${version/v/}${singBoxCoreCPUVendor}.tar.gz"
-        fi
-
-        if [[ ! -f "/etc/v2ray-agent/sing-box/sing-box-${version/v/}${singBoxCoreCPUVendor}.tar.gz" ]]; then
-            read -r -p "核心下载失败，请重新尝试安装，是否重新尝试？[y/n]" downloadStatus
-            if [[ "${downloadStatus}" == "y" ]]; then
-                installSingBox "$1"
-            fi
-        else
-
-            tar zxvf "/etc/v2ray-agent/sing-box/sing-box-${version/v/}${singBoxCoreCPUVendor}.tar.gz" -C "/etc/v2ray-agent/sing-box/" >/dev/null 2>&1
-
-            mv "/etc/v2ray-agent/sing-box/sing-box-${version/v/}${singBoxCoreCPUVendor}/sing-box" /etc/v2ray-agent/sing-box/sing-box
-            rm -rf /etc/v2ray-agent/sing-box/sing-box-*
-            chmod 655 /etc/v2ray-agent/sing-box/sing-box
-        fi
+        installCoreRelease sing-box "${version}" || return 1
     else
         echoContent green " ---> 当前版本:v$(/etc/v2ray-agent/sing-box/sing-box version | grep "sing-box version" | awk '{print $3}')"
 
@@ -2722,8 +2724,7 @@ installSingBox() {
         if [[ -z "${lastInstallationConfig}" ]]; then
             read -r -p "是否更新、升级？[y/n]:" reInstallSingBoxStatus
             if [[ "${reInstallSingBoxStatus}" == "y" ]]; then
-                rm -f /etc/v2ray-agent/sing-box/sing-box
-                installSingBox "$1"
+                installCoreRelease sing-box "${version}" || return 1
             fi
         fi
     fi
@@ -2748,7 +2749,7 @@ installXray() {
 
     echoContent skyBlue "\n进度  $1/${totalProgress} : 安装Xray"
 
-    if [[ ! -f "/etc/v2ray-agent/xray/xray" ]]; then
+    if [[ ! -f "/etc/v2ray-agent/xray/xray" || "${3:-}" == force ]]; then
         if [[ "${prereleaseStatus}" == "true" ]]; then
             version=$(curl -s "https://api.github.com/repos/XTLS/Xray-core/releases?per_page=5" | jq -r ".[]|select (.prerelease==${prereleaseStatus})|.tag_name" | head -1)
         else
@@ -2756,43 +2757,14 @@ installXray() {
         fi
 
         echoContent green " ---> Xray-core版本:${version}"
-        if [[ "${release}" == "alpine" ]]; then
-            wget -c -q -P /etc/v2ray-agent/xray/ "https://github.com/XTLS/Xray-core/releases/download/${version}/${xrayCoreCPUVendor}.zip"
-        else
-            wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/xray/ "https://github.com/XTLS/Xray-core/releases/download/${version}/${xrayCoreCPUVendor}.zip"
-        fi
-
-        if [[ ! -f "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip" ]]; then
-            read -r -p "核心下载失败，请重新尝试安装，是否重新尝试？[y/n]" downloadStatus
-            if [[ "${downloadStatus}" == "y" ]]; then
-                installXray "$1"
-            fi
-        else
-            unzip -o "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip" -d /etc/v2ray-agent/xray >/dev/null
-            rm -rf "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip"
-
-            version=$(curl -s https://api.github.com/repos/Loyalsoldier/v2ray-rules-dat/releases?per_page=1 | jq -r '.[]|.tag_name')
-            echoContent skyBlue "------------------------Version-------------------------------"
-            echo "version:${version}"
-            rm /etc/v2ray-agent/xray/geo* >/dev/null 2>&1
-
-            if [[ "${release}" == "alpine" ]]; then
-                wget -c -q -P /etc/v2ray-agent/xray/ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geosite.dat"
-                wget -c -q -P /etc/v2ray-agent/xray/ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geoip.dat"
-            else
-                wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/xray/ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geosite.dat"
-                wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/xray/ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geoip.dat"
-            fi
-
-            chmod 655 /etc/v2ray-agent/xray/xray
-        fi
+        installCoreRelease xray "${version}" || return 1
+        updateGeoSite false /etc/v2ray-agent/xray/ || return 1
     else
         if [[ -z "${lastInstallationConfig}" ]]; then
             echoContent green " ---> Xray-core版本:$(/etc/v2ray-agent/xray/xray --version | awk '{print $2}' | head -1)"
             read -r -p "是否更新、升级？[y/n]:" reInstallXrayStatus
             if [[ "${reInstallXrayStatus}" == "y" ]]; then
-                rm -f /etc/v2ray-agent/xray/xray
-                installXray "$1" "$2"
+                installXray "$1" "$2" force || return 1
             fi
         fi
     fi
@@ -2857,20 +2829,35 @@ xrayVersionManageMenu() {
 updateGeoSite() {
     echoContent yellow "\n来源 https://github.com/Loyalsoldier/v2ray-rules-dat"
 
+    local version
     version=$(curl -s https://api.github.com/repos/Loyalsoldier/v2ray-rules-dat/releases?per_page=1 | jq -r '.[]|.tag_name')
     echoContent skyBlue "------------------------Version-------------------------------"
     echo "version:${version}"
-    rm ${configPath}../geo* >/dev/null
-
+    local geoDir="${2:-${configPath}../}"
+    local downloadStatus=0
+    local geoTempDir
+    geoTempDir=$(mktemp -d "${TMPDIR:-/tmp}/v2ray-agent-geo.XXXXXX") || return 1
     if [[ "${release}" == "alpine" ]]; then
-        wget -c -q -P ${configPath}../ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geosite.dat"
-        wget -c -q -P ${configPath}../ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geoip.dat"
+        wget -c -q -P "${geoTempDir}" "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geosite.dat" &&
+            wget -c -q -P "${geoTempDir}" "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geoip.dat" || downloadStatus=1
     else
-        wget -c -q "${wgetShowProgressStatus}" -P ${configPath}../ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geosite.dat"
-        wget -c -q "${wgetShowProgressStatus}" -P ${configPath}../ "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geoip.dat"
+        wget -c -q "${wgetShowProgressStatus}" -P "${geoTempDir}" "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geosite.dat" &&
+            wget -c -q "${wgetShowProgressStatus}" -P "${geoTempDir}" "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/${version}/geoip.dat" || downloadStatus=1
     fi
-
-    reloadCore
+    if [[ "${downloadStatus}" != 0 || ! -s "${geoTempDir}/geosite.dat" || ! -s "${geoTempDir}/geoip.dat" ]]; then
+        rm -rf "${geoTempDir}"
+        echoContent red " ---> GeoSite/GeoIP下载失败，保留当前文件"
+        return 1
+    fi
+    if ! mv -f "${geoTempDir}/geosite.dat" "${geoDir}geosite.dat" ||
+        ! mv -f "${geoTempDir}/geoip.dat" "${geoDir}geoip.dat"; then
+        rm -rf "${geoTempDir}"
+        return 1
+    fi
+    rm -rf "${geoTempDir}"
+    if [[ "${1:-}" != false ]]; then
+        reloadCore || return 1
+    fi
     echoContent green " ---> 更新完毕"
 
 }
@@ -2893,17 +2880,9 @@ updateXray() {
 
         echoContent green " ---> Xray-core版本:${version}"
 
-        if [[ "${release}" == "alpine" ]]; then
-            wget -c -q -P /etc/v2ray-agent/xray/ "https://github.com/XTLS/Xray-core/releases/download/${version}/${xrayCoreCPUVendor}.zip"
-        else
-            wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/xray/ "https://github.com/XTLS/Xray-core/releases/download/${version}/${xrayCoreCPUVendor}.zip"
-        fi
-
-        unzip -o "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip" -d /etc/v2ray-agent/xray >/dev/null
-        rm -rf "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip"
-        chmod 655 /etc/v2ray-agent/xray/xray
-        handleXray stop
-        handleXray start
+        installCoreRelease xray "${version}" || return 1
+        handleXray stop transaction || return 1
+        handleXray start transaction || return 1
     else
         echoContent green " ---> 当前版本:v$(/etc/v2ray-agent/xray/xray --version | awk '{print $2}' | head -1)"
 
@@ -2930,9 +2909,9 @@ updateXray() {
             if [[ "${rollbackXrayStatus}" == "y" ]]; then
                 echoContent green " ---> 当前Xray-core版本:$(/etc/v2ray-agent/xray/xray --version | awk '{print $2}' | head -1)"
 
-                handleXray stop
-                rm -f /etc/v2ray-agent/xray/xray
-                updateXray "${version}"
+                installCoreRelease xray "${version}" || return 1
+                handleXray stop transaction || return 1
+                handleXray start transaction || return 1
             else
                 echoContent green " ---> 放弃回退版本"
             fi
@@ -2943,9 +2922,9 @@ updateXray() {
                 read -r -p "当前版本与最新版相同，是否重新安装？[y/n]:" reInstallXrayStatus
             fi
             if [[ "${reInstallXrayStatus}" == "y" ]]; then
-                handleXray stop
-                rm -f /etc/v2ray-agent/xray/xray
-                updateXray
+                installCoreRelease xray "${version}" || return 1
+                handleXray stop transaction || return 1
+                handleXray start transaction || return 1
             else
                 echoContent green " ---> 放弃重新安装"
             fi
@@ -2956,8 +2935,9 @@ updateXray() {
                 read -r -p "最新版本为:${version}，是否更新？[y/n]:" installXrayStatus
             fi
             if [[ "${installXrayStatus}" == "y" ]]; then
-                rm /etc/v2ray-agent/xray/xray
-                updateXray
+                installCoreRelease xray "${version}" || return 1
+                handleXray stop transaction || return 1
+                handleXray start transaction || return 1
             else
                 echoContent green " ---> 放弃更新"
             fi
@@ -3028,7 +3008,7 @@ WorkingDirectory=/root
 CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_RAW CAP_SYS_PTRACE CAP_DAC_READ_SEARCH
 AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_RAW CAP_SYS_PTRACE CAP_DAC_READ_SEARCH
 ExecStart=${execStart}
-ExecReload=/bin/kill -HUP $MAINPID
+ExecReload=/bin/kill -HUP \$MAINPID
 Restart=on-failure
 RestartSec=10
 LimitNPROC=infinity
@@ -3111,14 +3091,14 @@ handleHysteria() {
 handleSingBox() {
     if [[ -f "/etc/systemd/system/sing-box.service" ]]; then
         if [[ -z $(pgrep -f "sing-box") ]] && [[ "$1" == "start" ]]; then
-            singBoxMergeConfig
+            singBoxMergeConfig || return 1
             systemctl start sing-box.service
         elif [[ -n $(pgrep -f "sing-box") ]] && [[ "$1" == "stop" ]]; then
             systemctl stop sing-box.service
         fi
     elif [[ -f "/etc/init.d/sing-box" ]]; then
         if [[ -z $(pgrep -f "sing-box") ]] && [[ "$1" == "start" ]]; then
-            singBoxMergeConfig
+            singBoxMergeConfig || return 1
             rc-service sing-box start
         elif [[ -n $(pgrep -f "sing-box") ]] && [[ "$1" == "stop" ]]; then
             rc-service sing-box stop
@@ -3443,7 +3423,7 @@ portHoppingBackend() {
 # Also read rules created by older installers, whose metadata was not saved.
 loadPortHoppingConfig() {
     local type=$1 targetPort=$2 tool saved ports
-    hoppingBackend= hoppingStart= hoppingEnd= hoppingTarget= hoppingZone= hoppingFamilies=
+    hoppingBackend='' hoppingStart='' hoppingEnd='' hoppingTarget='' hoppingZone='' hoppingFamilies=''
     hoppingInterval=60
     [[ "${type}" == hysteria2 || "${type}" == tuic ]] || return 1
     local state="/etc/v2ray-agent/port-hopping/${type}.json"
@@ -3489,7 +3469,7 @@ loadPortHoppingConfig() {
             validPortHoppingConfig "${type}" "${hoppingStart}" "${hoppingEnd}" "${hoppingTarget}" && return 0
         fi
     fi
-    hoppingStart= hoppingEnd=
+    hoppingStart='' hoppingEnd=''
     return 1
 }
 
@@ -3497,11 +3477,11 @@ readPortHopping() {
     local type=$1 targetPort=$2
     local hoppingBackend hoppingStart hoppingEnd hoppingTarget hoppingInterval hoppingFamilies hoppingZone
     if ! loadPortHoppingConfig "${type}" "${targetPort}"; then
-        hoppingStart= hoppingEnd=
+        hoppingStart='' hoppingEnd=''
     fi
     # A reinstalled inbound may use a different port. Do not export a stale range.
     if [[ "${hoppingTarget}" != "${targetPort}" ]]; then
-        hoppingStart= hoppingEnd=
+        hoppingStart='' hoppingEnd=''
     fi
     if [[ "${type}" == hysteria2 ]]; then
         hysteria2PortHoppingStart=${hoppingStart}
@@ -3509,9 +3489,6 @@ readPortHopping() {
         hysteria2PortHopping=
         hysteria2HopInterval=${hoppingInterval:-60}
         [[ -z "${hoppingStart}" ]] || hysteria2PortHopping="${hoppingStart}-${hoppingEnd}"
-    elif [[ "${type}" == tuic ]]; then
-        tuicPortHoppingStart=${hoppingStart}
-        tuicPortHoppingEnd=${hoppingEnd}
     fi
 }
 
@@ -3624,7 +3601,7 @@ createPortHoppingRules() {
         read -r otherStart otherEnd <<<"${otherRange}"
         ((end < otherStart || start > otherEnd)) || return 1
     fi
-    local backend zone= families=4 dir=/etc/v2ray-agent/port-hopping file extension status=0
+    local backend zone='' families=4 dir=/etc/v2ray-agent/port-hopping file extension status=0
     backend=$(portHoppingBackend) || return 1
     mkdir -p "${dir}" && chmod 700 "${dir}" || return 1
     file="${dir}/${type}"
@@ -3635,7 +3612,7 @@ createPortHoppingRules() {
             return 1
         fi
         extension=nft
-        cat > "${file}.nft.tmp" <<NFT
+        if ! cat > "${file}.nft.tmp" <<NFT
 table inet v2ray_agent_${type} {
     chain prerouting {
         type nat hook prerouting priority dstnat; policy accept;
@@ -3643,7 +3620,11 @@ table inet v2ray_agent_${type} {
     }
 }
 NFT
-        if [[ "$?" != 0 ]] || ! nft -c -f "${file}.nft.tmp"; then
+        then
+            rm -f "${file}.nft.tmp"
+            return 1
+        fi
+        if ! nft -c -f "${file}.nft.tmp"; then
             rm -f "${file}.nft.tmp"
             return 1
         fi
@@ -3654,7 +3635,7 @@ NFT
             families=4,6
         fi
         extension=iptables
-        cat > "${file}.iptables.tmp" <<IPTABLES
+        if ! cat > "${file}.iptables.tmp" <<IPTABLES
 #!/bin/sh
 set -e
 HOPPING_ACTION=\${1:-add}
@@ -3668,7 +3649,7 @@ for tool in iptables $([[ "${families}" != 4,6 ]] || echo ip6tables); do
     fi
 done
 IPTABLES
-        if [[ "$?" != 0 ]]; then
+        then
             rm -f "${file}.iptables.tmp"
             return 1
         fi
@@ -4368,7 +4349,7 @@ singBoxTuicInstall() {
     fi
 
     totalProgress=5
-    installSingBox 1
+    installSingBox 1 || return 1
     selectCustomInstallType=",9,"
     initSingBoxConfig custom 2 true || return 1
     installSingBoxService 3
@@ -4384,7 +4365,7 @@ singBoxHysteria2Install() {
     fi
 
     totalProgress=5
-    installSingBox 1
+    installSingBox 1 || return 1
     selectCustomInstallType=",6,"
     initSingBoxConfig custom 2 true || return 1
     installSingBoxService 3
@@ -4446,11 +4427,17 @@ EOF
 }
 
 # 合并config
-singBoxMergeConfig() {
-    initSingBoxHTTPClientConfig
-    rm /etc/v2ray-agent/sing-box/conf/config.json >/dev/null 2>&1
-    /etc/v2ray-agent/sing-box/sing-box merge config.json -C /etc/v2ray-agent/sing-box/conf/config/ -D /etc/v2ray-agent/sing-box/conf/ >/dev/null 2>&1
-}
+singBoxMergeConfig() (
+    local configDir=/etc/v2ray-agent/sing-box/conf
+    local tmpDir
+    initSingBoxHTTPClientConfig || return 1
+    tmpDir=$(mktemp -d "${configDir}/.merge.XXXXXX") || return 1
+    trap 'rm -rf "${tmpDir}"' EXIT
+    /etc/v2ray-agent/sing-box/sing-box merge "${tmpDir}/config.json" \
+        -C "${configDir}/config/" -D "${configDir}/" >/dev/null 2>&1 &&
+        /etc/v2ray-agent/sing-box/sing-box check -c "${tmpDir}/config.json" -D "${configDir}/" >/dev/null 2>&1 &&
+        chmod 600 "${tmpDir}/config.json" && mv -f "${tmpDir}/config.json" "${configDir}/config.json"
+)
 
 # 初始化Xray Trojan XTLS 配置文件
 #initXrayFrontingConfig() {
@@ -5504,6 +5491,7 @@ initSubscribeLocalConfig() {
 # 通用
 defaultBase64Code() {
     local type=$1
+    local qrCodeBase64Default
     local port=$2
     local email=$3
     local id=$4
@@ -5514,19 +5502,19 @@ defaultBase64Code() {
     user=$(echo "${email}" | awk -F "[-]" '{print $1}')
     if [[ "${type}" == "vlessXHTTPTLS" ]]; then
         local xhttpTLSURI
-        xhttpTLSURI=$(buildVLESSXHTTPTLSURI "${add}" "${port}" "${id}" "${currentHost}" "${path}" "${currentXHTTPMode:-auto}" "${email}")
+        xhttpTLSURI=$(buildVLESSXHTTPTLSURI "${add}" "${port}" "${id}" "${currentHost}" "${path}" "${currentXHTTPMode:-auto}" "${email}") || return 1
         echoContent yellow " ---> 通用格式(VLESS+XHTTP+TLS)"
         echoContent green "    ${xhttpTLSURI}"
         echoContent yellow " ---> 格式化明文(VLESS+XHTTP+TLS)"
         echoContent green "协议类型:VLESS，地址:${add}，伪装域名/SNI:${currentHost}，端口:${port}，用户ID:${id}，安全:tls，传输方式:xhttp，路径:${path}，模式:${currentXHTTPMode:-auto}，账户名:${email}\n"
         echoContent yellow " ---> 二维码 VLESS(VLESS+XHTTP+TLS)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dxhttp%26sni%3D${currentHost}%26host%3D${currentHost}%26fp%3Dchrome%26alpn%3Dh2%26path%3D%252F${path#/}%26mode%3D${currentXHTTPMode:-auto}%23${email}"
-        printf '%s\n' "${xhttpTLSURI}" >>"${outputRoot}/default/${user}"
-        buildMihomoXHTTPTLSNode "${add}" "${port}" "${id}" "${currentHost}" "${path}" "${currentXHTTPMode:-auto}" "${email}" >>"${outputRoot}/clashMeta/${user}"
+        printf '%s\n' "${xhttpTLSURI}" >>"${outputRoot}/default/${user}" || return 1
+        buildMihomoXHTTPTLSNode "${add}" "${port}" "${id}" "${currentHost}" "${path}" "${currentXHTTPMode:-auto}" "${email}" >>"${outputRoot}/clashMeta/${user}" || return 1
         return 0
     fi
     if [[ ! -f "${outputRoot}/sing-box/${user}" ]]; then
-        echo [] >"${outputRoot}/sing-box/${user}"
+        echo [] >"${outputRoot}/sing-box/${user}" || return 1
     fi
     local singBoxSubscribeLocalConfig=
     if [[ "${type}" == "vlesstcp" ]]; then
@@ -5536,10 +5524,10 @@ defaultBase64Code() {
 
         echoContent yellow " ---> 格式化明文(VLESS+TCP+TLS_Vision)"
         echoContent green "协议类型:VLESS，地址:${currentHost}，端口:${port}，用户ID:${id}，安全:tls，client-fingerprint: chrome，传输方式:tcp，flow:xtls-rprx-vision，账户名:${email}\n"
-        cat <<EOF >>"${outputRoot}/default/${user}"
+        cat <<EOF >>"${outputRoot}/default/${user}" || return 1
 vless://${id}@${currentHost}:${port}?encryption=none&security=tls&type=tcp&host=${currentHost}&fp=chrome&headerType=none&sni=${currentHost}&flow=xtls-rprx-vision#${email}
 EOF
-        cat <<EOF >>"${outputRoot}/clashMeta/${user}"
+        cat <<EOF >>"${outputRoot}/clashMeta/${user}" || return 1
   - name: "${email}"
     type: vless
     server: ${currentHost}
@@ -5551,14 +5539,14 @@ EOF
     flow: xtls-rprx-vision
     client-fingerprint: chrome
 EOF
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vless\",\"server\":\"${currentHost}\",\"server_port\":${port},\"uuid\":\"${id}\",\"flow\":\"xtls-rprx-vision\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"packet_encoding\":\"xudp\"}]" "${outputRoot}/sing-box/${user}")
-        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}"
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vless\",\"server\":\"${currentHost}\",\"server_port\":${port},\"uuid\":\"${id}\",\"flow\":\"xtls-rprx-vision\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"packet_encoding\":\"xudp\"}]" "${outputRoot}/sing-box/${user}") || return 1
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}" || return 1
 
         echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS_Vision)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${currentHost}%3A${port}%3Fencryption%3Dnone%26fp%3Dchrome%26security%3Dtls%26type%3Dtcp%26${currentHost}%3D${currentHost}%26headerType%3Dnone%26sni%3D${currentHost}%26flow%3Dxtls-rprx-vision%23${email}\n"
 
     elif [[ "${type}" == "vmessws" ]]; then
-        qrCodeBase64Default=$(echo -n "{\"port\":${port},\"ps\":\"${email}\",\"tls\":\"tls\",\"id\":\"${id}\",\"aid\":0,\"v\":2,\"host\":\"${currentHost}\",\"type\":\"none\",\"path\":\"${path}\",\"net\":\"ws\",\"add\":\"${add}\",\"method\":\"none\",\"peer\":\"${currentHost}\",\"sni\":\"${currentHost}\"}" | base64 -w 0)
+        qrCodeBase64Default=$(echo -n "{\"port\":${port},\"ps\":\"${email}\",\"tls\":\"tls\",\"id\":\"${id}\",\"aid\":0,\"v\":2,\"host\":\"${currentHost}\",\"type\":\"none\",\"path\":\"${path}\",\"net\":\"ws\",\"add\":\"${add}\",\"method\":\"none\",\"peer\":\"${currentHost}\",\"sni\":\"${currentHost}\"}" | base64 -w 0) || return 1
         qrCodeBase64Default="${qrCodeBase64Default// /}"
 
         echoContent yellow " ---> 通用json(VMess+WS+TLS)"
@@ -5567,10 +5555,10 @@ EOF
         echoContent green "    vmess://${qrCodeBase64Default}\n"
         echoContent yellow " ---> 二维码 vmess(VMess+WS+TLS)"
 
-        cat <<EOF >>"${outputRoot}/default/${user}"
+        cat <<EOF >>"${outputRoot}/default/${user}" || return 1
 vmess://${qrCodeBase64Default}
 EOF
-        cat <<EOF >>"${outputRoot}/clashMeta/${user}"
+        cat <<EOF >>"${outputRoot}/clashMeta/${user}" || return 1
   - name: "${email}"
     type: vmess
     server: ${add}
@@ -5588,9 +5576,9 @@ EOF
       headers:
         Host: ${currentHost}
 EOF
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vmess\",\"server\":\"${add}\",\"server_port\":${port},\"uuid\":\"${id}\",\"alter_id\":0,\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"packet_encoding\":\"packetaddr\",\"transport\":{\"type\":\"ws\",\"path\":\"${path}\",\"max_early_data\":2048,\"early_data_header_name\":\"Sec-WebSocket-Protocol\"}}]" "${outputRoot}/sing-box/${user}")
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vmess\",\"server\":\"${add}\",\"server_port\":${port},\"uuid\":\"${id}\",\"alter_id\":0,\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"packet_encoding\":\"packetaddr\",\"transport\":{\"type\":\"ws\",\"path\":\"${path}\",\"max_early_data\":2048,\"early_data_header_name\":\"Sec-WebSocket-Protocol\"}}]" "${outputRoot}/sing-box/${user}") || return 1
 
-        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}"
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}" || return 1
 
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vmess://${qrCodeBase64Default}\n"
 
@@ -5602,10 +5590,10 @@ EOF
         echoContent yellow " ---> 格式化明文(VLESS+WS+TLS)"
         echoContent green "    协议类型:VLESS，地址:${add}，伪装域名/SNI:${currentHost}，端口:${port}，client-fingerprint: chrome,用户ID:${id}，安全:tls，传输方式:ws，路径:${path}，账户名:${email}\n"
 
-        cat <<EOF >>"${outputRoot}/default/${user}"
+        cat <<EOF >>"${outputRoot}/default/${user}" || return 1
 vless://${id}@${add}:${port}?encryption=none&security=tls&type=ws&host=${currentHost}&sni=${currentHost}&fp=chrome&path=${path}#${email}
 EOF
-        cat <<EOF >>"${outputRoot}/clashMeta/${user}"
+        cat <<EOF >>"${outputRoot}/clashMeta/${user}" || return 1
   - name: "${email}"
     type: vless
     server: ${add}
@@ -5622,8 +5610,8 @@ EOF
         Host: ${currentHost}
 EOF
 
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vless\",\"server\":\"${add}\",\"server_port\":${port},\"uuid\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"multiplex\":{\"enabled\":false,\"protocol\":\"smux\",\"max_streams\":32},\"packet_encoding\":\"xudp\",\"transport\":{\"type\":\"ws\",\"path\":\"${path}\",\"headers\":{\"Host\":\"${currentHost}\"}}}]" "${outputRoot}/sing-box/${user}")
-        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}"
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vless\",\"server\":\"${add}\",\"server_port\":${port},\"uuid\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"multiplex\":{\"enabled\":false,\"protocol\":\"smux\",\"max_streams\":32},\"packet_encoding\":\"xudp\",\"transport\":{\"type\":\"ws\",\"path\":\"${path}\",\"headers\":{\"Host\":\"${currentHost}\"}}}]" "${outputRoot}/sing-box/${user}") || return 1
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}" || return 1
 
         echoContent yellow " ---> 二维码 VLESS(VLESS+WS+TLS)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dws%26host%3D${currentHost}%26fp%3Dchrome%26sni%3D${currentHost}%26path%3D${path}%23${email}"
@@ -5642,11 +5630,11 @@ EOF
 
         echoContent yellow " ---> 格式化明文(VLESS+reality+XHTTP)"
         echoContent green "协议类型:VLESS reality，地址:${add}，publicKey:${currentRealityXHTTPPublicKey}，shortId: 6ba85179e30d4fc2,serverNames：${xrayVLESSRealityXHTTPServerName}，端口:${port}，路径：${path}，SNI:${xrayVLESSRealityXHTTPServerName}，伪装域名:${xrayVLESSRealityXHTTPServerName}，用户ID:${id}，传输方式:xhttp，账户名:${email}\n"
-        cat <<EOF >>"${outputRoot}/default/${user}"
+        cat <<EOF >>"${outputRoot}/default/${user}" || return 1
 vless://${id}@${add}:${port}?encryption=none&security=reality${xhttpMldsa65Param}&type=xhttp&sni=${xrayVLESSRealityXHTTPServerName}&fp=chrome&path=${path}&pbk=${currentRealityXHTTPPublicKey}&sid=6ba85179e30d4fc2#${email}
 EOF
 
-        cat <<EOF >>"${outputRoot}/clashMeta/${user}"
+        cat <<EOF >>"${outputRoot}/clashMeta/${user}" || return 1
   - name: "${email}"
     type: vless
     server: ${add}
@@ -5680,10 +5668,10 @@ EOF
         echoContent yellow " ---> 格式化明文(VLESS+gRPC+TLS)"
         echoContent green "    协议类型:VLESS，地址:${add}，伪装域名/SNI:${currentHost}，端口:${port}，用户ID:${id}，安全:tls，传输方式:gRPC，alpn:h2，client-fingerprint: chrome,serviceName:${currentPath}grpc，账户名:${email}\n"
 
-        cat <<EOF >>"${outputRoot}/default/${user}"
+        cat <<EOF >>"${outputRoot}/default/${user}" || return 1
 vless://${id}@${add}:${port}?encryption=none&security=tls&type=grpc&host=${currentHost}&path=${currentPath}grpc&serviceName=${currentPath}grpc&fp=chrome&alpn=h2&sni=${currentHost}#${email}
 EOF
-        cat <<EOF >>"${outputRoot}/clashMeta/${user}"
+        cat <<EOF >>"${outputRoot}/clashMeta/${user}" || return 1
   - name: "${email}"
     type: vless
     server: ${add}
@@ -5698,8 +5686,8 @@ EOF
       grpc-service-name: ${currentPath}grpc
 EOF
 
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\": \"vless\",\"server\": \"${add}\",\"server_port\": ${port},\"uuid\": \"${id}\",\"tls\": {  \"enabled\": true,  \"server_name\": \"${currentHost}\",  \"utls\": {    \"enabled\": true,    \"fingerprint\": \"chrome\"  }},\"packet_encoding\": \"xudp\",\"transport\": {  \"type\": \"grpc\",  \"service_name\": \"${currentPath}grpc\"}}]" "${outputRoot}/sing-box/${user}")
-        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}"
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\": \"vless\",\"server\": \"${add}\",\"server_port\": ${port},\"uuid\": \"${id}\",\"tls\": {  \"enabled\": true,  \"server_name\": \"${currentHost}\",  \"utls\": {    \"enabled\": true,    \"fingerprint\": \"chrome\"  }},\"packet_encoding\": \"xudp\",\"transport\": {  \"type\": \"grpc\",  \"service_name\": \"${currentPath}grpc\"}}]" "${outputRoot}/sing-box/${user}") || return 1
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}" || return 1
 
         echoContent yellow " ---> 二维码 VLESS(VLESS+gRPC+TLS)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dgrpc%26host%3D${currentHost}%26serviceName%3D${currentPath}grpc%26fp%3Dchrome%26path%3D${currentPath}grpc%26sni%3D${currentHost}%26alpn%3Dh2%23${email}"
@@ -5709,11 +5697,11 @@ EOF
         echoContent yellow " ---> Trojan(TLS)"
         echoContent green "    trojan://${id}@${currentHost}:${port}?peer=${currentHost}&fp=chrome&sni=${currentHost}&alpn=http/1.1#${currentHost}_Trojan\n"
 
-        cat <<EOF >>"${outputRoot}/default/${user}"
+        cat <<EOF >>"${outputRoot}/default/${user}" || return 1
 trojan://${id}@${currentHost}:${port}?peer=${currentHost}&fp=chrome&sni=${currentHost}&alpn=http/1.1#${email}_Trojan
 EOF
 
-        cat <<EOF >>"${outputRoot}/clashMeta/${user}"
+        cat <<EOF >>"${outputRoot}/clashMeta/${user}" || return 1
   - name: "${email}"
     type: trojan
     server: ${currentHost}
@@ -5723,8 +5711,8 @@ EOF
     udp: true
     sni: ${currentHost}
 EOF
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"trojan\",\"server\":\"${currentHost}\",\"server_port\":${port},\"password\":\"${id}\",\"tls\":{\"alpn\":[\"http/1.1\"],\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}}}]" "${outputRoot}/sing-box/${user}")
-        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}"
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"trojan\",\"server\":\"${currentHost}\",\"server_port\":${port},\"password\":\"${id}\",\"tls\":{\"alpn\":[\"http/1.1\"],\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}}}]" "${outputRoot}/sing-box/${user}") || return 1
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}" || return 1
 
         echoContent yellow " ---> 二维码 Trojan(TLS)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${currentHost}%3a${port}%3fpeer%3d${currentHost}%26fp%3Dchrome%26sni%3d${currentHost}%26alpn%3Dhttp/1.1%23${email}\n"
@@ -5734,10 +5722,10 @@ EOF
 
         echoContent yellow " ---> Trojan gRPC(TLS)"
         echoContent green "    trojan://${id}@${add}:${port}?encryption=none&peer=${currentHost}&fp=chrome&security=tls&type=grpc&sni=${currentHost}&alpn=h2&path=${currentPath}trojangrpc&serviceName=${currentPath}trojangrpc#${email}\n"
-        cat <<EOF >>"${outputRoot}/default/${user}"
+        cat <<EOF >>"${outputRoot}/default/${user}" || return 1
 trojan://${id}@${add}:${port}?encryption=none&peer=${currentHost}&security=tls&type=grpc&fp=chrome&sni=${currentHost}&alpn=h2&path=${currentPath}trojangrpc&serviceName=${currentPath}trojangrpc#${email}
 EOF
-        cat <<EOF >>"${outputRoot}/clashMeta/${user}"
+        cat <<EOF >>"${outputRoot}/clashMeta/${user}" || return 1
   - name: "${email}"
     server: ${add}
     port: ${port}
@@ -5750,8 +5738,8 @@ EOF
       grpc-service-name: ${currentPath}trojangrpc
 EOF
 
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"trojan\",\"server\":\"${add}\",\"server_port\":${port},\"password\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"insecure\":true,\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"transport\":{\"type\":\"grpc\",\"service_name\":\"${currentPath}trojangrpc\",\"idle_timeout\":\"15s\",\"ping_timeout\":\"15s\",\"permit_without_stream\":false},\"multiplex\":{\"enabled\":false,\"protocol\":\"smux\",\"max_streams\":32}}]" "${outputRoot}/sing-box/${user}")
-        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}"
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"trojan\",\"server\":\"${add}\",\"server_port\":${port},\"password\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"insecure\":true,\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"transport\":{\"type\":\"grpc\",\"service_name\":\"${currentPath}trojangrpc\",\"idle_timeout\":\"15s\",\"ping_timeout\":\"15s\",\"permit_without_stream\":false},\"multiplex\":{\"enabled\":false,\"protocol\":\"smux\",\"max_streams\":32}}]" "${outputRoot}/sing-box/${user}") || return 1
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}" || return 1
 
         echoContent yellow " ---> 二维码 Trojan gRPC(TLS)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${add}%3a${port}%3Fencryption%3Dnone%26fp%3Dchrome%26security%3Dtls%26peer%3d${currentHost}%26type%3Dgrpc%26sni%3d${currentHost}%26path%3D${currentPath}trojangrpc%26alpn%3Dh2%26serviceName%3D${currentPath}trojangrpc%23${email}\n"
@@ -5769,7 +5757,7 @@ EOF
         fi
 
         echoContent green "    hysteria2://${id}@${currentHost}:${singBoxHysteria2Port}?${multiPort}peer=${currentHost}&insecure=0&sni=${currentHost}&alpn=h3#${email}\n"
-        cat <<EOF >>"${outputRoot}/default/${user}"
+        cat <<EOF >>"${outputRoot}/default/${user}" || return 1
 hysteria2://${id}@${currentHost}:${singBoxHysteria2Port}?${multiPort}peer=${currentHost}&insecure=0&sni=${currentHost}&alpn=h3#${email}
 EOF
         echoContent yellow " ---> v2rayN(hysteria+TLS)"
@@ -5778,7 +5766,7 @@ EOF
             '{server:$server,socks5:{listen:"127.0.0.1:7798",timeout:300},auth:$password,tls:{sni:$host}} +
             (if $port | contains("-") then {transport:{udp:{hopInterval:$interval}}} else {} end)'
 
-        cat <<EOF >>"${outputRoot}/clashMeta/${user}"
+        cat <<EOF >>"${outputRoot}/clashMeta/${user}" || return 1
   - name: "${email}"
     type: hysteria2
     server: ${currentHost}
@@ -5794,7 +5782,7 @@ EOF
         local hysteria2Node
         hysteria2Node=$(buildSingBoxHysteria2Node "${port}" "${email}" "${id}") || return 1
         singBoxSubscribeLocalConfig=$(jq --argjson node "${hysteria2Node}" '. += [$node]' "${outputRoot}/sing-box/${user}") || return 1
-        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}"
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}" || return 1
 
         echoContent yellow " ---> 二维码 Hysteria2(TLS)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=hysteria2%3A%2F%2F${id}%40${currentHost}%3A${singBoxHysteria2Port}%3F${multiPortEncode}peer%3D${currentHost}%26insecure%3D0%26sni%3D${currentHost}%26alpn%3Dh3%23${email}\n"
@@ -5813,10 +5801,10 @@ EOF
 
         echoContent yellow " ---> 格式化明文(VLESS+reality+uTLS+Vision)"
         echoContent green "协议类型:VLESS reality，地址:$(getPublicIP)，publicKey:${publicKey}，shortId: 6ba85179e30d4fc2，pqv=${realityMldsa65Verify}，serverNames：${realityServerName}，端口:${port}，用户ID:${id}，传输方式:tcp，账户名:${email}\n"
-        cat <<EOF >>"${outputRoot}/default/${user}"
+        cat <<EOF >>"${outputRoot}/default/${user}" || return 1
 vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&pqv=${realityMldsa65Verify}&type=tcp&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=6ba85179e30d4fc2&flow=xtls-rprx-vision#${email}
 EOF
-        cat <<EOF >>"${outputRoot}/clashMeta/${user}"
+        cat <<EOF >>"${outputRoot}/clashMeta/${user}" || return 1
   - name: "${email}"
     type: vless
     server: $(getPublicIP)
@@ -5834,8 +5822,8 @@ EOF
     client-fingerprint: chrome
 EOF
 
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vless\",\"server\":\"$(getPublicIP)\",\"server_port\":${port},\"uuid\":\"${id}\",\"flow\":\"xtls-rprx-vision\",\"tls\":{\"enabled\":true,\"server_name\":\"${realityServerName}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"},\"reality\":{\"enabled\":true,\"public_key\":\"${publicKey}\",\"short_id\":\"6ba85179e30d4fc2\"}},\"packet_encoding\":\"xudp\"}]" "${outputRoot}/sing-box/${user}")
-        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}"
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vless\",\"server\":\"$(getPublicIP)\",\"server_port\":${port},\"uuid\":\"${id}\",\"flow\":\"xtls-rprx-vision\",\"tls\":{\"enabled\":true,\"server_name\":\"${realityServerName}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"},\"reality\":{\"enabled\":true,\"public_key\":\"${publicKey}\",\"short_id\":\"6ba85179e30d4fc2\"}},\"packet_encoding\":\"xudp\"}]" "${outputRoot}/sing-box/${user}") || return 1
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}" || return 1
 
         echoContent yellow " ---> 二维码 VLESS(VLESS+reality+uTLS+Vision)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40$(getPublicIP)%3A${port}%3Fencryption%3Dnone%26security%3Dreality%26type%3Dtcp%26sni%3D${realityServerName}%26fp%3Dchrome%26pbk%3D${publicKey}%26sid%3D6ba85179e30d4fc2%26flow%3Dxtls-rprx-vision%23${email}\n"
@@ -5857,10 +5845,10 @@ EOF
         echoContent yellow " ---> 格式化明文(VLESS+reality+uTLS+gRPC)"
         # pqv=${realityMldsa65Verify}，
         echoContent green "协议类型:VLESS reality，serviceName:grpc，地址:$(getPublicIP)，publicKey:${publicKey}，shortId: 6ba85179e30d4fc2，serverNames：${realityServerName}，端口:${port}，用户ID:${id}，传输方式:gRPC，client-fingerprint：chrome，账户名:${email}\n"
-        cat <<EOF >>"${outputRoot}/default/${user}"
+        cat <<EOF >>"${outputRoot}/default/${user}" || return 1
 vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&pqv=${realityMldsa65Verify}&type=grpc&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=6ba85179e30d4fc2&path=grpc&serviceName=grpc#${email}
 EOF
-        cat <<EOF >>"${outputRoot}/clashMeta/${user}"
+        cat <<EOF >>"${outputRoot}/clashMeta/${user}" || return 1
   - name: "${email}"
     type: vless
     server: $(getPublicIP)
@@ -5878,8 +5866,8 @@ EOF
     client-fingerprint: chrome
 EOF
 
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vless\",\"server\":\"$(getPublicIP)\",\"server_port\":${port},\"uuid\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${realityServerName}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"},\"reality\":{\"enabled\":true,\"public_key\":\"${publicKey}\",\"short_id\":\"6ba85179e30d4fc2\"}},\"packet_encoding\":\"xudp\",\"transport\":{\"type\":\"grpc\",\"service_name\":\"grpc\"}}]" "${outputRoot}/sing-box/${user}")
-        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}"
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vless\",\"server\":\"$(getPublicIP)\",\"server_port\":${port},\"uuid\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${realityServerName}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"},\"reality\":{\"enabled\":true,\"public_key\":\"${publicKey}\",\"short_id\":\"6ba85179e30d4fc2\"}},\"packet_encoding\":\"xudp\",\"transport\":{\"type\":\"grpc\",\"service_name\":\"grpc\"}}]" "${outputRoot}/sing-box/${user}") || return 1
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}" || return 1
 
         echoContent yellow " ---> 二维码 VLESS(VLESS+reality+uTLS+gRPC)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40$(getPublicIP)%3A${port}%3Fencryption%3Dnone%26security%3Dreality%26type%3Dgrpc%26sni%3D${realityServerName}%26fp%3Dchrome%26pbk%3D${publicKey}%26sid%3D6ba85179e30d4fc2%26path%3Dgrpc%26serviceName%3Dgrpc%23${email}\n"
@@ -5892,19 +5880,19 @@ EOF
 
         if [[ -z "${email}" ]]; then
             echoContent red " ---> 读取配置失败，请重新安装"
-            exit 0
+            return 1
         fi
 
         echoContent yellow " ---> 格式化明文(Tuic+TLS)"
         echoContent green "    协议类型:Tuic，地址:${currentHost}，端口：${port}，uuid：${tuicUUID}，password：${tuicPassword}，congestion-controller:${tuicAlgorithm}，alpn: h3，账户名:${email}\n"
 
-        cat <<EOF >>"${outputRoot}/default/${user}"
+        cat <<EOF >>"${outputRoot}/default/${user}" || return 1
 tuic://${tuicUUID}:${tuicPassword}@${currentHost}:${port}?congestion_control=${tuicAlgorithm}&alpn=h3&sni=${currentHost}&udp_relay_mode=quic&allow_insecure=0#${email}
 EOF
         echoContent yellow " ---> v2rayN(Tuic+TLS)"
         echo "{\"relay\": {\"server\": \"${currentHost}:${port}\",\"uuid\": \"${tuicUUID}\",\"password\": \"${tuicPassword}\",\"ip\": \"${currentHost}\",\"congestion_control\": \"${tuicAlgorithm}\",\"alpn\": [\"h3\"]},\"local\": {\"server\": \"127.0.0.1:7798\"},\"log_level\": \"warn\"}" | jq
 
-        cat <<EOF >>"${outputRoot}/clashMeta/${user}"
+        cat <<EOF >>"${outputRoot}/clashMeta/${user}" || return 1
   - name: "${email}"
     server: ${currentHost}
     type: tuic
@@ -5919,8 +5907,8 @@ EOF
     sni: ${email}
 EOF
 
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\": \"tuic\",\"server\": \"${currentHost}\",\"server_port\": ${port},\"uuid\": \"${tuicUUID}\",\"password\": \"${tuicPassword}\",\"congestion_control\": \"${tuicAlgorithm}\",\"tls\": {\"enabled\": true,\"server_name\": \"${currentHost}\",\"alpn\": [\"h3\"]}}]" "${outputRoot}/sing-box/${user}")
-        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}"
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\": \"tuic\",\"server\": \"${currentHost}\",\"server_port\": ${port},\"uuid\": \"${tuicUUID}\",\"password\": \"${tuicPassword}\",\"congestion_control\": \"${tuicAlgorithm}\",\"tls\": {\"enabled\": true,\"server_name\": \"${currentHost}\",\"alpn\": [\"h3\"]}}]" "${outputRoot}/sing-box/${user}") || return 1
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}" || return 1
 
         echoContent yellow "\n ---> 二维码 Tuic"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=tuic%3A%2F%2F${tuicUUID}%3A${tuicPassword}%40${currentHost}%3A${tuicPort}%3Fcongestion_control%3D${tuicAlgorithm}%26alpn%3Dh3%26sni%3D${currentHost}%26udp_relay_mode%3Dquic%26allow_insecure%3D0%23${email}\n"
@@ -5928,13 +5916,13 @@ EOF
         echoContent yellow " ---> Naive(TLS)"
 
         echoContent green "    naive+https://${email}:${id}@${currentHost}:${port}?padding=true#${email}\n"
-        cat <<EOF >>"${outputRoot}/default/${user}"
+        cat <<EOF >>"${outputRoot}/default/${user}" || return 1
 naive+https://${email}:${id}@${currentHost}:${port}?padding=true#${email}
 EOF
         echoContent yellow " ---> 二维码 Naive(TLS)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=naive%2Bhttps%3A%2F%2F${email}%3A${id}%40${currentHost}%3A${port}%3Fpadding%3Dtrue%23${email}\n"
     elif [[ "${type}" == "vmessHTTPUpgrade" ]]; then
-        qrCodeBase64Default=$(echo -n "{\"port\":${port},\"ps\":\"${email}\",\"tls\":\"tls\",\"id\":\"${id}\",\"aid\":0,\"v\":2,\"host\":\"${currentHost}\",\"type\":\"none\",\"path\":\"${path}\",\"net\":\"httpupgrade\",\"add\":\"${add}\",\"method\":\"none\",\"peer\":\"${currentHost}\",\"sni\":\"${currentHost}\"}" | base64 -w 0)
+        qrCodeBase64Default=$(echo -n "{\"port\":${port},\"ps\":\"${email}\",\"tls\":\"tls\",\"id\":\"${id}\",\"aid\":0,\"v\":2,\"host\":\"${currentHost}\",\"type\":\"none\",\"path\":\"${path}\",\"net\":\"httpupgrade\",\"add\":\"${add}\",\"method\":\"none\",\"peer\":\"${currentHost}\",\"sni\":\"${currentHost}\"}" | base64 -w 0) || return 1
         qrCodeBase64Default="${qrCodeBase64Default// /}"
 
         echoContent yellow " ---> 通用json(VMess+HTTPUpgrade+TLS)"
@@ -5943,10 +5931,10 @@ EOF
         echoContent green "    vmess://${qrCodeBase64Default}\n"
         echoContent yellow " ---> 二维码 vmess(VMess+HTTPUpgrade+TLS)"
 
-        cat <<EOF >>"${outputRoot}/default/${user}"
+        cat <<EOF >>"${outputRoot}/default/${user}" || return 1
    vmess://${qrCodeBase64Default}
 EOF
-        cat <<EOF >>"${outputRoot}/clashMeta/${user}"
+        cat <<EOF >>"${outputRoot}/clashMeta/${user}" || return 1
   - name: "${email}"
     type: vmess
     server: ${add}
@@ -5965,9 +5953,9 @@ EOF
        Host: ${currentHost}
      v2ray-http-upgrade: true
 EOF
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vmess\",\"server\":\"${add}\",\"server_port\":${port},\"uuid\":\"${id}\",\"security\":\"auto\",\"alter_id\":0,\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"packet_encoding\":\"packetaddr\",\"transport\":{\"type\":\"httpupgrade\",\"path\":\"${path}\"}}]" "${outputRoot}/sing-box/${user}")
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vmess\",\"server\":\"${add}\",\"server_port\":${port},\"uuid\":\"${id}\",\"security\":\"auto\",\"alter_id\":0,\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"packet_encoding\":\"packetaddr\",\"transport\":{\"type\":\"httpupgrade\",\"path\":\"${path}\"}}]" "${outputRoot}/sing-box/${user}") || return 1
 
-        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}"
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}" || return 1
 
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vmess://${qrCodeBase64Default}\n"
 
@@ -5978,10 +5966,10 @@ EOF
         echoContent green "协议类型:anytls，地址:${currentHost}，端口:${singBoxAnyTLSPort}，用户ID:${id}，传输方式:tcp，账户名:${email}\n"
 
         echoContent green "    anytls://${id}@${currentHost}:${singBoxAnyTLSPort}?peer=${currentHost}&insecure=0&sni=${currentHost}#${email}\n"
-        cat <<EOF >>"${outputRoot}/default/${user}"
+        cat <<EOF >>"${outputRoot}/default/${user}" || return 1
 anytls://${id}@${currentHost}:${singBoxAnyTLSPort}?peer=${currentHost}&insecure=0&sni=${currentHost}#${email}
 EOF
-        cat <<EOF >>"${outputRoot}/clashMeta/${user}"
+        cat <<EOF >>"${outputRoot}/clashMeta/${user}" || return 1
   - name: "${email}"
     type: anytls
     port: ${singBoxAnyTLSPort}
@@ -5995,8 +5983,8 @@ EOF
       - http/1.1
 EOF
 
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"anytls\",\"server\":\"${currentHost}\",\"server_port\":${singBoxAnyTLSPort},\"password\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\"}}]" "${outputRoot}/sing-box/${user}")
-        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}"
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"anytls\",\"server\":\"${currentHost}\",\"server_port\":${singBoxAnyTLSPort},\"password\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\"}}]" "${outputRoot}/sing-box/${user}") || return 1
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}" || return 1
 
         echoContent yellow " ---> 二维码 AnyTLS"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=anytls%3A%2F%2F${id}%40${currentHost}%3A${singBoxAnyTLSPort}%3Fpeer%3D${currentHost}%26insecure%3D0%26sni%3D${currentHost}%23${email}\n"
@@ -6086,10 +6074,18 @@ selectAccountUser() {
 }
 
 # 账号
+# Read and validate a complete account configuration before entering user loops.
+readAccountUsers() {
+    local filter=$1 file=$2
+    jq -sc 'if length == 1 and (.[0] | type == "object" and (.inbounds | type == "array"))
+        then .[0] | '"${filter}"'
+        else error("Invalid account configuration") end' "${file}"
+}
+
 showAccounts() {
     local accountViewKey=${2:-}
     local accountSubscriptionLocalRoot=${3:-/etc/v2ray-agent/subscribe_local}
-    local accountViewUserKey=${accountViewKey}
+    local user line accountUsers
     readInstallType
     readInstallProtocolType
     readConfigHostPathUUID
@@ -6107,23 +6103,27 @@ showAccounts() {
     if echo ${currentInstallProtocolType} | grep -q ",0,"; then
 
         echoContent skyBlue "============================= VLESS TCP TLS_Vision [推荐] ==============================\n"
-        jq .inbounds[0].settings.clients//.inbounds[0].users ${configPath}02_VLESS_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
-            if [[ -n "${accountViewUserKey}" ]] && ! accountUserMatches "${user}" "${accountViewUserKey}"; then continue; fi
+        accountUsers=$(readAccountUsers '(.inbounds[0].settings.clients//.inbounds[0].users)[]' "${configPath}02_VLESS_TCP_inbounds.json") || return 1
+        while IFS= read -r user; do
+            [[ -n "${user}" ]] || continue
+            if [[ -n "${accountViewKey}" ]] && ! accountUserMatches "${user}" "${accountViewKey}"; then continue; fi
             local email=
             email=$(echo "${user}" | jq -r .email//.name)
 
             echoContent skyBlue "\n ---> 账号:${email}"
             echo
-            defaultBase64Code vlesstcp "${currentDefaultPort}${singBoxVLESSVisionPort}" "${email}" "$(echo "${user}" | jq -r .id//.uuid)"
-        done
+            defaultBase64Code vlesstcp "${currentDefaultPort}${singBoxVLESSVisionPort}" "${email}" "$(echo "${user}" | jq -r .id//.uuid)" || return 1
+        done <<<"${accountUsers}"
     fi
 
     # VLESS WS
     if echo ${currentInstallProtocolType} | grep -q ",1,"; then
         echoContent skyBlue "\n================================ VLESS WS TLS [仅CDN推荐] ================================\n"
 
-        jq .inbounds[0].settings.clients//.inbounds[0].users ${configPath}03_VLESS_WS_inbounds.json | jq -c '.[]' | while read -r user; do
-            if [[ -n "${accountViewUserKey}" ]] && ! accountUserMatches "${user}" "${accountViewUserKey}"; then continue; fi
+        accountUsers=$(readAccountUsers '(.inbounds[0].settings.clients//.inbounds[0].users)[]' "${configPath}03_VLESS_WS_inbounds.json") || return 1
+        while IFS= read -r user; do
+            [[ -n "${user}" ]] || continue
+            if [[ -n "${accountViewKey}" ]] && ! accountUserMatches "${user}" "${accountViewKey}"; then continue; fi
             local email=
             email=$(echo "${user}" | jq -r .email//.name)
 
@@ -6132,55 +6132,59 @@ showAccounts() {
                 vlessWSPort="${singBoxVLESSWSPort}"
             fi
             echo
-            local path="${currentPath}ws"
+            local vlessWSPath="${currentPath}ws"
 
             if [[ ${coreInstallType} == "1" ]]; then
-                path="/${currentPath}ws"
+                vlessWSPath="/${currentPath}ws"
             elif [[ "${coreInstallType}" == "2" ]]; then
-                path="${singBoxVLESSWSPath}"
+                vlessWSPath="${singBoxVLESSWSPath}"
             fi
 
             local count=
-            while read -r line; do
+            while IFS= read -r line; do
                 echoContent skyBlue "\n ---> 账号:${email}${count}"
                 if [[ -n "${line}" ]]; then
-                    defaultBase64Code vlessws "${vlessWSPort}" "${email}${count}" "$(echo "${user}" | jq -r .id//.uuid)" "${line}" "${path}"
+                    defaultBase64Code vlessws "${vlessWSPort}" "${email}${count}" "$(echo "${user}" | jq -r .id//.uuid)" "${line}" "${vlessWSPath}" || return 1
                     count=$((count + 1))
                     echo
                 fi
             done < <(echo "${currentCDNAddress}" | tr ',' '\n')
-        done
+        done <<<"${accountUsers}"
     fi
     # trojan grpc
     if echo ${currentInstallProtocolType} | grep -q ",2,"; then
         echoContent skyBlue "\n================================  Trojan gRPC TLS [仅CDN推荐]  ================================\n"
-        jq .inbounds[0].settings.clients ${configPath}04_trojan_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
-            if [[ -n "${accountViewUserKey}" ]] && ! accountUserMatches "${user}" "${accountViewUserKey}"; then continue; fi
+        accountUsers=$(readAccountUsers '(.inbounds[0].settings.clients)[]' "${configPath}04_trojan_gRPC_inbounds.json") || return 1
+        while IFS= read -r user; do
+            [[ -n "${user}" ]] || continue
+            if [[ -n "${accountViewKey}" ]] && ! accountUserMatches "${user}" "${accountViewKey}"; then continue; fi
             local email=
             email=$(echo "${user}" | jq -r .email)
             local count=
-            while read -r line; do
+            while IFS= read -r line; do
                 echoContent skyBlue "\n ---> 账号:${email}${count}"
                 echo
                 if [[ -n "${line}" ]]; then
-                    defaultBase64Code trojangrpc "${currentDefaultPort}" "${email}${count}" "$(echo "${user}" | jq -r .password)" "${line}"
+                    defaultBase64Code trojangrpc "${currentDefaultPort}" "${email}${count}" "$(echo "${user}" | jq -r .password)" "${line}" || return 1
                     count=$((count + 1))
                 fi
             done < <(echo "${currentCDNAddress}" | tr ',' '\n')
 
-        done
+        done <<<"${accountUsers}"
     fi
     # VMess WS
     if echo ${currentInstallProtocolType} | grep -q ",3,"; then
         echoContent skyBlue "\n================================ VMess WS TLS [仅CDN推荐]  ================================\n"
-        local path="${currentPath}vws"
+        local vmessWSPath="${currentPath}vws"
         if [[ ${coreInstallType} == "1" ]]; then
-            path="/${currentPath}vws"
+            vmessWSPath="/${currentPath}vws"
         elif [[ "${coreInstallType}" == "2" ]]; then
-            path="${singBoxVMessWSPath}"
+            vmessWSPath="${singBoxVMessWSPath}"
         fi
-        jq .inbounds[0].settings.clients//.inbounds[0].users ${configPath}05_VMess_WS_inbounds.json | jq -c '.[]' | while read -r user; do
-            if [[ -n "${accountViewUserKey}" ]] && ! accountUserMatches "${user}" "${accountViewUserKey}"; then continue; fi
+        accountUsers=$(readAccountUsers '(.inbounds[0].settings.clients//.inbounds[0].users)[]' "${configPath}05_VMess_WS_inbounds.json") || return 1
+        while IFS= read -r user; do
+            [[ -n "${user}" ]] || continue
+            if [[ -n "${accountViewKey}" ]] && ! accountUserMatches "${user}" "${accountViewKey}"; then continue; fi
             local email=
             email=$(echo "${user}" | jq -r .email//.name)
 
@@ -6190,57 +6194,61 @@ showAccounts() {
             fi
 
             local count=
-            while read -r line; do
+            while IFS= read -r line; do
                 echoContent skyBlue "\n ---> 账号:${email}${count}"
                 echo
                 if [[ -n "${line}" ]]; then
-                    defaultBase64Code vmessws "${vmessPort}" "${email}${count}" "$(echo "${user}" | jq -r .id//.uuid)" "${line}" "${path}"
+                    defaultBase64Code vmessws "${vmessPort}" "${email}${count}" "$(echo "${user}" | jq -r .id//.uuid)" "${line}" "${vmessWSPath}" || return 1
                     count=$((count + 1))
                 fi
             done < <(echo "${currentCDNAddress}" | tr ',' '\n')
-        done
+        done <<<"${accountUsers}"
     fi
 
     # trojan tcp
     if echo ${currentInstallProtocolType} | grep -q ",4,"; then
         echoContent skyBlue "\n==================================  Trojan TLS [不推荐] ==================================\n"
-        jq .inbounds[0].settings.clients//.inbounds[0].users ${configPath}04_trojan_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
-            if [[ -n "${accountViewUserKey}" ]] && ! accountUserMatches "${user}" "${accountViewUserKey}"; then continue; fi
+        accountUsers=$(readAccountUsers '(.inbounds[0].settings.clients//.inbounds[0].users)[]' "${configPath}04_trojan_TCP_inbounds.json") || return 1
+        while IFS= read -r user; do
+            [[ -n "${user}" ]] || continue
+            if [[ -n "${accountViewKey}" ]] && ! accountUserMatches "${user}" "${accountViewKey}"; then continue; fi
             local email=
             email=$(echo "${user}" | jq -r .email//.name)
             echoContent skyBlue "\n ---> 账号:${email}"
 
-            defaultBase64Code trojan "${currentDefaultPort}${singBoxTrojanPort}" "${email}" "$(echo "${user}" | jq -r .password)"
-        done
+            defaultBase64Code trojan "${currentDefaultPort}${singBoxTrojanPort}" "${email}" "$(echo "${user}" | jq -r .password)" || return 1
+        done <<<"${accountUsers}"
     fi
     # VLESS grpc
     if echo ${currentInstallProtocolType} | grep -q ",5,"; then
         echoContent skyBlue "\n=============================== VLESS gRPC TLS [仅CDN推荐]  ===============================\n"
-        jq .inbounds[0].settings.clients ${configPath}06_VLESS_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
-            if [[ -n "${accountViewUserKey}" ]] && ! accountUserMatches "${user}" "${accountViewUserKey}"; then continue; fi
+        accountUsers=$(readAccountUsers '(.inbounds[0].settings.clients)[]' "${configPath}06_VLESS_gRPC_inbounds.json") || return 1
+        while IFS= read -r user; do
+            [[ -n "${user}" ]] || continue
+            if [[ -n "${accountViewKey}" ]] && ! accountUserMatches "${user}" "${accountViewKey}"; then continue; fi
 
             local email=
             email=$(echo "${user}" | jq -r .email)
 
             local count=
-            while read -r line; do
+            while IFS= read -r line; do
                 echoContent skyBlue "\n ---> 账号:${email}${count}"
                 echo
                 if [[ -n "${line}" ]]; then
-                    defaultBase64Code vlessgrpc "${currentDefaultPort}" "${email}${count}" "$(echo "${user}" | jq -r .id)" "${line}"
+                    defaultBase64Code vlessgrpc "${currentDefaultPort}" "${email}${count}" "$(echo "${user}" | jq -r .id)" "${line}" || return 1
                     count=$((count + 1))
                 fi
             done < <(echo "${currentCDNAddress}" | tr ',' '\n')
 
-        done
+        done <<<"${accountUsers}"
     fi
     # hysteria2
     if echo ${currentInstallProtocolType} | grep -q ",6," || [[ -n "${hysteriaPort}" ]]; then
         readPortHopping "hysteria2" "${singBoxHysteria2Port}"
         echoContent skyBlue "\n================================  Hysteria2 TLS [推荐] ================================\n"
-        local path="${configPath}"
+        local hysteriaConfigPath="${configPath}"
         if [[ "${coreInstallType}" == "1" ]]; then
-            path="${singBoxConfigPath}"
+            hysteriaConfigPath="${singBoxConfigPath}"
         fi
         local hysteria2DefaultPort=
         if [[ -n "${hysteria2PortHoppingStart}" && -n "${hysteria2PortHoppingEnd}" ]]; then
@@ -6249,79 +6257,91 @@ showAccounts() {
             hysteria2DefaultPort=${singBoxHysteria2Port}
         fi
 
-        jq -r -c '.inbounds[]|.users[]' "${path}06_hysteria2_inbounds.json" | while read -r user; do
-            if [[ -n "${accountViewUserKey}" ]] && ! accountUserMatches "${user}" "${accountViewUserKey}"; then continue; fi
+        accountUsers=$(readAccountUsers '.inbounds[]|.users[]' "${hysteriaConfigPath}06_hysteria2_inbounds.json") || return 1
+        while IFS= read -r user; do
+            [[ -n "${user}" ]] || continue
+            if [[ -n "${accountViewKey}" ]] && ! accountUserMatches "${user}" "${accountViewKey}"; then continue; fi
             echoContent skyBlue "\n ---> 账号:$(echo "${user}" | jq -r .name)"
             echo
-            defaultBase64Code hysteria "${hysteria2DefaultPort}" "$(echo "${user}" | jq -r .name)" "$(echo "${user}" | jq -r .password)"
-        done
+            defaultBase64Code hysteria "${hysteria2DefaultPort}" "$(echo "${user}" | jq -r .name)" "$(echo "${user}" | jq -r .password)" || return 1
+        done <<<"${accountUsers}"
 
     fi
 
     # VLESS reality vision
     if echo ${currentInstallProtocolType} | grep -q ",7,"; then
         echoContent skyBlue "============================= VLESS reality_vision [推荐]  ==============================\n"
-        jq .inbounds[1].settings.clients//.inbounds[0].users ${configPath}07_VLESS_vision_reality_inbounds.json | jq -c '.[]' | while read -r user; do
-            if [[ -n "${accountViewUserKey}" ]] && ! accountUserMatches "${user}" "${accountViewUserKey}"; then continue; fi
+        accountUsers=$(readAccountUsers '(.inbounds[1].settings.clients//.inbounds[0].users)[]' "${configPath}07_VLESS_vision_reality_inbounds.json") || return 1
+        while IFS= read -r user; do
+            [[ -n "${user}" ]] || continue
+            if [[ -n "${accountViewKey}" ]] && ! accountUserMatches "${user}" "${accountViewKey}"; then continue; fi
             local email=
             email=$(echo "${user}" | jq -r .email//.name)
 
             echoContent skyBlue "\n ---> 账号:${email}"
             echo
-            defaultBase64Code vlessReality "$(getRealitySubscriptionPort vision)" "${email}" "$(echo "${user}" | jq -r .id//.uuid)"
-        done
+            defaultBase64Code vlessReality "$(getRealitySubscriptionPort vision)" "${email}" "$(echo "${user}" | jq -r .id//.uuid)" || return 1
+        done <<<"${accountUsers}"
     fi
     # VLESS reality gRPC
     if echo ${currentInstallProtocolType} | grep -q ",8,"; then
         echoContent skyBlue "============================== VLESS reality_gRPC [推荐] ===============================\n"
-        jq .inbounds[0].settings.clients//.inbounds[0].users ${configPath}08_VLESS_vision_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
-            if [[ -n "${accountViewUserKey}" ]] && ! accountUserMatches "${user}" "${accountViewUserKey}"; then continue; fi
+        accountUsers=$(readAccountUsers '(.inbounds[0].settings.clients//.inbounds[0].users)[]' "${configPath}08_VLESS_vision_gRPC_inbounds.json") || return 1
+        while IFS= read -r user; do
+            [[ -n "${user}" ]] || continue
+            if [[ -n "${accountViewKey}" ]] && ! accountUserMatches "${user}" "${accountViewKey}"; then continue; fi
             local email=
             email=$(echo "${user}" | jq -r .email//.name)
 
             echoContent skyBlue "\n ---> 账号:${email}"
             echo
-            defaultBase64Code vlessRealityGRPC "$(getRealitySubscriptionPort grpc)" "${email}" "$(echo "${user}" | jq -r .id//.uuid)"
-        done
+            defaultBase64Code vlessRealityGRPC "$(getRealitySubscriptionPort grpc)" "${email}" "$(echo "${user}" | jq -r .id//.uuid)" || return 1
+        done <<<"${accountUsers}"
     fi
     # tuic
     if echo ${currentInstallProtocolType} | grep -q ",9," || [[ -n "${tuicPort}" ]]; then
         echoContent skyBlue "\n================================  Tuic TLS [推荐]  ================================\n"
-        local path="${configPath}"
+        local tuicConfigPath="${configPath}"
         if [[ "${coreInstallType}" == "1" ]]; then
-            path="${singBoxConfigPath}"
+            tuicConfigPath="${singBoxConfigPath}"
         fi
-        jq -r -c '.inbounds[].users[]' "${path}09_tuic_inbounds.json" | while read -r user; do
-            if [[ -n "${accountViewUserKey}" ]] && ! accountUserMatches "${user}" "${accountViewUserKey}"; then continue; fi
+        accountUsers=$(readAccountUsers '.inbounds[].users[]' "${tuicConfigPath}09_tuic_inbounds.json") || return 1
+        while IFS= read -r user; do
+            [[ -n "${user}" ]] || continue
+            if [[ -n "${accountViewKey}" ]] && ! accountUserMatches "${user}" "${accountViewKey}"; then continue; fi
             echoContent skyBlue "\n ---> 账号:$(echo "${user}" | jq -r .name)"
             echo
-            defaultBase64Code tuic "${singBoxTuicPort}" "$(echo "${user}" | jq -r .name)" "$(echo "${user}" | jq -r .uuid)_$(echo "${user}" | jq -r .password)"
-        done
+            defaultBase64Code tuic "${singBoxTuicPort}" "$(echo "${user}" | jq -r .name)" "$(echo "${user}" | jq -r .uuid)_$(echo "${user}" | jq -r .password)" || return 1
+        done <<<"${accountUsers}"
 
     fi
     # naive
     if echo ${currentInstallProtocolType} | grep -q ",10," || [[ -n "${singBoxNaivePort}" ]]; then
         echoContent skyBlue "\n================================  naive TLS [推荐，不支持ClashMeta]  ================================\n"
 
-        jq -r -c '.inbounds[]|.users[]' "${configPath}10_naive_inbounds.json" | while read -r user; do
-            if [[ -n "${accountViewUserKey}" ]] && ! accountUserMatches "${user}" "${accountViewUserKey}"; then continue; fi
+        accountUsers=$(readAccountUsers '.inbounds[]|.users[]' "${configPath}10_naive_inbounds.json") || return 1
+        while IFS= read -r user; do
+            [[ -n "${user}" ]] || continue
+            if [[ -n "${accountViewKey}" ]] && ! accountUserMatches "${user}" "${accountViewKey}"; then continue; fi
             echoContent skyBlue "\n ---> 账号:$(echo "${user}" | jq -r .username)"
             echo
-            defaultBase64Code naive "${singBoxNaivePort}" "$(echo "${user}" | jq -r .username)" "$(echo "${user}" | jq -r .password)"
-        done
+            defaultBase64Code naive "${singBoxNaivePort}" "$(echo "${user}" | jq -r .username)" "$(echo "${user}" | jq -r .password)" || return 1
+        done <<<"${accountUsers}"
 
     fi
     # VMess HTTPUpgrade
     if echo ${currentInstallProtocolType} | grep -q ",11,"; then
         echoContent skyBlue "\n================================ VMess HTTPUpgrade TLS [仅CDN推荐]  ================================\n"
-        local path="${currentPath}vws"
+        local vmessHTTPUpgradePath="${currentPath}vws"
         if [[ ${coreInstallType} == "1" ]]; then
-            path="/${currentPath}vws"
+            vmessHTTPUpgradePath="/${currentPath}vws"
         elif [[ "${coreInstallType}" == "2" ]]; then
-            path="${singBoxVMessHTTPUpgradePath}"
+            vmessHTTPUpgradePath="${singBoxVMessHTTPUpgradePath}"
         fi
-        jq .inbounds[0].settings.clients//.inbounds[0].users ${configPath}11_VMess_HTTPUpgrade_inbounds.json | jq -c '.[]' | while read -r user; do
-            if [[ -n "${accountViewUserKey}" ]] && ! accountUserMatches "${user}" "${accountViewUserKey}"; then continue; fi
+        accountUsers=$(readAccountUsers '(.inbounds[0].settings.clients//.inbounds[0].users)[]' "${configPath}11_VMess_HTTPUpgrade_inbounds.json") || return 1
+        while IFS= read -r user; do
+            [[ -n "${user}" ]] || continue
+            if [[ -n "${accountViewKey}" ]] && ! accountUserMatches "${user}" "${accountViewKey}"; then continue; fi
             local email=
             email=$(echo "${user}" | jq -r .email//.name)
 
@@ -6331,40 +6351,42 @@ showAccounts() {
             fi
 
             local count=
-            while read -r line; do
+            while IFS= read -r line; do
                 echoContent skyBlue "\n ---> 账号:${email}${count}"
                 echo
                 if [[ -n "${line}" ]]; then
-                    defaultBase64Code vmessHTTPUpgrade "${vmessHTTPUpgradePort}" "${email}${count}" "$(echo "${user}" | jq -r .id//.uuid)" "${line}" "${path}"
+                    defaultBase64Code vmessHTTPUpgrade "${vmessHTTPUpgradePort}" "${email}${count}" "$(echo "${user}" | jq -r .id//.uuid)" "${line}" "${vmessHTTPUpgradePath}" || return 1
                     count=$((count + 1))
                 fi
             done < <(echo "${currentCDNAddress}" | tr ',' '\n')
-        done
+        done <<<"${accountUsers}"
     fi
     # VLESS Reality XHTTP
     if echo ${currentInstallProtocolType} | grep -q ",12,"; then
         echoContent skyBlue "\n================================ VLESS Reality XHTTP TLS [仅CDN推荐] ================================\n"
 
-        jq .inbounds[0].settings.clients//.inbounds[0].users ${configPath}12_VLESS_XHTTP_inbounds.json | jq -c '.[]' | while read -r user; do
-            if [[ -n "${accountViewUserKey}" ]] && ! accountUserMatches "${user}" "${accountViewUserKey}"; then continue; fi
+        accountUsers=$(readAccountUsers '(.inbounds[0].settings.clients//.inbounds[0].users)[]' "${configPath}12_VLESS_XHTTP_inbounds.json") || return 1
+        while IFS= read -r user; do
+            [[ -n "${user}" ]] || continue
+            if [[ -n "${accountViewKey}" ]] && ! accountUserMatches "${user}" "${accountViewKey}"; then continue; fi
             local email=
             email=$(echo "${user}" | jq -r .email//.name)
             echo
-            local path="${currentPath}xHTTP"
+            local vlessXHTTPPath="${currentPath}xHTTP"
 
             local count=
-            while read -r line; do
+            while IFS= read -r line; do
                 echoContent skyBlue "\n ---> 账号:${email}${count}"
                 if [[ -z "${line}" ]]; then
                     line=$(getPublicIP)
                 fi
                 if [[ -n "${line}" ]]; then
-                    defaultBase64Code vlessXHTTP "${xrayVLESSRealityXHTTPort}" "${email}${count}" "$(echo "${user}" | jq -r .id//.uuid)" "${line}" "${path}"
+                    defaultBase64Code vlessXHTTP "${xrayVLESSRealityXHTTPort}" "${email}${count}" "$(echo "${user}" | jq -r .id//.uuid)" "${line}" "${vlessXHTTPPath}" || return 1
                     count=$((count + 1))
                     echo
                 fi
             done < <(echo "${currentCDNAddress}" | tr ',' '\n')
-        done
+        done <<<"${accountUsers}"
     fi
     # VLESS XHTTP TLS tunnel (Xray-only subscriptions)
     if echo ${currentInstallProtocolType} | grep -q ",14," && [[ -f "${configPath}14_VLESS_XHTTP_TLS_inbounds.json" ]]; then
@@ -6374,8 +6396,10 @@ showAccounts() {
             xhttpTLSCDNAddress=$(head -1 "/etc/v2ray-agent/cdn" | tr -d '\r\n')
         fi
         local xhttpTLSUsedNames=$'\n'
-        while read -r user; do
-            if [[ -n "${accountViewUserKey}" ]] && ! accountUserMatches "${user}" "${accountViewUserKey}"; then continue; fi
+        accountUsers=$(readAccountUsers '.inbounds[0].settings.clients[]?' "${configPath}14_VLESS_XHTTP_TLS_inbounds.json") || return 1
+        while IFS= read -r user; do
+            [[ -n "${user}" ]] || continue
+            if [[ -n "${accountViewKey}" ]] && ! accountUserMatches "${user}" "${accountViewKey}"; then continue; fi
             local email uuidValue
             email=$(echo "${user}" | jq -r '.email // .name')
             uuidValue=$(echo "${user}" | jq -r '.id // .uuid // .password')
@@ -6386,37 +6410,40 @@ showAccounts() {
                 xhttpTLSUsedNames="${xhttpTLSUsedNames}${nodeName}"$'\n'
                 echoContent skyBlue "\n ---> 账号:${nodeName}"
                 currentXHTTPMode=${endpointMode}
-                defaultBase64Code vlessXHTTPTLS "${endpointPort}" "${nodeName}" "${uuidValue}" "${endpointAddress}" "${currentPath}xHTTP"
+                defaultBase64Code vlessXHTTPTLS "${endpointPort}" "${nodeName}" "${uuidValue}" "${endpointAddress}" "${currentPath}xHTTP" || return 1
                 endpointIndex=$((endpointIndex + 1))
             done < <(listXHTTPTLSEndpoints "$(getPublicIP)" "${xrayVLESSXHTTPTLSPort}" "${xhttpTLSCDNAddress}")
-        done < <(jq -c '.inbounds[0].settings.clients[]?' "${configPath}14_VLESS_XHTTP_TLS_inbounds.json")
+        done <<<"${accountUsers}"
     fi
     # AnyTLS
     if echo ${currentInstallProtocolType} | grep -q ",13,"; then
         echoContent skyBlue "\n================================  AnyTLS ================================\n"
 
-        jq -r -c '.inbounds[]|.users[]' "${configPath}13_anytls_inbounds.json" | while read -r user; do
-            if [[ -n "${accountViewUserKey}" ]] && ! accountUserMatches "${user}" "${accountViewUserKey}"; then continue; fi
+        accountUsers=$(readAccountUsers '.inbounds[]|.users[]' "${configPath}13_anytls_inbounds.json") || return 1
+        while IFS= read -r user; do
+            [[ -n "${user}" ]] || continue
+            if [[ -n "${accountViewKey}" ]] && ! accountUserMatches "${user}" "${accountViewKey}"; then continue; fi
             echoContent skyBlue "\n ---> 账号:$(echo "${user}" | jq -r .name)"
             echo
-            defaultBase64Code anytls "${singBoxAnyTLSPort}" "$(echo "${user}" | jq -r .name)" "$(echo "${user}" | jq -r .password)"
-        done
+            defaultBase64Code anytls "${singBoxAnyTLSPort}" "$(echo "${user}" | jq -r .name)" "$(echo "${user}" | jq -r .password)" || return 1
+        done <<<"${accountUsers}"
 
     fi
 }
 # 移除nginx302配置
 removeNginx302() {
+    local line
     local count=
-    grep -n "return 302" <"${nginxConfigPath}alone.conf" | while read -r line; do
+    while IFS= read -r line; do
 
         if ! echo "${line}" | grep -q "request_uri"; then
             local removeIndex=
             removeIndex=$(echo "${line}" | awk -F "[:]" '{print $1}')
             removeIndex=$((removeIndex + count))
-            sed -i "${removeIndex}d" ${nginxConfigPath}alone.conf
+            sed -i "${removeIndex}d" "${nginxConfigPath}alone.conf"
             count=$((count - 1))
         fi
-    done
+    done < <(grep -n "return 302" <"${nginxConfigPath}alone.conf")
 }
 
 # 检查302是否成功
@@ -6452,20 +6479,21 @@ backupNginxConfig() {
 # 添加302配置
 addNginx302() {
 
+    local line
     local count=1
-    grep -n "location / {" <"${nginxConfigPath}alone.conf" | while read -r line; do
+    while IFS= read -r line; do
         if [[ -n "${line}" ]]; then
             local insertIndex=
             insertIndex="$(echo "${line}" | awk -F "[:]" '{print $1}')"
             insertIndex=$((insertIndex + count))
-            sed "${insertIndex}i return 302 '$1';" ${nginxConfigPath}alone.conf >${nginxConfigPath}tmpfile && mv ${nginxConfigPath}tmpfile ${nginxConfigPath}alone.conf
+            sed "${insertIndex}i return 302 '$1';" "${nginxConfigPath}alone.conf" >"${nginxConfigPath}tmpfile" && mv "${nginxConfigPath}tmpfile" "${nginxConfigPath}alone.conf"
             count=$((count + 1))
         else
             echoContent red " ---> 302添加失败"
             backupNginxConfig restoreBackup
         fi
 
-    done
+    done < <(grep -n "location / {" <"${nginxConfigPath}alone.conf")
 }
 
 # 更新伪装站
@@ -6578,14 +6606,26 @@ addCorePort() {
         read -r -p "请输入端口号:" newPort
         read -r -p "请输入默认的端口号，同时会更改订阅端口以及节点端口，[回车]默认443:" defaultPort
 
+        local validatedPort
+        [[ "${newPort}" =~ ^[0-9]+(,[0-9]+)*$ ]] || return 1
+        while IFS= read -r validatedPort; do
+            [[ "${validatedPort}" =~ ^[0-9]{1,5}$ ]] &&
+                (( 10#${validatedPort} >= 1 && 10#${validatedPort} <= 65535 )) || return 1
+        done < <(printf '%s\n' "${newPort}" | tr ',' '\n')
         if [[ -n "${defaultPort}" ]]; then
-            rm -rf "$(find ${configPath}* | grep "default")"
+            [[ "${defaultPort}" =~ ^[0-9]{1,5}$ ]] &&
+                (( 10#${defaultPort} >= 1 && 10#${defaultPort} <= 65535 )) || return 1
+            defaultPort=$((10#${defaultPort}))
+            find "${configPath}" -maxdepth 1 -type f -name '02_dokodemodoor_inbounds_*_default.json' -delete
         fi
 
         if [[ -n "${newPort}" ]]; then
 
             while read -r port; do
-                rm -rf "$(find ${configPath}* | grep "${port}")"
+                port=$((10#${port}))
+                rm -f "${configPath}02_dokodemodoor_inbounds_${port}.json" \
+                    "${configPath}02_dokodemodoor_inbounds_${port}_default.json" \
+                    "${configPath}02_dokodemodoor_inbounds_hysteria_${port}.json"
 
                 local fileName=
                 local hysteriaFileName=
@@ -6835,18 +6875,16 @@ customUserEmail() {
         echoContent yellow "email: ${currentCustomEmail}\n"
     else
         local checkEmail=
+        local currentEmailKey
+        currentEmailKey=$(accountUserKey "${currentCustomEmail}")
         if [[ "${coreInstallType}" == "1" ]]; then
-            local frontingTypeConfig="${frontingType}"
-            if [[ "${currentInstallProtocolType}" == ",7,8," ]]; then
-                frontingTypeConfig="07_VLESS_vision_reality_inbounds"
-            fi
             local referenceConfig
             referenceConfig=$(getXrayAccountReferenceConfig) || return 1
-            checkEmail=$(jq -r --arg currentEmail "$currentCustomEmail" '(.inbounds[0].settings.clients // .inbounds[1].settings.clients)[]? | select(.email == $currentEmail) | .email' "${referenceConfig}")
+            checkEmail=$(jq -r --arg currentEmail "$currentEmailKey" '(.inbounds[0].settings.clients // .inbounds[1].settings.clients)[]? | select((.email // "") | split("-")[0] == $currentEmail) | .email' "${referenceConfig}")
         elif
             [[ "${coreInstallType}" == "2" ]]
         then
-            checkEmail=$(jq -r --arg currentEmail "$currentCustomEmail" ".inbounds[0].users[] | select(.name == \$currentEmail) | .name" ${configPath}${frontingType}.json)
+            checkEmail=$(jq -r --arg currentEmail "$currentEmailKey" '.inbounds[0].users[]? | select((.name // .username // "") | split("-")[0] == $currentEmail) | .name // .username' "${configPath}${frontingType}.json")
         fi
 
         if [[ -n "${checkEmail}" ]]; then
@@ -6875,8 +6913,8 @@ addUser() {
         local users=
         ((userNum--)) || true
 
-        customUUID
-        customUserEmail
+        customUUID || return 1
+        customUserEmail || return 1
 
         uuid=${currentCustomUUID}
         email=${currentCustomEmail}
@@ -7052,10 +7090,14 @@ addUser() {
             echo "${clients}" | jq . >${configPath}13_anytls_inbounds.json
         fi
     done
+    if ! reloadCore transaction; then
+        echoContent red " ---> 用户已写入配置，但核心重载失败，请检查配置后手动重启"
+        return 1
+    fi
     echoContent green " ---> 添加完成"
     readNginxSubscribe
     if [[ -n "${subscribePort}" ]]; then
-        subscribe false
+        subscribe false || return 1
     fi
     manageAccount 1
 }
@@ -7099,11 +7141,13 @@ removeUser() {
     elif [[ "${coreInstallType}" == "2" ]]; then
         jq -r -c .inbounds[0].users[].name//.inbounds[0].users[].username ${configPath}${frontingType:-$frontingTypeReality}.json | awk '{print NR""":"$0}'
         read -r -p "请选择要删除的用户编号[仅支持单个删除]:" delUserIndex
-        if [[ $(jq -r '.inbounds[0].users|length' ${configPath}${frontingType:-$frontingTypeReality}.json) -lt ${delUserIndex} ]]; then
+        local singBoxReferenceConfig="${configPath}${frontingType:-$frontingTypeReality}.json"
+        if ! delUserIndex=$(jq -enr --arg index "${delUserIndex}" \
+            --argjson count "$(jq '.inbounds[0].users | length' "${singBoxReferenceConfig}")" '
+              select($index | test("^[0-9]+$")) | ($index | tonumber) |
+              select(. >= 1 and . <= $count) | . - 1'); then
             echoContent red " ---> 选择错误"
             return 1
-        else
-            delUserIndex=$((delUserIndex - 1))
         fi
     fi
 
@@ -7122,7 +7166,7 @@ removeUser() {
 
         if [[ "${coreInstallType}" != "1" ]] && echo ${currentInstallProtocolType} | grep -q ",2,"; then
             local trojangRPCUsers
-            trojangRPCUsers=$(jq -r 'del(.inbounds[0].settings.clients['"${delUserIndex}"']//.inbounds[0].users['"${delUserIndex}"')' ${configPath}04_trojan_gRPC_inbounds.json)
+            trojangRPCUsers=$(jq -r 'del(.inbounds[0].settings.clients['"${delUserIndex}"']//.inbounds[0].users['"${delUserIndex}"'])' ${configPath}04_trojan_gRPC_inbounds.json)
             echo "${trojangRPCUsers}" | jq . >${configPath}04_trojan_gRPC_inbounds.json
         fi
 
@@ -7183,6 +7227,10 @@ removeUser() {
             anyTLSResult=$(jq -r 'del(.inbounds[0].users['"${delUserIndex}"'])' "${singBoxConfigPath}13_anytls_inbounds.json")
             echo "${anyTLSResult}" | jq . >"${singBoxConfigPath}13_anytls_inbounds.json"
         fi
+        if ! reloadCore transaction; then
+            echoContent red " ---> 用户已删除，但核心重载失败，请检查配置后手动重启"
+            return 1
+        fi
         readNginxSubscribe
         if [[ -n "${subscribePort}" ]]; then
             subscribe false
@@ -7193,14 +7241,18 @@ removeUser() {
 # 更新脚本
 updateV2RayAgent() {
     echoContent skyBlue "\n进度  $1/${totalProgress} : 更新v2ray-agent脚本"
-    rm -rf /etc/v2ray-agent/install.sh
-    if [[ "${release}" == "alpine" ]]; then
-        wget -c -q -P /etc/v2ray-agent/ -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh"
-    else
-        wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/ -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh"
+    local scriptTemp
+    scriptTemp=$(mktemp /etc/v2ray-agent/.install.XXXXXX) || return 1
+    if ! wget -q -O "${scriptTemp}" "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh" ||
+        [[ ! -s "${scriptTemp}" ]] || ! bash -n "${scriptTemp}"; then
+        rm -f "${scriptTemp}"
+        echoContent red " ---> 脚本下载或校验失败，保留当前版本"
+        return 1
     fi
-
-    sudo chmod 700 /etc/v2ray-agent/install.sh
+    if ! chmod 700 "${scriptTemp}" || ! mv -f "${scriptTemp}" /etc/v2ray-agent/install.sh; then
+        rm -f "${scriptTemp}"
+        return 1
+    fi
     local version
     version=$(grep '当前版本：v' "/etc/v2ray-agent/install.sh" | awk -F "[v]" '{print $2}' | tail -n +2 | head -n 1 | awk -F "[\"]" '{print $1}')
 
@@ -8051,14 +8103,13 @@ unInstallRouting() {
 
 # 卸载嗅探
 unInstallSniffing() {
-
-    find ${configPath} -name "*inbounds.json*" | awk -F "[c][o][n][f][/]" '{print $2}' | while read -r inbound; do
-        if grep -q "destOverride" <"${configPath}${inbound}"; then
-            sniffing=$(jq -r 'del(.inbounds[0].sniffing)' "${configPath}${inbound}")
-            echo "${sniffing}" | jq . >"${configPath}${inbound}"
+    local inbound sniffing
+    while IFS= read -r -d '' inbound; do
+        if grep -q "destOverride" "${inbound}"; then
+            sniffing=$(jq -r 'del(.inbounds[0].sniffing)' "${inbound}")
+            echo "${sniffing}" | jq . >"${inbound}"
         fi
-    done
-
+    done < <(find "${configPath}" -name "*inbounds.json*" -print0)
 }
 
 # 安装嗅探
@@ -8443,7 +8494,7 @@ socks5InboundRoutingMenu() {
     case ${selectType} in
     1)
         totalProgress=1
-        installSingBox 1
+        installSingBox 1 || return 1
         installSingBoxService 1
         setSocks5Inbound
         setSocks5InboundRouting
@@ -9339,7 +9390,7 @@ customSingBoxInstall() {
         readLastInstallationConfig
         unInstallSubscribe
         totalProgress=9
-        installTools 1
+        installTools 1 || return 1
         # 申请tls
         if echo "${selectCustomInstallType}" | grep -q -E ",0,|,1,|,3,|,4,|,6,|,9,|,10,|,11,|,13,"; then
             initTLSNginxConfig 2 || return 1
@@ -9347,7 +9398,7 @@ customSingBoxInstall() {
             handleNginx stop || return 1
         fi
 
-        installSingBox 4
+        installSingBox 4 || return 1
         installSingBoxService 5
         initSingBoxConfig custom 6 || return 1
         cleanUp xrayDel
@@ -9371,12 +9422,12 @@ installXrayReality() {
     readLastInstallationConfig
     unInstallSubscribe
     totalProgress=6
-    installTools 1
+    installTools 1 || return 1
 
     handleNginx stop
 
     # 安装Xray
-    installXray 2 false
+    installXray 2 false || return 1
     installXrayService 3
     initXrayConfig custom 4
     cleanUp singBoxDel
@@ -9394,9 +9445,9 @@ installSingBoxReality() {
     readLastInstallationConfig
     unInstallSubscribe
     totalProgress=6
-    installTools 1
+    installTools 1 || return 1
 
-    installSingBox 2
+    installSingBox 2 || return 1
     installSingBoxService 3
     initSingBoxConfig custom 4 || return 1
     cleanUp xrayDel
@@ -9437,7 +9488,7 @@ customXrayInstall() {
         # checkBTPanel
         # check1Panel
         totalProgress=12
-        installTools 1
+        installTools 1 || return 1
         if [[ -n "${btDomain}" ]]; then
             echoContent skyBlue "\n进度  3/${totalProgress} : 检测到宝塔面板/1Panel，跳过申请TLS步骤"
             handleXray stop
@@ -9471,7 +9522,7 @@ customXrayInstall() {
         fi
 
         # 安装Xray
-        installXray 7 false
+        installXray 7 false || return 1
         installXrayService 8
         initXrayConfig custom 9
         cleanUp singBoxDel
@@ -9532,7 +9583,7 @@ xrayCoreInstall() {
     # check1Panel
     selectCustomInstallType=
     totalProgress=12
-    installTools 2
+    installTools 2 || return 1
     if [[ -n "${btDomain}" ]]; then
         echoContent skyBlue "\n进度  3/${totalProgress} : 检测到宝塔面板/1Panel，跳过申请TLS步骤"
         handleXray stop
@@ -9548,7 +9599,7 @@ xrayCoreInstall() {
     randomPathFunction 5
 
     # 安装Xray
-    installXray 6 false
+    installXray 6 false || return 1
     installXrayService 7
     initXrayConfig all 8
     cleanUp singBoxDel
@@ -9578,8 +9629,7 @@ singBoxInstall() {
     # check1Panel
     selectCustomInstallType=
     totalProgress=8
-    installTools 2
-
+    installTools 2 || return 1
     if [[ -n "${btDomain}" ]]; then
         echoContent skyBlue "\n进度  3/${totalProgress} : 检测到宝塔面板/1Panel，跳过申请TLS步骤"
         handleXray stop
@@ -9593,7 +9643,7 @@ singBoxInstall() {
 
     handleNginx stop || return 1
 
-    installSingBox 5
+    installSingBox 5 || return 1
     installSingBoxService 6
     initSingBoxConfig all 7 || return 1
 
@@ -9745,7 +9795,7 @@ installSubscribe() {
             echoContent yellow "未检测到nginx，无法使用订阅服务\n"
             read -r -p "是否安装[y/n]？" installNginxStatus
             if [[ "${installNginxStatus}" == "y" ]]; then
-                installNginxTools
+                installNginxTools || return 1
             else
                 echoContent red " ---> 放弃安装nginx\n"
                 exit 0
@@ -9886,7 +9936,8 @@ addOtherSubscribe() {
 clashMetaConfig() {
     local url=$1
     local id=$2
-    cat <<EOF >"/etc/v2ray-agent/subscribe/clashMetaProfiles/${id}"
+    local publishPath=${3:-/etc/v2ray-agent/subscribe}
+    cat <<EOF >"${publishPath}/clashMetaProfiles/${id}"
 log-level: debug
 mode: rule
 ipv6: true
@@ -10280,11 +10331,39 @@ initRandomSalt() {
     echo "${initCustomPath}"
 }
 # 订阅
-subscribe() {
+subscribe() (
+    umask 022
     readInstallProtocolType
-    installSubscribe
+    installSubscribe || return 1
 
     readNginxSubscribe
+    local publishedDir=/etc/v2ray-agent/subscribe
+    local subscribePublishPath publishBackup saltPath saltBackup saltTemp status hadPublished=false hadSalt=false publishStarted=false
+    subscribePublishPath=$(mktemp -d "${publishedDir}.new.XXXXXX") || return 1
+    publishBackup="${subscribePublishPath}.previous"
+    saltPath=/etc/v2ray-agent/subscribe_local/subscribeSalt
+    saltBackup="${subscribePublishPath}.salt.previous"
+    saltTemp="${subscribePublishPath}.salt.new"
+    # Roll back failed publication and remove staging files on every exit.
+    trap '
+    status=$?
+    if [[ "${publishStarted}" == true && ${status} -ne 0 ]]; then
+        if [[ -d "${publishBackup}" ]]; then
+            rm -rf "${publishedDir}"
+            mv -f "${publishBackup}" "${publishedDir}" || status=1
+        elif [[ "${hadPublished}" == false ]]; then
+            rm -rf "${publishedDir}"
+        fi
+        if [[ -f "${saltBackup}" ]]; then
+            mv -f "${saltBackup}" "${saltPath}" || status=1
+        elif [[ "${hadSalt}" == false ]]; then
+            rm -f "${saltPath}"
+        fi
+    fi
+    rm -rf "${subscribePublishPath}" "${publishBackup}" "${saltBackup}" "${saltTemp}"
+    exit "${status}"
+    ' EXIT
+    mkdir -p "${subscribePublishPath}/"{default,clashMeta,clashMetaProfiles,sing-box,sing-box_profiles} || return 1
     local renewSalt=$1
     local showStatus=$2
     if [[ "${coreInstallType}" == "1" || "${coreInstallType}" == "2" ]]; then
@@ -10315,14 +10394,10 @@ subscribe() {
         fi
         echoContent yellow "\n ---> Salt: ${subscribeSalt}"
 
-        echo "${subscribeSalt}" >/etc/v2ray-agent/subscribe_local/subscribeSalt
-
-        rm -rf /etc/v2ray-agent/subscribe/default/*
-        rm -rf /etc/v2ray-agent/subscribe/clashMeta/*
         rm -rf /etc/v2ray-agent/subscribe_local/default/*
         rm -rf /etc/v2ray-agent/subscribe_local/clashMeta/*
         rm -rf /etc/v2ray-agent/subscribe_local/sing-box/*
-        showAccounts >/dev/null
+        showAccounts >/dev/null || return 1
         if [[ -n $(ls /etc/v2ray-agent/subscribe_local/default/) ]]; then
             if [[ -f "/etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl" && -n $(cat "/etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl") ]]; then
                 if [[ -z "${renewSalt}" ]]; then
@@ -10332,19 +10407,20 @@ subscribe() {
                 fi
             fi
             local subscribePortLocal="${subscribePort}"
-            find /etc/v2ray-agent/subscribe_local/default/* | while read -r email; do
+            local email
+            while IFS= read -r email; do
                 email=$(echo "${email}" | awk -F "[d][e][f][a][u][l][t][/]" '{print $2}')
 
                 local emailMd5=
                 emailMd5=$(echo -n "${email}${subscribeSalt}"$'\n' | md5sum | awk '{print $1}')
 
-                cat "/etc/v2ray-agent/subscribe_local/default/${email}" >>"/etc/v2ray-agent/subscribe/default/${emailMd5}"
+                cat "/etc/v2ray-agent/subscribe_local/default/${email}" >>"${subscribePublishPath}/default/${emailMd5}" || return 1
                 if [[ "${updateOtherSubscribeStatus}" == "y" ]]; then
-                    updateRemoteSubscribe "${emailMd5}" "${email}"
+                    updateRemoteSubscribe "${emailMd5}" "${email}" "${subscribePublishPath}"
                 fi
                 local base64Result
-                base64Result=$(base64 -w 0 "/etc/v2ray-agent/subscribe/default/${emailMd5}")
-                echo "${base64Result}" >"/etc/v2ray-agent/subscribe/default/${emailMd5}"
+                base64Result=$(base64 -w 0 "${subscribePublishPath}/default/${emailMd5}") || return 1
+                echo "${base64Result}" >"${subscribePublishPath}/default/${emailMd5}" || return 1
                 echoContent yellow "--------------------------------------------------------------"
                 local currentDomain=${currentHost}
 
@@ -10358,6 +10434,30 @@ subscribe() {
                         currentDomain="${currentHost}:${subscribePort}"
                     fi
                 fi
+                if [[ -f "/etc/v2ray-agent/subscribe_local/clashMeta/${email}" ]]; then
+                    cat "/etc/v2ray-agent/subscribe_local/clashMeta/${email}" >>"${subscribePublishPath}/clashMeta/${emailMd5}" || return 1
+
+                    sed -i '1i\proxies:' "${subscribePublishPath}/clashMeta/${emailMd5}" || return 1
+
+                    local clashProxyUrl="${subscribeType}://${currentDomain}/s/clashMeta/${emailMd5}"
+                    clashMetaConfig "${clashProxyUrl}" "${emailMd5}" "${subscribePublishPath}" || return 1
+                fi
+                if [[ -f "/etc/v2ray-agent/subscribe_local/sing-box/${email}" ]]; then
+                    cp "/etc/v2ray-agent/subscribe_local/sing-box/${email}" "${subscribePublishPath}/sing-box_profiles/${emailMd5}" || return 1
+
+                    echoContent skyBlue " ---> 下载 sing-box 通用配置文件"
+                    if [[ "${release}" == "alpine" ]]; then
+                        wget -O "${subscribePublishPath}/sing-box/${emailMd5}_download" -q "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/documents/sing-box.json" || return 1
+                    else
+                        wget -O "${subscribePublishPath}/sing-box/${emailMd5}_download" -q "${wgetShowProgressStatus}" "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/documents/sing-box.json" || return 1
+                    fi
+
+                    jq --slurpfile nodes "/etc/v2ray-agent/subscribe_local/sing-box/${email}" '
+                      .outbounds |= (map(if has("outbounds") then .outbounds += ($nodes[0] | map(.tag)) else . end) + $nodes[0])' \
+                        "${subscribePublishPath}/sing-box/${emailMd5}_download" >"${subscribePublishPath}/sing-box/${emailMd5}_tmp" &&
+                        mv -f "${subscribePublishPath}/sing-box/${emailMd5}_tmp" "${subscribePublishPath}/sing-box/${emailMd5}" || return 1
+                    rm -f "${subscribePublishPath}/sing-box/${emailMd5}_download"
+                fi
                 if [[ -z "${showStatus}" ]]; then
                     echoContent skyBlue "\n----------默认订阅----------\n"
                     echoContent green "email:${email}\n"
@@ -10370,12 +10470,6 @@ subscribe() {
                     # clashMeta
                     if [[ -f "/etc/v2ray-agent/subscribe_local/clashMeta/${email}" ]]; then
 
-                        cat "/etc/v2ray-agent/subscribe_local/clashMeta/${email}" >>"/etc/v2ray-agent/subscribe/clashMeta/${emailMd5}"
-
-                        sed -i '1i\proxies:' "/etc/v2ray-agent/subscribe/clashMeta/${emailMd5}"
-
-                        local clashProxyUrl="${subscribeType}://${currentDomain}/s/clashMeta/${emailMd5}"
-                        clashMetaConfig "${clashProxyUrl}" "${emailMd5}"
                         echoContent skyBlue "\n----------clashMeta订阅----------\n"
                         echoContent yellow "url:${subscribeType}://${currentDomain}/s/clashMetaProfiles/${emailMd5}\n"
                         echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${subscribeType}://${currentDomain}/s/clashMetaProfiles/${emailMd5}\n"
@@ -10386,18 +10480,6 @@ subscribe() {
                     fi
                     # sing-box
                     if [[ -f "/etc/v2ray-agent/subscribe_local/sing-box/${email}" ]]; then
-                        cp "/etc/v2ray-agent/subscribe_local/sing-box/${email}" "/etc/v2ray-agent/subscribe/sing-box_profiles/${emailMd5}"
-
-                        echoContent skyBlue " ---> 下载 sing-box 通用配置文件"
-                        if [[ "${release}" == "alpine" ]]; then
-                            wget -O "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}" -q "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/documents/sing-box.json"
-                        else
-                            wget -O "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}" -q "${wgetShowProgressStatus}" "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/documents/sing-box.json"
-                        fi
-
-                        jq ".outbounds=$(jq ".outbounds|map(if has(\"outbounds\") then .outbounds += $(jq ".|map(.tag)" "/etc/v2ray-agent/subscribe_local/sing-box/${email}") else . end)" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}")" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}" >"/etc/v2ray-agent/subscribe/sing-box/${emailMd5}_tmp" && mv "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}_tmp" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}"
-                        jq ".outbounds += $(jq '.' "/etc/v2ray-agent/subscribe_local/sing-box/${email}")" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}" >"/etc/v2ray-agent/subscribe/sing-box/${emailMd5}_tmp" && mv "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}_tmp" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}"
-
                         echoContent skyBlue "\n----------sing-box订阅----------\n"
                         echoContent yellow "url:${subscribeType}://${currentDomain}/s/sing-box/${emailMd5}"
                         echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${subscribeType}://${currentDomain}/s/sing-box/${emailMd5}"
@@ -10412,18 +10494,35 @@ subscribe() {
                     echoContent green " ---> email:${email}，订阅已更新，请使用客户端重新拉取"
                 fi
 
-            done
+            done < <(find /etc/v2ray-agent/subscribe_local/default/ -type f)
         fi
+        if [[ -f "${saltPath}" ]]; then
+            cp -p "${saltPath}" "${saltBackup}" || return 1
+            hadSalt=true
+        fi
+        printf '%s\n' "${subscribeSalt}" >"${saltTemp}" || return 1
+        if [[ -d "${publishedDir}" ]]; then
+            hadPublished=true
+        fi
+        chmod 755 "${subscribePublishPath}" || return 1
+        publishStarted=true
+        if [[ "${hadPublished}" == true ]]; then
+            mv -f "${publishedDir}" "${publishBackup}" || return 1
+        fi
+        mv -f "${subscribePublishPath}" "${publishedDir}" || return 1
+        mv -f "${saltTemp}" "${saltPath}" || return 1
+        publishStarted=false
     else
         echoContent red " ---> 未安装伪装站点，无法使用订阅服务"
     fi
-}
+)
 
 # 更新远程订阅
 updateRemoteSubscribe() {
 
     local emailMD5=$1
     local email=$2
+    local publishPath=${3:-/etc/v2ray-agent/subscribe}
     while read -r line; do
         local subscribeType=
         subscribeType="https"
@@ -10445,7 +10544,7 @@ updateRemoteSubscribe() {
         clashMetaProxies=$(curl -s "${subscribeType}://${remoteUrl}/s/clashMeta/${emailMD5}" | sed '/proxies:/d' | sed "s/\"${email}/\"${email}_${serverAlias}/g")
 
         if ! echo "${clashMetaProxies}" | grep -q "nginx" && [[ -n "${clashMetaProxies}" ]]; then
-            echo "${clashMetaProxies}" >>"/etc/v2ray-agent/subscribe/clashMeta/${emailMD5}"
+            echo "${clashMetaProxies}" >>"${publishPath}/clashMeta/${emailMD5}"
             echoContent green " ---> clashMeta订阅 ${remoteUrl}:${email} 更新成功"
         else
             echoContent red " ---> clashMeta订阅 ${remoteUrl}:${email}不存在"
@@ -10456,7 +10555,7 @@ updateRemoteSubscribe() {
 
         if ! echo "${default}" | grep -q "nginx" && [[ -n "${default}" ]]; then
             default=$(echo "${default}" | base64 -d | sed "s/#${email}/#${email}_${serverAlias}/g")
-            echo "${default}" >>"/etc/v2ray-agent/subscribe/default/${emailMD5}"
+            echo "${default}" >>"${publishPath}/default/${emailMD5}"
 
             echoContent green " ---> 通用订阅 ${remoteUrl}:${email} 更新成功"
         else
@@ -10982,7 +11081,7 @@ singBoxVersionManageMenu() {
         touch "${singBoxConfigPath}../box.log" >/dev/null 2>&1
     fi
     if [[ "${selectSingBoxType}" == "1" ]]; then
-        installSingBox 1
+        installSingBox 1 || return 1
         handleSingBox stop
         handleSingBox start
     elif [[ "${selectSingBoxType}" == "2" ]]; then
@@ -11007,7 +11106,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.5.30"
+    echoContent green "当前版本：v3.5.31"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus

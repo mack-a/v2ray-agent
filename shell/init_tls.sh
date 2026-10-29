@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 installType='yum -y install'
-removeType='yum -y remove'
 upgrade="yum -y update"
 echoType='echo -e'
-cp=`which cp`
 # 打印
 echoColor(){
     case $1 in
@@ -26,9 +24,6 @@ echoColor(){
         "magenta")
             ${echoType} "\033[31m$2 \033[0m"
         ;;
-        "skyBlue")
-            ${echoType} "\033[36m$2 \033[0m"
-        ;;
         # 黄色
         "yellow")
             ${echoType} "\033[33m$2 \033[0m"
@@ -38,24 +33,21 @@ echoColor(){
 # 选择系统执行工具
 checkSystem(){
 
-	if [[ ! -z `find /etc -name "redhat-release"` ]] || [[ ! -z `cat /proc/version | grep -i "centos" | grep -v grep ` ]] || [[ ! -z `cat /proc/version | grep -i "red hat" | grep -v grep ` ]] || [[ ! -z `cat /proc/version | grep -i "redhat" | grep -v grep ` ]]
+	if [[ -f /etc/redhat-release ]] || grep -qiE "centos|red hat|redhat" /proc/version
 	then
 		release="centos"
 		installType='yum -y install'
-		removeType='yum -y remove'
 		upgrade="yum update -y"
-	elif [[ ! -z `cat /etc/issue | grep -i "debian" | grep -v grep` ]] || [[ ! -z `cat /proc/version | grep -i "debian" | grep -v grep` ]]
+	elif grep -qi "debian" /etc/issue /proc/version
     then
 		release="debian"
 		installType='apt -y install'
 		upgrade="apt update -y"
-		removeType='apt -y autoremove'
-	elif [[ ! -z `cat /etc/issue | grep -i "ubuntu" | grep -v grep` ]] || [[ ! -z `cat /proc/version | grep -i "ubuntu" | grep -v grep` ]]
+	elif grep -qi "ubuntu" /etc/issue /proc/version
 	then
 		release="ubuntu"
 		installType='apt -y install'
 		upgrade="apt update -y"
-		removeType='apt --purge remove'
     fi
     if [[ -z ${release} ]]
     then
@@ -69,14 +61,14 @@ checkSystem(){
 installTools(){
     echoColor yellow "更新"
     ${upgrade}
-    if [[ -z `find /usr/bin/ -executable -name "socat"` ]]
+    if [[ -z $(find /usr/bin/ -executable -name "socat") ]]
     then
         echoColor yellow "\nsocat未安装，安装中\n"
         ${installType} socat >/dev/null
         echoColor green "socat安装完毕"
     fi
     echoColor yellow "\n检测是否安装Nginx"
-    if [[ -z `find /sbin/ -executable -name 'nginx'` ]]
+    if [[ -z $(find /sbin/ -executable -name 'nginx') ]]
     then
         echoColor yellow "nginx未安装，安装中\n"
         ${installType} nginx >/dev/null
@@ -85,7 +77,7 @@ installTools(){
         echoColor green "nginx已安装\n"
     fi
     echoColor yellow "检测是否安装acme.sh"
-    if [[ -z `find ~/.acme.sh/ -name "acme.sh"` ]]
+    if [[ -z $(find ~/.acme.sh/ -name "acme.sh") ]]
     then
         echoColor yellow "\nacme.sh未安装，安装中\n"
         curl -s https://get.acme.sh | sh >/dev/null
@@ -157,9 +149,9 @@ installTLS(){
         return 1
     fi
     # 替换原始文件中的域名
-    if [[ ! -z `cat /etc/nginx/nginx.conf|grep -v grep|grep "${domain}"` ]]
+    if grep -q "${domain}" /etc/nginx/nginx.conf
     then
-        sed -i "s/${domain}/X655Y0M9UM9/g"  `grep "${domain}" -rl /etc/nginx/nginx.conf`
+        sed -i "s/${domain}/X655Y0M9UM9/g" /etc/nginx/nginx.conf
     fi
 
     touch /etc/nginx/conf.d/6GFV1ES52V2.conf
@@ -181,7 +173,7 @@ installTLS(){
         return 1
     fi
     echoColor yellow "\n验证域名以及服务器是否可用"
-    if [[ ! -z `curl -s ${domain}/test|grep 5NX2O9XQKP` ]]
+    if curl -s "${domain}/test" | grep -q 5NX2O9XQKP
     then
         if ! stopNginx; then
             echoColor red "Nginx停止失败，无法继续申请证书\n"
@@ -241,7 +233,7 @@ init(){
     echoColor green "   12.Github[https://github.com/mack-a]"
     echoColor red "=============================="
     echoColor yellow "请输入[y]执行脚本，[任意]结束:"
-    read isExecStatus
+    read -r isExecStatus
     if [[ ${isExecStatus} = "y" ]]
     then
         installTools
