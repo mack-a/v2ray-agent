@@ -3662,8 +3662,8 @@ IPTABLES
     esac
     # Publish ownership before changing the firewall, so failed rollback is retryable.
     if ! jq -n --arg backend "${backend}" --arg zone "${zone}" --arg families "${families}" \
-        --argjson start "${start}" --argjson end "${end}" --argjson target "${targetPort}" --argjson interval "${interval}" \
-        '{backend:$backend,start:$start,end:$end,target:$target,interval:$interval,zone:$zone,families:$families}' > "${file}.json.tmp" ||
+        --argjson start "${start}" --argjson endPort "${end}" --argjson target "${targetPort}" --argjson interval "${interval}" \
+        '{backend:$backend,start:$start,end:$endPort,target:$target,interval:$interval,zone:$zone,families:$families}' > "${file}.json.tmp" ||
         ! mv "${file}.json.tmp" "${file}.json"; then
         rm -f "${file}.json.tmp" "${file}.nft.tmp" "${file}.iptables.tmp"
         return 1
@@ -3758,8 +3758,8 @@ deletePortHoppingRules() {
             # persistent rules fails. The next attempt must still finish cleanup.
             mkdir -p /etc/v2ray-agent/port-hopping && chmod 700 /etc/v2ray-agent/port-hopping || return 1
             jq -n --arg backend "${hoppingBackend}" --arg zone "${hoppingZone}" \
-                --argjson start "${hoppingStart}" --argjson end "${hoppingEnd}" --argjson target "${hoppingTarget}" \
-                '{backend:$backend,start:$start,end:$end,target:$target,interval:60,zone:$zone,families:"4"}' > "${file}.json.tmp" &&
+                --argjson start "${hoppingStart}" --argjson endPort "${hoppingEnd}" --argjson target "${hoppingTarget}" \
+                '{backend:$backend,start:$start,end:$endPort,target:$target,interval:60,zone:$zone,families:"4"}' > "${file}.json.tmp" &&
                 mv "${file}.json.tmp" "${file}.json" || return 1
             deletePortHoppingRules "${type}" '' '' "${targetPort}"
             return $?
