@@ -2780,10 +2780,10 @@ xrayVersionManageMenu() {
         echoContent yellow "2.There is no guarantee that it will be able to be used normally after the rollback"
         echoContent yellow "3.If the rolled-back version does not support the current config, it will be unable to connect, so operate with caution"
         echoContent skyBlue "------------------------Version-------------------------------"
-        curl -s "https://api.github.com/repos/XTLS/Xray-core/releases?per_page=5" | jq -r ".[]|select (.prerelease==false)|.tag_name" | awk '{print ""NR""":"$0}'
+        curl -s "https://api.github.com/repos/XTLS/Xray-core/releases?per_page=50" | jq -r '.[] | select(.prerelease == false and .draft == false) | .tag_name' | head -5 | awk '{print ""NR""":"$0}'
         echoContent skyBlue "--------------------------------------------------------------"
         read -r -p "Please enter the version you want to roll back:" selectXrayVersionType
-        version=$(curl -s "https://api.github.com/repos/XTLS/Xray-core/releases?per_page=5" | jq -r ".[]|select (.prerelease==false)|.tag_name" | awk '{print ""NR""":"$0}' | grep "${selectXrayVersionType}:" | awk -F "[:]" '{print $2}')
+        version=$(curl -s "https://api.github.com/repos/XTLS/Xray-core/releases?per_page=50" | jq -r '.[] | select(.prerelease == false and .draft == false) | .tag_name' | head -5 | awk '{print ""NR""":"$0}' | grep "${selectXrayVersionType}:" | awk -F "[:]" '{print $2}')
         if [[ -n "${version}" ]]; then
             updateXray "${version}"
         else
@@ -3642,8 +3642,8 @@ IPTABLES
     esac
     # Publish ownership before changing the firewall, so failed rollback is retryable.
     if ! jq -n --arg backend "${backend}" --arg zone "${zone}" --arg families "${families}" \
-        --argjson start "${start}" --argjson end "${end}" --argjson target "${targetPort}" --argjson interval "${interval}" \
-        '{backend:$backend,start:$start,end:$end,target:$target,interval:$interval,zone:$zone,families:$families}' > "${file}.json.tmp" ||
+        --argjson start "${start}" --argjson endPort "${end}" --argjson target "${targetPort}" --argjson interval "${interval}" \
+        '{backend:$backend,start:$start,end:$endPort,target:$target,interval:$interval,zone:$zone,families:$families}' > "${file}.json.tmp" ||
         ! mv "${file}.json.tmp" "${file}.json"; then
         rm -f "${file}.json.tmp" "${file}.nft.tmp" "${file}.iptables.tmp"
         return 1
@@ -3738,8 +3738,8 @@ deletePortHoppingRules() {
             # persistent rules fails. The next attempt must still finish cleanup.
             mkdir -p /etc/v2ray-agent/port-hopping && chmod 700 /etc/v2ray-agent/port-hopping || return 1
             jq -n --arg backend "${hoppingBackend}" --arg zone "${hoppingZone}" \
-                --argjson start "${hoppingStart}" --argjson end "${hoppingEnd}" --argjson target "${hoppingTarget}" \
-                '{backend:$backend,start:$start,end:$end,target:$target,interval:60,zone:$zone,families:"4"}' > "${file}.json.tmp" &&
+                --argjson start "${hoppingStart}" --argjson endPort "${hoppingEnd}" --argjson target "${hoppingTarget}" \
+                '{backend:$backend,start:$start,end:$endPort,target:$target,interval:60,zone:$zone,families:"4"}' > "${file}.json.tmp" &&
                 mv "${file}.json.tmp" "${file}.json" || return 1
             deletePortHoppingRules "${type}" '' '' "${targetPort}"
             return $?
@@ -11090,7 +11090,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "Author: mack-a"
-    echoContent green " Current version: v3.5.31"
+    echoContent green " Current version: v3.5.32"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "Description: 8-in-1 coexistence script\c"
     showInstallStatus

@@ -2800,10 +2800,10 @@ xrayVersionManageMenu() {
         echoContent yellow "2.不保证回退后一定可以正常使用"
         echoContent yellow "3.如果回退的版本不支持当前的config，则会无法连接，谨慎操作"
         echoContent skyBlue "------------------------Version-------------------------------"
-        curl -s "https://api.github.com/repos/XTLS/Xray-core/releases?per_page=5" | jq -r ".[]|select (.prerelease==false)|.tag_name" | awk '{print ""NR""":"$0}'
+        curl -s "https://api.github.com/repos/XTLS/Xray-core/releases?per_page=50" | jq -r '.[] | select(.prerelease == false and .draft == false) | .tag_name' | head -5 | awk '{print ""NR""":"$0}'
         echoContent skyBlue "--------------------------------------------------------------"
         read -r -p "请输入要回退的版本:" selectXrayVersionType
-        version=$(curl -s "https://api.github.com/repos/XTLS/Xray-core/releases?per_page=5" | jq -r ".[]|select (.prerelease==false)|.tag_name" | awk '{print ""NR""":"$0}' | grep "${selectXrayVersionType}:" | awk -F "[:]" '{print $2}')
+        version=$(curl -s "https://api.github.com/repos/XTLS/Xray-core/releases?per_page=50" | jq -r '.[] | select(.prerelease == false and .draft == false) | .tag_name' | head -5 | awk '{print ""NR""":"$0}' | grep "${selectXrayVersionType}:" | awk -F "[:]" '{print $2}')
         if [[ -n "${version}" ]]; then
             updateXray "${version}"
         else
@@ -11106,7 +11106,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.5.31"
+    echoContent green "当前版本：v3.5.32"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
