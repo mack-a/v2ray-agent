@@ -326,6 +326,71 @@ class CoreTests(unittest.TestCase):
         self.assertEqual('custom-deny', rules[0]['outboundTag'])
         self.assertEqual('socks5_a', rules[1]['outboundTag'])
 
+    def test_singbox_reject_blocks_traffic_before_socks5_with_and_without_guard(self):
+        for use_guard in (False, True):
+            with self.subTest(standalone_guard=use_guard), tempfile.TemporaryDirectory() as temp, contextlib.ExitStack() as stack:
+                fixture = Fixture(temp, ('sing-box',))
+                upstream = stack.enter_context(SocksServer(('127.0.0.1', 0), SocksHandler))
+                upstream.hits = []
+                threading.Thread(target=upstream.serve_forever, daemon=True).start()
+                stack.callback(upstream.shutdown)
+                http_server = stack.enter_context(http.server.ThreadingHTTPServer(('127.0.0.1', 0), HttpHandler))
+                threading.Thread(target=http_server.serve_forever, daemon=True).start()
+                stack.callback(http_server.shutdown)
+                fixture.nodes['nodes'][0]['server_port'] = upstream.server_address[1]
+                tag = 'socks5_inbound' if use_guard else 'in-a'
+                fixture.routes['routes'] = [Fixture.route('sing-box', tags=[tag])]
+                cfg = fixture.config('sing-box')
+                write(cfg / 'blacklist.json', {'route': {'rules': [
+                    {'domain': ['localhost'], 'action': 'reject'}]}})
+                if use_guard:
+                    inbound = json.loads((cfg / 'custom-protocol.json').read_text())
+                    inbound['inbounds'][0]['tag'] = tag
+                    write(cfg / 'custom-protocol.json', inbound)
+                    write(cfg / '01_direct_outbound.json', {'outbounds': [
+                        {'type': 'direct', 'tag': '01_direct_outbound'}]})
+                    write(cfg / '00_socks5_guard.json', {'route': {'rules': [
+                        {'type': 'logical', 'mode': 'and', 'rules': [
+                            {'inbound': [tag]}, {'source_ip_cidr': ['127.0.0.1/32'], 'invert': True}],
+                         'action': 'reject'},
+                        {'inbound': [tag], 'source_ip_cidr': ['127.0.0.1/32'], 'outbound': '01_direct_outbound'},
+                        {'inbound': [tag], 'action': 'reject'}]}})
+                work = fixture.stage()
+                if use_guard:
+                    source = (REPO / 'install.sh').read_text()
+                    start = source.index('checkSocks5Candidate() {')
+                    end = source.index('# Install, replace rules, and uninstall', start)
+                    with fixture.engine.open('a') as engine:
+                        engine.write(source[start:end].replace('/etc/v2ray-agent', str(fixture.root)))
+                    # Rule edits must still accept an existing blacklist before the inbound guard.
+                    fixture.run('checkSocks5Candidate "$socks5OutboundRoot/stage/sb" '
+                                '"$socks5OutboundRoot/checked.json"')
+                process = subprocess.Popen([SB, 'run', '-c', str(work / 'sing-box.json')],
+                                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                def stop():
+                    if process.poll() is None:
+                        process.terminate()
+                    process.wait(timeout=5)
+                stack.callback(stop)
+                deadline = time.monotonic() + 5
+                while time.monotonic() < deadline:
+                    try:
+                        with socket.create_connection(('127.0.0.1', fixture.ports['sing-box'][0]), timeout=.1):
+                            break
+                    except OSError:
+                        time.sleep(.05)
+                self.assertIsNone(process.poll(), 'sing-box exited before listening')
+                command = ['curl', '--silent', '--show-error', '--fail', '--max-time', '3', '--noproxy', '',
+                           '--socks5-hostname', '127.0.0.1:' + str(fixture.ports['sing-box'][0])]
+                allowed = subprocess.run(command + ['http://127.0.0.1:' + str(http_server.server_address[1])],
+                                         text=True, capture_output=True)
+                self.assertEqual(0, allowed.returncode, allowed.stderr)
+                self.assertEqual('route-ok', allowed.stdout)
+                self.assertEqual(1, len(upstream.hits))
+                denied = subprocess.run(command + ['http://localhost:' + str(http_server.server_address[1])],
+                                        text=True, capture_output=True)
+                self.assertNotEqual(0, denied.returncode)
+                self.assertEqual(1, len(upstream.hits), 'blacklisted traffic reached the SOCKS5 upstream')
 
     def test_transaction_rollback_after_second_core_reload_failure(self):
         self.f.routes['routes'] = [Fixture.route('sing-box')]

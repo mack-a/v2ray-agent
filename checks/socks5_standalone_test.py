@@ -267,7 +267,6 @@ class RealCoreTests(unittest.TestCase):
             with contextlib.suppress(ProcessLookupError):
                 os.kill(int(pid.read_text()), 15)
 
-
     def test_standalone_regular_merge_reuses_dns_and_http_client(self):
         for installer in INSTALLERS:
             for domains in ('*', 'geosite:netflix'):
@@ -333,13 +332,13 @@ socks5SingBoxService status && socks5SingBoxService enabled
 
     def test_invalid_candidate_does_not_stop_running_service(self):
         for installer in INSTALLERS:
-            for conflict in ('terminal-rule', 'direct-tag', 'bad-json'):
+            for conflict in ('forwarding-rule', 'direct-tag', 'bad-json'):
                 with self.subTest(installer=installer, conflict=conflict), tempfile.TemporaryDirectory() as tmp:
                     code = self.fixture(installer, tmp)
                     conf = Path(tmp) / 'sing-box/conf'
                     (Path(tmp) / 'service').touch(); (Path(tmp) / 'running').touch()
                     cases = {
-                        'terminal-rule': {'route': {'rules': [{'action': 'reject'}]}},
+                        'forwarding-rule': {'route': {'rules': [{'action': 'route', 'outbound': '01_direct_outbound'}]}},
                         'direct-tag': {'outbounds': [{'type': 'block', 'tag': '01_direct_outbound'}]},
                     }
                     (conf / 'config/00_conflict.json').write_text(json.dumps(cases[conflict]) if conflict in cases else 'invalid json')

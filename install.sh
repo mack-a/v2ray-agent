@@ -8726,12 +8726,12 @@ checkSocks5Candidate() {
         socks5OutboundPrepareSingBoxMerged "${output}" "${output%/*}" "${candidate}" || return 1
     fi
     /etc/v2ray-agent/sing-box/sing-box check -c "${output}" -D /etc/v2ray-agent/sing-box/conf/ || return 1
-    # No earlier terminal rule may bypass the inbound guard.
+    # Earlier rejection is safe; no forwarding rule may bypass the inbound guard.
     jq -e '
       .route.rules as $r |
       ([$r|to_entries[]|select(.value.type=="logical" and (.value.rules[0].inbound | if type=="array" then . else [.] end)==["socks5_inbound"] and .value.action=="reject")|.key][0]) as $start |
       $start!=null and all($r[:$start][];
-        (.action=="sniff" or .action=="resolve" or .action=="route-options"))' "${output}" >/dev/null
+        (.action=="sniff" or .action=="resolve" or .action=="route-options" or .action=="reject"))' "${output}" >/dev/null
 }
 
 # Install, replace rules, and uninstall share the same commit/rollback path.
@@ -9120,31 +9120,34 @@ socks5OutboundBuild() {
 
 # Preserve preprocessing and explicit guards before user routing. Preserve other route order.
 socks5OutboundOrder() {
-    local core=$1 original=$2 compiled=$3
-    jq -n --slurpfile original "$original" --slurpfile managed "$compiled" --arg core "$core" '
+    local core=$1 original=$2 compiled=$3 prefix=${4:-'[]'}
+    jq -n --slurpfile original "$original" --slurpfile managed "$compiled" --arg core "$core" --argjson prefix "$prefix" '
       def guard:
         if $core=="sing-box" then
-          ((.action // "") | IN("sniff","hijack-dns","resolve","route-options"))
+          ((.action // "") | IN("sniff","hijack-dns","resolve","route-options","reject"))
           or (.outbound as $tag | ($managed[0].guard_tags // [] | index($tag))!=null)
           or (.outbound // "" | test("^(block|blackhole(_out)?|socks5_deny)$"))
         else (.outboundTag as $tag | ($managed[0].guard_tags // [] | index($tag))!=null)
           or (.outboundTag // "" | test("^(block|blackhole(_out)?|socks5_deny)$"))
           or ((.inboundTag // []) | any(startswith("dokodemo-in-"))) end;
       ($original[0] // []) as $old |
-      [$old[] | select(guard)] + $managed[0].rules + [$old[] | select(guard|not)]'
+      [$old[] | select(guard)] + $prefix + $managed[0].rules + [$old[] | select(guard|not)]'
 }
 
 # Reorder after sing-box merge, so fragment filename order cannot shadow selected inbounds.
 socks5OutboundNormalizeSingBox() {
-    local config=$1 compiled=$2 work=$3 guard=${4:-$s5SB/00_socks5_guard.json} original
+    local config=$1 compiled=$2 work=$3 guard=${4:-$s5SB/00_socks5_guard.json} original prefix
     original="$work/sb-original-rules.json"
     if [[ -f "$guard" ]]; then
         jq '.route.rules // []' "$guard" >"$work/sb-guard.json" || return 1
     else printf '%s\n' '[]' >"$work/sb-guard.json"; fi
-    jq --slurpfile m "$compiled" --slurpfile guard "$work/sb-guard.json" '[.route.rules[]? | . as $r |
-        select(($m[0].rules|index($r))==null and ($guard[0]|index($r))==null)]' "$config" >"$original" || return 1
-    socks5OutboundOrder sing-box "$original" "$compiled" >"$work/sb-ordered.json" || return 1
-    jq --slurpfile rules "$work/sb-ordered.json" --slurpfile m "$compiled" --slurpfile guard "$work/sb-guard.json" '
+    jq --slurpfile m "$compiled" --slurpfile guard "$work/sb-guard.json" '
+      # Merge may encode a singleton match list as a scalar. Compare both forms equally.
+      def canonical: walk(if type=="array" and length==1 then .[0] else . end);
+      (($m[0].rules+$guard[0])|map(canonical)) as $generated |
+      [.route.rules[]? | select((canonical as $r | $generated|index($r))==null)]' \
+      "$config" >"$original" || return 1
+    prefix=$(jq -n --slurpfile m "$compiled" --slurpfile guard "$work/sb-guard.json" '
       # Intersect each managed route with the existing allow condition. Keep the final deny.
       [ $guard[0][] |
         if (.outbound // "")=="01_direct_outbound" and ((.action // "route")=="route") then
@@ -9155,8 +9158,10 @@ socks5OutboundNormalizeSingBox() {
              outbound:.outbound} + (if .action!=null then {action:.action} else {} end)),
           $allow
         else . end
-      ] as $prefix |
-      .route.rules=($prefix+$rules[0]) |
+      ]') || return 1
+    socks5OutboundOrder sing-box "$original" "$compiled" "$prefix" >"$work/sb-ordered.json" || return 1
+    jq --slurpfile rules "$work/sb-ordered.json" --slurpfile m "$compiled" '
+      .route.rules=$rules[0] |
       if $m[0].default_tag!=null then .route.final=$m[0].default_tag else . end |
       if .route.rule_set!=null then .route.rule_set|=unique_by(.tag) else . end' \
       "$config" >"$config.tmp" && mv -f "$config.tmp" "$config"
