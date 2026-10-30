@@ -11,4 +11,5 @@ docs
 .sisyphus
 tests
 test
-checks
+checks/*
+!checks/socks5_standalone_test.py
