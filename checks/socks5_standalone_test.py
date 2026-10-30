@@ -268,6 +268,30 @@ class RealCoreTests(unittest.TestCase):
                 os.kill(int(pid.read_text()), 15)
 
 
+    def test_standalone_regular_merge_reuses_dns_and_http_client(self):
+        for installer in INSTALLERS:
+            for domains in ('*', 'geosite:netflix'):
+                with self.subTest(installer=installer, domains=domains), tempfile.TemporaryDirectory() as tmp:
+                    source = installer.read_text()
+                    code = self.fixture(installer, tmp)
+                    # Include complete heredoc functions as well as the normal merge entry point.
+                    start = source.index('initSingBoxLocalDNSConfig() {')
+                    end = source.index('singBoxMergeConfig() (', start)
+                    code += source[start:end].replace('/etc/v2ray-agent', tmp)
+                    code += function(source, 'singBoxMergeConfig').replace('/etc/v2ray-agent', tmp)
+                    code += '\nsocks5OutboundPrepareSingBoxMerged() { return 0; }\n'
+                    conf = Path(tmp) / 'sing-box/conf'
+                    (conf / 'config/base.json').write_text('{}')
+                    self.invoke(code, f"""
+generateSocks5InboundConfig "$fixture/sing-box/conf/config" {free_port()} pass '["127.0.0.1/32"]' ipv4_only {shlex.quote(domains)} 127.0.0.1 || exit 1
+singBoxMergeConfig || exit 2
+singBoxMergeConfig || exit 3
+""")
+                    merged = json.loads((conf / 'config.json').read_text())
+                    self.assertEqual(1, sum(s.get('tag') == 'local' for s in merged['dns']['servers']))
+                    self.assertEqual(1, sum(c.get('tag') == 'rule_set_http' for c in merged['http_clients']))
+                    self.assertEqual('rule_set_http', merged['route']['default_http_client'])
+
     def test_transactions_restore_exact_config_and_service_state(self):
         for installer in INSTALLERS:
             for failure in ('fail-start', 'fail-enable', 'fail-firewall'):

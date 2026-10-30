@@ -4404,7 +4404,15 @@ initSingBoxLocalDNSConfig() {
     local singBoxConfigDir="/etc/v2ray-agent/sing-box/conf/config"
     local singBoxDNSConfigPath="${singBoxConfigDir}/dns.json"
 
-    mkdir -p "${singBoxConfigDir}"
+    mkdir -p "${singBoxConfigDir}" || return 1
+    local file
+    # Resolver tags are shared across all fragments, including standalone SOCKS5.
+    for file in "${singBoxConfigDir}/"*.json; do
+        [[ -f "${file}" ]] || continue
+        if jq -e 'any(.dns.servers[]?; .tag == "local")' "${file}" >/dev/null 2>&1; then
+            return 0
+        fi
+    done
     if [[ -f "${singBoxDNSConfigPath}" ]] && jq empty "${singBoxDNSConfigPath}" >/dev/null 2>&1; then
         jq '
           . = (if type == "object" then . else {} end)
@@ -4436,20 +4444,22 @@ EOF
 # 初始化sing-box远程规则集HTTP客户端
 initSingBoxHTTPClientConfig() {
     local singBoxConfigDir="/etc/v2ray-agent/sing-box/conf/config"
+    local file clientExists=false
 
-    initSingBoxLocalDNSConfig
-    cat <<EOF >"${singBoxConfigDir}/00_http_clients.json"
-{
-  "http_clients": [
-    {
-      "tag": "rule_set_http"
-    }
-  ],
-  "route": {
-    "default_http_client": "rule_set_http"
-  }
-}
-EOF
+    initSingBoxLocalDNSConfig || return 1
+    # Reuse external client definitions; this managed fragment still sets the default.
+    for file in "${singBoxConfigDir}/"*.json; do
+        [[ -f "${file}" && "${file}" != "${singBoxConfigDir}/00_http_clients.json" ]] || continue
+        if jq -e 'any(.http_clients[]?; .tag == "rule_set_http")' "${file}" >/dev/null 2>&1; then
+            clientExists=true
+            break
+        fi
+    done
+    jq -n --argjson exists "${clientExists}" '
+      {route:{default_http_client:"rule_set_http"}} +
+      (if $exists then {} else {http_clients:[{tag:"rule_set_http"}]} end)' \
+        >"${singBoxConfigDir}/00_http_clients.json.tmp" &&
+        mv -f "${singBoxConfigDir}/00_http_clients.json.tmp" "${singBoxConfigDir}/00_http_clients.json"
 }
 
 # 合并config
