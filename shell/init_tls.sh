@@ -1,0 +1,247 @@
+#!/usr/bin/env bash
+installType='yum -y install'
+upgrade="yum -y update"
+echoType='echo -e'
+# 打印
+echoColor(){
+    case $1 in
+        # 红色
+        "red")
+            ${echoType} "\033[31m$2 \033[0m"
+        ;;
+        # 天蓝色
+        "skyBlue")
+            ${echoType} "\033[36m$2 \033[0m"
+        ;;
+        # 绿色
+        "green")
+            ${echoType} "\033[32m$2 \033[0m"
+        ;;
+        # 白色
+        "white")
+            ${echoType} "\033[37m$2 \033[0m"
+        ;;
+        "magenta")
+            ${echoType} "\033[31m$2 \033[0m"
+        ;;
+        # 黄色
+        "yellow")
+            ${echoType} "\033[33m$2 \033[0m"
+        ;;
+    esac
+}
+# 选择系统执行工具
+checkSystem(){
+
+	if [[ -f /etc/redhat-release ]] || grep -qiE "centos|red hat|redhat" /proc/version
+	then
+		release="centos"
+		installType='yum -y install'
+		upgrade="yum update -y"
+	elif grep -qi "debian" /etc/issue /proc/version
+    then
+		release="debian"
+		installType='apt -y install'
+		upgrade="apt update -y"
+	elif grep -qi "ubuntu" /etc/issue /proc/version
+	then
+		release="ubuntu"
+		installType='apt -y install'
+		upgrade="apt update -y"
+    fi
+    if [[ -z ${release} ]]
+    then
+        echoContent red "本脚本不支持此系统，请将下方日志反馈给开发者"
+        cat /etc/issue
+        cat /proc/version
+        exit 0;
+    fi
+}
+# 安装工具包
+installTools(){
+    echoColor yellow "更新"
+    ${upgrade}
+    if [[ -z $(find /usr/bin/ -executable -name "socat") ]]
+    then
+        echoColor yellow "\nsocat未安装，安装中\n"
+        ${installType} socat >/dev/null
+        echoColor green "socat安装完毕"
+    fi
+    echoColor yellow "\n检测是否安装Nginx"
+    if [[ -z $(find /sbin/ -executable -name 'nginx') ]]
+    then
+        echoColor yellow "nginx未安装，安装中\n"
+        ${installType} nginx >/dev/null
+        echoColor green "nginx安装完毕"
+    else
+        echoColor green "nginx已安装\n"
+    fi
+    echoColor yellow "检测是否安装acme.sh"
+    if [[ -z $(find ~/.acme.sh/ -name "acme.sh") ]]
+    then
+        echoColor yellow "\nacme.sh未安装，安装中\n"
+        curl -s https://get.acme.sh | sh >/dev/null
+        echoColor green "acme.sh安装完毕\n"
+    else
+        echoColor green "acme.sh已安装\n"
+    fi
+
+}
+# 恢复配置
+resetNginxConfig(){
+    if ! cp -f /tmp/mack-a/nginx/nginx.conf /etc/nginx/nginx.conf; then
+        echoColor red "Nginx配置恢复失败，请检查备份文件\n"
+        return 1
+    fi
+    rm -f /etc/nginx/conf.d/5NX2O9XQKP.conf || return 1
+    echoColor green "\n恢复配置完毕"
+}
+# 备份
+bakConfig(){
+    mkdir -p /tmp/mack-a/nginx || return 1
+    cp -f /etc/nginx/nginx.conf /tmp/mack-a/nginx/nginx.conf
+}
+# 检查Nginx服务是否运行
+isNginxRunning(){
+    systemctl is-active --quiet nginx
+}
+startNginx(){
+    systemctl start nginx || return 1
+    isNginxRunning
+}
+stopNginx(){
+    if ! isNginxRunning; then
+        return 0
+    fi
+    systemctl stop nginx || return 1
+    ! isNginxRunning
+}
+restoreNginxState(){
+    local restoreResult=0
+    if ! stopNginx; then
+        echoColor red "临时Nginx服务停止失败，请检查服务状态\n"
+        restoreResult=1
+    fi
+    resetNginxConfig || return 1
+    if [[ ${restoreResult} != 0 ]]; then
+        return 1
+    fi
+    if [[ ${nginxStatus} = 2 ]] && ! startNginx; then
+        echoColor red "Nginx恢复启动失败，请检查服务状态\n"
+        return 1
+    fi
+    return 0
+}
+
+# 安装证书
+installTLS(){
+    while true; do
+        echoColor yellow "请输入域名【例:blog.v2ray-agent.com】："
+        read -r domain || return 1
+        if [[ -n ${domain} ]]; then
+            break
+        fi
+        echoColor red "域名未填写\n"
+    done
+    # 备份
+    if ! bakConfig; then
+        echoColor red "Nginx配置备份失败，退出证书申请\n"
+        return 1
+    fi
+    # 替换原始文件中的域名
+    if grep -q "${domain}" /etc/nginx/nginx.conf
+    then
+        sed -i "s/${domain}/X655Y0M9UM9/g" /etc/nginx/nginx.conf
+    fi
+
+    touch /etc/nginx/conf.d/6GFV1ES52V2.conf
+    echo "server {listen 80;server_name ${domain};root /usr/share/nginx/html;location ~ /.well-known {allow all;}location /test {return 200 '5NX2O9XQKP';}}" > /etc/nginx/conf.d/5NX2O9XQKP.conf
+    local nginxStatus=1
+    if isNginxRunning
+    then
+        nginxStatus=2;
+        if ! stopNginx; then
+            echoColor red "Nginx停止失败，无法申请证书\n"
+            restoreNginxState
+            return 1
+        fi
+        sleep 0.5
+    fi
+    if ! startNginx; then
+        echoColor red "Nginx启动失败，无法验证域名\n"
+        restoreNginxState
+        return 1
+    fi
+    echoColor yellow "\n验证域名以及服务器是否可用"
+    if curl -s "${domain}/test" | grep -q 5NX2O9XQKP
+    then
+        if ! stopNginx; then
+            echoColor red "Nginx停止失败，无法继续申请证书\n"
+            restoreNginxState
+            return 1
+        fi
+        sleep 0.5
+        echoColor green "服务可用，生成TLS中，请等待\n"
+    else
+        echoColor red "服务不可用请检测dns配置是否正确"
+        # 恢复备份
+        restoreNginxState
+        return 1
+    fi
+    if ! sudo ~/.acme.sh/acme.sh --issue -d "${domain}" --standalone -k ec-256 >/dev/null; then
+        echoColor red "证书申请失败，请检查acme日志\n"
+        restoreNginxState
+        return 1
+    fi
+    if ! ~/.acme.sh/acme.sh --installcert -d "${domain}" --fullchainpath "/tmp/mack-a/nginx/${domain}.crt" --keypath "/tmp/mack-a/nginx/${domain}.key" --ecc >/dev/null; then
+        echoColor red "证书安装失败，请检查acme日志\n"
+        restoreNginxState
+        return 1
+    fi
+    if [[ ! -s /tmp/mack-a/nginx/${domain}.key ]]
+    then
+        echoColor red "证书key生成失败，请重新运行"
+        restoreNginxState
+        return 1
+    elif [[ ! -s /tmp/mack-a/nginx/${domain}.crt ]]
+    then
+        echoColor red "证书crt生成失败，请重新运行"
+        restoreNginxState
+        return 1
+    fi
+    echoColor green "证书生成成功"
+    echoColor green "证书目录/tmp/mack-a/nginx"
+    ls /tmp/mack-a/nginx
+
+    restoreNginxState
+}
+
+init(){
+    echoColor red "\n=============================="
+    echoColor yellow "此脚本注意事项"
+    echoColor green "   1.会安装依赖所需依赖"
+    echoColor green "   2.会把Nginx配置文件备份"
+    echoColor green "   3.会安装Nginx、acme.sh，如果已安装则使用已经存在的"
+    echoColor green "   4.安装完毕或者安装失败会自动恢复备份，请不要手动关闭脚本"
+    echoColor green "   5.执行期间请不要重启机器"
+    echoColor green "   6.备份文件和证书文件都在/tmp下面，请注意留存"
+    echoColor green "   7.如果多次执行则将上次生成备份和生成的证书强制覆盖"
+    echoColor green "   8.证书默认ec-256"
+    echoColor green "   9.下个版本会加入通配符证书生成[todo]"
+    echoColor green "   10.可以生成多个不同域名的证书[包含子域名]，具体速率请查看[https://letsencrypt.org/zh-cn/docs/rate-limits/]"
+    echoColor green "   11.兼容Centos、Ubuntu、Debian"
+    echoColor green "   12.Github[https://github.com/mack-a]"
+    echoColor red "=============================="
+    echoColor yellow "请输入[y]执行脚本，[任意]结束:"
+    read -r isExecStatus
+    if [[ ${isExecStatus} = "y" ]]
+    then
+        installTools
+        installTLS
+    else
+        echoColor green "欢迎下次使用"
+        exit
+    fi
+}
+checkSystem
+init
