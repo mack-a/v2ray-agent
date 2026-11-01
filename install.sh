@@ -5735,10 +5735,8 @@ EOF
     elif [[ "${type}" == "vlessXHTTP" ]]; then
 
         local xhttpMldsa65Param=
-        local xhttpMldsa65ParamEncoded=
-        if [[ -n "${currentRealityMldsa65Verify}" && "${currentRealityMldsa65Verify}" != "null" ]]; then
+        if [[ "${coreInstallType}" == "1" && -n "${currentRealityMldsa65Verify}" && "${currentRealityMldsa65Verify}" != "null" ]]; then
             xhttpMldsa65Param="&pqv=${currentRealityMldsa65Verify}"
-            xhttpMldsa65ParamEncoded="%26pqv%3D${currentRealityMldsa65Verify}"
         fi
 
         echoContent yellow " ---> 通用格式(VLESS+reality+XHTTP)"
@@ -5769,10 +5767,11 @@ EOF
     reality-opts:
       public-key: ${currentRealityXHTTPPublicKey}
       short-id: 6ba85179e30d4fc2
+      support-x25519mlkem768: true
 EOF
 
         echoContent yellow " ---> 二维码 VLESS(VLESS+reality+XHTTP)"
-        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dreality${xhttpMldsa65ParamEncoded}%26type%3Dxhttp%26sni%3D${xrayVLESSRealityXHTTPServerName}%26fp%3Dchrome%26path%3D${path}%26host%3D${xrayVLESSRealityXHTTPServerName}%26pbk%3D${currentRealityXHTTPPublicKey}%26sid%3D6ba85179e30d4fc2%23${email}\n"
+        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dreality%26type%3Dxhttp%26sni%3D${xrayVLESSRealityXHTTPServerName}%26fp%3Dchrome%26path%3D${path}%26host%3D${xrayVLESSRealityXHTTPServerName}%26pbk%3D${currentRealityXHTTPPublicKey}%26sid%3D6ba85179e30d4fc2%23${email}\n"
 
     elif
         [[ "${type}" == "vlessgrpc" ]]
@@ -5907,18 +5906,22 @@ EOF
         local realityServerName=${xrayVLESSRealityServerName}
         local publicKey=${currentRealityPublicKey}
         local realityMldsa65Verify=${currentRealityMldsa65Verify}
+        local realityMldsa65Param=
+        if [[ "${coreInstallType}" == "1" && -n "${realityMldsa65Verify}" && "${realityMldsa65Verify}" != "null" ]]; then
+            realityMldsa65Param="&pqv=${realityMldsa65Verify}"
+        fi
 
         if [[ "${coreInstallType}" == "2" ]]; then
             realityServerName=${singBoxVLESSRealityVisionServerName}
             publicKey=${singBoxVLESSRealityPublicKey}
         fi
         echoContent yellow " ---> 通用格式(VLESS+reality+uTLS+Vision)"
-        echoContent green "    vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&pqv=${realityMldsa65Verify}&type=tcp&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=6ba85179e30d4fc2&flow=xtls-rprx-vision#${email}\n"
+        echoContent green "    vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality${realityMldsa65Param}&type=tcp&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=6ba85179e30d4fc2&flow=xtls-rprx-vision#${email}\n"
 
         echoContent yellow " ---> 格式化明文(VLESS+reality+uTLS+Vision)"
-        echoContent green "协议类型:VLESS reality，地址:$(getPublicIP)，publicKey:${publicKey}，shortId: 6ba85179e30d4fc2，pqv=${realityMldsa65Verify}，serverNames：${realityServerName}，端口:${port}，用户ID:${id}，传输方式:tcp，账户名:${email}\n"
+        echoContent green "协议类型:VLESS reality，地址:$(getPublicIP)，publicKey:${publicKey}，shortId: 6ba85179e30d4fc2${realityMldsa65Param:+，pqv=${realityMldsa65Verify}}，serverNames：${realityServerName}，端口:${port}，用户ID:${id}，传输方式:tcp，账户名:${email}\n"
         cat <<EOF >>"${outputRoot}/default/${user}" || return 1
-vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&pqv=${realityMldsa65Verify}&type=tcp&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=6ba85179e30d4fc2&flow=xtls-rprx-vision#${email}
+vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality${realityMldsa65Param}&type=tcp&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=6ba85179e30d4fc2&flow=xtls-rprx-vision#${email}
 EOF
         cat <<EOF >>"${outputRoot}/clashMeta/${user}" || return 1
   - name: "${email}"
@@ -5935,6 +5938,7 @@ EOF
     reality-opts:
       public-key: ${publicKey}
       short-id: 6ba85179e30d4fc2
+      support-x25519mlkem768: true
     client-fingerprint: chrome
 EOF
 
@@ -5948,6 +5952,10 @@ EOF
         local realityServerName=${xrayVLESSRealityServerName}
         local publicKey=${currentRealityPublicKey}
         local realityMldsa65Verify=${currentRealityMldsa65Verify}
+        local realityMldsa65Param=
+        if [[ "${coreInstallType}" == "1" && -n "${realityMldsa65Verify}" && "${realityMldsa65Verify}" != "null" ]]; then
+            realityMldsa65Param="&pqv=${realityMldsa65Verify}"
+        fi
 
         if [[ "${coreInstallType}" == "2" ]]; then
             realityServerName=${singBoxVLESSRealityGRPCServerName}
@@ -5955,14 +5963,12 @@ EOF
         fi
 
         echoContent yellow " ---> 通用格式(VLESS+reality+uTLS+gRPC)"
-        # pqv=${realityMldsa65Verify}&
-        echoContent green "    vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&type=grpc&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=6ba85179e30d4fc2&path=grpc&serviceName=grpc#${email}\n"
+        echoContent green "    vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality${realityMldsa65Param}&type=grpc&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=6ba85179e30d4fc2&path=grpc&serviceName=grpc#${email}\n"
 
         echoContent yellow " ---> 格式化明文(VLESS+reality+uTLS+gRPC)"
-        # pqv=${realityMldsa65Verify}，
-        echoContent green "协议类型:VLESS reality，serviceName:grpc，地址:$(getPublicIP)，publicKey:${publicKey}，shortId: 6ba85179e30d4fc2，serverNames：${realityServerName}，端口:${port}，用户ID:${id}，传输方式:gRPC，client-fingerprint：chrome，账户名:${email}\n"
+        echoContent green "协议类型:VLESS reality，serviceName:grpc，地址:$(getPublicIP)，publicKey:${publicKey}，shortId: 6ba85179e30d4fc2${realityMldsa65Param:+，pqv=${realityMldsa65Verify}}，serverNames：${realityServerName}，端口:${port}，用户ID:${id}，传输方式:gRPC，client-fingerprint：chrome，账户名:${email}\n"
         cat <<EOF >>"${outputRoot}/default/${user}" || return 1
-vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&pqv=${realityMldsa65Verify}&type=grpc&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=6ba85179e30d4fc2&path=grpc&serviceName=grpc#${email}
+vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality${realityMldsa65Param}&type=grpc&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=6ba85179e30d4fc2&path=grpc&serviceName=grpc#${email}
 EOF
         cat <<EOF >>"${outputRoot}/clashMeta/${user}" || return 1
   - name: "${email}"
@@ -5977,6 +5983,7 @@ EOF
     reality-opts:
       public-key: ${publicKey}
       short-id: 6ba85179e30d4fc2
+      support-x25519mlkem768: true
     grpc-opts:
       grpc-service-name: "grpc"
     client-fingerprint: chrome
@@ -6482,7 +6489,7 @@ showAccounts() {
     fi
     # VLESS Reality XHTTP
     if echo ${currentInstallProtocolType} | grep -q ",12,"; then
-        echoContent skyBlue "\n================================ VLESS Reality XHTTP TLS [仅CDN推荐] ================================\n"
+        echoContent skyBlue "\n================================ VLESS REALITY XHTTP ================================\n"
 
         accountUsers=$(readAccountUsers '(.inbounds[0].settings.clients//.inbounds[0].users)[]' "${configPath}12_VLESS_XHTTP_inbounds.json") || return 1
         while IFS= read -r user; do
@@ -6509,7 +6516,7 @@ showAccounts() {
     fi
     # VLESS XHTTP TLS tunnel (Xray-only subscriptions)
     if echo ${currentInstallProtocolType} | grep -q ",14," && [[ -f "${configPath}14_VLESS_XHTTP_TLS_inbounds.json" ]]; then
-        echoContent skyBlue "\n================================ VLESS XHTTP TLS  ================================\n"
+        echoContent skyBlue "\n================================ VLESS XHTTP TLS [支持CDN] ================================\n"
         local xhttpTLSCDNAddress=
         if [[ -f "/etc/v2ray-agent/cdn" ]]; then
             xhttpTLSCDNAddress=$(head -1 "/etc/v2ray-agent/cdn" | tr -d '\r\n')
@@ -10502,8 +10509,8 @@ customXrayInstall() {
     #    echoContent yellow "5.VLESS+TLS+gRPC[仅CDN推荐]"
     echoContent yellow "7.VLESS+Reality+uTLS+Vision[推荐]"
     # echoContent yellow "8.VLESS+Reality+gRPC"
-    echoContent yellow "12.VLESS+Reality+XHTTP+TLS[CDN可用]"
-    echoContent yellow "14.VLESS+XHTTP+TLS[随机端口，无需Nginx]"
+    echoContent yellow "12.VLESS+REALITY+XHTTP"
+    echoContent yellow "14.VLESS+XHTTP+TLS[支持CDN，随机端口，无需Nginx]"
     read -r -p "请选择[多选]，[例如:1,2,3]:" selectCustomInstallType
     echoContent skyBlue "--------------------------------------------------------------"
     if echo "${selectCustomInstallType}" | grep -q "，"; then
@@ -12167,7 +12174,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.5.34"
+    echoContent green "当前版本：v3.5.35"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
