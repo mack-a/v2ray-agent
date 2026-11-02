@@ -586,7 +586,8 @@ readAcmeTLS() {
 
 # Read the default custom port
 readCustomPort() {
-    if [[ -n "${configPath}" && -z "${realityStatus}" && "${coreInstallType}" == "1" ]]; then
+    if [[ -n "${configPath}" && -n "${frontingType}" && -z "${realityStatus}" && "${coreInstallType}" == "1" ]] &&
+        [[ -f "${configPath}${frontingType}.json" ]]; then
         local port=
         port=$(jq -r .inbounds[0].port "${configPath}${frontingType}.json")
         if [[ "${port}" != "443" ]]; then
@@ -12159,7 +12160,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "Author: mack-a"
-    echoContent green " Current version: v3.5.36"
+    echoContent green " Current version: v3.5.37"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "Description: 8-in-1 coexistence script\c"
     showInstallStatus
