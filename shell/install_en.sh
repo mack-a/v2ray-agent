@@ -4596,6 +4596,7 @@ initSingBoxPort() {
 
 #Initialize Xray configuration file
 initXrayConfig() {
+    coreInstallType=1
     echo "port:${port}"
     echoContent skyBlue "\nProgress$2/${totalProgress}: Initializing Xray configuration"
     echo
@@ -4848,8 +4849,8 @@ EOF
       "network": "hysteria",
       "security": "tls",
       "tlsSettings": {
-        "serverName": "${currentHost}",
-        "certificates": [{"certificateFile": "/etc/v2ray-agent/tls/${currentHost}.crt", "keyFile": "/etc/v2ray-agent/tls/${currentHost}.key"}]
+        "serverName": "${domain:-${currentHost}}",
+        "certificates": [{"certificateFile": "/etc/v2ray-agent/tls/${domain:-${currentHost}}.crt", "keyFile": "/etc/v2ray-agent/tls/${domain:-${currentHost}}.key"}]
       },
       "hysteriaSettings": {"version": 2}
     }
@@ -10552,7 +10553,7 @@ customXrayInstall() {
         if ! [[ "${selectCustomInstallType}" == *,6,* && -f /etc/v2ray-agent/sing-box/conf/config.json ]]; then
             cleanUp singBoxDel
         fi
-        if xraySelectionNeedsNginx "${selectCustomInstallType}"; then
+        if xraySelectionNeedsCertificate "${selectCustomInstallType}"; then
             installCronTLS 10
         fi
 
@@ -12158,7 +12159,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "Author: mack-a"
-    echoContent green " Current version: v3.5.35"
+    echoContent green " Current version: v3.5.36"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "Description: 8-in-1 coexistence script\c"
     showInstallStatus
