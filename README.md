@@ -61,6 +61,8 @@ vasmad
 
 ## 文档和指南
 
+*   [SOCKS5 入站与分流出站：简明教程](https://www.v2ray-agent.com/archives/01a1b212-d16c-743c-a4b1-d6150a948bda)
+
 *   [八合一脚本从入门到精通](https://www.v2ray-agent.com/archives/1710141233)
 *   [脚本快速搭建教程](https://www.v2ray-agent.com/archives/1682491479771)
 *   [脚本使用注意事项](https://www.v2ray-agent.com/archives/1679931532764)

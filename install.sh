@@ -9050,22 +9050,28 @@ socks5InboundShareConfig() {
 installSocks5InboundStandalone() {
     local port credential strategy sources domains allowAll listen
     echoContent skyBlue ' ---> SOCKS5 入站（sing-box）'
+    echo
     read -r -p '监听地址 [默认 ::]: ' listen || return 1
     listen=${listen:-::}
+    echo
     read -r -p '端口 [默认随机]: ' port || return 1
     port=${port:-$((RANDOM % 50001 + 10000))}
     [[ "${port}" =~ ^[0-9]{1,5}$ ]] && ((10#${port} >= 1 && 10#${port} <= 65535)) || return 1
     port=$((10#${port}))
+    echo
     read -r -p '用户名/密码 UUID [默认随机]: ' credential || return 1
+    echo
     read -r -p 'DNS 解析策略 [1=IPv4，2=IPv6，默认 1]: ' strategy || return 1
     case "${strategy}" in ''|1) strategy=ipv4_only ;; 2) strategy=ipv6_only ;; *) return 1 ;; esac
     while true; do
+        echo
         read -r -p '允许的来源 IP/CIDR（逗号分隔）: ' sources || return 1
         [[ -n "${sources//[[:space:]]/}" ]] && break
         echoContent yellow ' ---> 来源 IP/CIDR 不能为空，请重新输入'
     done
+    echo
     read -r -p '是否允许所有目标？[y/n]: ' allowAll || return 1
-    case "${allowAll}" in y|Y) domains='*' ;; n|N) read -r -p '域名或规则集（逗号分隔）: ' domains || return 1; [[ -n "${domains}" ]] || return 1 ;; *) return 1 ;; esac
+    case "${allowAll}" in y|Y) domains='*' ;; n|N) echo; read -r -p '域名或规则集（逗号分隔）: ' domains || return 1; [[ -n "${domains}" ]] || return 1 ;; *) return 1 ;; esac
     installSocks5InboundTools || return 1
     sources=$(normalizeSocks5Sources "${sources}") || return 1
     # Check before download as well as immediately before publishing.
@@ -9077,6 +9083,7 @@ installSocks5InboundStandalone() {
     fi
     readInstallType
     readInstallProtocolType
+    echo
     echoContent green ' ---> SOCKS5 入站安装成功'
     jq '{listen:.inbounds[0].listen,port:.inbounds[0].listen_port,users:.inbounds[0].users}' /etc/v2ray-agent/sing-box/conf/config/20_socks5_inbounds.json
     socks5InboundShareConfig
@@ -9346,6 +9353,7 @@ socks5OutboundChooseUsers() {
     elif [[ -n "$selected" ]]; then defaultLabel=$selected
     else defaultLabel=$(socks5OutboundText '不限制用户' 'all users'); fi
     echoContent yellow "$(socks5OutboundText '0.不限制用户' '0.All users')" >&2
+    echo
     while true; do
         socks5OutboundRead choice "选择用户编号（逗号多选，默认：${defaultLabel}，回车使用默认）:" "User numbers (comma separated, default: ${defaultLabel}, Enter=default):" || return 1
         if [[ -z "$choice" ]]; then
@@ -9360,6 +9368,7 @@ socks5OutboundChooseUsers() {
           else {user_mode:"selected",user_refs:([.[] as $n|$users[$n-1]|{inbound_tag,user}]|unique)} end' 2>/dev/null); then
             printf '%s\n' "$row"; return 0
         fi
+        echo
         echoContent yellow "$(socks5OutboundText '编号无效，请输入列表中的数字，以逗号分隔' 'Invalid selection; enter listed numbers separated by commas')" >&2
     done
 }
@@ -10184,6 +10193,7 @@ socks5OutboundChooseTags() {
         selected=${selected:-0}
     fi
     echoContent yellow "$(socks5OutboundText '不绑定时，分流规则对当前核心的所有入站生效' 'Without a binding, routing rules apply to all inbounds of the selected core')" >&2
+    echo
     if [[ "$selected" == 0 ]]; then
         defaultLabel=$(socks5OutboundText '不绑定' 'unbound')
     else
@@ -10219,6 +10229,7 @@ socks5OutboundParseNode() {
 }
 
 socks5OutboundInputNode() {
+    echo
     local name server port user pass='' id=$1 node connection core tags='[]' users defaults='[]' userDefaults='[]' old='null' temp
     socks5OutboundRead name '落地机名称:' 'Node name:' || return 1
     while true; do
@@ -10405,7 +10416,8 @@ socks5OutboundRoutingMenu() {
     local choice status
     while true; do
         echo
-        echoContent skyBlue "$(socks5OutboundText 'SOCKS5 出站' 'SOCKS5 outbound')"
+        echoContent skyBlue "$(socks5OutboundText ' ---> SOCKS5 出站' 'SOCKS5 outbound')"
+        echo
         if socks5OutboundInstalled; then
             echoContent yellow "$(socks5OutboundText '1.添加落地机  2.查看配置  3.添加规则' '1.Add node  2.View configuration  3.Add route')"
             echoContent yellow "$(socks5OutboundText '4.节点管理    5.规则管理  6.更多操作' '4.Manage nodes  5.Manage routes  6.More actions')"
@@ -12793,7 +12805,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.5.38"
+    echoContent green "当前版本：v3.5.39"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus

@@ -9029,19 +9029,25 @@ socks5InboundShareConfig() {
 installSocks5InboundStandalone() {
     local port credential strategy sources domains allowAll listen
     echoContent skyBlue ' ---> SOCKS5 inbound (sing-box)'
+    echo
     read -r -p 'Listen address [::]: ' listen || return 1
     listen=${listen:-::}
+    echo
     read -r -p 'Port [random]: ' port || return 1
     port=${port:-$((RANDOM % 50001 + 10000))}
     [[ "${port}" =~ ^[0-9]{1,5}$ ]] && ((10#${port} >= 1 && 10#${port} <= 65535)) || return 1
     port=$((10#${port}))
+    echo
     read -r -p 'Username/password UUID [random]: ' credential || return 1
+    echo
     read -r -p 'DNS strategy [1=IPv4, 2=IPv6, default=1]: ' strategy || return 1
     case "${strategy}" in ''|1) strategy=ipv4_only ;; 2) strategy=ipv6_only ;; *) return 1 ;; esac
+    echo
     read -r -p 'Allowed source IP/CIDR (comma separated): ' sources || return 1
     [[ -n "${sources}" ]] || return 1
+    echo
     read -r -p 'Allow all destinations? [y/n]: ' allowAll || return 1
-    case "${allowAll}" in y|Y) domains='*' ;; n|N) read -r -p 'Domains/rule-sets (comma separated): ' domains || return 1; [[ -n "${domains}" ]] || return 1 ;; *) return 1 ;; esac
+    case "${allowAll}" in y|Y) domains='*' ;; n|N) echo; read -r -p 'Domains/rule-sets (comma separated): ' domains || return 1; [[ -n "${domains}" ]] || return 1 ;; *) return 1 ;; esac
     installSocks5InboundTools || return 1
     sources=$(normalizeSocks5Sources "${sources}") || return 1
     # Check before download as well as immediately before publishing.
@@ -12789,7 +12795,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "Author: mack-a"
-    echoContent green " Current version: v3.5.38"
+    echoContent green " Current version: v3.5.39"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "Description: 8-in-1 coexistence script\c"
     showInstallStatus
