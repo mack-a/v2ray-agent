@@ -6229,7 +6229,7 @@ collectAccountUsers() {
                     '([.[] | select(.key == $key)][0] // {key:$key,names:[],protocols:[]}) as $current |
                      map(select(.key != $key)) + [($current | .names += [$name] | .names |= unique | .protocols += [$protocol] | .protocols |= unique)]' \
                     <<<"${users}") || return 1
-            done < <(jq -c '[.inbounds[]? | (.settings.clients[]?, .users[]?)] | .[]' "${file}")
+            done < <(jq -c '[.inbounds[]? | (.settings.clients[]?, .settings.users[]?, .users[]?)] | .[]' "${file}")
         done < <(find "${dir}" -maxdepth 1 -type f -name '*_inbounds.json' -print0 2>/dev/null)
     done
     jq -c 'sort_by(.key)' <<<"${users}"
@@ -12795,7 +12795,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "Author: mack-a"
-    echoContent green " Current version: v3.5.39"
+    echoContent green " Current version: v3.5.40"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "Description: 8-in-1 coexistence script\c"
     showInstallStatus
