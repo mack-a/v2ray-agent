@@ -5925,6 +5925,8 @@ EOF
         local clashMetaPortContent="port: ${port}"
         local multiPort=
         local multiPortEncode
+        local speedParams="upmbps=${hysteria2ClientUploadSpeed}&downmbps=${hysteria2ClientDownloadSpeed}&"
+        local speedParamsEncode="upmbps%3D${hysteria2ClientUploadSpeed}%26downmbps%3D${hysteria2ClientDownloadSpeed}%26"
         if echo "${port}" | grep -q "-"; then
             clashMetaPortContent="ports: \"${port}\"
     hop-interval: ${hysteria2HopInterval:-60}"
@@ -5932,9 +5934,9 @@ EOF
             multiPortEncode="mport%3D${port}%26"
         fi
 
-        echoContent green "    hysteria2://${id}@${currentHost}:${port}?${multiPort}peer=${currentHost}&insecure=0&sni=${currentHost}&alpn=h3#${email}\n"
+        echoContent green "    hysteria2://${id}@${currentHost}:${port}?${multiPort}${speedParams}peer=${currentHost}&insecure=0&sni=${currentHost}&alpn=h3#${email}\n"
         cat <<EOF >>"${outputRoot}/default/${user}" || return 1
-hysteria2://${id}@${currentHost}:${port}?${multiPort}peer=${currentHost}&insecure=0&sni=${currentHost}&alpn=h3#${email}
+hysteria2://${id}@${currentHost}:${port}?${multiPort}${speedParams}peer=${currentHost}&insecure=0&sni=${currentHost}&alpn=h3#${email}
 EOF
         echoContent yellow " ---> v2rayN(hysteria+TLS)"
         jq -n --arg server "${currentHost}:${port}" --arg password "${id}" --arg host "${currentHost}" \
@@ -5961,7 +5963,7 @@ EOF
         echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}" || return 1
 
         echoContent yellow " ---> QR code Hysteria(TLS)"
-        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=hysteria2%3A%2F%2F${id}%40${currentHost}%3A${port}%3F${multiPortEncode}peer%3D${currentHost}%26insecure%3D0%26sni%3D${currentHost}%26alpn%3Dh3%23${email}\n"
+        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=hysteria2%3A%2F%2F${id}%40${currentHost}%3A${port}%3F${multiPortEncode}${speedParamsEncode}peer%3D${currentHost}%26insecure%3D0%26sni%3D${currentHost}%26alpn%3Dh3%23${email}\n"
 
     elif [[ "${type}" == "vlessReality" ]]; then
         local realityServerName=${xrayVLESSRealityServerName}
@@ -10216,8 +10218,7 @@ socks5OutboundInputNode() {
             if [[ -n "$user" ]]; then
                 local prompt
                 prompt=$(socks5OutboundText '密码:' 'Password:')
-                read -r -s -p "$prompt " pass || return 1
-                printf '\n'
+                read -r -p "$prompt " pass || return 1
             fi
         fi
         break
@@ -12795,7 +12796,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "Author: mack-a"
-    echoContent green " Current version: v3.5.39"
+    echoContent green " Current version: v3.5.40"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "Description: 8-in-1 coexistence script\c"
     showInstallStatus
