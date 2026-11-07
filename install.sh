@@ -6253,7 +6253,7 @@ collectAccountUsers() {
                     '([.[] | select(.key == $key)][0] // {key:$key,names:[],protocols:[]}) as $current |
                      map(select(.key != $key)) + [($current | .names += [$name] | .names |= unique | .protocols += [$protocol] | .protocols |= unique)]' \
                     <<<"${users}") || return 1
-            done < <(jq -c '[.inbounds[]? | (.settings.clients[]?, .users[]?)] | .[]' "${file}")
+            done < <(jq -c '[.inbounds[]? | (.settings.clients[]?, .settings.users[]?, .users[]?)] | .[]' "${file}")
         done < <(find "${dir}" -maxdepth 1 -type f -name '*_inbounds.json' -print0 2>/dev/null)
     done
     jq -c 'sort_by(.key)' <<<"${users}"
