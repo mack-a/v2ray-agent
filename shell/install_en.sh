@@ -1050,10 +1050,34 @@ checkFirewalldAllowPort() {
     fi
 }
 
-# 读取Tuic配置
+# Xray client bandwidth hints stay outside the core configuration directory.
+readXrayHysteria2Network() {
+    local networkFile=/etc/v2ray-agent/xray/hysteria2_network.json
+    hysteria2ClientUploadSpeed=50
+    hysteria2ClientDownloadSpeed=100
+    [[ -f "${networkFile}" ]] || return 0
+    hysteria2ClientUploadSpeed=$(jq -r '.upload_mbps // 50' "${networkFile}") || return 1
+    hysteria2ClientDownloadSpeed=$(jq -r '.download_mbps // 100' "${networkFile}") || return 1
+    [[ "${hysteria2ClientUploadSpeed}" =~ ^[0-9]+([.][0-9]+)?$ ]] || hysteria2ClientUploadSpeed=50
+    [[ "${hysteria2ClientDownloadSpeed}" =~ ^[0-9]+([.][0-9]+)?$ ]] || hysteria2ClientDownloadSpeed=100
+}
+
+saveXrayHysteria2Network() {
+    local networkFile=/etc/v2ray-agent/xray/hysteria2_network.json
+    [[ "${hysteria2ClientUploadSpeed}" =~ ^[0-9]+([.][0-9]+)?$ ]] || hysteria2ClientUploadSpeed=50
+    [[ "${hysteria2ClientDownloadSpeed}" =~ ^[0-9]+([.][0-9]+)?$ ]] || hysteria2ClientDownloadSpeed=100
+    mkdir -p "${networkFile%/*}" || return 1
+    jq -n --argjson upload "${hysteria2ClientUploadSpeed}" --argjson download "${hysteria2ClientDownloadSpeed}" \
+        '{upload_mbps:$upload,download_mbps:$download}' >"${networkFile}.tmp" &&
+        mv -f "${networkFile}.tmp" "${networkFile}"
+}
+
+# Read bandwidth from the core that owns the Hysteria2 inbound.
 readSingBoxConfig() {
     tuicPort=
     hysteriaPort=
+    hysteria2ClientUploadSpeed=
+    hysteria2ClientDownloadSpeed=
     if [[ -n "${singBoxConfigPath}" ]]; then
 
         if [[ -f "${singBoxConfigPath}09_tuic_inbounds.json" ]]; then
@@ -1061,13 +1085,17 @@ readSingBoxConfig() {
             tuicAlgorithm=$(jq -r '.inbounds[0].congestion_control' "${singBoxConfigPath}09_tuic_inbounds.json")
         fi
         if [[ -f "${singBoxConfigPath}06_hysteria2_inbounds.json" ]]; then
-            hysteriaPort=$(jq -r '.inbounds[0].listen_port' "${singBoxConfigPath}06_hysteria2_inbounds.json")
-            hysteria2ClientUploadSpeed=$(jq -r '.inbounds[0].down_mbps' "${singBoxConfigPath}06_hysteria2_inbounds.json")
-            hysteria2ClientDownloadSpeed=$(jq -r '.inbounds[0].up_mbps' "${singBoxConfigPath}06_hysteria2_inbounds.json")
+            singBoxHysteria2Port=$(jq -r '.inbounds[0].listen_port' "${singBoxConfigPath}06_hysteria2_inbounds.json")
+            if [[ "${coreInstallType}" == "2" || ! -f "${configPath}06_hysteria2_inbounds.json" ]]; then
+                hysteriaPort=${singBoxHysteria2Port}
+                hysteria2ClientUploadSpeed=$(jq -r '.inbounds[0].down_mbps' "${singBoxConfigPath}06_hysteria2_inbounds.json")
+                hysteria2ClientDownloadSpeed=$(jq -r '.inbounds[0].up_mbps' "${singBoxConfigPath}06_hysteria2_inbounds.json")
+            fi
         fi
     fi
     if [[ "${coreInstallType}" == "1" && -f "${configPath}06_hysteria2_inbounds.json" ]]; then
         hysteriaPort=$(jq -r '.inbounds[0].port' "${configPath}06_hysteria2_inbounds.json")
+        readXrayHysteria2Network || return 1
     fi
     if [[ -n "${hysteriaPort}" ]]; then
         [[ "${hysteria2ClientUploadSpeed}" =~ ^[0-9]+([.][0-9]+)?$ ]] || hysteria2ClientUploadSpeed=50
@@ -3710,7 +3738,7 @@ createPortHoppingRules() {
     local otherType=tuic otherTarget=${singBoxTuicPort} otherRange
     if [[ "${type}" == tuic ]]; then
         otherType=hysteria2
-        otherTarget=${singBoxHysteria2Port:-${xrayHysteria2Port}}
+        otherTarget=${xrayHysteria2Port:-${singBoxHysteria2Port}}
     fi
     otherRange=$(loadPortHoppingConfig "${otherType}" "${otherTarget}" && echo "${hoppingStart} ${hoppingEnd}")
     if [[ -n "${otherRange}" ]]; then
@@ -3886,13 +3914,13 @@ deletePortHoppingRules() {
 }
 
 removeAllPortHopping() {
-    deletePortHoppingRules hysteria2 '' '' "${singBoxHysteria2Port:-${xrayHysteria2Port}}" &&
+    deletePortHoppingRules hysteria2 '' '' "${xrayHysteria2Port:-${singBoxHysteria2Port}}" &&
         deletePortHoppingRules tuic '' '' "${singBoxTuicPort}"
 }
 
 buildSingBoxHysteria2Node() {
     local port=$1 email=$2 password=$3
-    local listenPort=${singBoxHysteria2Port:-${xrayHysteria2Port}}
+    local listenPort=${hysteriaPort}
     jq -n --arg port "${port}" --arg tag "${email}" --arg password "${password}" --arg host "${currentHost}" \
         --argjson listenPort "${listenPort}" --argjson up "${hysteria2ClientUploadSpeed}" \
         --argjson down "${hysteria2ClientDownloadSpeed}" --arg interval "${hysteria2HopInterval:-60}s" \
@@ -3943,7 +3971,10 @@ addPortHopping() {
 portHoppingMenu() {
     local type=$1 targetPort selectPortHoppingStatus
     case "${type}" in
-    hysteria2) targetPort=${singBoxHysteria2Port:-${xrayHysteria2Port}} ;;
+    hysteria2)
+        readSingBoxConfig || return 1
+        targetPort=${hysteriaPort}
+        ;;
     tuic) targetPort=${singBoxTuicPort} ;;
     *) return 1 ;;
     esac
@@ -4913,12 +4944,14 @@ EOF
     if echo "${selectCustomInstallType}" | grep -q ",6,"; then
         initHysteriaPort
         initHysteria2Network
+        saveXrayHysteria2Network || return 1
         cat <<EOF >/etc/v2ray-agent/xray/conf/06_hysteria2_inbounds.json
 {
   "inbounds": [{
     "listen": "::",
     "port": ${hysteriaPort},
     "protocol": "hysteria",
+    "tag": "hysteria",
     "settings": {
       "version": 2,
       "users": $(initXrayClients 6)
@@ -4930,13 +4963,20 @@ EOF
         "serverName": "${domain:-${currentHost}}",
         "certificates": [{"certificateFile": "/etc/v2ray-agent/tls/${domain:-${currentHost}}.crt", "keyFile": "/etc/v2ray-agent/tls/${domain:-${currentHost}}.key"}]
       },
-      "hysteriaSettings": {"version": 2}
+      "hysteriaSettings": {
+        "version": 2,
+        "masquerade": {
+          "type": "file",
+          "dir": "${nginxStaticPath}"
+        }
+      }
     }
   }]
 }
 EOF
     elif [[ -z "$3" ]]; then
         rm -f /etc/v2ray-agent/xray/conf/06_hysteria2_inbounds.json
+        rm -f /etc/v2ray-agent/xray/hysteria2_network.json
     fi
 
     if echo "${selectCustomInstallType}" | grep -q ",3," || [[ "$1" == "all" ]]; then
@@ -6275,7 +6315,7 @@ showAccounts() {
     readInstallType
     readInstallProtocolType
     readConfigHostPathUUID
-    readSingBoxConfig
+    readSingBoxConfig || return 1
 
     echo
     echoContent skyBlue "\nProgress$1/${totalProgress}: account"
@@ -6430,21 +6470,21 @@ showAccounts() {
     fi
     # hysteria2
     if echo ${currentInstallProtocolType} | grep -q ",6," || [[ -n "${hysteriaPort}" ]]; then
-        readPortHopping "hysteria2" "${singBoxHysteria2Port:-${xrayHysteria2Port}}"
+        readPortHopping "hysteria2" "${hysteriaPort}"
         echoContent skyBlue "\n================================ Hysteria2 TLS ================================\n"
         local hysteriaConfigPath="${configPath}"
-        if [[ "${coreInstallType}" == "2" ]]; then
+        if [[ "${coreInstallType}" == "2" || ! -f "${hysteriaConfigPath}06_hysteria2_inbounds.json" ]]; then
             hysteriaConfigPath="${singBoxConfigPath}"
         fi
         local hysteria2DefaultPort=
         if [[ -n "${hysteria2PortHoppingStart}" && -n "${hysteria2PortHoppingEnd}" ]]; then
             hysteria2DefaultPort="${hysteria2PortHopping}"
         else
-            hysteria2DefaultPort=${singBoxHysteria2Port:-${xrayHysteria2Port}}
+            hysteria2DefaultPort=${hysteriaPort}
         fi
 
         local hysteriaUsersFilter='.inbounds[]|.settings.users[]'
-        [[ "${coreInstallType}" != "2" ]] || hysteriaUsersFilter='.inbounds[]|.users[]'
+        [[ "${hysteriaConfigPath}" != "${singBoxConfigPath}" ]] || hysteriaUsersFilter='.inbounds[]|.users[]'
         accountUsers=$(readAccountUsers "${hysteriaUsersFilter}" "${hysteriaConfigPath}06_hysteria2_inbounds.json") || return 1
         while IFS= read -r user; do
             [[ -n "${user}" ]] || continue
@@ -12796,7 +12836,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "Author: mack-a"
-    echoContent green " Current version: v3.5.40"
+    echoContent green " Current version: v3.5.41"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "Description: 8-in-1 coexistence script\c"
     showInstallStatus
