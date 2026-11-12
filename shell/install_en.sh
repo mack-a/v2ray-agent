@@ -3528,14 +3528,14 @@ initHysteriaPort() {
 # 初始化hysteria网络信息
 initHysteria2Network() {
 
-    echoContent yellow " Enter the peak local download speed ( Default : 100, Unit : Mbps)"
+    echoContent yellow " Enter the peak local download speed ( Default : 100, enter 0 to leave it unset, Unit : Mbps)"
     read -r -p " Download speed :" hysteria2ClientDownloadSpeed
     if [[ -z "${hysteria2ClientDownloadSpeed}" ]]; then
         hysteria2ClientDownloadSpeed=100
         echoContent green "\n ---> Download speed : ${hysteria2ClientDownloadSpeed}\n"
     fi
 
-    echoContent yellow " Enter the peak local upload speed ( Default : 50, Unit : Mbps)"
+    echoContent yellow " Enter the peak local upload speed ( Default : 50, enter 0 to leave it unset, Unit : Mbps)"
     read -r -p " Upload speed :" hysteria2ClientUploadSpeed
     if [[ -z "${hysteria2ClientUploadSpeed}" ]]; then
         hysteria2ClientUploadSpeed=50
@@ -3924,7 +3924,9 @@ buildSingBoxHysteria2Node() {
     jq -n --arg port "${port}" --arg tag "${email}" --arg password "${password}" --arg host "${currentHost}" \
         --argjson listenPort "${listenPort}" --argjson up "${hysteria2ClientUploadSpeed}" \
         --argjson down "${hysteria2ClientDownloadSpeed}" --arg interval "${hysteria2HopInterval:-60}s" \
-        '{tag:$tag,type:"hysteria2",server:$host,up_mbps:$up,down_mbps:$down,password:$password,tls:{enabled:true,server_name:$host,alpn:["h3"]}} +
+        '{tag:$tag,type:"hysteria2",server:$host} +
+        (if $up > 0 then {up_mbps:$up} else {} end) + (if $down > 0 then {down_mbps:$down} else {} end) +
+        {password:$password,tls:{enabled:true,server_name:$host,alpn:["h3"]}} +
         (if $port | contains("-") then {server_ports:[($port | sub("-"; ":"))],hop_interval:$interval} else {server_port:$listenPort} end)'
 }
 
@@ -4945,6 +4947,13 @@ EOF
         initHysteriaPort
         initHysteria2Network
         saveXrayHysteria2Network || return 1
+        local hysteria2QuicParams= hysteria2FinalMask=
+        if [[ -n "${hysteria2ClientDownloadSpeed//[0.]/}" ]]; then hysteria2QuicParams="\"brutalUp\":\"${hysteria2ClientDownloadSpeed} mbps\""; fi
+        if [[ -n "${hysteria2ClientUploadSpeed//[0.]/}" ]]; then
+            [[ -z "${hysteria2QuicParams}" ]] || hysteria2QuicParams+=","
+            hysteria2QuicParams+="\"brutalDown\":\"${hysteria2ClientUploadSpeed} mbps\""
+        fi
+        [[ -z "${hysteria2QuicParams}" ]] || hysteria2FinalMask="\"finalmask\":{\"quicParams\":{${hysteria2QuicParams}}},"
         cat <<EOF >/etc/v2ray-agent/xray/conf/06_hysteria2_inbounds.json
 {
   "inbounds": [{
@@ -4963,6 +4972,7 @@ EOF
         "serverName": "${domain:-${currentHost}}",
         "certificates": [{"certificateFile": "/etc/v2ray-agent/tls/${domain:-${currentHost}}.crt", "keyFile": "/etc/v2ray-agent/tls/${domain:-${currentHost}}.key"}]
       },
+      ${hysteria2FinalMask}
       "hysteriaSettings": {
         "version": 2,
         "masquerade": {
@@ -5965,8 +5975,19 @@ EOF
         local clashMetaPortContent="port: ${port}"
         local multiPort=
         local multiPortEncode
-        local speedParams="upmbps=${hysteria2ClientUploadSpeed}&downmbps=${hysteria2ClientDownloadSpeed}&"
-        local speedParamsEncode="upmbps%3D${hysteria2ClientUploadSpeed}%26downmbps%3D${hysteria2ClientDownloadSpeed}%26"
+        local speedParams= speedParamsEncode= clashMetaSpeedContent=
+        if [[ -n "${hysteria2ClientUploadSpeed//[0.]/}" ]]; then
+            speedParams="upmbps=${hysteria2ClientUploadSpeed}&"
+            speedParamsEncode="upmbps%3D${hysteria2ClientUploadSpeed}%26"
+            clashMetaSpeedContent="up: \"${hysteria2ClientUploadSpeed} Mbps\""
+        fi
+        if [[ -n "${hysteria2ClientDownloadSpeed//[0.]/}" ]]; then
+            speedParams="${speedParams}downmbps=${hysteria2ClientDownloadSpeed}&"
+            speedParamsEncode="${speedParamsEncode}downmbps%3D${hysteria2ClientDownloadSpeed}%26"
+            [[ -z "${clashMetaSpeedContent}" ]] || clashMetaSpeedContent="${clashMetaSpeedContent}
+    "
+            clashMetaSpeedContent="${clashMetaSpeedContent}down: \"${hysteria2ClientDownloadSpeed} Mbps\""
+        fi
         if echo "${port}" | grep -q "-"; then
             clashMetaPortContent="ports: \"${port}\"
     hop-interval: ${hysteria2HopInterval:-60}"
@@ -5993,8 +6014,7 @@ EOF
     alpn:
         - h3
     sni: ${currentHost}
-    up: "${hysteria2ClientUploadSpeed} Mbps"
-    down: "${hysteria2ClientDownloadSpeed} Mbps"
+    ${clashMetaSpeedContent}
 EOF
 
         local hysteria2Node
