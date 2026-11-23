@@ -3528,14 +3528,14 @@ initHysteriaPort() {
 # 初始化hysteria网络信息
 initHysteria2Network() {
 
-    echoContent yellow " Enter the peak local download speed ( Default : 100, Unit : Mbps)"
+    echoContent yellow " Enter the peak local download speed (default: 100 Mbps, enter 0 to omit the download speed from subscriptions)"
     read -r -p " Download speed :" hysteria2ClientDownloadSpeed
     if [[ -z "${hysteria2ClientDownloadSpeed}" ]]; then
         hysteria2ClientDownloadSpeed=100
         echoContent green "\n ---> Download speed : ${hysteria2ClientDownloadSpeed}\n"
     fi
 
-    echoContent yellow " Enter the peak local upload speed ( Default : 50, Unit : Mbps)"
+    echoContent yellow " Enter the peak local upload speed (default: 50 Mbps, enter 0 to omit the upload speed from subscriptions)"
     read -r -p " Upload speed :" hysteria2ClientUploadSpeed
     if [[ -z "${hysteria2ClientUploadSpeed}" ]]; then
         hysteria2ClientUploadSpeed=50
@@ -3924,7 +3924,10 @@ buildSingBoxHysteria2Node() {
     jq -n --arg port "${port}" --arg tag "${email}" --arg password "${password}" --arg host "${currentHost}" \
         --argjson listenPort "${listenPort}" --argjson up "${hysteria2ClientUploadSpeed}" \
         --argjson down "${hysteria2ClientDownloadSpeed}" --arg interval "${hysteria2HopInterval:-60}s" \
-        '{tag:$tag,type:"hysteria2",server:$host,up_mbps:$up,down_mbps:$down,password:$password,tls:{enabled:true,server_name:$host,alpn:["h3"]}} +
+        '{tag:$tag,type:"hysteria2",server:$host} +
+        (if $up == 0 then {} else {up_mbps:$up} end) +
+        (if $down == 0 then {} else {down_mbps:$down} end) +
+        {password:$password,tls:{enabled:true,server_name:$host,alpn:["h3"]}} +
         (if $port | contains("-") then {server_ports:[($port | sub("-"; ":"))],hop_interval:$interval} else {server_port:$listenPort} end)'
 }
 
@@ -5965,18 +5968,29 @@ EOF
         local clashMetaPortContent="port: ${port}"
         local multiPort=
         local multiPortEncode
-        local speedParams="upmbps=${hysteria2ClientUploadSpeed}&downmbps=${hysteria2ClientDownloadSpeed}&"
-        local speedParamsEncode="upmbps%3D${hysteria2ClientUploadSpeed}%26downmbps%3D${hysteria2ClientDownloadSpeed}%26"
+        local hysteria2UriPort="${port}"
+        local speedParams= speedParamsEncode= clashMetaSpeedContent=
+        if [[ ! "${hysteria2ClientUploadSpeed}" =~ ^0+([.]0+)?$ ]]; then
+            speedParams+="upmbps=${hysteria2ClientUploadSpeed}&"
+            speedParamsEncode+="upmbps%3D${hysteria2ClientUploadSpeed}%26"
+            clashMetaSpeedContent+=$'\n'"    up: \"${hysteria2ClientUploadSpeed} Mbps\""
+        fi
+        if [[ ! "${hysteria2ClientDownloadSpeed}" =~ ^0+([.]0+)?$ ]]; then
+            speedParams+="downmbps=${hysteria2ClientDownloadSpeed}&"
+            speedParamsEncode+="downmbps%3D${hysteria2ClientDownloadSpeed}%26"
+            clashMetaSpeedContent+=$'\n'"    down: \"${hysteria2ClientDownloadSpeed} Mbps\""
+        fi
         if echo "${port}" | grep -q "-"; then
             clashMetaPortContent="ports: \"${port}\"
     hop-interval: ${hysteria2HopInterval:-60}"
             multiPort="mport=${port}&"
             multiPortEncode="mport%3D${port}%26"
+            hysteria2UriPort="${hysteriaPort:-${port%%-*}}"
         fi
 
-        echoContent green "    hysteria2://${id}@${currentHost}:${port}?${multiPort}${speedParams}peer=${currentHost}&insecure=0&sni=${currentHost}&alpn=h3#${email}\n"
+        echoContent green "    hysteria2://${id}@${currentHost}:${hysteria2UriPort}?${multiPort}${speedParams}peer=${currentHost}&insecure=0&sni=${currentHost}&alpn=h3#${email}\n"
         cat <<EOF >>"${outputRoot}/default/${user}" || return 1
-hysteria2://${id}@${currentHost}:${port}?${multiPort}${speedParams}peer=${currentHost}&insecure=0&sni=${currentHost}&alpn=h3#${email}
+hysteria2://${id}@${currentHost}:${hysteria2UriPort}?${multiPort}${speedParams}peer=${currentHost}&insecure=0&sni=${currentHost}&alpn=h3#${email}
 EOF
         echoContent yellow " ---> v2rayN(hysteria+TLS)"
         jq -n --arg server "${currentHost}:${port}" --arg password "${id}" --arg host "${currentHost}" \
@@ -5992,9 +6006,7 @@ EOF
     password: ${id}
     alpn:
         - h3
-    sni: ${currentHost}
-    up: "${hysteria2ClientUploadSpeed} Mbps"
-    down: "${hysteria2ClientDownloadSpeed} Mbps"
+    sni: ${currentHost}${clashMetaSpeedContent}
 EOF
 
         local hysteria2Node
@@ -6003,7 +6015,7 @@ EOF
         echo "${singBoxSubscribeLocalConfig}" | jq . >"${outputRoot}/sing-box/${user}" || return 1
 
         echoContent yellow " ---> QR code Hysteria(TLS)"
-        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=hysteria2%3A%2F%2F${id}%40${currentHost}%3A${port}%3F${multiPortEncode}${speedParamsEncode}peer%3D${currentHost}%26insecure%3D0%26sni%3D${currentHost}%26alpn%3Dh3%23${email}\n"
+        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=hysteria2%3A%2F%2F${id}%40${currentHost}%3A${hysteria2UriPort}%3F${multiPortEncode}${speedParamsEncode}peer%3D${currentHost}%26insecure%3D0%26sni%3D${currentHost}%26alpn%3Dh3%23${email}\n"
 
     elif [[ "${type}" == "vlessReality" ]]; then
         local realityServerName=${xrayVLESSRealityServerName}
@@ -6973,7 +6985,7 @@ unInstall() {
     rm -rf "${nginxConfigPath}sing_box_VMess_HTTPUpgrade.conf" >/dev/null 2>&1
     rm -rf ${nginxConfigPath}checkPortOpen.conf >/dev/null 2>&1
 
-    unInstallSubscribe
+    unInstallSubscribe || return 1
 
     if [[ -d "${nginxStaticPath}" && -f "${nginxStaticPath}/check" ]]; then
         rm -rf "${nginxStaticPath}"
@@ -9532,7 +9544,25 @@ socks5OutboundNormalizeSingBox() {
     socks5OutboundOrder sing-box "$original" "$compiled" "$prefix" >"$work/sb-ordered.json" || return 1
     jq --slurpfile rules "$work/sb-ordered.json" --slurpfile m "$compiled" '
       .route.rules=$rules[0] |
-      if $m[0].default_tag!=null then .route.final=$m[0].default_tag else . end |
+      if $m[0].default_tag!=null then .route.final=$m[0].default_tag
+      elif (.route.final // "")=="" then
+        # A managed SOCKS5 outbound must not become the implicit default.
+        ($m[0].outbounds | map(.tag)) as $managed_tags |
+        if (.outbounds[0].tag as $tag | $managed_tags | index($tag))!=null then
+          ([.outbounds | to_entries[] |
+            select(.value.tag as $tag | ($managed_tags | index($tag))==null)] | first) as $original |
+          if $original!=null then
+            # sing-box uses the outbound index as its tag when no tag is set.
+            .route.final=(if ($original.value.tag // "")!="" then $original.value.tag else ($original.key | tostring) end)
+          else
+            # Replace the built-in direct fallback, which exists only with no default outbound.
+            ([.outbounds[]?.tag, .endpoints[]?.tag]) as $used_tags |
+            first(("direct", (range(1; ($used_tags|length)+1) | "socks5_fallback_direct_\(.)")) |
+              select(. as $tag | ($used_tags | index($tag))==null)) as $fallback |
+            .outbounds+=[{type:"direct",tag:$fallback}] | .route.final=$fallback
+          end
+        else . end
+      else . end |
       if .route.rule_set!=null then .route.rule_set|=unique_by(.tag) else . end' \
       "$config" >"$config.tmp" && mv -f "$config.tmp" "$config"
 }
@@ -9900,6 +9930,9 @@ socks5OutboundTransaction() (
     *) return 0 ;;
     esac
     echoContent green " ---> $(socks5OutboundText "$completedCN" "$completedEN")"
+    if [[ "$callback" == socks5OutboundEditNode && "${2:-false}" != true ]]; then
+        echoContent yellow "$(socks5OutboundText '请选择「3.添加规则」启用分流，此处选择的入站和账号会作为规则的默认选项。' 'Select 3.Add route to enable routing. Your inbound and user selections will be used by default.')"
+    fi
     echo
 )
 
@@ -11074,7 +11107,7 @@ customSingBoxInstall() {
 
     if [[ "${selectCustomInstallType//,/}" =~ ^[0-9]+$ ]]; then
         readLastInstallationConfig
-        unInstallSubscribe
+        unInstallSubscribe || return 1
         totalProgress=9
         installTools 1 || return 1
         # Apply for tls
@@ -11107,7 +11140,7 @@ customSingBoxInstall() {
 installXrayReality() {
     selectCustomInstallType=",7,"
     readLastInstallationConfig
-    unInstallSubscribe
+    unInstallSubscribe || return 1
     totalProgress=6
     installTools 1 || return 1
 
@@ -11131,7 +11164,7 @@ installSingBoxReality() {
 
     selectCustomInstallType=",7,"
     readLastInstallationConfig
-    unInstallSubscribe
+    unInstallSubscribe || return 1
     totalProgress=6
     installTools 1 || return 1
 
@@ -11174,7 +11207,7 @@ customXrayInstall() {
     selectCustomInstallType=$(normalizeXrayInstallSelection "${selectCustomInstallType}")
     if [[ "${selectCustomInstallType//,/}" =~ ^[0-9]+$ ]]; then
         readLastInstallationConfig
-        unInstallSubscribe
+        unInstallSubscribe || return 1
         # checkBTPanel
         # check1Panel
         totalProgress=12
@@ -11277,7 +11310,7 @@ selectCoreInstall() {
 # xray-core installation
 xrayCoreInstall() {
     readLastInstallationConfig
-    unInstallSubscribe
+    unInstallSubscribe || return 1
     # checkBTPanel
     # check1Panel
     selectCustomInstallType=
@@ -11324,7 +11357,7 @@ xrayCoreInstall() {
 # sing-box 全部安装
 singBoxInstall() {
     readLastInstallationConfig
-    unInstallSubscribe
+    unInstallSubscribe || return 1
     # checkBTPanel
     # check1Panel
     selectCustomInstallType=
@@ -11528,7 +11561,45 @@ EOF
 }
 # 卸载订阅
 unInstallSubscribe() {
-    rm -rf ${nginxConfigPath}subscribe.conf >/dev/null 2>&1
+    local subscribeConfig="${nginxConfigPath}subscribe.conf"
+    local resetRealityTarget=false
+    # Read the listener before deleting it; cached subscription values may be stale.
+    if [[ -f "${subscribeConfig}" && -n "${realityServerName}" && -n "${realityDomainPort}" ]]; then
+        if awk -v host="${realityServerName}" -v targetPort="${realityDomainPort}" '
+            { sub(/#.*/, ""); config = config " " $0 }
+            END {
+                count = split(config, directives, ";")
+                for (d = 1; d <= count; d++) {
+                    n = split(directives[d], fields, /[[:space:]]+/)
+                    for (i = 1; i <= n; i++) {
+                        if (fields[i] == "server_name") {
+                            for (j = i + 1; j <= n; j++)
+                                if (fields[j] == host) matchedHost = 1
+                        }
+                        if (fields[i] == "listen") {
+                            port = fields[i + 1]
+                            sub(/^.*:/, "", port)
+                            for (j = i + 2; j <= n; j++)
+                                if (fields[j] == "ssl" && port == targetPort) matchedPort = 1
+                        }
+                    }
+                }
+                exit !(matchedHost && matchedPort)
+            }
+        ' "${subscribeConfig}"; then
+            resetRealityTarget=true
+        fi
+    fi
+    rm -f "${subscribeConfig}" || return 1
+    subscribePort=
+    subscribeDomain=
+    subscribeType=
+    if [[ "${resetRealityTarget}" == true ]]; then
+        realityServerName=
+        realityDomainPort=
+        realityDestDomain=
+    fi
+    return 0
 }
 
 #Add subscription
@@ -12836,7 +12907,7 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "Author: mack-a"
-    echoContent green " Current version: v3.5.41"
+    echoContent green " Current version: v3.5.42"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "Description: 8-in-1 coexistence script\c"
     showInstallStatus
